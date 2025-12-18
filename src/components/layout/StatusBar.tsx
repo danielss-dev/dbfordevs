@@ -6,7 +6,7 @@ export function StatusBar() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const { isConnecting } = useConnectionsStore();
   const { isExecuting } = useQueryStore();
-  const { pendingChanges, theme, setTheme } = useUIStore();
+  const { pendingChanges, theme, setTheme, setShowSettingsDialog } = useUIStore();
 
   const getConnectionStatus = () => {
     if (isConnecting) {
@@ -74,14 +74,6 @@ export function StatusBar() {
 
       {/* Right side */}
       <div className="flex items-center gap-4">
-        {/* Theme toggle */}
-        <button
-          className="hover:text-foreground"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        >
-          {theme === "dark" ? "Dark" : "Light"}
-        </button>
-
         {/* Version */}
         <span className="text-muted-foreground">v0.1.0</span>
       </div>

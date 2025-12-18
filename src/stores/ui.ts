@@ -19,6 +19,7 @@ interface UIState {
   showConnectionModal: boolean;
   showValidatorModal: boolean;
   showDiffModal: boolean;
+  showSettingsDialog: boolean;
   // Edit mode for data grid
   editMode: boolean;
 
@@ -34,6 +35,7 @@ interface UIState {
   setShowConnectionModal: (show: boolean) => void;
   setShowValidatorModal: (show: boolean) => void;
   setShowDiffModal: (show: boolean) => void;
+  setShowSettingsDialog: (show: boolean) => void;
   setEditMode: (editMode: boolean) => void;
 }
 
@@ -49,6 +51,7 @@ export const useUIStore = create<UIState>()(
       showConnectionModal: false,
       showValidatorModal: false,
       showDiffModal: false,
+      showSettingsDialog: false,
       editMode: false,
 
       setTheme: (theme) => {
@@ -108,6 +111,8 @@ export const useUIStore = create<UIState>()(
         set({ showValidatorModal }),
 
       setShowDiffModal: (showDiffModal) => set({ showDiffModal }),
+
+      setShowSettingsDialog: (showSettingsDialog) => set({ showSettingsDialog }),
 
       setEditMode: (editMode) => set({ editMode }),
     }),

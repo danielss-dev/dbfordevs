@@ -92,7 +92,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 }
 
 export function Sidebar() {
-  const { sidebarOpen, sidebarWidth, setShowConnectionModal, setShowValidatorModal } = useUIStore();
+  const { sidebarOpen, sidebarWidth, setShowConnectionModal, setShowValidatorModal, setShowSettingsDialog } = useUIStore();
   const { connections } = useConnectionsStore();
 
   if (!sidebarOpen) {
@@ -168,7 +168,12 @@ export function Sidebar() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => setShowSettingsDialog(true)}
+              >
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>

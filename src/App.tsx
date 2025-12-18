@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { TooltipProvider } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout";
+import { SettingsDialog } from "@/components/settings";
 import { useUIStore } from "@/stores";
 
 function App() {
@@ -23,6 +24,9 @@ function App() {
 
         {/* Status Bar */}
         <StatusBar />
+
+        {/* Modals */}
+        <SettingsDialog />
       </div>
     </TooltipProvider>
   );
