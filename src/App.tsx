@@ -6,11 +6,12 @@ import { ConnectionModal } from "@/components/connections";
 import { useUIStore } from "@/stores";
 
 function App() {
-  const { theme, setTheme } = useUIStore();
+  const { theme, setTheme, appStyle, setAppStyle } = useUIStore();
 
   // Initialize theme on mount
   useEffect(() => {
     setTheme(theme);
+    setAppStyle(appStyle);
   }, []);
 
   return (

@@ -87,13 +87,48 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* Style-specific variations */
+.style-developer {
+  --radius: 0.2rem;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+.style-developer * {
+  font-family: inherit !important;
+}
+
+/* Re-allow icons to use their own font if necessary, though Lucide usually uses SVG */
+.style-developer .lucide {
+  font-family: unset !important;
+}
+
+.style-developer .glass {
+  @apply backdrop-blur-none bg-background;
+}
+
+.style-developer .animate-fade-in,
+.style-developer .animate-slide-up,
+.style-developer .animate-slide-down,
+.style-developer .animate-scale-in {
+  animation: none !important;
+}
+
+.style-web {
+  --radius: 0.5rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+.style-web body {
+  font-family: inherit;
 }
 
 /* Custom scrollbar - refined */
@@ -130,11 +165,9 @@
 
 /* Subtle gradient backgrounds */
 .gradient-subtle {
-  background: linear-gradient(
-    180deg,
-    hsl(var(--muted) / 0.3) 0%,
-    hsl(var(--muted) / 0.1) 100%
-  );
+  background: linear-gradient(180deg,
+      hsl(var(--muted) / 0.3) 0%,
+      hsl(var(--muted) / 0.1) 100%);
 }
 
 /* Monaco editor overrides */
@@ -153,8 +186,13 @@
 
 /* Animation utilities */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
@@ -162,6 +200,7 @@
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -173,6 +212,7 @@
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -184,6 +224,7 @@
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -258,13 +299,16 @@
 }
 
 /* Smooth transitions for theme changes */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   transition-property: background-color, border-color;
   transition-duration: 150ms;
   transition-timing-function: ease;
 }
 
 /* Disable transitions for elements that shouldn't animate */
-.no-transition, .no-transition * {
+.no-transition,
+.no-transition * {
   transition: none !important;
 }

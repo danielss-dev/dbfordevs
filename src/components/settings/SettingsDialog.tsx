@@ -61,7 +61,7 @@ function ShortcutItem({ label, keys }: ShortcutItemProps) {
 }
 
 export function SettingsDialog() {
-  const { showSettingsDialog, setShowSettingsDialog, theme, setTheme } = useUIStore();
+  const { showSettingsDialog, setShowSettingsDialog, theme, setTheme, appStyle, setAppStyle } = useUIStore();
 
   return (
     <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
@@ -205,6 +205,32 @@ export function SettingsDialog() {
                         </SelectContent>
                       </Select>
                     </SettingRow>
+                    <Separator />
+                    <SettingRow
+                      label="App Style"
+                      description="Choose between a developer-focused IDE style or a modern web look."
+                    >
+                      <Select value={appStyle} onValueChange={(v: "developer" | "web") => setAppStyle(v)}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Select style" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="developer">
+                            <div className="flex items-center gap-2">
+                              <Code className="h-4 w-4" />
+                              <span>Developer</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="web">
+                            <div className="flex items-center gap-2">
+                              <Zap className="h-4 w-4" />
+                              <span>Web</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </SettingRow>
+                    <Separator />
                     <Separator />
                     <SettingRow
                       label="Reduce motion"

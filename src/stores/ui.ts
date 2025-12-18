@@ -3,10 +3,12 @@ import { persist } from "zustand/middleware";
 import type { PendingChange } from "@/types";
 
 type Theme = "light" | "dark" | "system";
+type AppStyle = "developer" | "web";
 
 interface UIState {
   // Theme
   theme: Theme;
+  appStyle: AppStyle;
   // Sidebar
   sidebarOpen: boolean;
   sidebarWidth: number;
@@ -26,6 +28,7 @@ interface UIState {
 
   // Actions
   setTheme: (theme: Theme) => void;
+  setAppStyle: (style: AppStyle) => void;
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   toggleSidePanel: () => void;
@@ -45,6 +48,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       theme: "system",
+      appStyle: "developer",
       sidebarOpen: true,
       sidebarWidth: 260,
       sidePanelOpen: false,
@@ -58,17 +62,21 @@ export const useUIStore = create<UIState>()(
       editMode: false,
 
       setTheme: (theme) => {
-        // Apply theme to document
         const root = document.documentElement;
         if (theme === "system") {
-          const prefersDark = window.matchMedia(
-            "(prefers-color-scheme: dark)"
-          ).matches;
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           root.classList.toggle("dark", prefersDark);
         } else {
           root.classList.toggle("dark", theme === "dark");
         }
         set({ theme });
+      },
+
+      setAppStyle: (appStyle) => {
+        const root = document.documentElement;
+        root.classList.remove("style-developer", "style-web");
+        root.classList.add(`style-${appStyle}`);
+        set({ appStyle });
       },
 
       toggleSidebar: () =>
@@ -126,6 +134,7 @@ export const useUIStore = create<UIState>()(
       name: "dbfordevs-ui",
       partialize: (state) => ({
         theme: state.theme,
+        appStyle: state.appStyle,
         sidebarWidth: state.sidebarWidth,
         sidePanelWidth: state.sidePanelWidth,
       }),
