@@ -1,6 +1,6 @@
-import { X, ChevronLeft, ChevronRight, Save, Trash2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, Input, ScrollArea, Separator } from "@/components/ui";
+import { Button, Input, ScrollArea, Separator, Label } from "@/components/ui";
 import { useUIStore } from "@/stores";
 
 interface FieldEditorProps {
@@ -16,24 +16,32 @@ function FieldEditor({ name, value, type, nullable, onChange }: FieldEditorProps
   const isNull = value === null;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2 p-3 rounded-lg hover:bg-muted/30 transition-colors">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">{name}</label>
-        <span className="text-xs text-muted-foreground">{type}</span>
+        <Label className="text-sm font-medium">{name}</Label>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+          {type}
+        </span>
       </div>
       <div className="flex items-center gap-2">
         <Input
           value={stringValue}
           onChange={(e) => onChange(e.target.value)}
           disabled={isNull}
-          className={cn(isNull && "bg-muted text-muted-foreground")}
+          className={cn(
+            "font-mono text-sm",
+            isNull && "bg-muted/50 text-muted-foreground"
+          )}
           placeholder={isNull ? "NULL" : `Enter ${name}`}
         />
         {nullable && (
           <Button
             variant={isNull ? "default" : "outline"}
             size="sm"
-            className="shrink-0 text-xs"
+            className={cn(
+              "shrink-0 text-xs font-mono h-10 px-3",
+              isNull && "bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30"
+            )}
             onClick={() => onChange(isNull ? "" : null)}
           >
             NULL
@@ -65,39 +73,54 @@ export function SidePanel() {
     <aside
       className={cn(
         "flex h-full flex-col border-l border-border bg-card",
-        "animate-slide-in-right"
+        "animate-slide-up"
       )}
       style={{ width: sidePanelWidth }}
     >
       {/* Header */}
-      <div className="flex h-12 items-center justify-between border-b border-border px-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Edit Row</span>
-          <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-            users
-          </span>
+      <div className="flex h-14 items-center justify-between border-b border-border px-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted">
+            <Table className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <span className="text-sm font-medium">Edit Row</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">users</span>
+              <span className="text-xs text-muted-foreground/50">-</span>
+              <span className="text-xs text-muted-foreground">id: 1</span>
+            </div>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleSidePanel}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleSidePanel}>
           <X className="h-4 w-4" />
         </Button>
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2.5 bg-muted/30">
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-xs text-muted-foreground">Row 1 of 100</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7">
+          <div className="px-3">
+            <span className="text-sm font-medium">1</span>
+            <span className="text-xs text-muted-foreground mx-1">of</span>
+            <span className="text-sm font-medium">100</span>
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset
+        </Button>
       </div>
 
       {/* Fields */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-1">
           {mockFields.map((field) => (
             <FieldEditor
               key={field.name}
@@ -113,25 +136,24 @@ export function SidePanel() {
         </div>
       </ScrollArea>
 
-      <Separator />
-
       {/* Actions */}
-      <div className="flex items-center justify-between p-3">
-        <Button variant="destructive" size="sm">
-          <Trash2 className="mr-1 h-3 w-3" />
-          Delete
-        </Button>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={toggleSidePanel}>
-            Cancel
+      <div className="border-t border-border p-3 bg-muted/30">
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
           </Button>
-          <Button size="sm">
-            <Save className="mr-1 h-3 w-3" />
-            Save
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={toggleSidePanel}>
+              Cancel
+            </Button>
+            <Button size="sm" className="gap-1.5">
+              <Save className="h-3.5 w-3.5" />
+              Save
+            </Button>
+          </div>
         </div>
       </div>
     </aside>
   );
 }
-
