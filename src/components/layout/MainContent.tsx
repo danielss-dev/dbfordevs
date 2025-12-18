@@ -27,20 +27,20 @@ function TabItem({ tab, isActive, onClose, onClick }: {
   return (
     <button
       className={cn(
-        "group relative flex items-center gap-2 px-4 py-2.5 text-sm transition-all duration-200",
+        "group relative flex items-center gap-2 px-4 py-2.5 text-sm transition-all duration-200 border-r border-border/50",
         isActive
-          ? "text-foreground"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          ? "bg-background text-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
       )}
       onClick={onClick}
     >
       {/* Active indicator */}
       {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary/80 rounded-full blur-[0.5px]" />
       )}
       <span className={cn(
         "transition-colors",
-        isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+        isActive ? "text-primary/90" : "text-muted-foreground group-hover:text-foreground"
       )}>
         {getIcon()}
       </span>

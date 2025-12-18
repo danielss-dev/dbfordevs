@@ -57,42 +57,57 @@
     --sidebar-ring: 220 90% 56%;
   }
 
-  .dark {
-    /* Improved dark theme with better contrast */
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 223 47% 13%;
-    --card-foreground: 210 40% 98%;
-    --popover: 223 47% 14%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 17%;
+.dark {
+    /* Base: Deep Slate/Navy (Refined for reduced fatigue) */
+    --background: 224 20% 6%;      /* Desaturated & slightly lighter for better canvas */
+    --foreground: 213 31% 91%;     /* Soft white (off-white) to reduce eye strain */
+
+    /* Layers */
+    --card: 224 20% 10%;           /* Clear surface separation */
+    --card-foreground: 213 31% 91%;
+    --popover: 224 20% 12%;        /* Elevated over card */
+    --popover-foreground: 213 31% 91%;
+
+    /* Brand & Actions */
+    --primary: 212 90% 60%;        /* Vibrant but not neon; better readability */
+    --primary-foreground: 224 20% 6%;
+    --secondary: 222 15% 18%;      /* Subdued grey-blue */
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 20%;
+
+    /* Muted & UI Borders */
+    --muted: 223 15% 14%;
+    --muted-foreground: 215 15% 65%;
+    --accent: 216 20% 15%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 22%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --border: 224 20% 18%;         /* Crisper borders for data-heavy UI */
+    --input: 224 20% 16%;
+    --ring: 212 90% 60%;
 
-    /* Status colors - brighter for dark mode */
-    --success: 142 76% 50%;
-    --warning: 38 92% 55%;
-    --info: 199 89% 55%;
+    /* Table Specifics */
+    --table-header-bg: 224 20% 8%;
+    --table-row-odd: 224 20% 6%;
+    --table-row-even: 224 20% 7%;
+    --table-row-hover: 224 20% 12%;
 
-    /* Sidebar - slightly darker for visual hierarchy */
-    --sidebar-background: 222 47% 9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 217 33% 15%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 18%;
-    --sidebar-ring: 217 91% 60%;
+    /* Text Hierarchy */
+    --text-primary: 213 31% 91%;   /* High contrast: IDs, Titles */
+    --text-secondary: 215 15% 60%; /* Medium contrast: Regular data */
+    --text-dim: 215 10% 45%;       /* Low contrast: Hashes, Seconds, Metadata */
+
+    /* Enhanced Status Colors */
+    --success: 158 64% 52%;        /* Emerald/Teal tint for better visibility */
+    --warning: 37 90% 60%;
+    --destructive: 0 84% 65%;      /* Brighter red for visibility against dark */
+
+    /* Sidebar - Distinct from Main View */
+    --sidebar-background: 224 20% 4%; 
+    --sidebar-foreground: 215 20% 75%;
+    --sidebar-accent: 222 15% 12%;
+    --sidebar-accent-foreground: 210 40% 98%; /* High contrast for selected items */
+    --sidebar-border: 222 15% 10%;
+    --sidebar-primary: 212 90% 60%;
+    --sidebar-primary-foreground: 224 20% 6%;
+    --sidebar-ring: 212 90% 60%;
   }
 }
 

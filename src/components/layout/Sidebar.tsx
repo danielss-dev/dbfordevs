@@ -53,12 +53,15 @@ function TreeItem({ label, icon, children, level = 0, onClick, isActive, isConne
   const hasChildren = Boolean(children);
 
   return (
-    <div>
+    <div className="relative">
+      {isActive && level === 0 && (
+        <div className="absolute left-0 top-1 bottom-1 w-0.5 bg-primary rounded-full z-10" />
+      )}
       <div
         className={cn(
           "group flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm transition-all duration-200",
-          "hover:bg-sidebar-accent",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+          "hover:bg-sidebar-accent/50",
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
           level > 0 && "ml-4"
         )}
       >
@@ -70,13 +73,19 @@ function TreeItem({ label, icon, children, level = 0, onClick, isActive, isConne
           }}
         >
           {hasChildren ? (
-            <span className="text-muted-foreground transition-transform duration-200">
+            <span className={cn(
+              "transition-transform duration-200",
+              isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
+            )}>
               {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </span>
           ) : (
             <span className="w-3.5" />
           )}
-          <span className="shrink-0">{icon}</span>
+          <span className={cn(
+            "shrink-0 transition-colors",
+            isActive ? "text-sidebar-accent-foreground" : ""
+          )}>{icon}</span>
           <span className="truncate flex-1 text-left">{label}</span>
           {isConnected !== undefined && (
             <span className={cn(
@@ -226,10 +235,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <div className={cn(
-            "rounded-lg transition-all duration-200",
-            isActive && "bg-sidebar-accent/50"
-          )}>
+          <div className="rounded-lg overflow-hidden">
             <TreeItem
               label={connection.name}
               icon={getIcon()}

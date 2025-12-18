@@ -45,32 +45,76 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
           </button>
         );
       },
-      cell: ({ getValue }) => {
+      cell: ({ getValue, column }) => {
         const value = getValue();
         if (value === null || value === undefined) {
           return (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-muted/50 text-muted-foreground/60 uppercase tracking-wider">
               NULL
             </span>
           );
         }
+
         if (typeof value === "string") {
-          return <span className="font-mono text-sm">{value}</span>;
+          // Check if it's a timestamp
+          const isTimestamp = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}/.test(value);
+          if (isTimestamp) {
+            const parts = value.split(/([T\s])/);
+            const date = parts[0];
+            const separator = parts[1];
+            const time = parts.slice(2).join("");
+            
+            return (
+              <span className="font-mono text-xs whitespace-nowrap">
+                <span className="text-[hsl(var(--text-primary))]">{date}</span>
+                <span className="text-[hsl(var(--text-dim))]">{separator}</span>
+                <span className="text-[hsl(var(--text-secondary))]">
+                  {time.includes(".") ? (
+                    <>
+                      {time.split(".")[0]}
+                      <span className="text-[hsl(var(--text-dim))] opacity-70">.{time.split(".")[1]}</span>
+                    </>
+                  ) : time}
+                </span>
+              </span>
+            );
+          }
+
+          // Check if it's a long hash or ID
+          if (value.length > 20 && /^[a-fA-F0-0x:-]+$/.test(value)) {
+            return (
+              <span 
+                className="font-mono text-xs text-[hsl(var(--text-dim))] hover:text-[hsl(var(--text-secondary))] transition-colors cursor-help truncate block max-w-[200px]"
+                title={value}
+              >
+                {value}
+              </span>
+            );
+          }
+
+          return <span className="text-sm text-[hsl(var(--text-secondary))]">{value}</span>;
         }
+
         if (typeof value === "number") {
-          return <span className="font-mono text-sm tabular-nums">{value.toLocaleString()}</span>;
+          return (
+            <span className="font-mono text-sm tabular-nums text-[hsl(var(--text-primary))]">
+              {value.toLocaleString()}
+            </span>
+          );
         }
+
         if (typeof value === "boolean") {
           return (
             <span className={cn(
-              "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium",
-              value ? "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]" : "bg-muted text-muted-foreground"
+              "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+              value ? "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]" : "bg-muted/50 text-muted-foreground/60"
             )}>
               {value ? "true" : "false"}
             </span>
           );
         }
-        return <span className="font-mono text-sm">{String(value)}</span>;
+
+        return <span className="font-mono text-sm text-[hsl(var(--text-secondary))]">{String(value)}</span>;
       },
     }));
   }, [data.columns]);
@@ -112,34 +156,41 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
   const totalPages = table.getPageCount();
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-[hsl(var(--background))]">
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="bg-muted/70 backdrop-blur-sm">
-                {headerGroup.headers.map((header, idx) => (
-                  <th
-                    key={header.id}
-                    className={cn(
-                      "border-b border-border px-4 py-3 text-left text-muted-foreground",
-                      idx === 0 && "pl-4"
-                    )}
-                    style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
+              <tr key={headerGroup.id} className="bg-[hsl(var(--table-header-bg))] backdrop-blur-md border-b border-[hsl(var(--border))]">
+                {headerGroup.headers.map((header, idx) => {
+                  const isNumeric = header.column.id.toLowerCase().includes("id") || 
+                                  header.column.id.toLowerCase().includes("count") ||
+                                  header.column.id.toLowerCase().includes("amount");
+                  
+                  return (
+                    <th
+                      key={header.id}
+                      className={cn(
+                        "px-4 py-3.5 text-muted-foreground font-semibold transition-colors",
+                        isNumeric ? "text-right" : "text-left",
+                        idx === 0 && "pl-6"
+                      )}
+                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-[hsl(var(--border)/0.5)]">
             {table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={data.columns.length} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={data.columns.length} className="px-4 py-12 text-center text-muted-foreground/60 italic">
                   No rows found
                 </td>
               </tr>
@@ -148,23 +199,30 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
                 <tr
                   key={row.id}
                   className={cn(
-                    "transition-colors cursor-pointer",
-                    idx % 2 === 0 ? "bg-transparent" : "bg-muted/20",
-                    "hover:bg-accent/50"
+                    "transition-colors cursor-pointer group",
+                    idx % 2 === 0 ? "bg-[hsl(var(--table-row-odd))]" : "bg-[hsl(var(--table-row-even))]",
+                    "hover:bg-[hsl(var(--table-row-hover))]"
                   )}
                   onClick={() => onRowClick?.(row.original)}
                 >
-                  {row.getVisibleCells().map((cell, cellIdx) => (
-                    <td
-                      key={cell.id}
-                      className={cn(
-                        "px-4 py-2.5",
-                        cellIdx === 0 && "pl-4"
-                      )}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+                  {row.getVisibleCells().map((cell, cellIdx) => {
+                    const isNumeric = cell.column.id.toLowerCase().includes("id") || 
+                                    cell.column.id.toLowerCase().includes("count") ||
+                                    cell.column.id.toLowerCase().includes("amount");
+                    
+                    return (
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "px-4 py-3 border-r border-[hsl(var(--border)/0.3)] last:border-r-0",
+                          isNumeric ? "text-right" : "text-left",
+                          cellIdx === 0 && "pl-6"
+                        )}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}
