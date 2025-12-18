@@ -16,7 +16,7 @@ import {
   Button,
 } from "@/components/ui";
 import { useUIStore } from "@/stores";
-import { Monitor, Moon, Sun, Keyboard, User, Settings2, Code, Info, Zap, ExternalLink, Github } from "lucide-react";
+import { Monitor, Moon, Sun, Keyboard, User, Settings2, Code, Info, Database, ExternalLink, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SettingRowProps {
@@ -223,7 +223,7 @@ export function SettingsDialog() {
                           </SelectItem>
                           <SelectItem value="web">
                             <div className="flex items-center gap-2">
-                              <Zap className="h-4 w-4" />
+                              <Database className="h-4 w-4" />
                               <span>Web</span>
                             </div>
                           </SelectItem>
@@ -297,7 +297,7 @@ export function SettingsDialog() {
                     <div className="relative mb-6">
                       <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl" />
                       <div className="relative bg-primary/10 w-20 h-20 rounded-2xl flex items-center justify-center ring-8 ring-primary/5">
-                        <Zap className="h-10 w-10 text-primary" />
+                        <Database className="h-10 w-10 text-primary" />
                       </div>
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight">dbfordevs</h2>

@@ -15,16 +15,22 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui";
+import { Button, BrandIcon } from "@/components/ui";
 import { useDatabase } from "@/hooks";
 import { useConnectionsStore } from "@/stores";
 import type { ConnectionConfig, DatabaseType } from "@/types";
 
-const DB_CONFIG: Record<DatabaseType, { name: string; icon: string; color: string; bgColor: string }> = {
-  postgresql: { name: "PostgreSQL", icon: "🐘", color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  mysql: { name: "MySQL", icon: "🐬", color: "text-orange-500", bgColor: "bg-orange-500/10" },
-  sqlite: { name: "SQLite", icon: "📁", color: "text-green-500", bgColor: "bg-green-500/10" },
-  mssql: { name: "SQL Server", icon: "🗄️", color: "text-red-500", bgColor: "bg-red-500/10" },
+const DB_CONFIG: Record<DatabaseType, { name: string; brand: string; color: string; bgColor: string }> = {
+  postgresql: { name: "PostgreSQL", brand: "postgresql", color: "text-[#4169E1]", bgColor: "bg-[#4169E1]/10" },
+  mysql: { name: "MySQL", brand: "mysql", color: "text-[#4479A1]", bgColor: "bg-[#4479A1]/10" },
+  mariadb: { name: "MariaDB", brand: "mariadb", color: "text-[#003545]", bgColor: "bg-[#003545]/10" },
+  sqlite: { name: "SQLite", brand: "sqlite", color: "text-[#003B57]", bgColor: "bg-[#003B57]/10" },
+  mssql: { name: "SQL Server", brand: "microsoftsqlserver", color: "text-[#CC2927]", bgColor: "bg-[#CC2927]/10" },
+  oracle: { name: "Oracle", brand: "oracle", color: "text-[#F80000]", bgColor: "bg-[#F80000]/10" },
+  mongodb: { name: "MongoDB", brand: "mongodb", color: "text-[#47A248]", bgColor: "bg-[#47A248]/10" },
+  redis: { name: "Redis", brand: "redis", color: "text-[#FF4438]", bgColor: "bg-[#FF4438]/10" },
+  cockroachdb: { name: "CockroachDB", brand: "cockroachdb", color: "text-[#6933FF]", bgColor: "bg-[#6933FF]/10" },
+  cassandra: { name: "Cassandra", brand: "apachecassandra", color: "text-[#1287B1]", bgColor: "bg-[#1287B1]/10" },
 };
 
 interface PropertyItemProps {
@@ -125,7 +131,7 @@ export function ConnectionPropertiesDialog({
             {/* Header with database type */}
             <div className={`${dbConfig.bgColor} px-5 py-4`}>
               <div className="flex items-center gap-3">
-                <div className="text-3xl shrink-0">{dbConfig.icon}</div>
+                <BrandIcon name={dbConfig.brand} className={`h-8 w-8 shrink-0 ${dbConfig.color}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-lg font-semibold truncate">{config.name}</h2>

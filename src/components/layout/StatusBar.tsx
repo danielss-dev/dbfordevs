@@ -81,7 +81,7 @@ export function StatusBar() {
       <div className="flex items-center gap-3">
         {/* App info */}
         <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Zap className="h-3 w-3" />
+          <Database className="h-3 w-3" />
           <span className="font-medium">dbfordevs</span>
           <span className="text-muted-foreground/50">v0.1.0</span>
         </div>

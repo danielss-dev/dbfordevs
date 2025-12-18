@@ -16,7 +16,6 @@ import {
   Info,
   Plug,
   Unplug,
-  Zap,
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,6 +35,7 @@ import { ConnectionPropertiesDialog } from "@/components/connections";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
 import { useDatabase } from "@/hooks";
 import type { ConnectionInfo } from "@/types";
+import { BrandIcon } from "@/components/ui";
 
 interface TreeItemProps {
   label: string;
@@ -229,13 +229,25 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     const baseClasses = "h-4 w-4";
     switch (connection.databaseType) {
       case "postgresql":
-        return <Database className={cn(baseClasses, "text-blue-500")} />;
+        return <BrandIcon name="postgresql" className={cn(baseClasses, "text-[#4169E1]")} />;
       case "mysql":
-        return <Database className={cn(baseClasses, "text-orange-500")} />;
+        return <BrandIcon name="mysql" className={cn(baseClasses, "text-[#4479A1]")} />;
+      case "mariadb":
+        return <BrandIcon name="mariadb" className={cn(baseClasses, "text-[#003545]")} />;
       case "sqlite":
-        return <HardDrive className={cn(baseClasses, "text-green-500")} />;
+        return <BrandIcon name="sqlite" className={cn(baseClasses, "text-[#003B57]")} />;
       case "mssql":
-        return <Server className={cn(baseClasses, "text-red-500")} />;
+        return <BrandIcon name="microsoftsqlserver" className={cn(baseClasses, "text-[#CC2927]")} />;
+      case "oracle":
+        return <BrandIcon name="oracle" className={cn(baseClasses, "text-[#F80000]")} />;
+      case "mongodb":
+        return <BrandIcon name="mongodb" className={cn(baseClasses, "text-[#47A248]")} />;
+      case "redis":
+        return <BrandIcon name="redis" className={cn(baseClasses, "text-[#FF4438]")} />;
+      case "cockroachdb":
+        return <BrandIcon name="cockroachdb" className={cn(baseClasses, "text-[#6933FF]")} />;
+      case "cassandra":
+        return <BrandIcon name="apachecassandra" className={cn(baseClasses, "text-[#1287B1]")} />;
       default:
         return <Database className={baseClasses} />;
     }
@@ -415,7 +427,7 @@ export function Sidebar() {
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
         <div className="flex items-center gap-2.5">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
-            <Zap className="h-4 w-4 text-primary" />
+            <Database className="h-4 w-4 text-primary" />
           </div>
           <div>
             <span className="font-semibold text-sm">dbfordevs</span>

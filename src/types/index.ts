@@ -1,5 +1,15 @@
 // Database types
-export type DatabaseType = "postgresql" | "mysql" | "sqlite" | "mssql";
+export type DatabaseType =
+  | "postgresql"
+  | "mysql"
+  | "mariadb"
+  | "sqlite"
+  | "mssql"
+  | "oracle"
+  | "mongodb"
+  | "redis"
+  | "cockroachdb"
+  | "cassandra";
 
 export interface ConnectionConfig {
   id?: string;

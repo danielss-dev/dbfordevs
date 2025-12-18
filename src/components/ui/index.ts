@@ -8,3 +8,4 @@ export * from "./tabs";
 export * from "./select";
 export * from "./label";
 export * from "./context-menu";
+export { BrandIcon } from "./BrandIcon";
