@@ -1,0 +1,14 @@
+[package]
+name = "validator-csharp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "C# / .NET ADO.NET connection string validator for dbfordevs"
+
+[dependencies]
+validator-core = { path = "../validator-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+regex = "1"
+

@@ -4,10 +4,10 @@
 
 | Field   | Value              |
 |---------|--------------------|
-| Version | 1.0                |
+| Version | 1.1                |
 | Date    | December 18, 2025  |
 | Author  | Daniels            |
-| Status  | Draft              |
+| Status  | In Development     |
 
 ---
 
@@ -86,11 +86,34 @@ dbfordevs will be built using **Tauri 2.x**, a modern framework for building lig
 
 - **Framework:** Tauri 2.x with Rust backend
 - **Frontend:** React 18+ with TypeScript, Vite for bundling
+- **Package Manager:** Bun (fast, modern JavaScript runtime and package manager)
 - **UI Framework:** TailwindCSS with shadcn/ui components
-- **State Management:** Zustand or Tauri's built-in state management
-- **Database Drivers (Rust):** sqlx, tokio-postgres, mysql_async, tiberius (MSSQL)
+- **State Management:** Zustand for React state management
+- **Database Drivers (Rust):** sqlx (PostgreSQL, MySQL, SQLite), tiberius (MSSQL)
 - **Diff Library:** diff-match-patch or similar for change visualization
 - **Code Editor:** Monaco Editor (VS Code's editor) for SQL editing
+
+### 5.3 Project Structure
+
+The project uses a **Cargo workspace** monorepo structure:
+
+```
+dbfordevs/
+├── src/                    # React frontend
+├── src-tauri/              # Main Tauri application (Rust)
+├── crates/                 # Workspace crates
+│   ├── validator-core/     # Shared validator traits and types
+│   ├── validator-csharp/   # C#/.NET connection string validator
+│   ├── validator-nodejs/   # Node.js connection string validator
+│   └── validator-python/   # Python/SQLAlchemy validator
+├── Cargo.toml              # Workspace root configuration
+└── package.json            # Frontend dependencies
+```
+
+This structure allows:
+- Independent development and testing of each validator
+- Shared core types and traits via `validator-core`
+- Easy addition of new language validators as separate crates
 
 ---
 
@@ -138,8 +161,22 @@ An extensible plugin system that allows users to install language-specific conne
 #### 6.2.3 Initial Validators
 
 - **C# / .NET:** ADO.NET connection strings (SqlConnection, NpgsqlConnection, MySqlConnection)
-- **Node.js:** Connection strings for pg, mysql2, mssql packages
+- **Node.js:** Connection strings for pg, mysql2, mssql packages (URL format and JSON config)
 - **Python:** SQLAlchemy connection URLs, psycopg2, PyMySQL
+
+#### 6.2.4 Validator Architecture
+
+Each validator is implemented as a separate Rust crate in the `crates/` directory:
+
+- **validator-core:** Defines the `ConnectionStringValidator` trait and shared types
+- **validator-csharp:** Parses ADO.NET style `key=value;` connection strings
+- **validator-nodejs:** Handles URL format (`postgresql://...`) and JSON configuration objects
+- **validator-python:** Parses SQLAlchemy dialect URLs (`dialect+driver://...`)
+
+All validators implement a common interface:
+- `parse()` - Extract connection components from string
+- `validate()` - Check for errors and warnings
+- `to_connection_string()` - Convert parsed components back to string format
 
 ---
 
@@ -277,7 +314,11 @@ The application follows a three-panel layout:
 
 ### Phase 1: Foundation (Months 1-3)
 
-- [ ] Project setup with Tauri + React + TypeScript
+- [x] Project setup with Tauri + React + TypeScript + Bun
+- [x] Configure Cargo workspace with validator crates structure
+- [x] Set up TailwindCSS, shadcn/ui, and Zustand state management
+- [x] Implement three-panel layout (Sidebar, MainContent, SidePanel)
+- [x] Define validator-core traits and initial validator implementations
 - [ ] Basic connection management (PostgreSQL, MySQL, SQLite)
 - [ ] Table browsing and basic data grid
 - [ ] Simple SQL query execution
@@ -380,6 +421,7 @@ The application follows a three-panel layout:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | December 18, 2025 | Daniels | Initial draft |
+| 1.1 | December 18, 2025 | Daniels | Added project structure, Bun package manager, validator architecture details, updated Phase 1 progress |
 
 ---
 

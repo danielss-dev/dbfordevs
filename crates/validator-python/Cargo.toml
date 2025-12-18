@@ -1,0 +1,15 @@
+[package]
+name = "validator-python"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Python SQLAlchemy connection string validator for dbfordevs"
+
+[dependencies]
+validator-core = { path = "../validator-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+regex = "1"
+url = "2"
+

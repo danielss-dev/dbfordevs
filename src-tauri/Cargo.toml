@@ -1,0 +1,36 @@
+[package]
+name = "dbfordevs"
+version = "0.1.0"
+description = "A modern cross-platform database management application for developers"
+authors = ["Daniels"]
+license = "MIT"
+repository = ""
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+thiserror = "1"
+async-trait = "0.1"
+uuid = { version = "1", features = ["v4"] }
+
+# Database drivers
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "mysql", "sqlite"] }
+tiberius = { version = "0.12", default-features = false, features = ["rustls", "chrono"] }
+
+# Validator crates (workspace dependencies)
+validator-core = { path = "../crates/validator-core" }
+validator-csharp = { path = "../crates/validator-csharp" }
+validator-nodejs = { path = "../crates/validator-nodejs" }
+validator-python = { path = "../crates/validator-python" }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
