@@ -319,9 +319,9 @@ The application follows a three-panel layout:
 - [x] Set up TailwindCSS, shadcn/ui, and Zustand state management
 - [x] Implement three-panel layout (Sidebar, MainContent, SidePanel)
 - [x] Define validator-core traits and initial validator implementations
-- [ ] Basic connection management (PostgreSQL, MySQL, SQLite)
-- [ ] Table browsing and basic data grid
-- [ ] Simple SQL query execution
+- [x] Basic connection management (PostgreSQL, MySQL, SQLite)
+- [x] Table browsing and basic data grid
+- [x] Simple SQL query execution
 - [ ] Basic CRUD operations
 
 ### Phase 2: Core Features (Months 4-6)

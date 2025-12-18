@@ -12,7 +12,7 @@ export const BrandIcon = ({ name, className, ...props }: BrandIconProps) => {
   React.useEffect(() => {
     const fetchSvg = async () => {
       try {
-        const response = await fetch(`/src/assets/icons/${name}.svg`);
+        const response = await fetch(`/icons/${name}.svg`);
         if (response.ok) {
           const text = await response.text();
           // Remove the <svg> wrapper or extract the path to render it more flexibly
