@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryRequest {
     pub connection_id: String,
     pub sql: String,
@@ -9,6 +10,7 @@ pub struct QueryRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryResult {
     pub columns: Vec<ColumnInfo>,
     pub rows: Vec<Vec<serde_json::Value>>,
@@ -17,6 +19,7 @@ pub struct QueryResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ColumnInfo {
     pub name: String,
     pub data_type: String,
@@ -25,6 +28,7 @@ pub struct ColumnInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TableInfo {
     pub name: String,
     pub schema: Option<String>,
@@ -33,6 +37,7 @@ pub struct TableInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TableSchema {
     pub table_name: String,
     pub columns: Vec<ColumnInfo>,
@@ -41,6 +46,7 @@ pub struct TableSchema {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ForeignKeyInfo {
     pub column: String,
     pub references_table: String,

@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { X, Play, Plus, Table, Code } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Play, Plus, Table, Code, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, ScrollArea, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
-import { useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
+import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults } from "@/stores";
+import { useDatabase } from "@/hooks";
+import { DataGrid } from "@/components/data-grid";
 import type { Tab } from "@/types";
 
 function TabItem({ tab, isActive, onClose, onClick }: {
@@ -83,12 +85,35 @@ function EmptyState() {
 }
 
 function QueryEditor({ tab }: { tab: Tab }) {
-  const { updateTabContent } = useQueryStore();
+  const { updateTabContent, isExecuting, error } = useQueryStore();
+  const activeConnection = useConnectionsStore(selectActiveConnection);
+  const results = useQueryStore(selectActiveResults);
+  const { executeQuery } = useDatabase();
   const [content, setContent] = useState(tab.content || "");
 
-  const handleExecute = () => {
-    console.log("Execute query:", content);
-    // TODO: Implement query execution via Tauri command
+  useEffect(() => {
+    setContent(tab.content || "");
+  }, [tab.content]);
+
+  const handleExecute = async () => {
+    if (!activeConnection || !content.trim()) return;
+    
+    await executeQuery(
+      {
+        connectionId: activeConnection.id,
+        sql: content,
+        limit: undefined,
+        offset: undefined,
+      },
+      tab.id
+    );
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleExecute();
+    }
   };
 
   return (
@@ -97,13 +122,31 @@ function QueryEditor({ tab }: { tab: Tab }) {
       <div className="flex items-center gap-2 border-b border-border p-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" onClick={handleExecute}>
-              <Play className="mr-1 h-3 w-3" />
-              Run
+            <Button 
+              size="sm" 
+              onClick={handleExecute}
+              disabled={isExecuting || !activeConnection || !content.trim()}
+            >
+              {isExecuting ? (
+                <>
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  Running...
+                </>
+              ) : (
+                <>
+                  <Play className="mr-1 h-3 w-3" />
+                  Run
+                </>
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>Execute Query (Ctrl+Enter)</TooltipContent>
         </Tooltip>
+        {results && (
+          <span className="text-xs text-muted-foreground">
+            {results.rows.length} rows in {results.executionTimeMs}ms
+          </span>
+        )}
       </div>
 
       {/* Editor Area */}
@@ -115,6 +158,7 @@ function QueryEditor({ tab }: { tab: Tab }) {
             setContent(e.target.value);
             updateTabContent(tab.id, e.target.value);
           }}
+          onKeyDown={handleKeyDown}
           placeholder="-- Write your SQL query here"
           spellCheck={false}
         />
@@ -125,9 +169,20 @@ function QueryEditor({ tab }: { tab: Tab }) {
         <div className="flex h-8 items-center border-b border-border bg-muted/50 px-3 text-xs text-muted-foreground">
           Results
         </div>
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          Execute a query to see results
-        </div>
+        {error ? (
+          <div className="flex h-full items-center justify-center gap-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span>{error}</span>
+          </div>
+        ) : results ? (
+          <div className="h-full overflow-hidden">
+            <DataGrid data={results} />
+          </div>
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Execute a query to see results
+          </div>
+        )}
       </div>
     </div>
   );

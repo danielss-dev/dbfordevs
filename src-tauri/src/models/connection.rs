@@ -10,6 +10,7 @@ pub enum DatabaseType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConnectionConfig {
     pub id: Option<String>,
     pub name: String,
@@ -25,6 +26,7 @@ pub struct ConnectionConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConnectionInfo {
     pub id: String,
     pub name: String,
@@ -35,6 +37,7 @@ pub struct ConnectionInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TestConnectionResult {
     pub success: bool,
     pub message: String,

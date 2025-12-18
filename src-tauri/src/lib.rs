@@ -2,6 +2,7 @@ mod commands;
 mod db;
 mod error;
 mod models;
+mod storage;
 
 use commands::{connections, queries, validators};
 
@@ -12,11 +13,17 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             connections::test_connection,
             connections::save_connection,
+            connections::connect,
+            connections::disconnect,
             connections::list_connections,
             connections::delete_connection,
+            connections::get_connection,
             queries::execute_query,
             queries::get_tables,
             queries::get_table_schema,
+            queries::insert_row,
+            queries::update_row,
+            queries::delete_row,
             validators::validate_connection_string,
             validators::list_validators,
         ])

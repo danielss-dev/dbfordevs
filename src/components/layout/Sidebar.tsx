@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Database,
   FolderTree,
@@ -10,10 +10,29 @@ import {
   Server,
   HardDrive,
   Wrench,
+  Loader2,
+  Pencil,
+  Trash2,
+  Info,
+  Plug,
+  Unplug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, ScrollArea, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
-import { useConnectionsStore, useUIStore } from "@/stores";
+import {
+  Button,
+  ScrollArea,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui";
+import { ConnectionPropertiesDialog } from "@/components/connections";
+import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
+import { useDatabase } from "@/hooks";
 import type { ConnectionInfo } from "@/types";
 
 interface TreeItemProps {
@@ -58,7 +77,67 @@ function TreeItem({ label, icon, children, level = 0, onClick, isActive }: TreeI
 
 function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { activeConnectionId, setActiveConnection } = useConnectionsStore();
+  const { openConnectionModal } = useUIStore();
+  const { tables } = useQueryStore();
+  const { connect, disconnect, getTables, deleteConnection } = useDatabase();
+  const [isLoadingTables, setIsLoadingTables] = useState(false);
+  const [tablesOpen, setTablesOpen] = useState(false);
+  const [showProperties, setShowProperties] = useState(false);
   const isActive = activeConnectionId === connection.id;
+
+  useEffect(() => {
+    if (isActive && connection.connected && tablesOpen && tables.length === 0) {
+      loadTables();
+    }
+  }, [isActive, connection.connected, tablesOpen]);
+
+  const loadTables = async () => {
+    if (!connection.connected) {
+      const connected = await connect(connection.id);
+      if (!connected) return;
+    }
+
+    setIsLoadingTables(true);
+    try {
+      await getTables(connection.id);
+    } catch (error) {
+      console.error("Failed to load tables:", error);
+    } finally {
+      setIsLoadingTables(false);
+    }
+  };
+
+  const handleConnectionClick = async () => {
+    setActiveConnection(connection.id);
+    if (!connection.connected) {
+      await connect(connection.id);
+    }
+  };
+
+  const handleTablesClick = () => {
+    setTablesOpen(!tablesOpen);
+    if (!tablesOpen && connection.connected && tables.length === 0) {
+      loadTables();
+    }
+  };
+
+  const handleEdit = () => {
+    openConnectionModal(connection.id);
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm(`Delete connection "${connection.name}"?`)) {
+      await deleteConnection(connection.id);
+    }
+  };
+
+  const handleConnect = async () => {
+    await connect(connection.id);
+  };
+
+  const handleDisconnect = async () => {
+    await disconnect(connection.id);
+  };
 
   const getIcon = () => {
     switch (connection.databaseType) {
@@ -75,25 +154,96 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     }
   };
 
+  const connectionTables = isActive ? tables : [];
+
   return (
-    <TreeItem
-      label={connection.name}
-      icon={getIcon()}
-      isActive={isActive}
-      onClick={() => setActiveConnection(connection.id)}
-    >
-      <TreeItem label="Tables" icon={<FolderTree className="h-3 w-3" />}>
-        <TreeItem label="users" icon={<Table className="h-3 w-3" />} level={1} />
-        <TreeItem label="products" icon={<Table className="h-3 w-3" />} level={1} />
-        <TreeItem label="orders" icon={<Table className="h-3 w-3" />} level={1} />
-      </TreeItem>
-    </TreeItem>
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <TreeItem
+              label={connection.name}
+              icon={getIcon()}
+              isActive={isActive}
+              onClick={handleConnectionClick}
+            >
+              {connection.connected && (
+                <TreeItem
+                  label="Tables"
+                  icon={<FolderTree className="h-3 w-3" />}
+                  onClick={handleTablesClick}
+                >
+                  {isLoadingTables ? (
+                    <div className="ml-4 flex items-center gap-2 py-1 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Loading...</span>
+                    </div>
+                  ) : connectionTables.length > 0 ? (
+                    connectionTables.map((table) => (
+                      <TreeItem
+                        key={table.name}
+                        label={table.name}
+                        icon={<Table className="h-3 w-3" />}
+                        level={1}
+                      />
+                    ))
+                  ) : tablesOpen ? (
+                    <div className="ml-4 py-1 text-xs text-muted-foreground">No tables found</div>
+                  ) : null}
+                </TreeItem>
+              )}
+            </TreeItem>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          {connection.connected ? (
+            <ContextMenuItem onClick={handleDisconnect}>
+              <Unplug className="mr-2 h-4 w-4" />
+              Disconnect
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={handleConnect}>
+              <Plug className="mr-2 h-4 w-4" />
+              Connect
+            </ContextMenuItem>
+          )}
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleEdit}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Connection
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => setShowProperties(true)}>
+            <Info className="mr-2 h-4 w-4" />
+            Properties
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={handleDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Connection
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <ConnectionPropertiesDialog
+        connectionId={connection.id}
+        open={showProperties}
+        onOpenChange={setShowProperties}
+      />
+    </>
   );
 }
 
 export function Sidebar() {
   const { sidebarOpen, sidebarWidth, setShowConnectionModal, setShowValidatorModal, setShowSettingsDialog } = useUIStore();
   const { connections } = useConnectionsStore();
+  const { loadConnections } = useDatabase();
+
+  useEffect(() => {
+    loadConnections();
+  }, [loadConnections]);
 
   if (!sidebarOpen) {
     return null;
@@ -168,9 +318,9 @@ export function Sidebar() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-8 w-8"
                 onClick={() => setShowSettingsDialog(true)}
               >
@@ -184,4 +334,3 @@ export function Sidebar() {
     </aside>
   );
 }
-

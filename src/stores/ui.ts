@@ -17,6 +17,7 @@ interface UIState {
   pendingChanges: PendingChange[];
   // Modal states
   showConnectionModal: boolean;
+  editingConnectionId: string | null; // ID of connection being edited, null for new
   showValidatorModal: boolean;
   showDiffModal: boolean;
   showSettingsDialog: boolean;
@@ -33,6 +34,7 @@ interface UIState {
   removePendingChange: (id: string) => void;
   clearPendingChanges: () => void;
   setShowConnectionModal: (show: boolean) => void;
+  openConnectionModal: (connectionId?: string) => void; // Open for new or edit
   setShowValidatorModal: (show: boolean) => void;
   setShowDiffModal: (show: boolean) => void;
   setShowSettingsDialog: (show: boolean) => void;
@@ -49,6 +51,7 @@ export const useUIStore = create<UIState>()(
       sidePanelWidth: 400,
       pendingChanges: [],
       showConnectionModal: false,
+      editingConnectionId: null,
       showValidatorModal: false,
       showDiffModal: false,
       showSettingsDialog: false,
@@ -105,7 +108,10 @@ export const useUIStore = create<UIState>()(
       clearPendingChanges: () => set({ pendingChanges: [] }),
 
       setShowConnectionModal: (showConnectionModal) =>
-        set({ showConnectionModal }),
+        set({ showConnectionModal, editingConnectionId: showConnectionModal ? null : null }),
+
+      openConnectionModal: (connectionId) =>
+        set({ showConnectionModal: true, editingConnectionId: connectionId ?? null }),
 
       setShowValidatorModal: (showValidatorModal) =>
         set({ showValidatorModal }),

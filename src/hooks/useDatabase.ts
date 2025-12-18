@@ -19,6 +19,8 @@ export function useDatabase() {
     setConnections,
     addConnection,
     removeConnection,
+    updateConnection,
+    setActiveConnection,
     setLoading,
     setConnecting,
     setError: setConnectionError,
@@ -85,6 +87,53 @@ export function useDatabase() {
   );
 
   /**
+   * Connect to a database
+   */
+  const connect = useCallback(
+    async (connectionId: string): Promise<boolean> => {
+      setConnecting(true);
+      setConnectionError(null);
+
+      try {
+        await invoke("connect", { connectionId });
+        updateConnection(connectionId, { connected: true });
+        setActiveConnection(connectionId);
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setConnectionError(message);
+        return false;
+      } finally {
+        setConnecting(false);
+      }
+    },
+    [setConnecting, setConnectionError, updateConnection, setActiveConnection]
+  );
+
+  /**
+   * Disconnect from a database
+   */
+  const disconnect = useCallback(
+    async (connectionId: string): Promise<boolean> => {
+      setConnecting(true);
+      setConnectionError(null);
+
+      try {
+        await invoke("disconnect", { connectionId });
+        updateConnection(connectionId, { connected: false });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setConnectionError(message);
+        return false;
+      } finally {
+        setConnecting(false);
+      }
+    },
+    [setConnecting, setConnectionError, updateConnection]
+  );
+
+  /**
    * Load all saved connections
    */
   const loadConnections = useCallback(async (): Promise<void> => {
@@ -101,6 +150,25 @@ export function useDatabase() {
       setLoading(false);
     }
   }, [setLoading, setConnectionError, setConnections]);
+
+  /**
+   * Get a connection configuration by ID
+   */
+  const getConnection = useCallback(
+    async (connectionId: string): Promise<ConnectionConfig | null> => {
+      try {
+        const config = await invoke<ConnectionConfig | null>("get_connection", {
+          connectionId,
+        });
+        return config;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setConnectionError(message);
+        return null;
+      }
+    },
+    [setConnectionError]
+  );
 
   /**
    * Delete a connection
@@ -197,14 +265,112 @@ export function useDatabase() {
     [setLoading, setQueryError, setTableSchema]
   );
 
+  /**
+   * Insert a new row
+   */
+  const insertRow = useCallback(
+    async (
+      connectionId: string,
+      tableName: string,
+      values: Record<string, unknown>
+    ): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("insert_row", {
+          connectionId,
+          tableName,
+          values,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Update a row
+   */
+  const updateRow = useCallback(
+    async (
+      connectionId: string,
+      tableName: string,
+      primaryKey: Record<string, unknown>,
+      values: Record<string, unknown>
+    ): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("update_row", {
+          connectionId,
+          tableName,
+          primaryKey,
+          values,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Delete a row
+   */
+  const deleteRow = useCallback(
+    async (
+      connectionId: string,
+      tableName: string,
+      primaryKey: Record<string, unknown>
+    ): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("delete_row", {
+          connectionId,
+          tableName,
+          primaryKey,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
   return {
     testConnection,
     saveConnection,
+    connect,
+    disconnect,
     loadConnections,
+    getConnection,
     deleteConnection,
     executeQuery,
     getTables,
     getTableSchema,
+    insertRow,
+    updateRow,
+    deleteRow,
   };
 }
 

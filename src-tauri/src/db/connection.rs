@@ -1,6 +1,7 @@
 use crate::error::AppResult;
 use crate::models::{ConnectionConfig, QueryResult, TableInfo, TableSchema, TestConnectionResult};
 use async_trait::async_trait;
+use sqlx::AnyPool;
 
 /// Trait defining the interface for database drivers
 #[async_trait]
@@ -9,13 +10,13 @@ pub trait DatabaseDriver: Send + Sync {
     async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult>;
     
     /// Execute a SQL query and return results
-    async fn execute_query(&self, config: &ConnectionConfig, sql: &str) -> AppResult<QueryResult>;
+    async fn execute_query(&self, pool: &AnyPool, sql: &str) -> AppResult<QueryResult>;
     
     /// Get list of tables in the database
-    async fn get_tables(&self, config: &ConnectionConfig) -> AppResult<Vec<TableInfo>>;
+    async fn get_tables(&self, pool: &AnyPool) -> AppResult<Vec<TableInfo>>;
     
     /// Get schema for a specific table
-    async fn get_table_schema(&self, config: &ConnectionConfig, table_name: &str) -> AppResult<TableSchema>;
+    async fn get_table_schema(&self, pool: &AnyPool, table_name: &str) -> AppResult<TableSchema>;
     
     /// Build a connection string from configuration
     fn build_connection_string(&self, config: &ConnectionConfig) -> String;

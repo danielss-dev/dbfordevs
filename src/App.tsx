@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { TooltipProvider } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout";
 import { SettingsDialog } from "@/components/settings";
+import { ConnectionModal } from "@/components/connections";
 import { useUIStore } from "@/stores";
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
 
         {/* Modals */}
         <SettingsDialog />
+        <ConnectionModal />
       </div>
     </TooltipProvider>
   );

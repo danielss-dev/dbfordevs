@@ -6,7 +6,7 @@ export function StatusBar() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const { isConnecting } = useConnectionsStore();
   const { isExecuting } = useQueryStore();
-  const { pendingChanges, theme, setTheme, setShowSettingsDialog } = useUIStore();
+  const { pendingChanges } = useUIStore();
 
   const getConnectionStatus = () => {
     if (isConnecting) {
