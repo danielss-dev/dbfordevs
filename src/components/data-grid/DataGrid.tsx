@@ -8,7 +8,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, ChevronsLeft, ChevronsRight, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { QueryResult } from "@/types";
 
@@ -26,13 +26,13 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
         const sorted = column.getIsSorted();
         return (
           <button
-            className="flex items-center gap-2 hover:text-foreground transition-colors group w-full"
+            className="flex items-center gap-2 hover:text-foreground transition-colors group w-full h-full"
             onClick={() => column.toggleSorting(sorted === "asc")}
           >
-            <span className="font-semibold">{col.name}</span>
+            <span className="font-bold text-foreground/80 tracking-tight">{col.name}</span>
             <span className={cn(
-              "transition-opacity",
-              sorted ? "opacity-100" : "opacity-0 group-hover:opacity-50"
+              "transition-opacity shrink-0",
+              sorted ? "opacity-100 text-primary" : "opacity-0 group-hover:opacity-50 text-muted-foreground"
             )}>
               {sorted === "asc" ? (
                 <ArrowUp className="h-3.5 w-3.5" />
@@ -49,7 +49,7 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
         const value = getValue();
         if (value === null || value === undefined) {
           return (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-muted/50 text-muted-foreground/60 uppercase tracking-wider">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-muted text-muted-foreground/60 uppercase tracking-wider border border-border/50">
               NULL
             </span>
           );
@@ -106,8 +106,10 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
         if (typeof value === "boolean") {
           return (
             <span className={cn(
-              "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-              value ? "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]" : "bg-muted/50 text-muted-foreground/60"
+              "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border",
+              value 
+                ? "bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))] border-[hsl(var(--success)/0.2)]" 
+                : "bg-muted text-muted-foreground/60 border-border/50"
             )}>
               {value ? "true" : "false"}
             </span>
@@ -143,6 +145,25 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
   });
 
   if (data.columns.length === 0) {
+    if (data.affectedRows !== undefined && data.affectedRows !== null) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center text-center p-8 animate-fade-in">
+          <div className="mb-4 rounded-full bg-success/10 p-4 text-success">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground">Query executed successfully</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {data.affectedRows} {data.affectedRows === 1 ? 'row' : 'rows'} affected
+          </p>
+          <div className="mt-6 flex gap-3">
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+              Time: {data.executionTimeMs}ms
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         <p>No data to display</p>
@@ -160,9 +181,9 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10">
+          <thead className="sticky top-0 z-10 shadow-[0_1px_0_0_hsl(var(--border))]">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="bg-[hsl(var(--table-header-bg))] backdrop-blur-md border-b border-[hsl(var(--border))]">
+              <tr key={headerGroup.id} className="bg-[hsl(var(--table-header-bg))] backdrop-blur-md">
                 {headerGroup.headers.map((header, idx) => {
                   const isNumeric = header.column.id.toLowerCase().includes("id") || 
                                   header.column.id.toLowerCase().includes("count") ||
@@ -172,9 +193,10 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
                     <th
                       key={header.id}
                       className={cn(
-                        "px-4 py-3.5 text-muted-foreground font-semibold transition-colors",
+                        "px-4 py-3 text-foreground/70 transition-colors relative",
                         isNumeric ? "text-right" : "text-left",
-                        idx === 0 && "pl-6"
+                        idx === 0 && "pl-6",
+                        "after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-border/30 last:after:hidden"
                       )}
                       style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                     >
@@ -214,7 +236,7 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-4 py-3 border-r border-[hsl(var(--border)/0.3)] last:border-r-0",
+                          "px-4 py-2.5 transition-colors border-r border-[hsl(var(--border)/0.2)] last:border-r-0",
                           isNumeric ? "text-right" : "text-left",
                           cellIdx === 0 && "pl-6"
                         )}
@@ -231,20 +253,28 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-2.5">
-        <div className="text-sm text-muted-foreground">
-          Showing{" "}
-          <span className="font-medium text-foreground">
-            {pageIndex * pageSize + 1}
-          </span>
-          {" "}-{" "}
-          <span className="font-medium text-foreground">
-            {Math.min((pageIndex + 1) * pageSize, totalRows)}
-          </span>
-          {" "}of{" "}
-          <span className="font-medium text-foreground">{totalRows}</span> rows
+      <div className="flex items-center justify-between border-t border-border bg-muted/40 px-6 py-3 shadow-[0_-1px_3px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div>
+            Showing{" "}
+            <span className="font-semibold text-foreground/80">
+              {pageIndex * pageSize + 1}
+            </span>
+            {" "}-{" "}
+            <span className="font-semibold text-foreground/80">
+              {Math.min((pageIndex + 1) * pageSize, totalRows)}
+            </span>
+            {" "}of{" "}
+            <span className="font-semibold text-foreground/80">{totalRows}</span> rows
+          </div>
+          {data.executionTimeMs !== undefined && (
+            <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-[hsl(var(--success)/0.05)] border border-[hsl(var(--success)/0.1)] text-[10px] font-mono text-[hsl(var(--success))] font-bold uppercase tracking-wider">
+              <div className="h-1 w-1 rounded-full bg-[hsl(var(--success))]" />
+              <span className="tabular-nums">{data.executionTimeMs}ms</span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"

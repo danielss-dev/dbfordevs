@@ -55,6 +55,17 @@
     --sidebar-accent-foreground: 224 71% 4%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 220 90% 56%;
+
+    /* Table Specifics */
+    --table-header-bg: 220 14% 94%;
+    --table-row-odd: 0 0% 100%;
+    --table-row-even: 220 14% 98%;
+    --table-row-hover: 220 14% 92%;
+
+    /* Text Hierarchy */
+    --text-primary: 224 71% 4%;
+    --text-secondary: 224 9% 30%;
+    --text-dim: 224 9% 55%;
   }
 
 .dark {
