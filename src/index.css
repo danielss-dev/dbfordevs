@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -26,7 +27,12 @@
     --input: 220 13% 91%;
     --ring: 220 90% 56%;
     --radius: 0.5rem;
-    
+
+    /* Status colors */
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 224 71% 4%;
@@ -39,34 +45,40 @@
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 20% 98%;
-    --card: 224 71% 4%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71% 4%;
-    --popover-foreground: 210 20% 98%;
+    /* Improved dark theme with better contrast */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 223 47% 13%;
+    --card-foreground: 210 40% 98%;
+    --popover: 223 47% 14%;
+    --popover-foreground: 210 40% 98%;
     --primary: 217 91% 60%;
-    --primary-foreground: 224 71% 4%;
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 28% 17%;
-    --muted-foreground: 217 10% 64%;
-    --accent: 215 28% 17%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 20%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 22%;
+    --input: 217 33% 17%;
     --ring: 217 91% 60%;
-    
-    /* Sidebar Dark */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 20% 98%;
+
+    /* Status colors - brighter for dark mode */
+    --success: 142 76% 50%;
+    --warning: 38 92% 55%;
+    --info: 199 89% 55%;
+
+    /* Sidebar - slightly darker for visual hierarchy */
+    --sidebar-background: 222 47% 9%;
+    --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 224 71% 4%;
-    --sidebar-accent: 215 28% 17%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 215 28% 17%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 18%;
     --sidebar-ring: 217 91% 60%;
   }
 }
@@ -77,26 +89,52 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - refined */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-muted;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/30 rounded-full;
+  @apply bg-muted-foreground/20 rounded-full border-2 border-transparent bg-clip-padding;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/50;
+  @apply bg-muted-foreground/40;
+}
+
+::-webkit-scrollbar-corner {
+  @apply bg-transparent;
+}
+
+/* Focus visible outline */
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+}
+
+/* Glass effect for elevated surfaces */
+.glass {
+  @apply backdrop-blur-md bg-background/80;
+}
+
+/* Subtle gradient backgrounds */
+.gradient-subtle {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--muted) / 0.3) 0%,
+    hsl(var(--muted) / 0.1) 100%
+  );
 }
 
 /* Monaco editor overrides */
@@ -106,9 +144,127 @@
 
 /* Data grid styles */
 .data-grid-row:hover {
-  @apply bg-accent;
+  @apply bg-accent/50;
 }
 
 .data-grid-row.selected {
-  @apply bg-primary/10;
+  @apply bg-primary/10 border-l-2 border-l-primary;
+}
+
+/* Animation utilities */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.15s ease-out;
+}
+
+/* Status indicator dots */
+.status-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.status-dot-success {
+  @apply bg-[hsl(var(--success))];
+  box-shadow: 0 0 8px hsl(var(--success) / 0.5);
+}
+
+.status-dot-warning {
+  @apply bg-[hsl(var(--warning))];
+  box-shadow: 0 0 8px hsl(var(--warning) / 0.5);
+}
+
+.status-dot-error {
+  @apply bg-destructive;
+  box-shadow: 0 0 8px hsl(var(--destructive) / 0.5);
+}
+
+.status-dot-info {
+  @apply bg-[hsl(var(--info))];
+  box-shadow: 0 0 8px hsl(var(--info) / 0.5);
+}
+
+/* Badge styles */
+.badge {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
+
+.badge-success {
+  @apply bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))];
+}
+
+.badge-warning {
+  @apply bg-[hsl(var(--warning)/0.15)] text-[hsl(var(--warning))];
+}
+
+.badge-error {
+  @apply bg-destructive/15 text-destructive;
+}
+
+.badge-info {
+  @apply bg-[hsl(var(--info)/0.15)] text-[hsl(var(--info))];
+}
+
+/* Code/mono text */
+.font-code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Smooth transitions for theme changes */
+*, *::before, *::after {
+  transition-property: background-color, border-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* Disable transitions for elements that shouldn't animate */
+.no-transition, .no-transition * {
+  transition: none !important;
 }
