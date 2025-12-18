@@ -111,6 +111,7 @@ export interface Tab {
   type: "query" | "table" | "schema";
   connectionId: string;
   content?: string;
+  tableName?: string; // Full table identifier for "table" type
 }
 
 export interface PendingChange {

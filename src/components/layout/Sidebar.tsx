@@ -46,10 +46,21 @@ interface TreeItemProps {
   isActive?: boolean;
   isConnected?: boolean;
   rightElement?: React.ReactNode;
+  defaultOpen?: boolean;
 }
 
-function TreeItem({ label, icon, children, level = 0, onClick, isActive, isConnected, rightElement }: TreeItemProps) {
-  const [isOpen, setIsOpen] = useState(false);
+function TreeItem({ 
+  label, 
+  icon, 
+  children, 
+  level = 0, 
+  onClick, 
+  isActive, 
+  isConnected, 
+  rightElement,
+  defaultOpen = false
+}: TreeItemProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const hasChildren = Boolean(children);
 
   return (
@@ -166,8 +177,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     }
   };
 
-  const handleTableClick = (tableName: string) => {
-    const tabId = `table-${connection.id}-${tableName}`;
+  const handleTableClick = (tableIdentifier: string, displayName: string) => {
+    const tabId = `table-${connection.id}-${tableIdentifier}`;
     const existingTab = tabs.find((t) => t.id === tabId);
 
     if (existingTab) {
@@ -175,19 +186,20 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     } else {
       addTab({
         id: tabId,
-        title: tableName,
+        title: displayName,
+        tableName: tableIdentifier,
         type: "table",
         connectionId: connection.id,
       });
     }
   };
 
-  const handleTableDelete = async (tableName: string) => {
-    if (window.confirm(`Are you sure you want to drop table "${tableName}"? This action cannot be undone.`)) {
-      const result = await dropTable(connection.id, tableName);
+  const handleTableDelete = async (tableIdentifier: string) => {
+    if (window.confirm(`Are you sure you want to drop table "${tableIdentifier}"? This action cannot be undone.`)) {
+      const result = await dropTable(connection.id, tableIdentifier);
       if (result) {
         // Remove associated tab if open
-        const tabId = `table-${connection.id}-${tableName}`;
+        const tabId = `table-${connection.id}-${tableIdentifier}`;
         removeTab(tabId);
         // Refresh tables list
         await getTables(connection.id);
@@ -230,6 +242,19 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   };
 
   const connectionTables = isActive ? tables : [];
+  
+  // Group tables by schema
+  const tablesBySchema = connectionTables.reduce((acc, table) => {
+    const schemaName = table.schema || "default";
+    if (!acc[schemaName]) {
+      acc[schemaName] = [];
+    }
+    acc[schemaName].push(table);
+    return acc;
+  }, {} as Record<string, typeof connectionTables>);
+
+  const schemaNames = Object.keys(tablesBySchema).sort();
+  const isSingleSchema = schemaNames.length === 1;
 
   return (
     <>
@@ -248,46 +273,64 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                   <ContextMenuTrigger asChild>
                     <div>
                       <TreeItem
-                        label="Tables"
+                        label="Schemas"
                         icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground" />}
                         onClick={handleTablesClick}
+                        defaultOpen={true}
                       >
                         {isLoadingTables ? (
                           <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
                             <Loader2 className="h-3 w-3 animate-spin" />
                             <span>Loading...</span>
                           </div>
-                        ) : connectionTables.length > 0 ? (
-                          connectionTables.map((table) => (
-                            <ContextMenu key={table.name}>
-                              <ContextMenuTrigger asChild>
-                                <div>
-                                  <TreeItem
-                                    label={table.name}
-                                    icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
-                                    level={1}
-                                    onClick={() => handleTableClick(table.name)}
-                                  />
-                                </div>
-                              </ContextMenuTrigger>
-                              <ContextMenuContent className="w-48">
-                                <ContextMenuItem onClick={() => handleTableClick(table.name)} className="gap-2">
-                                  <Table className="h-4 w-4" />
-                                  View Data
-                                </ContextMenuItem>
-                                <ContextMenuSeparator />
-                                <ContextMenuItem
-                                  onClick={() => handleTableDelete(table.name)}
-                                  className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Drop Table
-                                </ContextMenuItem>
-                              </ContextMenuContent>
-                            </ContextMenu>
+                        ) : schemaNames.length > 0 ? (
+                          schemaNames.map((schemaName) => (
+                            <TreeItem
+                              key={schemaName}
+                              label={schemaName}
+                              icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                              level={1}
+                              defaultOpen={isSingleSchema}
+                            >
+                              {tablesBySchema[schemaName].map((table) => {
+                                // For display, strip the schema prefix if it's there
+                                const displayLabel = table.name.startsWith(`${schemaName}.`) 
+                                  ? table.name.slice(schemaName.length + 1)
+                                  : table.name;
+                                
+                                return (
+                                  <ContextMenu key={table.name}>
+                                    <ContextMenuTrigger asChild>
+                                      <div>
+                                        <TreeItem
+                                          label={displayLabel}
+                                          icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
+                                          level={2}
+                                          onClick={() => handleTableClick(table.name, displayLabel)}
+                                        />
+                                      </div>
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent className="w-48">
+                                      <ContextMenuItem onClick={() => handleTableClick(table.name, displayLabel)} className="gap-2">
+                                        <Table className="h-4 w-4" />
+                                        View Data
+                                      </ContextMenuItem>
+                                      <ContextMenuSeparator />
+                                      <ContextMenuItem
+                                        onClick={() => handleTableDelete(table.name)}
+                                        className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        Drop Table
+                                      </ContextMenuItem>
+                                    </ContextMenuContent>
+                                  </ContextMenu>
+                                );
+                              })}
+                            </TreeItem>
                           ))
                         ) : tablesOpen ? (
-                          <div className="ml-6 py-2 text-xs text-muted-foreground">No tables found</div>
+                          <div className="ml-6 py-2 text-xs text-muted-foreground">No schemas found</div>
                         ) : null}
                       </TreeItem>
                     </div>

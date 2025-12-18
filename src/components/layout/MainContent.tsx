@@ -273,13 +273,14 @@ function TableViewer({ tab }: { tab: Tab }) {
   const tabResults = results[tab.id];
 
   const loadData = async () => {
-    if (!activeConnection || !tab.title) return;
+    if (!activeConnection) return;
     
-    // In a real app, we'd handle schema names too
+    const tableIdentifier = tab.tableName ?? tab.title;
+    
     await executeQuery(
       {
         connectionId: activeConnection.id,
-        sql: `SELECT * FROM ${tab.title}`,
+        sql: `SELECT * FROM ${tableIdentifier}`,
         limit: 100, // Default limit for table view
       },
       tab.id
