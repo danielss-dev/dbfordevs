@@ -17,6 +17,7 @@ import {
   Plug,
   Unplug,
   Zap,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -44,42 +45,52 @@ interface TreeItemProps {
   onClick?: () => void;
   isActive?: boolean;
   isConnected?: boolean;
+  rightElement?: React.ReactNode;
 }
 
-function TreeItem({ label, icon, children, level = 0, onClick, isActive, isConnected }: TreeItemProps) {
+function TreeItem({ label, icon, children, level = 0, onClick, isActive, isConnected, rightElement }: TreeItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const hasChildren = Boolean(children);
 
   return (
     <div>
-      <button
+      <div
         className={cn(
-          "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm transition-all duration-200",
+          "group flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm transition-all duration-200",
           "hover:bg-sidebar-accent",
           isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
           level > 0 && "ml-4"
         )}
-        onClick={() => {
-          if (hasChildren) setIsOpen(!isOpen);
-          onClick?.();
-        }}
       >
-        {hasChildren ? (
-          <span className="text-muted-foreground transition-transform duration-200">
-            {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-          </span>
-        ) : (
-          <span className="w-3.5" />
+        <button
+          className="flex flex-1 items-center gap-2 overflow-hidden"
+          onClick={() => {
+            if (hasChildren) setIsOpen(!isOpen);
+            onClick?.();
+          }}
+        >
+          {hasChildren ? (
+            <span className="text-muted-foreground transition-transform duration-200">
+              {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </span>
+          ) : (
+            <span className="w-3.5" />
+          )}
+          <span className="shrink-0">{icon}</span>
+          <span className="truncate flex-1 text-left">{label}</span>
+          {isConnected !== undefined && (
+            <span className={cn(
+              "w-2 h-2 rounded-full shrink-0",
+              isConnected ? "bg-[hsl(var(--success))]" : "bg-muted-foreground/30"
+            )} />
+          )}
+        </button>
+        {rightElement && (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            {rightElement}
+          </div>
         )}
-        <span className="shrink-0">{icon}</span>
-        <span className="truncate flex-1 text-left">{label}</span>
-        {isConnected !== undefined && (
-          <span className={cn(
-            "w-2 h-2 rounded-full shrink-0",
-            isConnected ? "bg-[hsl(var(--success))]" : "bg-muted-foreground/30"
-          )} />
-        )}
-      </button>
+      </div>
       {isOpen && children && (
         <div className="ml-2 animate-slide-down">{children}</div>
       )}
@@ -90,8 +101,8 @@ function TreeItem({ label, icon, children, level = 0, onClick, isActive, isConne
 function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { activeConnectionId, setActiveConnection } = useConnectionsStore();
   const { openConnectionModal } = useUIStore();
-  const { tables } = useQueryStore();
-  const { connect, disconnect, getTables, deleteConnection } = useDatabase();
+  const { tables, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
+  const { connect, disconnect, getTables, deleteConnection, dropTable } = useDatabase();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
@@ -102,6 +113,19 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
       loadTables();
     }
   }, [isActive, connection.connected, tablesOpen]);
+
+  // Handle F5 refresh
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F5" && isActive && connection.connected) {
+        e.preventDefault();
+        loadTables();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isActive, connection.connected]);
 
   const loadTables = async () => {
     if (!connection.connected) {
@@ -130,6 +154,35 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     setTablesOpen(!tablesOpen);
     if (!tablesOpen && connection.connected && tables.length === 0) {
       loadTables();
+    }
+  };
+
+  const handleTableClick = (tableName: string) => {
+    const tabId = `table-${connection.id}-${tableName}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: tableName,
+        type: "table",
+        connectionId: connection.id,
+      });
+    }
+  };
+
+  const handleTableDelete = async (tableName: string) => {
+    if (window.confirm(`Are you sure you want to drop table "${tableName}"? This action cannot be undone.`)) {
+      const result = await dropTable(connection.id, tableName);
+      if (result) {
+        // Remove associated tab if open
+        const tabId = `table-${connection.id}-${tableName}`;
+        removeTab(tabId);
+        // Refresh tables list
+        await getTables(connection.id);
+      }
     }
   };
 
@@ -185,39 +238,77 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
               onClick={handleConnectionClick}
             >
               {connection.connected && (
-                <TreeItem
-                  label="Tables"
-                  icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground" />}
-                  onClick={handleTablesClick}
-                >
-                  {isLoadingTables ? (
-                    <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Loading...</span>
-                    </div>
-                  ) : connectionTables.length > 0 ? (
-                    connectionTables.map((table) => (
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>
+                    <div>
                       <TreeItem
-                        key={table.name}
-                        label={table.name}
-                        icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
-                        level={1}
-                      />
-                    ))
-                  ) : tablesOpen ? (
-                    <div className="ml-6 py-2 text-xs text-muted-foreground">No tables found</div>
-                  ) : null}
-                </TreeItem>
+                        label="Tables"
+                        icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground" />}
+                        onClick={handleTablesClick}
+                      >
+                        {isLoadingTables ? (
+                          <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Loading...</span>
+                          </div>
+                        ) : connectionTables.length > 0 ? (
+                          connectionTables.map((table) => (
+                            <ContextMenu key={table.name}>
+                              <ContextMenuTrigger asChild>
+                                <div>
+                                  <TreeItem
+                                    label={table.name}
+                                    icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
+                                    level={1}
+                                    onClick={() => handleTableClick(table.name)}
+                                  />
+                                </div>
+                              </ContextMenuTrigger>
+                              <ContextMenuContent className="w-48">
+                                <ContextMenuItem onClick={() => handleTableClick(table.name)} className="gap-2">
+                                  <Table className="h-4 w-4" />
+                                  View Data
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  onClick={() => handleTableDelete(table.name)}
+                                  className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Drop Table
+                                </ContextMenuItem>
+                              </ContextMenuContent>
+                            </ContextMenu>
+                          ))
+                        ) : tablesOpen ? (
+                          <div className="ml-6 py-2 text-xs text-muted-foreground">No tables found</div>
+                        ) : null}
+                      </TreeItem>
+                    </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-48">
+                    <ContextMenuItem onClick={loadTables} className="gap-2">
+                      <RefreshCw className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
+                      Refresh
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               )}
             </TreeItem>
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-52">
           {connection.connected ? (
-            <ContextMenuItem onClick={handleDisconnect} className="gap-2">
-              <Unplug className="h-4 w-4" />
-              Disconnect
-            </ContextMenuItem>
+            <>
+              <ContextMenuItem onClick={handleDisconnect} className="gap-2">
+                <Unplug className="h-4 w-4" />
+                Disconnect
+              </ContextMenuItem>
+              <ContextMenuItem onClick={loadTables} className="gap-2">
+                <RefreshCw className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
+                Refresh
+              </ContextMenuItem>
+            </>
           ) : (
             <ContextMenuItem onClick={handleConnect} className="gap-2">
               <Plug className="h-4 w-4" />
@@ -282,19 +373,21 @@ export function Sidebar() {
             <span className="text-[10px] text-muted-foreground ml-1.5">v0.1</span>
           </div>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setShowConnectionModal(true)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">New Connection</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setShowConnectionModal(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">New Connection</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Connections List */}

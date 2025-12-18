@@ -8,6 +8,9 @@ use commands::{connections, queries, validators};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Install default drivers for sqlx::any
+    sqlx::any::install_default_drivers();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
@@ -24,6 +27,7 @@ pub fn run() {
             queries::insert_row,
             queries::update_row,
             queries::delete_row,
+            queries::drop_table,
             validators::validate_connection_string,
             validators::list_validators,
         ])

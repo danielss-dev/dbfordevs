@@ -39,7 +39,7 @@ export interface QueryRequest {
 
 export interface QueryResult {
   columns: ColumnInfo[];
-  rows: Record<string, unknown>[];
+  rows: any[][];
   affectedRows?: number;
   executionTimeMs: number;
 }

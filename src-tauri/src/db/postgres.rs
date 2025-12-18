@@ -1,8 +1,8 @@
-use crate::db::DatabaseDriver;
+use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{ConnectionConfig, QueryResult, TableInfo, TableSchema, TestConnectionResult, ColumnInfo, ForeignKeyInfo};
 use async_trait::async_trait;
-use sqlx::{postgres::PgPool, Row, AnyPool, Column};
+use sqlx::{postgres::PgPool, Row, Column};
 use std::time::Instant;
 
 pub struct PostgresDriver;
@@ -30,11 +30,34 @@ impl DatabaseDriver for PostgresDriver {
         })
     }
 
-    async fn execute_query(&self, pool: &AnyPool, sql: &str) -> AppResult<QueryResult> {
+    async fn execute_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
         let start = Instant::now();
         
-        // Check if it's a SELECT query
-        let sql_upper = sql.trim().to_uppercase();
+        // Check if it's a SELECT query, handling comments
+        let mut clean_sql = sql.trim();
+        while clean_sql.starts_with("--") || clean_sql.starts_with("/*") {
+            if clean_sql.starts_with("--") {
+                if let Some(newline_pos) = clean_sql.find('\n') {
+                    clean_sql = clean_sql[newline_pos..].trim();
+                } else {
+                    clean_sql = "";
+                    break;
+                }
+            } else if clean_sql.starts_with("/*") {
+                if let Some(end_pos) = clean_sql.find("*/") {
+                    clean_sql = clean_sql[end_pos + 2..].trim();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        let sql_upper = clean_sql.to_uppercase();
         let is_select = sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH");
         
         if is_select {
@@ -82,9 +105,15 @@ impl DatabaseDriver for PostgresDriver {
                                 serde_json::Value::Number(serde_json::Number::from_f64(val).unwrap_or(0.into()))
                             } else if let Ok(val) = row.try_get::<bool, _>(i) {
                                 serde_json::Value::Bool(val)
+                            } else if let Ok(val) = row.try_get::<chrono::NaiveDateTime, _>(i) {
+                                serde_json::Value::String(val.to_string())
+                            } else if let Ok(val) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+                                serde_json::Value::String(val.to_rfc3339())
+                            } else if let Ok(val) = row.try_get::<serde_json::Value, _>(i) {
+                                val
                             } else {
-                                // Fallback to string representation
-                                serde_json::Value::String(format!("{:?}", row.try_get_raw(i)))
+                                // Fallback for unsupported types
+                                serde_json::Value::String("Unsupported type".to_string())
                             }
                         })
                         .collect()
@@ -113,12 +142,17 @@ impl DatabaseDriver for PostgresDriver {
         }
     }
 
-    async fn get_tables(&self, pool: &AnyPool) -> AppResult<Vec<TableInfo>> {
+    async fn get_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableInfo>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
         let query = r#"
             SELECT 
-                table_name,
-                table_schema,
-                'BASE TABLE' as table_type
+                table_name::text as table_name,
+                table_schema::text as table_schema,
+                'BASE TABLE'::text as table_type
             FROM information_schema.tables
             WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
             AND table_type = 'BASE TABLE'
@@ -153,7 +187,11 @@ impl DatabaseDriver for PostgresDriver {
         Ok(tables)
     }
 
-    async fn get_table_schema(&self, pool: &AnyPool, table_name: &str) -> AppResult<TableSchema> {
+    async fn get_table_schema(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<TableSchema> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
         // Parse schema.table format
         let (schema, table) = if let Some(dot_pos) = table_name.find('.') {
             let (s, t) = table_name.split_at(dot_pos);
@@ -165,10 +203,10 @@ impl DatabaseDriver for PostgresDriver {
         // Get columns
         let columns_query = r#"
             SELECT 
-                column_name,
-                data_type,
-                is_nullable,
-                column_default
+                column_name::text as column_name,
+                data_type::text as data_type,
+                is_nullable::text as is_nullable,
+                column_default::text as column_default
             FROM information_schema.columns
             WHERE table_schema = COALESCE($1, current_schema())
             AND table_name = $2
@@ -184,7 +222,7 @@ impl DatabaseDriver for PostgresDriver {
         
         // Get primary keys
         let pk_query = r#"
-            SELECT column_name
+            SELECT column_name::text as column_name
             FROM information_schema.table_constraints tc
             JOIN information_schema.key_column_usage kcu
                 ON tc.constraint_name = kcu.constraint_name
@@ -209,9 +247,9 @@ impl DatabaseDriver for PostgresDriver {
         // Get foreign keys
         let fk_query = r#"
             SELECT
-                kcu.column_name,
-                ccu.table_name AS foreign_table_name,
-                ccu.column_name AS foreign_column_name
+                kcu.column_name::text as column_name,
+                ccu.table_name::text AS foreign_table_name,
+                ccu.column_name::text AS foreign_column_name
             FROM information_schema.table_constraints AS tc
             JOIN information_schema.key_column_usage AS kcu
                 ON tc.constraint_name = kcu.constraint_name

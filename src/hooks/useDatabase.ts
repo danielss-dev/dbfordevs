@@ -357,6 +357,31 @@ export function useDatabase() {
     [setExecuting, setQueryError]
   );
 
+  /**
+   * Drop a table
+   */
+  const dropTable = useCallback(
+    async (connectionId: string, tableName: string): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("drop_table", {
+          connectionId,
+          tableName,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
   return {
     testConnection,
     saveConnection,
@@ -371,6 +396,7 @@ export function useDatabase() {
     insertRow,
     updateRow,
     deleteRow,
+    dropTable,
   };
 }
 

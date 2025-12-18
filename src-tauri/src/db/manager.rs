@@ -1,7 +1,8 @@
 use crate::error::{AppError, AppResult};
 use crate::models::{ConnectionConfig, DatabaseType};
+use crate::db::PoolRef;
 use once_cell::sync::OnceCell;
-use sqlx::{postgres::PgPool, mysql::MySqlPool, sqlite::SqlitePool, AnyPool};
+use sqlx::{postgres::PgPool, mysql::MySqlPool, sqlite::SqlitePool};
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 
@@ -12,15 +13,10 @@ pub enum ConnectionPool {
     Sqlite(SqlitePool),
 }
 
-impl ConnectionPool {
-    // Note: Direct conversion to AnyPool is not supported in sqlx 0.8
-    // We use connection strings stored in ConnectionManager instead
-}
-
 /// Manages active database connections
 pub struct ConnectionManager {
     connections: HashMap<String, ConnectionPool>,
-    connection_strings: HashMap<String, String>, // Store connection strings for AnyPool creation
+    connection_strings: HashMap<String, String>, // Store connection strings for reference
 }
 
 impl ConnectionManager {
@@ -80,18 +76,21 @@ impl ConnectionManager {
         Ok(())
     }
 
-    /// Get connection string for creating AnyPool
+    /// Get connection string for reference
     pub fn get_connection_string(&self, connection_id: &str) -> Option<&String> {
         self.connection_strings.get(connection_id)
     }
 
-    /// Create an AnyPool from stored connection string
-    pub async fn get_any_pool(&self, connection_id: &str) -> AppResult<AnyPool> {
-        let connection_string = self.connection_strings.get(connection_id)
+    /// Get a PoolRef for a connection
+    pub fn get_pool_ref(&self, connection_id: &str) -> AppResult<PoolRef<'_>> {
+        let pool = self.connections.get(connection_id)
             .ok_or_else(|| AppError::ConnectionError("Connection not found".to_string()))?;
         
-        AnyPool::connect(connection_string).await
-            .map_err(|e| AppError::ConnectionError(format!("Failed to create AnyPool: {}", e)))
+        match pool {
+            ConnectionPool::Postgres(p) => Ok(PoolRef::Postgres(p)),
+            ConnectionPool::MySql(p) => Ok(PoolRef::MySql(p)),
+            ConnectionPool::Sqlite(p) => Ok(PoolRef::Sqlite(p)),
+        }
     }
 
     /// Get a connection pool

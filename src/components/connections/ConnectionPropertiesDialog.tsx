@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Database,
-  Server,
-  Key,
-  FolderOpen,
   Loader2,
   Copy,
   Check,
-  HardDrive,
   Globe,
   Hash,
   User,
@@ -18,8 +14,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui";
 import { useDatabase } from "@/hooks";

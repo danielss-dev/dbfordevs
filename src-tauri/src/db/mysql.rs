@@ -1,8 +1,8 @@
-use crate::db::DatabaseDriver;
+use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{ConnectionConfig, QueryResult, TableInfo, TableSchema, TestConnectionResult, ColumnInfo, ForeignKeyInfo};
 use async_trait::async_trait;
-use sqlx::{mysql::MySqlPool, AnyPool, Row, Column};
+use sqlx::{mysql::MySqlPool, Row, Column};
 use std::time::Instant;
 
 pub struct MySqlDriver;
@@ -30,11 +30,34 @@ impl DatabaseDriver for MySqlDriver {
         })
     }
 
-    async fn execute_query(&self, pool: &AnyPool, sql: &str) -> AppResult<QueryResult> {
+    async fn execute_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
         let start = Instant::now();
         
-        let sql_upper = sql.trim().to_uppercase();
-        let is_select = sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH") || sql_upper.starts_with("SHOW");
+        let mut clean_sql = sql.trim();
+        while clean_sql.starts_with("--") || clean_sql.starts_with("/*") {
+            if clean_sql.starts_with("--") {
+                if let Some(newline_pos) = clean_sql.find('\n') {
+                    clean_sql = clean_sql[newline_pos..].trim();
+                } else {
+                    clean_sql = "";
+                    break;
+                }
+            } else if clean_sql.starts_with("/*") {
+                if let Some(end_pos) = clean_sql.find("*/") {
+                    clean_sql = clean_sql[end_pos + 2..].trim();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        let sql_upper = clean_sql.to_uppercase();
+        let is_select = sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH") || sql_upper.starts_with("SHOW") || sql_upper.starts_with("DESCRIBE");
         
         if is_select {
             let rows = sqlx::query(sql)
@@ -77,8 +100,13 @@ impl DatabaseDriver for MySqlDriver {
                                 serde_json::Value::Number(serde_json::Number::from_f64(val).unwrap_or(0.into()))
                             } else if let Ok(val) = row.try_get::<bool, _>(i) {
                                 serde_json::Value::Bool(val)
+                            } else if let Ok(val) = row.try_get::<chrono::NaiveDateTime, _>(i) {
+                                serde_json::Value::String(val.to_string())
+                            } else if let Ok(val) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+                                serde_json::Value::String(val.to_rfc3339())
                             } else {
-                                serde_json::Value::String(format!("{:?}", row.try_get_raw(i)))
+                                // Fallback for unsupported types
+                                serde_json::Value::String("Unsupported type".to_string())
                             }
                         })
                         .collect()
@@ -106,7 +134,12 @@ impl DatabaseDriver for MySqlDriver {
         }
     }
 
-    async fn get_tables(&self, pool: &AnyPool) -> AppResult<Vec<TableInfo>> {
+    async fn get_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
         let query = r#"
             SELECT 
                 TABLE_NAME as table_name,
@@ -141,7 +174,11 @@ impl DatabaseDriver for MySqlDriver {
         Ok(tables)
     }
 
-    async fn get_table_schema(&self, pool: &AnyPool, table_name: &str) -> AppResult<TableSchema> {
+    async fn get_table_schema(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<TableSchema> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
         // Get columns
         let columns_query = r#"
             SELECT 

@@ -1,6 +1,6 @@
 import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, Input, ScrollArea, Separator, Label } from "@/components/ui";
+import { Button, Input, ScrollArea, Label } from "@/components/ui";
 import { useUIStore } from "@/stores";
 
 interface FieldEditorProps {

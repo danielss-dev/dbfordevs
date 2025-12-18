@@ -21,7 +21,7 @@ async-trait = "0.1"
 uuid = { version = "1", features = ["v4"] }
 
 # Database drivers
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "mysql", "sqlite"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "mysql", "sqlite", "chrono"] }
 tiberius = { version = "0.12", default-features = false, features = ["rustls", "chrono"] }
 
 # Utilities
