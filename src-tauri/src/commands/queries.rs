@@ -36,67 +36,64 @@ pub async fn execute_query(request: QueryRequest) -> Result<QueryResult, AppErro
 
 /// Get list of tables in the connected database
 #[tauri::command]
-#[allow(non_snake_case)]
-pub async fn get_tables(connectionId: String) -> AppResult<Vec<TableInfo>> {
+pub async fn get_tables(connection_id: String) -> AppResult<Vec<TableInfo>> {
     let manager = get_connection_manager().read().await;
     
     // Verify connection exists
-    if !manager.is_connected(&connectionId) {
+    if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
     
-    let config = storage::get_connection(&connectionId)?
+    let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
     
     let driver = get_driver(&config);
-    let pool_ref = manager.get_pool_ref(&connectionId)?;
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
     
     driver.get_tables(pool_ref).await
 }
 
 /// Get schema information for a specific table
 #[tauri::command]
-#[allow(non_snake_case)]
 pub async fn get_table_schema(
-    connectionId: String,
-    tableName: String,
+    connection_id: String,
+    table_name: String,
 ) -> AppResult<TableSchema> {
     let manager = get_connection_manager().read().await;
     
     // Verify connection exists
-    if !manager.is_connected(&connectionId) {
+    if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
     
-    let config = storage::get_connection(&connectionId)?
+    let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
     
     let driver = get_driver(&config);
-    let pool_ref = manager.get_pool_ref(&connectionId)?;
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
     
-    driver.get_table_schema(pool_ref, &tableName).await
+    driver.get_table_schema(pool_ref, &table_name).await
 }
 
 /// Insert a new row into a table
 #[tauri::command]
-#[allow(non_snake_case)]
 pub async fn insert_row(
-    connectionId: String,
-    tableName: String,
+    connection_id: String,
+    table_name: String,
     values: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
     let manager = get_connection_manager().read().await;
     
     // Verify connection exists
-    if !manager.is_connected(&connectionId) {
+    if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
     
-    let config = storage::get_connection(&connectionId)?
+    let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
     
     let driver = get_driver(&config);
-    let pool_ref = manager.get_pool_ref(&connectionId)?;
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
     
     // Build INSERT statement
     let columns: Vec<String> = values.keys().cloned().collect();
@@ -114,7 +111,7 @@ pub async fn insert_row(
     
     let sql_with_values = format!(
         "INSERT INTO {} ({}) VALUES ({})",
-        tableName,
+        table_name,
         columns.join(", "),
         values_str.join(", ")
     );
@@ -124,25 +121,24 @@ pub async fn insert_row(
 
 /// Update a row in a table
 #[tauri::command]
-#[allow(non_snake_case)]
 pub async fn update_row(
-    connectionId: String,
-    tableName: String,
-    primaryKey: std::collections::HashMap<String, serde_json::Value>,
+    connection_id: String,
+    table_name: String,
+    primary_key: std::collections::HashMap<String, serde_json::Value>,
     values: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
     let manager = get_connection_manager().read().await;
     
     // Verify connection exists
-    if !manager.is_connected(&connectionId) {
+    if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
     
-    let config = storage::get_connection(&connectionId)?
+    let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
     
     let driver = get_driver(&config);
-    let pool_ref = manager.get_pool_ref(&connectionId)?;
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
     
     // Build UPDATE statement with WHERE clause from primary key
     let set_clauses: Vec<String> = values.iter().map(|(k, v)| {
@@ -156,7 +152,7 @@ pub async fn update_row(
         format!("{} = {}", k, value_str)
     }).collect();
     
-    let where_clauses: Vec<String> = primaryKey.iter().map(|(k, v)| {
+    let where_clauses: Vec<String> = primary_key.iter().map(|(k, v)| {
         let value_str = match v {
             serde_json::Value::String(s) => format!("'{}'", s.replace("'", "''")),
             serde_json::Value::Number(n) => n.to_string(),
@@ -169,7 +165,7 @@ pub async fn update_row(
     
     let sql = format!(
         "UPDATE {} SET {} WHERE {}",
-        tableName,
+        table_name,
         set_clauses.join(", "),
         where_clauses.join(" AND ")
     );
@@ -179,27 +175,26 @@ pub async fn update_row(
 
 /// Delete a row from a table
 #[tauri::command]
-#[allow(non_snake_case)]
 pub async fn delete_row(
-    connectionId: String,
-    tableName: String,
-    primaryKey: std::collections::HashMap<String, serde_json::Value>,
+    connection_id: String,
+    table_name: String,
+    primary_key: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
     let manager = get_connection_manager().read().await;
     
     // Verify connection exists
-    if !manager.is_connected(&connectionId) {
+    if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
     
-    let config = storage::get_connection(&connectionId)?
+    let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
     
     let driver = get_driver(&config);
-    let pool_ref = manager.get_pool_ref(&connectionId)?;
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
     
     // Build DELETE statement with WHERE clause from primary key
-    let where_clauses: Vec<String> = primaryKey.iter().map(|(k, v)| {
+    let where_clauses: Vec<String> = primary_key.iter().map(|(k, v)| {
         let value_str = match v {
             serde_json::Value::String(s) => format!("'{}'", s.replace("'", "''")),
             serde_json::Value::Number(n) => n.to_string(),
@@ -212,7 +207,7 @@ pub async fn delete_row(
     
     let sql = format!(
         "DELETE FROM {} WHERE {}",
-        tableName,
+        table_name,
         where_clauses.join(" AND ")
     );
     
@@ -221,25 +216,24 @@ pub async fn delete_row(
 
 /// Drop a table from the database
 #[tauri::command]
-#[allow(non_snake_case)]
 pub async fn drop_table(
-    connectionId: String,
-    tableName: String,
+    connection_id: String,
+    table_name: String,
 ) -> AppResult<QueryResult> {
     let manager = get_connection_manager().read().await;
     
     // Verify connection exists
-    if !manager.is_connected(&connectionId) {
+    if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
     
-    let config = storage::get_connection(&connectionId)?
+    let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
     
     let driver = get_driver(&config);
-    let pool_ref = manager.get_pool_ref(&connectionId)?;
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
     
-    let sql = format!("DROP TABLE {}", tableName);
+    let sql = format!("DROP TABLE {}", table_name);
     
     driver.execute_query(pool_ref, &sql).await
 }

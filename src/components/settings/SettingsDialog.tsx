@@ -16,6 +16,7 @@ import {
   Button,
 } from "@/components/ui";
 import { useUIStore } from "@/stores";
+import { useToast } from "@/hooks/useToast";
 import { Monitor, Moon, Sun, Keyboard, User, Settings2, Code, Info, Database, ExternalLink, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,23 @@ function ShortcutItem({ label, keys }: ShortcutItemProps) {
 
 export function SettingsDialog() {
   const { showSettingsDialog, setShowSettingsDialog, theme, setTheme, appStyle, setAppStyle } = useUIStore();
+  const { toast } = useToast();
+
+  const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
+    setTheme(newTheme);
+    toast({
+      title: "Theme updated",
+      description: `Interface theme set to ${newTheme}.`,
+    });
+  };
+
+  const handleAppStyleChange = (newStyle: "developer" | "web") => {
+    setAppStyle(newStyle);
+    toast({
+      title: "App style updated",
+      description: `Application style set to ${newStyle}.`,
+    });
+  };
 
   return (
     <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
@@ -179,7 +197,7 @@ export function SettingsDialog() {
                       label="Theme"
                       description="Switch between light, dark, or system theme."
                     >
-                      <Select value={theme} onValueChange={(v: "light" | "dark" | "system") => setTheme(v)}>
+                      <Select value={theme} onValueChange={handleThemeChange}>
                         <SelectTrigger className="w-40">
                           <SelectValue placeholder="Select theme" />
                         </SelectTrigger>
@@ -210,7 +228,7 @@ export function SettingsDialog() {
                       label="App Style"
                       description="Choose between a developer-focused IDE style or a modern web look."
                     >
-                      <Select value={appStyle} onValueChange={(v: "developer" | "web") => setAppStyle(v)}>
+                      <Select value={appStyle} onValueChange={handleAppStyleChange}>
                         <SelectTrigger className="w-40">
                           <SelectValue placeholder="Select style" />
                         </SelectTrigger>

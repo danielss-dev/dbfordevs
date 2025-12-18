@@ -7,8 +7,6 @@ import {
   Settings,
   ChevronRight,
   ChevronDown,
-  Server,
-  HardDrive,
   Wrench,
   Loader2,
   Pencil,
@@ -30,10 +28,18 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
-import { useDatabase } from "@/hooks";
+import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 
@@ -123,9 +129,12 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { openConnectionModal } = useUIStore();
   const { tables, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
   const { connect, disconnect, getTables, deleteConnection, dropTable } = useDatabase();
+  const { toast } = useToast();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
+  const [showDeleteConnectionDialog, setShowDeleteConnectionDialog] = useState(false);
+  const [tableToDrop, setTableToDrop] = useState<string | null>(null);
   const isActive = activeConnectionId === connection.id;
 
   useEffect(() => {
@@ -195,15 +204,34 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   };
 
   const handleTableDelete = async (tableIdentifier: string) => {
-    if (window.confirm(`Are you sure you want to drop table "${tableIdentifier}"? This action cannot be undone.`)) {
-      const result = await dropTable(connection.id, tableIdentifier);
+    setTableToDrop(tableIdentifier);
+  };
+
+  const confirmTableDelete = async () => {
+    if (!tableToDrop) return;
+    try {
+      const result = await dropTable(connection.id, tableToDrop);
       if (result) {
         // Remove associated tab if open
-        const tabId = `table-${connection.id}-${tableIdentifier}`;
+        const tabId = `table-${connection.id}-${tableToDrop}`;
         removeTab(tabId);
         // Refresh tables list
         await getTables(connection.id);
+
+        toast({
+          title: "Table dropped",
+          description: `Table "${tableToDrop}" has been dropped successfully.`,
+          variant: "success",
+        });
       }
+    } catch (error) {
+      toast({
+        title: "Failed to drop table",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setTableToDrop(null);
     }
   };
 
@@ -212,17 +240,65 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   };
 
   const handleDelete = async () => {
-    if (window.confirm(`Delete connection "${connection.name}"?`)) {
-      await deleteConnection(connection.id);
+    setShowDeleteConnectionDialog(true);
+  };
+
+  const confirmDeleteConnection = async () => {
+    try {
+      const result = await deleteConnection(connection.id);
+      if (result) {
+        toast({
+          title: "Connection deleted",
+          description: `Connection "${connection.name}" has been deleted successfully.`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to delete connection",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setShowDeleteConnectionDialog(false);
     }
   };
 
   const handleConnect = async () => {
-    await connect(connection.id);
+    try {
+      const success = await connect(connection.id);
+      if (success) {
+        toast({
+          title: "Connected",
+          description: `Connected to "${connection.name}" successfully.`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Connection failed",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDisconnect = async () => {
-    await disconnect(connection.id);
+    try {
+      const success = await disconnect(connection.id);
+      if (success) {
+        toast({
+          title: "Disconnected",
+          description: `Disconnected from "${connection.name}".`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Disconnect failed",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    }
   };
 
   const getIcon = () => {
@@ -323,13 +399,13 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                       </div>
                                     </ContextMenuTrigger>
                                     <ContextMenuContent className="w-48">
-                                      <ContextMenuItem onClick={() => handleTableClick(table.name, displayLabel)} className="gap-2">
+                                      <ContextMenuItem onSelect={() => handleTableClick(table.name, displayLabel)} className="gap-2">
                                         <Table className="h-4 w-4" />
                                         View Data
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
                                       <ContextMenuItem
-                                        onClick={() => handleTableDelete(table.name)}
+                                        onSelect={() => handleTableDelete(table.name)}
                                         className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -361,33 +437,33 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
         <ContextMenuContent className="w-52">
           {connection.connected ? (
             <>
-              <ContextMenuItem onClick={handleDisconnect} className="gap-2">
+              <ContextMenuItem onSelect={handleDisconnect} className="gap-2">
                 <Unplug className="h-4 w-4" />
                 Disconnect
               </ContextMenuItem>
-              <ContextMenuItem onClick={loadTables} className="gap-2">
+              <ContextMenuItem onSelect={loadTables} className="gap-2">
                 <RefreshCw className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
                 Refresh
               </ContextMenuItem>
             </>
           ) : (
-            <ContextMenuItem onClick={handleConnect} className="gap-2">
+            <ContextMenuItem onSelect={handleConnect} className="gap-2">
               <Plug className="h-4 w-4" />
               Connect
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={handleEdit} className="gap-2">
+          <ContextMenuItem onSelect={handleEdit} className="gap-2">
             <Pencil className="h-4 w-4" />
             Edit Connection
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => setShowProperties(true)} className="gap-2">
+          <ContextMenuItem onSelect={() => setShowProperties(true)} className="gap-2">
             <Info className="h-4 w-4" />
             Properties
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
-            onClick={handleDelete}
+            onSelect={handleDelete}
             className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
           >
             <Trash2 className="h-4 w-4" />
@@ -401,6 +477,46 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
         open={showProperties}
         onOpenChange={setShowProperties}
       />
+
+      <AlertDialog open={showDeleteConnectionDialog} onOpenChange={setShowDeleteConnectionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Connection</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the connection "{connection.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteConnection}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!tableToDrop} onOpenChange={(open) => !open && setTableToDrop(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop Table</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the table "{tableToDrop}"? All data will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmTableDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop Table
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

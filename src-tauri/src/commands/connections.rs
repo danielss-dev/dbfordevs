@@ -34,23 +34,21 @@ pub async fn save_connection(config: ConnectionConfig) -> AppResult<ConnectionIn
 
 /// Connect to a database
 #[tauri::command]
-#[allow(non_snake_case)]
-pub async fn connect(connectionId: String) -> AppResult<bool> {
-    let config = storage::get_connection(&connectionId)?
+pub async fn connect(connection_id: String) -> AppResult<bool> {
+    let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection not found".to_string()))?;
     
     let mut manager = get_connection_manager().write().await;
-    manager.connect(connectionId.clone(), &config).await?;
+    manager.connect(connection_id.clone(), &config).await?;
     
     Ok(true)
 }
 
 /// Disconnect from a database
 #[tauri::command]
-#[allow(non_snake_case)]
-pub async fn disconnect(connectionId: String) -> AppResult<bool> {
+pub async fn disconnect(connection_id: String) -> AppResult<bool> {
     let mut manager = get_connection_manager().write().await;
-    manager.disconnect(&connectionId).await?;
+    manager.disconnect(&connection_id).await?;
     Ok(true)
 }
 
@@ -80,24 +78,22 @@ pub async fn list_connections() -> AppResult<Vec<ConnectionInfo>> {
 
 /// Delete a saved connection
 #[tauri::command]
-#[allow(non_snake_case)]
-pub async fn delete_connection(connectionId: String) -> AppResult<bool> {
+pub async fn delete_connection(connection_id: String) -> AppResult<bool> {
     // Disconnect if connected
     let mut manager = get_connection_manager().write().await;
-    if manager.is_connected(&connectionId) {
-        manager.disconnect(&connectionId).await?;
+    if manager.is_connected(&connection_id) {
+        manager.disconnect(&connection_id).await?;
     }
 
     // Remove from storage
-    storage::delete_connection(&connectionId)?;
+    storage::delete_connection(&connection_id)?;
 
     Ok(true)
 }
 
 /// Get a connection configuration by ID
 #[tauri::command]
-#[allow(non_snake_case)]
-pub async fn get_connection(connectionId: String) -> AppResult<Option<ConnectionConfig>> {
-    storage::get_connection(&connectionId)
+pub async fn get_connection(connection_id: String) -> AppResult<Option<ConnectionConfig>> {
+    storage::get_connection(&connection_id)
 }
 

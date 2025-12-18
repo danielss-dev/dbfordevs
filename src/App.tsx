@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { TooltipProvider } from "@/components/ui";
+import { TooltipProvider, Toaster } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout";
 import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal } from "@/components/connections";
@@ -30,6 +30,7 @@ function App() {
         {/* Modals */}
         <SettingsDialog />
         <ConnectionModal />
+        <Toaster />
       </div>
     </TooltipProvider>
   );
