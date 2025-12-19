@@ -376,7 +376,7 @@ The application follows a three-panel layout:
 | AI Query Assistant    | ✅        | ❌        | Partial  | ❌     |
 | Visual Diff Preview   | ✅        | Partial   | ✅       | ❌     |
 | Side Panel Editor     | ✅        | ❌        | ❌       | ❌     |
-| Free & Open Source    | TBD       | Community | Paid     | ✅     |
+| Free & Open Source    | MIT (Core)| Community | Paid     | ✅     |
 | Cross-Platform        | ✅        | ✅        | ✅       | ✅     |
 | SQL + NoSQL           | ✅        | ✅        | ✅       | ✅     |
 

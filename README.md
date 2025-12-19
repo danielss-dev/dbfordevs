@@ -86,6 +86,12 @@ dbfordevs uses a modular architecture where features like connection validators 
 
 Interested in building a plugin? See `crates/plugin-core` for the base traits.
 
+## 📄 License
+
+This project's core is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details. 
+
+The plugin architecture is designed to support a dual-licensing model, allowing for both open-source and proprietary extensions within the marketplace.
+
 ---
 
 Built with ❤️ by Daniels
