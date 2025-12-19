@@ -15,6 +15,7 @@ import {
   Plug,
   Unplug,
   RefreshCw,
+  ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -522,7 +523,14 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 }
 
 export function Sidebar() {
-  const { sidebarOpen, sidebarWidth, setShowConnectionModal, setShowValidatorModal, setShowSettingsDialog } = useUIStore();
+  const { 
+    sidebarOpen, 
+    sidebarWidth, 
+    appStyle,
+    setShowConnectionModal, 
+    setShowMarketplace, 
+    setShowSettingsDialog 
+  } = useUIStore();
   const { connections } = useConnectionsStore();
   const { loadConnections } = useDatabase();
 
@@ -533,6 +541,8 @@ export function Sidebar() {
   if (!sidebarOpen) {
     return null;
   }
+
+  const isDeveloper = appStyle === "developer";
 
   return (
     <aside
@@ -603,13 +613,19 @@ export function Sidebar() {
                 variant="ghost"
                 size="sm"
                 className="flex-1 justify-start gap-2 h-9"
-                onClick={() => setShowValidatorModal(true)}
+                onClick={() => setShowMarketplace(true)}
               >
-                <Wrench className="h-4 w-4" />
-                <span className="text-xs">Validator</span>
+                {isDeveloper ? (
+                  <Wrench className="h-4 w-4" />
+                ) : (
+                  <ShoppingBag className="h-4 w-4" />
+                )}
+                <span className="text-xs">{isDeveloper ? "Plugins" : "Marketplace"}</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Connection String Validator</TooltipContent>
+            <TooltipContent side="top">
+              {isDeveloper ? "Plugins" : "Marketplace"}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>

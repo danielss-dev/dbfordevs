@@ -20,7 +20,7 @@ interface UIState {
   // Modal states
   showConnectionModal: boolean;
   editingConnectionId: string | null; // ID of connection being edited, null for new
-  showValidatorModal: boolean;
+  showMarketplace: boolean;
   showDiffModal: boolean;
   showSettingsDialog: boolean;
   // Edit mode for data grid
@@ -38,7 +38,7 @@ interface UIState {
   clearPendingChanges: () => void;
   setShowConnectionModal: (show: boolean) => void;
   openConnectionModal: (connectionId?: string) => void; // Open for new or edit
-  setShowValidatorModal: (show: boolean) => void;
+  setShowMarketplace: (show: boolean) => void;
   setShowDiffModal: (show: boolean) => void;
   setShowSettingsDialog: (show: boolean) => void;
   setEditMode: (editMode: boolean) => void;
@@ -56,7 +56,7 @@ export const useUIStore = create<UIState>()(
       pendingChanges: [],
       showConnectionModal: false,
       editingConnectionId: null,
-      showValidatorModal: false,
+      showMarketplace: false,
       showDiffModal: false,
       showSettingsDialog: false,
       editMode: false,
@@ -121,8 +121,8 @@ export const useUIStore = create<UIState>()(
       openConnectionModal: (connectionId) =>
         set({ showConnectionModal: true, editingConnectionId: connectionId ?? null }),
 
-      setShowValidatorModal: (showValidatorModal) =>
-        set({ showValidatorModal }),
+      setShowMarketplace: (showMarketplace) =>
+        set({ showMarketplace }),
 
       setShowDiffModal: (showDiffModal) => set({ showDiffModal }),
 

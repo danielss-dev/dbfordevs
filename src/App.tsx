@@ -3,6 +3,7 @@ import { TooltipProvider, Toaster } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout";
 import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal } from "@/components/connections";
+import { Marketplace } from "@/components/marketplace";
 import { useUIStore } from "@/stores";
 
 function App() {
@@ -27,9 +28,10 @@ function App() {
         {/* Status Bar */}
         <StatusBar />
 
-        {/* Modals */}
+        {/* Modals & Overlays */}
         <SettingsDialog />
         <ConnectionModal />
+        <Marketplace />
         <Toaster />
       </div>
     </TooltipProvider>
