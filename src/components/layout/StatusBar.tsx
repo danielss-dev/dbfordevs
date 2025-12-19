@@ -1,4 +1,4 @@
-import { Database, Clock, AlertCircle, CheckCircle, Loader2, Zap } from "lucide-react";
+import { Database, Clock, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection } from "@/stores";
 

@@ -45,7 +45,7 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
           </button>
         );
       },
-      cell: ({ getValue, column }) => {
+      cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || value === undefined) {
           return (

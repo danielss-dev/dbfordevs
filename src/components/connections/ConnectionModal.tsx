@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, CheckCircle2, XCircle, Database, HelpCircle, Server, Key, FolderOpen, Pencil } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Database, HelpCircle, Server, Key, FolderOpen } from "lucide-react";
 import {
   Dialog,
   DialogContent,
