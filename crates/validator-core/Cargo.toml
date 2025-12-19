@@ -7,6 +7,7 @@ license.workspace = true
 description = "Core traits and types for dbfordevs connection string validators"
 
 [dependencies]
+plugin-core = { path = "../plugin-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -16,10 +16,11 @@
 //! sqlite:///./mydb.sqlite
 //! ```
 
+use plugin_core::{Plugin, PluginCategory, PluginMetadata};
 use url::Url;
 use validator_core::{
     ConnectionStringValidator, DatabaseType, ParsedConnection,
-    ValidationResult, ValidatorError, ValidatorInfo, error_message, warning_message,
+    ValidationResult, ValidatorError, error_message, warning_message,
 };
 
 pub struct PythonValidator;
@@ -97,21 +98,20 @@ impl Default for PythonValidator {
     }
 }
 
-impl ConnectionStringValidator for PythonValidator {
-    fn info(&self) -> ValidatorInfo {
-        ValidatorInfo {
+impl Plugin for PythonValidator {
+    fn metadata(&self) -> PluginMetadata {
+        PluginMetadata {
             id: "python".to_string(),
-            name: "Python".to_string(),
+            name: "Python Validator".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             description: "SQLAlchemy connection URLs, psycopg2, PyMySQL".to_string(),
-            supported_databases: vec![
-                "postgresql".to_string(),
-                "mysql".to_string(),
-                "sqlite".to_string(),
-                "mssql".to_string(),
-            ],
+            author: "Daniels".to_string(),
+            category: PluginCategory::Validator,
         }
     }
+}
 
+impl ConnectionStringValidator for PythonValidator {
     fn parse(&self, connection_string: &str) -> Result<ParsedConnection, ValidatorError> {
         if connection_string.trim().is_empty() {
             return Err(ValidatorError::ParseError("Connection string is empty".to_string()));

@@ -16,11 +16,12 @@
 //! {"server":"localhost","database":"mydb","user":"user","password":"pass"}
 //! ```
 
+use plugin_core::{Plugin, PluginCategory, PluginMetadata};
 use std::collections::HashMap;
 use url::Url;
 use validator_core::{
     ConnectionStringValidator, DatabaseType, ParsedConnection,
-    ValidationResult, ValidatorError, ValidatorInfo, error_message, warning_message,
+    ValidationResult, ValidatorError, error_message, warning_message,
 };
 
 pub struct NodeJsValidator;
@@ -144,20 +145,20 @@ impl Default for NodeJsValidator {
     }
 }
 
-impl ConnectionStringValidator for NodeJsValidator {
-    fn info(&self) -> ValidatorInfo {
-        ValidatorInfo {
+impl Plugin for NodeJsValidator {
+    fn metadata(&self) -> PluginMetadata {
+        PluginMetadata {
             id: "nodejs".to_string(),
-            name: "Node.js".to_string(),
+            name: "Node.js Validator".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             description: "Connection strings for pg, mysql2, mssql packages".to_string(),
-            supported_databases: vec![
-                "postgresql".to_string(),
-                "mysql".to_string(),
-                "mssql".to_string(),
-            ],
+            author: "Daniels".to_string(),
+            category: PluginCategory::Validator,
         }
     }
+}
 
+impl ConnectionStringValidator for NodeJsValidator {
     fn parse(&self, connection_string: &str) -> Result<ParsedConnection, ValidatorError> {
         if connection_string.trim().is_empty() {
             return Err(ValidatorError::ParseError("Connection string is empty".to_string()));

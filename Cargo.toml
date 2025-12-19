@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "src-tauri",
+    "crates/plugin-core",
     "crates/validator-core",
     "crates/validator-csharp",
     "crates/validator-nodejs",

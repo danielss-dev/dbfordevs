@@ -9,10 +9,11 @@
 //! Server=localhost;Database=mydb;User Id=user;Password=pass;
 //! ```
 
+use plugin_core::{Plugin, PluginCategory, PluginMetadata};
 use std::collections::HashMap;
 use validator_core::{
     ConnectionStringValidator, DatabaseType, ParsedConnection,
-    ValidationResult, ValidatorError, ValidatorInfo, error_message, warning_message,
+    ValidationResult, ValidatorError, error_message, warning_message,
 };
 
 pub struct CSharpValidator;
@@ -92,20 +93,20 @@ impl Default for CSharpValidator {
     }
 }
 
-impl ConnectionStringValidator for CSharpValidator {
-    fn info(&self) -> ValidatorInfo {
-        ValidatorInfo {
+impl Plugin for CSharpValidator {
+    fn metadata(&self) -> PluginMetadata {
+        PluginMetadata {
             id: "csharp".to_string(),
-            name: "C# / .NET".to_string(),
+            name: "C# / .NET Validator".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             description: "ADO.NET connection strings (SqlConnection, NpgsqlConnection, MySqlConnection)".to_string(),
-            supported_databases: vec![
-                "postgresql".to_string(),
-                "mysql".to_string(),
-                "mssql".to_string(),
-            ],
+            author: "Daniels".to_string(),
+            category: PluginCategory::Validator,
         }
     }
+}
 
+impl ConnectionStringValidator for CSharpValidator {
     fn parse(&self, connection_string: &str) -> Result<ParsedConnection, ValidatorError> {
         if connection_string.trim().is_empty() {
             return Err(ValidatorError::ParseError("Connection string is empty".to_string()));

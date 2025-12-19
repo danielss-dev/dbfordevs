@@ -3,6 +3,7 @@
 //! This crate provides the foundational interfaces that all language-specific
 //! connection string validators must implement.
 
+use plugin_core::{Plugin, PluginCategory, PluginMetadata};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -99,24 +100,8 @@ pub struct ValidationMessage {
     pub field: Option<String>,
 }
 
-/// Information about a validator plugin
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ValidatorInfo {
-    /// Unique identifier for this validator
-    pub id: String,
-    /// Display name
-    pub name: String,
-    /// Description of what this validator handles
-    pub description: String,
-    /// List of supported database types
-    pub supported_databases: Vec<String>,
-}
-
 /// Trait that all connection string validators must implement
-pub trait ConnectionStringValidator: Send + Sync {
-    /// Returns information about this validator
-    fn info(&self) -> ValidatorInfo;
-
+pub trait ConnectionStringValidator: Plugin + Send + Sync {
     /// Parse a connection string into its components
     fn parse(&self, connection_string: &str) -> Result<ParsedConnection, ValidatorError>;
 
