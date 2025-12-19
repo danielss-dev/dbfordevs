@@ -90,7 +90,7 @@ dbfordevs will be built using **Tauri 2.x**, a modern framework for building lig
 - **Package Manager:** Bun (fast, modern JavaScript runtime and package manager)
 - **UI Framework:** TailwindCSS with shadcn/ui components
 - **State Management:** Zustand for React state management
-- **Database Drivers (Rust):** sqlx (PostgreSQL, MySQL, SQLite), tiberius (MSSQL)
+- **Database Drivers (Rust):** sqlx (PostgreSQL, MySQL, SQLite, MSSQL), mongodb (MongoDB), redis (Redis)
 - **Diff Library:** diff-match-patch or similar for change visualization
 - **Code Editor:** Monaco Editor (VS Code's editor) for SQL editing
 
