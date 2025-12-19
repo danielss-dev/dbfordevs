@@ -1,7 +1,7 @@
 import * as React from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
 import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
+import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -23,14 +23,15 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-lg border p-4 pr-8 shadow-lg transition-all data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full border-l-4",
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
+        default: "border bg-background text-foreground border-l-primary/50",
         destructive:
-          "destructive group border-destructive bg-destructive text-destructive-foreground",
-        success: "border-success bg-background text-foreground",
+          "destructive group border-destructive bg-destructive text-destructive-foreground border-l-destructive",
+        success: "border-success/50 bg-background text-foreground border-l-success",
+        warning: "border-warning/50 bg-background text-foreground border-l-warning",
       },
     },
     defaultVariants: {
@@ -53,6 +54,23 @@ const Toast = React.forwardRef<
   )
 })
 Toast.displayName = ToastPrimitives.Root.displayName
+
+const ToastProgress = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & { duration?: number }
+>(({ className, duration = 3000, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("absolute bottom-0 left-0 h-1.5 w-full bg-muted/30", className)}
+    {...props}
+  >
+    <div
+      className="h-full bg-current opacity-60 animate-toast-progress"
+      style={{ animationDuration: `${duration}ms` }}
+    />
+  </div>
+))
+ToastProgress.displayName = "ToastProgress"
 
 const ToastAction = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Action>,
@@ -125,4 +143,5 @@ export {
   ToastDescription,
   ToastClose,
   ToastAction,
+  ToastProgress,
 }
