@@ -3,9 +3,22 @@
 //! This crate provides the foundational interfaces that all language-specific
 //! connection string validators must implement.
 
-use plugin_core::{Plugin, PluginCategory, PluginMetadata};
+use plugin_core::Plugin;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+/// Metadata about a connection string validator
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidatorInfo {
+    /// Unique identifier for the validator
+    pub id: String,
+    /// Human-readable name
+    pub name: String,
+    /// Description of what it validates
+    pub description: String,
+    /// List of database types it supports
+    pub supported_databases: Vec<String>,
+}
 
 /// Errors that can occur during connection string validation
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]

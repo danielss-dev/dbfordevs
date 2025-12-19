@@ -2695,6 +2695,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "png"
 version = "0.17.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4804,6 +4813,7 @@ dependencies = [
 name = "validator-core"
 version = "0.1.0"
 dependencies = [
+ "plugin-core",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4813,6 +4823,7 @@ dependencies = [
 name = "validator-csharp"
 version = "0.1.0"
 dependencies = [
+ "plugin-core",
  "regex",
  "serde",
  "serde_json",
@@ -4823,6 +4834,7 @@ dependencies = [
 name = "validator-nodejs"
 version = "0.1.0"
 dependencies = [
+ "plugin-core",
  "regex",
  "serde",
  "serde_json",
@@ -4834,6 +4846,7 @@ dependencies = [
 name = "validator-python"
 version = "0.1.0"
 dependencies = [
+ "plugin-core",
  "regex",
  "serde",
  "serde_json",

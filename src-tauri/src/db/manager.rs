@@ -77,6 +77,7 @@ impl ConnectionManager {
     }
 
     /// Get connection string for reference
+    #[allow(dead_code)]
     pub fn get_connection_string(&self, connection_id: &str) -> Option<&String> {
         self.connection_strings.get(connection_id)
     }
@@ -94,6 +95,7 @@ impl ConnectionManager {
     }
 
     /// Get a connection pool
+    #[allow(dead_code)]
     pub fn get_pool(&self, connection_id: &str) -> Option<&ConnectionPool> {
         self.connections.get(connection_id)
     }
@@ -104,6 +106,7 @@ impl ConnectionManager {
     }
 
     /// List all active connection IDs
+    #[allow(dead_code)]
     pub fn list_connections(&self) -> Vec<String> {
         self.connections.keys().cloned().collect()
     }
