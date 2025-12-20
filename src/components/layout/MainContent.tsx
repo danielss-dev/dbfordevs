@@ -3,8 +3,10 @@ import { X, Play, Plus, Table, Code, Loader2, AlertCircle, Terminal, Rows3, Refr
 import { cn } from "@/lib/utils";
 import { Button, ScrollArea, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults } from "@/stores";
+import { useUIStore } from "@/stores/ui";
 import { useDatabase } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
+import { SqlEditor } from "@/components/editor";
 import type { Tab } from "@/types";
 
 function TabItem({ tab, isActive, onClose, onClick }: {
@@ -103,11 +105,18 @@ function EmptyState() {
 }
 
 function QueryEditor({ tab }: { tab: Tab }) {
-  const { updateTabContent, isExecuting, error } = useQueryStore();
+  const { updateTabContent, isExecuting, error, tables } = useQueryStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const results = useQueryStore(selectActiveResults);
-  const { executeQuery } = useDatabase();
+  const { theme } = useUIStore();
+  const { executeQuery, getTableSchema } = useDatabase();
   const [content, setContent] = useState(tab.content || "");
+
+  // Create a schema fetcher for the SQL editor
+  const fetchTableSchema = async (tableName: string) => {
+    if (!activeConnection) return null;
+    return getTableSchema(activeConnection.id, tableName);
+  };
 
   // Handle F5 refresh (re-run query)
   useEffect(() => {
@@ -138,26 +147,6 @@ function QueryEditor({ tab }: { tab: Tab }) {
       },
       tab.id
     );
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-      e.preventDefault();
-      handleExecute();
-    }
-    // Tab key handling for indentation
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const start = e.currentTarget.selectionStart;
-      const end = e.currentTarget.selectionEnd;
-      const newContent = content.substring(0, start) + "  " + content.substring(end);
-      setContent(newContent);
-      updateTabContent(tab.id, newContent);
-      // Set cursor position after the tab
-      setTimeout(() => {
-        e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 2;
-      }, 0);
-    }
   };
 
   return (
@@ -207,30 +196,19 @@ function QueryEditor({ tab }: { tab: Tab }) {
       </div>
 
       {/* Editor Area */}
-      <div className="flex-1 p-4 bg-background">
-        <div className="relative h-full rounded-lg border border-border bg-card overflow-hidden">
-          {/* Line numbers gutter (visual) */}
-          <div className="absolute left-0 top-0 bottom-0 w-12 bg-muted/30 border-r border-border flex flex-col items-end pt-3 pr-2 text-xs text-muted-foreground/50 font-mono select-none overflow-hidden">
-            {content.split('\n').map((_, i) => (
-              <div key={i} className="leading-6">{i + 1}</div>
-            ))}
-          </div>
-          <textarea
-            className={cn(
-              "h-full w-full resize-none bg-transparent pl-14 pr-4 py-3 font-mono text-sm leading-6",
-              "focus:outline-none",
-              "placeholder:text-muted-foreground/50"
-            )}
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value);
-              updateTabContent(tab.id, e.target.value);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="-- Write your SQL query here"
-            spellCheck={false}
-          />
-        </div>
+      <div className="flex-1 bg-background overflow-hidden">
+        <SqlEditor
+          value={content}
+          onChange={(value) => {
+            setContent(value);
+            updateTabContent(tab.id, value);
+          }}
+          onExecute={handleExecute}
+          tables={tables}
+          getTableSchema={fetchTableSchema}
+          theme={theme}
+          height="100%"
+        />
       </div>
 
       {/* Results Area */}
