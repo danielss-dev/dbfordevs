@@ -1,0 +1,51 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: setup bun
+        uses: oven-sh/setup-bun@v2
+        
+      - name: setup deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          
+      - name: install frontend dependencies
+        run: bun install
+        
+      - name: setup rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__ # tauri-action will replace this with the version from tauri.conf.json
+          releaseName: "Release v__VERSION__"
+          releaseBody: "See the assets below for the latest version."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.platform == 'ubuntu-22.04' && '--target x86_64-unknown-linux-gnu' || '' }}
+
