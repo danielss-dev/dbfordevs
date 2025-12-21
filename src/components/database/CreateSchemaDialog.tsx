@@ -44,13 +44,13 @@ export function CreateSchemaDialog() {
         "create-schema" // Dummy tabId for the store
       );
 
-      if (result && !result.error) {
+      if (result) {
         // Refresh tables/schemas list
         await getTables(creatingSchemaConnectionId);
         setShowCreateSchemaDialog(false);
         setSchemaName("");
       } else {
-        setError(result?.error || "Failed to create schema");
+        setError("Failed to create schema");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create schema");

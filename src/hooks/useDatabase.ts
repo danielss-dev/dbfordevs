@@ -183,6 +183,9 @@ export function useDatabase() {
       try {
         await invoke("delete_connection", { connectionId });
         removeConnection(connectionId);
+        // Clear cached tables for deleted connection to prevent memory leak
+        const { clearTablesForConnection } = useQueryStore.getState();
+        clearTablesForConnection(connectionId);
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

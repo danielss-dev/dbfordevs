@@ -55,6 +55,8 @@ export function RenameConnectionDialog() {
             title: "Connection Duplicated",
             description: `Successfully duplicated "${renamingConnectionName}" as "${newName.trim()}".`,
           });
+          // Refresh connections list to show new connection in sidebar
+          await loadConnections();
           setShowRenameConnectionDialog(false);
         } else {
           setError("Failed to duplicate connection");
