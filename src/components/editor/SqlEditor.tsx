@@ -148,6 +148,10 @@ export function SqlEditor({
 
         // Accessibility
         accessibilitySupport: "auto",
+        folding: true,
+        showFoldingControls: "always",
+        foldingHighlight: true,
+        foldingStrategy: "indentation",
       }}
     />
   );

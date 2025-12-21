@@ -44,6 +44,8 @@ export function registerCustomThemes(monaco: typeof Monaco) {
       "scrollbarSlider.hoverBackground": "#6e768180",
       "scrollbarSlider.activeBackground": "#6e7681",
       "editorGutter.background": "#0d1117",
+      "editorGutter.foldingControlForeground": "#6e7681",
+      "editor.foldBackground": "#161b22",
     },
   });
 
@@ -89,6 +91,8 @@ export function registerCustomThemes(monaco: typeof Monaco) {
       "scrollbarSlider.background": "#8c8c8c33",
       "scrollbarSlider.hoverBackground": "#8c8c8c66",
       "editorGutter.background": "#ffffff",
+      "editorGutter.foldingControlForeground": "#636c76",
+      "editor.foldBackground": "#f0f0f0",
     },
   });
 }

@@ -142,12 +142,16 @@
 }
 
 .style-developer * {
-  font-family: inherit !important;
+  font-family: inherit;
 }
 
 /* Re-allow icons to use their own font if necessary, though Lucide usually uses SVG */
 .style-developer .lucide {
   font-family: unset !important;
+}
+
+.style-developer .codicon {
+  font-family: codicon !important;
 }
 
 .style-developer .glass {
