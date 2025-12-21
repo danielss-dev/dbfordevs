@@ -146,7 +146,7 @@ impl DatabaseDriver for PostgresDriver {
         }
     }
 
-    async fn get_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableInfo>> {
+    async fn get_tables(&self, pool: PoolRef<'_>, _config: &ConnectionConfig) -> AppResult<Vec<TableInfo>> {
         let pool = match pool {
             PoolRef::Postgres(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),

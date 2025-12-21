@@ -50,7 +50,7 @@ pub async fn get_tables(connection_id: String) -> AppResult<Vec<TableInfo>> {
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
     
-    driver.get_tables(pool_ref).await
+    driver.get_tables(pool_ref, &config).await
 }
 
 /// Get schema information for a specific table

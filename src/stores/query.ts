@@ -8,8 +8,8 @@ interface QueryState {
   activeTabId: string | null;
   // Query results per tab
   results: Record<string, QueryResult>;
-  // Tables for current connection
-  tables: TableInfo[];
+  // Tables per connection (keyed by connectionId)
+  tablesByConnection: Record<string, TableInfo[]>;
   // Schema for selected table
   tableSchema: TableSchema | null;
   // Execution state
@@ -24,7 +24,8 @@ interface QueryState {
   updateTabContent: (id: string, content: string) => void;
   setResults: (tabId: string, results: QueryResult) => void;
   clearResults: (tabId: string) => void;
-  setTables: (tables: TableInfo[]) => void;
+  setTablesForConnection: (connectionId: string, tables: TableInfo[]) => void;
+  clearTablesForConnection: (connectionId: string) => void;
   setTableSchema: (schema: TableSchema | null) => void;
   setExecuting: (executing: boolean) => void;
   setError: (error: string | null) => void;
@@ -35,7 +36,7 @@ export const useQueryStore = create<QueryState>()((set) => ({
   tabs: [],
   activeTabId: null,
   results: {},
-  tables: [],
+  tablesByConnection: {},
   tableSchema: null,
   isExecuting: false,
   error: null,
@@ -85,7 +86,17 @@ export const useQueryStore = create<QueryState>()((set) => ({
       return { results: newResults };
     }),
 
-  setTables: (tables) => set({ tables }),
+  setTablesForConnection: (connectionId, tables) =>
+    set((state) => ({
+      tablesByConnection: { ...state.tablesByConnection, [connectionId]: tables },
+    })),
+
+  clearTablesForConnection: (connectionId) =>
+    set((state) => {
+      const newTablesByConnection = { ...state.tablesByConnection };
+      delete newTablesByConnection[connectionId];
+      return { tablesByConnection: newTablesByConnection };
+    }),
 
   setTableSchema: (tableSchema) => set({ tableSchema }),
 

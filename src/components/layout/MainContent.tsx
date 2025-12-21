@@ -118,8 +118,10 @@ function EmptyState() {
 }
 
 function QueryEditor({ tab }: { tab: Tab }) {
-  const { updateTabContent, isExecuting, error, tables } = useQueryStore();
+  const { updateTabContent, isExecuting, error, tablesByConnection } = useQueryStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
+  const connectionId = tab.connectionId || activeConnection?.id;
+  const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
   const results = useQueryStore(selectActiveResults);
   const { theme } = useUIStore();
   const { executeQuery, getTableSchema } = useDatabase();
@@ -127,8 +129,8 @@ function QueryEditor({ tab }: { tab: Tab }) {
 
   // Create a schema fetcher for the SQL editor
   const fetchTableSchema = async (tableName: string) => {
-    if (!activeConnection) return null;
-    return getTableSchema(activeConnection.id, tableName);
+    if (!connectionId) return null;
+    return getTableSchema(connectionId, tableName);
   };
 
   // Handle F5 refresh (re-run query)
@@ -142,18 +144,18 @@ function QueryEditor({ tab }: { tab: Tab }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [content, activeConnection, isExecuting]);
+  }, [content, connectionId, isExecuting]);
 
   useEffect(() => {
     setContent(tab.content || "");
   }, [tab.content]);
 
   const handleExecute = async () => {
-    if (!activeConnection || !content.trim()) return;
+    if (!connectionId || !content.trim()) return;
 
     await executeQuery(
       {
-        connectionId: activeConnection.id,
+        connectionId: connectionId,
         sql: content,
         limit: undefined,
         offset: undefined,
@@ -171,7 +173,7 @@ function QueryEditor({ tab }: { tab: Tab }) {
             <Button
               size="sm"
               onClick={handleExecute}
-              disabled={isExecuting || !activeConnection || !content.trim()}
+              disabled={isExecuting || !connectionId || !content.trim()}
               className="gap-2"
             >
               {isExecuting ? (
@@ -259,18 +261,18 @@ function QueryEditor({ tab }: { tab: Tab }) {
 
 function TableViewer({ tab }: { tab: Tab }) {
   const { isExecuting, error, results } = useQueryStore();
-  const activeConnection = useConnectionsStore(selectActiveConnection);
   const { executeQuery } = useDatabase();
   const tabResults = results[tab.id];
+  const connectionId = tab.connectionId;
 
   const loadData = async () => {
-    if (!activeConnection) return;
+    if (!connectionId) return;
     
     const tableIdentifier = tab.tableName ?? tab.title;
     
     await executeQuery(
       {
-        connectionId: activeConnection.id,
+        connectionId: connectionId,
         sql: `SELECT * FROM ${tableIdentifier}`,
         limit: 100, // Default limit for table view
       },
@@ -279,10 +281,10 @@ function TableViewer({ tab }: { tab: Tab }) {
   };
 
   useEffect(() => {
-    if (!tabResults && !isExecuting) {
+    if (!tabResults && !isExecuting && connectionId) {
       loadData();
     }
-  }, [tab.id, activeConnection?.id]);
+  }, [tab.id, connectionId]);
 
   // Handle F5 refresh
   useEffect(() => {
@@ -296,7 +298,7 @@ function TableViewer({ tab }: { tab: Tab }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [tab.id, activeConnection?.id, isExecuting]);
+  }, [tab.id, connectionId, isExecuting]);
 
   return (
     <div className="flex h-full flex-col">
@@ -306,7 +308,7 @@ function TableViewer({ tab }: { tab: Tab }) {
           variant="outline"
           size="sm"
           onClick={loadData}
-          disabled={isExecuting || !activeConnection}
+          disabled={isExecuting || !connectionId}
           className="gap-2"
         >
           {isExecuting ? (

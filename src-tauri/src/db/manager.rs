@@ -134,8 +134,15 @@ fn build_mysql_connection_string(config: &ConnectionConfig) -> AppResult<String>
     let username = config.username.as_deref().unwrap_or("root");
     let password = config.password.as_deref().unwrap_or("");
     
+    // For MySQL, if no database is specified, we connect to the server without a default DB
+    let database = if config.database.trim().is_empty() {
+        "".to_string()
+    } else {
+        config.database.clone()
+    };
+    
     let url = format!("mysql://{}:{}@{}:{}/{}", 
-        username, password, host, port, config.database);
+        username, password, host, port, database);
     
     Ok(url)
 }

@@ -25,7 +25,12 @@ interface UIState {
   showSettingsDialog: boolean;
   showRenameTableDialog: boolean;
   renamingTableName: string | null;
+  showRenameConnectionDialog: boolean;
   renamingConnectionId: string | null;
+  renamingConnectionName: string | null;
+  isDuplicatingConnection: boolean;
+  showCreateSchemaDialog: boolean;
+  creatingSchemaConnectionId: string | null;
   // Edit mode for data grid
   editMode: boolean;
 
@@ -46,6 +51,10 @@ interface UIState {
   setShowSettingsDialog: (show: boolean) => void;
   setShowRenameTableDialog: (show: boolean) => void;
   openRenameTableDialog: (tableName: string, connectionId: string) => void;
+  setShowRenameConnectionDialog: (show: boolean) => void;
+  openRenameConnectionDialog: (connectionId: string, name: string, isDuplicate?: boolean) => void;
+  setShowCreateSchemaDialog: (show: boolean) => void;
+  openCreateSchemaDialog: (connectionId: string) => void;
   setEditMode: (editMode: boolean) => void;
 }
 
@@ -66,7 +75,12 @@ export const useUIStore = create<UIState>()(
       showSettingsDialog: false,
       showRenameTableDialog: false,
       renamingTableName: null,
+      showRenameConnectionDialog: false,
       renamingConnectionId: null,
+      renamingConnectionName: null,
+      isDuplicatingConnection: false,
+      showCreateSchemaDialog: false,
+      creatingSchemaConnectionId: null,
       editMode: false,
 
       setTheme: (theme) => {
@@ -141,6 +155,34 @@ export const useUIStore = create<UIState>()(
 
       openRenameTableDialog: (tableName, connectionId) =>
         set({ showRenameTableDialog: true, renamingTableName: tableName, renamingConnectionId: connectionId }),
+
+      setShowRenameConnectionDialog: (show) =>
+        set((state) => ({
+          showRenameConnectionDialog: show,
+          renamingConnectionId: show ? state.renamingConnectionId : null,
+          renamingConnectionName: show ? state.renamingConnectionName : null,
+          isDuplicatingConnection: show ? state.isDuplicatingConnection : false
+        })),
+
+      openRenameConnectionDialog: (connectionId, name, isDuplicate = false) =>
+        set({
+          showRenameConnectionDialog: true,
+          renamingConnectionId: connectionId,
+          renamingConnectionName: name,
+          isDuplicatingConnection: isDuplicate
+        }),
+
+      setShowCreateSchemaDialog: (show) =>
+        set((state) => ({
+          showCreateSchemaDialog: show,
+          creatingSchemaConnectionId: show ? state.creatingSchemaConnectionId : null,
+        })),
+
+      openCreateSchemaDialog: (connectionId) =>
+        set({
+          showCreateSchemaDialog: true,
+          creatingSchemaConnectionId: connectionId,
+        }),
 
       setEditMode: (editMode) => set({ editMode }),
     }),

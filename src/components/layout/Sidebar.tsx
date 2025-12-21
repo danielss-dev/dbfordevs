@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Database,
   FolderTree,
@@ -44,9 +44,11 @@ import {
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
-import type { ConnectionInfo } from "@/types";
+import type { ConnectionInfo, TableInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
+
+const EMPTY_TABLES: TableInfo[] = [];
 
 interface TreeItemProps {
   label: string;
@@ -131,9 +133,16 @@ function TreeItem({
 
 function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { activeConnectionId, setActiveConnection } = useConnectionsStore();
-  const { openConnectionModal, openRenameTableDialog } = useUIStore();
-  const { tables, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
-  const { connect, disconnect, getTables, deleteConnection, dropTable, generateTableDdl } = useDatabase();
+  const { openConnectionModal, openRenameTableDialog, openRenameConnectionDialog, openCreateSchemaDialog } = useUIStore();
+  const { tablesByConnection, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
+  const {
+    connect,
+    disconnect,
+    getTables,
+    deleteConnection,
+    dropTable,
+    generateTableDdl,
+  } = useDatabase();
   const { toast } = useToast();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
@@ -141,12 +150,16 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const [showDeleteConnectionDialog, setShowDeleteConnectionDialog] = useState(false);
   const [tableToDrop, setTableToDrop] = useState<string | null>(null);
   const isActive = activeConnectionId === connection.id;
+  const connectionTables = useMemo(
+    () => tablesByConnection[connection.id] || EMPTY_TABLES,
+    [tablesByConnection[connection.id]]
+  );
 
   useEffect(() => {
-    if (isActive && connection.connected && tablesOpen && tables.length === 0) {
+    if (connection.connected && tablesOpen && connectionTables.length === 0) {
       loadTables();
     }
-  }, [isActive, connection.connected, tablesOpen]);
+  }, [connection.connected, tablesOpen, connectionTables.length]);
 
   // Handle F5 refresh
   useEffect(() => {
@@ -186,7 +199,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 
   const handleTablesClick = () => {
     setTablesOpen(!tablesOpen);
-    if (!tablesOpen && connection.connected && tables.length === 0) {
+    if (!tablesOpen && connection.connected && connectionTables.length === 0) {
       loadTables();
     }
   };
@@ -315,6 +328,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     openRenameTableDialog(tableIdentifier, connection.id);
   };
 
+  const handleCreateSchema = () => {
+    openCreateSchemaDialog(connection.id);
+  };
+
   const confirmTableDelete = async () => {
     if (!tableToDrop) return;
     try {
@@ -345,6 +362,14 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 
   const handleEdit = () => {
     openConnectionModal(connection.id);
+  };
+
+  const handleDuplicate = () => {
+    openRenameConnectionDialog(connection.id, connection.name, true);
+  };
+
+  const handleRename = () => {
+    openRenameConnectionDialog(connection.id, connection.name, false);
   };
 
   const handleDelete = async () => {
@@ -436,8 +461,6 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
         return <Database className={baseClasses} />;
     }
   };
-
-  const connectionTables = isActive ? tables : [];
   
   // Group tables by schema
   const tablesBySchema = connectionTables.reduce((acc, table) => {
@@ -481,71 +504,87 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                           </div>
                         ) : schemaNames.length > 0 ? (
                           schemaNames.map((schemaName) => (
-                            <TreeItem
-                              key={schemaName}
-                              label={schemaName}
-                              icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
-                              level={1}
-                              defaultOpen={isSingleSchema}
-                            >
-                              {tablesBySchema[schemaName].map((table) => {
-                                // For display, strip the schema prefix if it's there
-                                const displayLabel = table.name.startsWith(`${schemaName}.`) 
-                                  ? table.name.slice(schemaName.length + 1)
-                                  : table.name;
-                                
-                                return (
-                                  <ContextMenu key={table.name}>
-                                    <ContextMenuTrigger asChild>
-                                      <div>
-                                        <TreeItem
-                                          label={displayLabel}
-                                          icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
-                                          level={2}
-                                          onClick={() => handleTableClick(table.name, displayLabel)}
-                                        />
-                                      </div>
-                                    </ContextMenuTrigger>
-                                    <ContextMenuContent className="w-56">
-                                      <ContextMenuItem onSelect={() => handleTableClick(table.name, displayLabel)} className="gap-2">
-                                        <Table className="h-4 w-4" />
-                                        View Data
-                                      </ContextMenuItem>
-                                      <ContextMenuItem onSelect={() => handleViewProperties(table.name, displayLabel)} className="gap-2">
-                                        <Info className="h-4 w-4" />
-                                        View Properties
-                                      </ContextMenuItem>
-                                      <ContextMenuItem onSelect={() => handleViewDiagram(table.name, displayLabel)} className="gap-2">
-                                        <Network className="h-4 w-4" />
-                                        View Diagram
-                                      </ContextMenuItem>
-                                      <ContextMenuSeparator />
-                                      <ContextMenuItem onSelect={() => handleCopyDdl(table.name)} className="gap-2">
-                                        <Copy className="h-4 w-4" />
-                                        Copy
-                                      </ContextMenuItem>
-                                      <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
-                                        <ClipboardPaste className="h-4 w-4" />
-                                        Paste
-                                      </ContextMenuItem>
-                                      <ContextMenuSeparator />
-                                      <ContextMenuItem onSelect={() => handleRenameTable(table.name)} className="gap-2">
-                                        <Pencil className="h-4 w-4" />
-                                        Rename Table
-                                      </ContextMenuItem>
-                                      <ContextMenuSeparator />
-                                      <ContextMenuItem
-                                        onSelect={() => handleTableDelete(table.name)}
-                                        className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                        Drop Table
-                                      </ContextMenuItem>
-                                    </ContextMenuContent>
-                                  </ContextMenu>
-                                );
-                              })}
-                            </TreeItem>
+                            <ContextMenu key={schemaName}>
+                              <ContextMenuTrigger asChild>
+                                <div>
+                                  <TreeItem
+                                    label={schemaName}
+                                    icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                                    level={1}
+                                    defaultOpen={isSingleSchema}
+                                  >
+                                    {tablesBySchema[schemaName].map((table) => {
+                                      // For display, strip the schema prefix if it's there
+                                      const displayLabel = table.name.startsWith(`${schemaName}.`) 
+                                        ? table.name.slice(schemaName.length + 1)
+                                        : table.name;
+                                      
+                                      return (
+                                        <ContextMenu key={table.name}>
+                                          <ContextMenuTrigger asChild>
+                                            <div>
+                                              <TreeItem
+                                                label={displayLabel}
+                                                icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
+                                                level={2}
+                                                onClick={() => handleTableClick(table.name, displayLabel)}
+                                              />
+                                            </div>
+                                          </ContextMenuTrigger>
+                                          <ContextMenuContent className="w-56">
+                                            <ContextMenuItem onSelect={() => handleTableClick(table.name, displayLabel)} className="gap-2">
+                                              <Table className="h-4 w-4" />
+                                              View Data
+                                            </ContextMenuItem>
+                                            <ContextMenuItem onSelect={() => handleViewProperties(table.name, displayLabel)} className="gap-2">
+                                              <Info className="h-4 w-4" />
+                                              View Properties
+                                            </ContextMenuItem>
+                                            <ContextMenuItem onSelect={() => handleViewDiagram(table.name, displayLabel)} className="gap-2">
+                                              <Network className="h-4 w-4" />
+                                              View Diagram
+                                            </ContextMenuItem>
+                                            <ContextMenuSeparator />
+                                            <ContextMenuItem onSelect={() => handleCopyDdl(table.name)} className="gap-2">
+                                              <Copy className="h-4 w-4" />
+                                              Copy
+                                            </ContextMenuItem>
+                                            <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
+                                              <ClipboardPaste className="h-4 w-4" />
+                                              Paste
+                                            </ContextMenuItem>
+                                            <ContextMenuSeparator />
+                                            <ContextMenuItem onSelect={() => handleRenameTable(table.name)} className="gap-2">
+                                              <Pencil className="h-4 w-4" />
+                                              Rename Table
+                                            </ContextMenuItem>
+                                            <ContextMenuSeparator />
+                                            <ContextMenuItem
+                                              onSelect={() => handleTableDelete(table.name)}
+                                              className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                              Drop Table
+                                            </ContextMenuItem>
+                                          </ContextMenuContent>
+                                        </ContextMenu>
+                                      );
+                                    })}
+                                  </TreeItem>
+                                </div>
+                              </ContextMenuTrigger>
+                              <ContextMenuContent className="w-48">
+                                <ContextMenuItem onSelect={handleCreateSchema} className="gap-2">
+                                  <Plus className="h-4 w-4" />
+                                  Create Schema
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem onClick={loadTables} className="gap-2">
+                                  <RefreshCw className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
+                                  Refresh
+                                </ContextMenuItem>
+                              </ContextMenuContent>
+                            </ContextMenu>
                           ))
                         ) : tablesOpen ? (
                           <div className="ml-6 py-2 text-xs text-muted-foreground">No schemas found</div>
@@ -554,6 +593,11 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                     </div>
                   </ContextMenuTrigger>
                   <ContextMenuContent className="w-48">
+                    <ContextMenuItem onSelect={handleCreateSchema} className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Create Schema
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
                     <ContextMenuItem onClick={loadTables} className="gap-2">
                       <RefreshCw className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
                       Refresh
@@ -586,6 +630,14 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
           <ContextMenuItem onSelect={handleEdit} className="gap-2">
             <Pencil className="h-4 w-4" />
             Edit Connection
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={handleRename} className="gap-2">
+            <Pencil className="h-4 w-4" />
+            Rename Connection
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={handleDuplicate} className="gap-2">
+            <Copy className="h-4 w-4" />
+            Duplicate Connection
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => setShowProperties(true)} className="gap-2">
             <Info className="h-4 w-4" />

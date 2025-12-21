@@ -9,6 +9,26 @@ use async_trait::async_trait;
 use sqlx::{mysql::MySqlPool, Row, Column};
 use std::time::Instant;
 
+fn decode_string(row: &sqlx::mysql::MySqlRow, column: &str) -> String {
+    if let Ok(s) = row.try_get::<String, _>(column) {
+        return s;
+    }
+    if let Ok(v) = row.try_get::<Vec<u8>, _>(column) {
+        return String::from_utf8_lossy(&v).into_owned();
+    }
+    String::new()
+}
+
+fn decode_string_opt(row: &sqlx::mysql::MySqlRow, column: &str) -> Option<String> {
+    if let Ok(s) = row.try_get::<String, _>(column) {
+        return Some(s);
+    }
+    if let Ok(v) = row.try_get::<Vec<u8>, _>(column) {
+        return Some(String::from_utf8_lossy(&v).into_owned());
+    }
+    None
+}
+
 pub struct MySqlDriver;
 
 #[async_trait]
@@ -96,6 +116,8 @@ impl DatabaseDriver for MySqlDriver {
                         .map(|i| {
                             if let Ok(val) = row.try_get::<String, _>(i) {
                                 serde_json::Value::String(val)
+                            } else if let Ok(val) = row.try_get::<Vec<u8>, _>(i) {
+                                serde_json::Value::String(String::from_utf8_lossy(&val).into_owned())
                             } else if let Ok(val) = row.try_get::<i64, _>(i) {
                                 serde_json::Value::Number(val.into())
                             } else if let Ok(val) = row.try_get::<i32, _>(i) {
@@ -138,24 +160,30 @@ impl DatabaseDriver for MySqlDriver {
         }
     }
 
-    async fn get_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableInfo>> {
+    async fn get_tables(&self, pool: PoolRef<'_>, config: &ConnectionConfig) -> AppResult<Vec<TableInfo>> {
         let pool = match pool {
             PoolRef::MySql(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
         };
 
-        let query = r#"
+        let schema_filter = if config.database.trim().is_empty() {
+            "TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')"
+        } else {
+            "TABLE_SCHEMA = DATABASE()"
+        };
+
+        let query = format!(r#"
             SELECT 
                 TABLE_NAME as table_name,
                 TABLE_SCHEMA as table_schema,
                 TABLE_TYPE as table_type
             FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = DATABASE()
+            WHERE {}
             AND TABLE_TYPE = 'BASE TABLE'
-            ORDER BY TABLE_NAME
-        "#;
+            ORDER BY TABLE_SCHEMA, TABLE_NAME
+        "#, schema_filter);
         
-        let rows = sqlx::query(query)
+        let rows = sqlx::query(&query)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get tables: {}", e)))?;
@@ -163,11 +191,11 @@ impl DatabaseDriver for MySqlDriver {
         let tables: Vec<TableInfo> = rows
             .iter()
             .map(|row| {
-                let schema: Option<String> = row.try_get("table_schema").ok();
-                let name: String = row.get("table_name");
+                let schema = decode_string_opt(row, "table_schema");
+                let name = decode_string(row, "table_name");
                 
                 TableInfo {
-                    name: name.clone(),
+                    name,
                     schema,
                     table_type: "BASE TABLE".to_string(),
                     row_count: None,
@@ -219,7 +247,7 @@ impl DatabaseDriver for MySqlDriver {
         
         let primary_keys: Vec<String> = pk_rows
             .iter()
-            .map(|row| row.get::<String, _>("column_name"))
+            .map(|row| decode_string(row, "column_name"))
             .collect();
         
         // Get foreign keys
@@ -243,21 +271,21 @@ impl DatabaseDriver for MySqlDriver {
         let foreign_keys: Vec<ForeignKeyInfo> = fk_rows
             .iter()
             .map(|row| ForeignKeyInfo {
-                column: row.get("column_name"),
-                references_table: row.get("foreign_table_name"),
-                references_column: row.get("foreign_column_name"),
+                column: decode_string(row, "column_name"),
+                references_table: decode_string(row, "foreign_table_name"),
+                references_column: decode_string(row, "foreign_column_name"),
             })
             .collect();
         
         let columns: Vec<ColumnInfo> = columns_rows
             .iter()
             .map(|row| {
-                let col_name: String = row.get("column_name");
-                let column_key: String = row.get("column_key");
+                let col_name = decode_string(row, "column_name");
+                let column_key = decode_string(row, "column_key");
                 ColumnInfo {
-                    name: col_name.clone(),
-                    data_type: row.get("data_type"),
-                    nullable: row.get::<String, _>("is_nullable") == "YES",
+                    name: col_name,
+                    data_type: decode_string(row, "data_type"),
+                    nullable: decode_string(row, "is_nullable") == "YES",
                     is_primary_key: column_key == "PRI",
                 }
             })
@@ -295,7 +323,8 @@ impl DatabaseDriver for MySqlDriver {
             .map_err(|e| AppError::QueryError(format!("Failed to get DDL: {}", e)))?;
 
         // The DDL is in the second column
-        let ddl: String = row.try_get(1)
+        let ddl = row.try_get::<String, _>(1)
+            .or_else(|_| row.try_get::<Vec<u8>, _>(1).map(|v| String::from_utf8_lossy(&v).into_owned()))
             .map_err(|e| AppError::QueryError(format!("Failed to extract DDL: {}", e)))?;
 
         Ok(ddl)
@@ -350,9 +379,9 @@ impl DatabaseDriver for MySqlDriver {
             .map_err(|e| AppError::QueryError(format!("Failed to get indexes: {}", e)))?;
 
         let indexes: Vec<IndexInfo> = rows.iter().map(|row| {
-            let columns_str: String = row.get("columns");
+            let columns_str = decode_string(row, "columns");
             IndexInfo {
-                name: row.get("index_name"),
+                name: decode_string(row, "index_name"),
                 columns: columns_str.split(',').map(|s| s.to_string()).collect(),
                 is_unique: row.get("is_unique"),
                 is_primary: row.get("is_primary"),
@@ -387,9 +416,9 @@ impl DatabaseDriver for MySqlDriver {
 
         let constraints: Vec<ConstraintInfo> = rows.iter().map(|row| {
             ConstraintInfo {
-                name: row.get("name"),
-                constraint_type: row.get("constraint_type"),
-                definition: row.get("definition"),
+                name: decode_string(row, "name"),
+                constraint_type: decode_string(row, "constraint_type"),
+                definition: decode_string(row, "definition"),
             }
         }).collect();
 
@@ -440,7 +469,7 @@ impl DatabaseDriver for MySqlDriver {
 
         let primary_keys: Vec<String> = pk_rows
             .iter()
-            .map(|row| row.get::<String, _>("column_name"))
+            .map(|row| decode_string(row, "column_name"))
             .collect();
 
         // Get foreign keys
@@ -463,9 +492,9 @@ impl DatabaseDriver for MySqlDriver {
 
         let foreign_keys: Vec<ForeignKeyInfo> = fk_rows.iter().map(|row| {
             ForeignKeyInfo {
-                column: row.get("column_name"),
-                references_table: row.get("foreign_table_name"),
-                references_column: row.get("foreign_column_name"),
+                column: decode_string(row, "column_name"),
+                references_table: decode_string(row, "foreign_table_name"),
+                references_column: decode_string(row, "foreign_column_name"),
             }
         }).collect();
 
@@ -500,15 +529,15 @@ impl DatabaseDriver for MySqlDriver {
 
         // Build columns
         let columns: Vec<ExtendedColumnInfo> = columns_rows.iter().map(|row| {
-            let col_name: String = row.get("column_name");
-            let column_key: String = row.get("column_key");
+            let col_name = decode_string(row, "column_name");
+            let column_key = decode_string(row, "column_key");
             ExtendedColumnInfo {
-                name: col_name.clone(),
-                data_type: row.get("data_type"),
-                nullable: row.get::<String, _>("is_nullable") == "YES",
+                name: col_name,
+                data_type: decode_string(row, "data_type"),
+                nullable: decode_string(row, "is_nullable") == "YES",
                 is_primary_key: column_key == "PRI",
-                default_value: row.try_get("column_default").ok(),
-                comment: row.try_get("comment").ok(),
+                default_value: decode_string_opt(row, "column_default"),
+                comment: decode_string_opt(row, "comment"),
             }
         }).collect();
 
@@ -574,11 +603,11 @@ impl DatabaseDriver for MySqlDriver {
 
         for row in outgoing_rows.iter().chain(incoming_rows.iter()) {
             relationships.push(TableRelationship {
-                source_table: row.get("source_table"),
-                source_column: row.get("source_column"),
-                target_table: row.get("target_table"),
-                target_column: row.get("target_column"),
-                constraint_name: row.try_get("constraint_name").ok(),
+                source_table: decode_string(row, "source_table"),
+                source_column: decode_string(row, "source_column"),
+                target_table: decode_string(row, "target_table"),
+                target_column: decode_string(row, "target_column"),
+                constraint_name: decode_string_opt(row, "constraint_name"),
             });
         }
 

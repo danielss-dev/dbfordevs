@@ -30,7 +30,7 @@ export function useDatabase() {
 
   const {
     setResults,
-    setTables,
+    setTablesForConnection,
     setTableSchema,
     setExecuting,
     setError: setQueryError,
@@ -228,7 +228,7 @@ export function useDatabase() {
 
       try {
         const tables = await invoke<TableInfo[]>("get_tables", { connectionId });
-        setTables(tables);
+        setTablesForConnection(connectionId, tables);
         return tables;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -238,7 +238,7 @@ export function useDatabase() {
         setLoading(false);
       }
     },
-    [setLoading, setQueryError, setTables]
+    [setLoading, setQueryError, setTablesForConnection]
   );
 
   /**

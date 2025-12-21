@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { TooltipProvider, Toaster } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout";
 import { SettingsDialog } from "@/components/settings";
-import { ConnectionModal } from "@/components/connections";
+import { ConnectionModal, RenameConnectionDialog } from "@/components/connections";
 import { Marketplace } from "@/components/marketplace";
 import { RenameTableDialog } from "@/components/table";
+import { CreateSchemaDialog } from "@/components/database";
 import { useUIStore } from "@/stores";
 
 function App() {
@@ -34,6 +35,8 @@ function App() {
         <ConnectionModal />
         <Marketplace />
         <RenameTableDialog />
+        <RenameConnectionDialog />
+        <CreateSchemaDialog />
         <Toaster />
       </div>
     </TooltipProvider>

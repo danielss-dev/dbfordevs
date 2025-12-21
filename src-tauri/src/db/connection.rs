@@ -22,7 +22,7 @@ pub trait DatabaseDriver: Send + Sync {
     async fn execute_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<QueryResult>;
 
     /// Get list of tables in the database
-    async fn get_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableInfo>>;
+    async fn get_tables(&self, pool: PoolRef<'_>, config: &ConnectionConfig) -> AppResult<Vec<TableInfo>>;
 
     /// Get schema for a specific table
     async fn get_table_schema(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<TableSchema>;
