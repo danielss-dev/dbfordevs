@@ -133,7 +133,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { activeConnectionId, setActiveConnection } = useConnectionsStore();
   const { openConnectionModal, openRenameTableDialog } = useUIStore();
   const { tables, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
-  const { connect, disconnect, getTables, deleteConnection, dropTable, generateTableDdl, executeQuery } = useDatabase();
+  const { connect, disconnect, getTables, deleteConnection, dropTable, generateTableDdl } = useDatabase();
   const { toast } = useToast();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
@@ -522,11 +522,11 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                       <ContextMenuSeparator />
                                       <ContextMenuItem onSelect={() => handleCopyDdl(table.name)} className="gap-2">
                                         <Copy className="h-4 w-4" />
-                                        Copy (CREATE TABLE DDL)
+                                        Copy
                                       </ContextMenuItem>
                                       <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
                                         <ClipboardPaste className="h-4 w-4" />
-                                        Paste as New Table
+                                        Paste
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
                                       <ContextMenuItem onSelect={() => handleRenameTable(table.name)} className="gap-2">
