@@ -28,6 +28,7 @@ interface QueryState {
   setTableSchema: (schema: TableSchema | null) => void;
   setExecuting: (executing: boolean) => void;
   setError: (error: string | null) => void;
+  renameTableInTabs: (connectionId: string, oldName: string, newName: string) => void;
 }
 
 export const useQueryStore = create<QueryState>()((set) => ({
@@ -74,6 +75,7 @@ export const useQueryStore = create<QueryState>()((set) => ({
   setResults: (tabId, results) =>
     set((state) => ({
       results: { ...state.results, [tabId]: results },
+      isExecuting: false, // Ensure isExecuting is false when results are set
     })),
 
   clearResults: (tabId) =>
@@ -89,7 +91,33 @@ export const useQueryStore = create<QueryState>()((set) => ({
 
   setExecuting: (isExecuting) => set({ isExecuting }),
 
-  setError: (error) => set({ error }),
+  setError: (error) => set({ error, isExecuting: false }),
+
+  renameTableInTabs: (connectionId, oldName, newName) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) => {
+        if (tab.connectionId === connectionId && tab.tableName === oldName) {
+          // If the table name includes a schema, we should preserve it or handle it
+          // For now, let's assume if it had a schema, it still does but the table part changed
+          let updatedName = newName;
+          if (oldName.includes(".") && !newName.includes(".")) {
+            const schema = oldName.split(".")[0];
+            updatedName = `${schema}.${newName}`;
+          }
+
+          return {
+            ...tab,
+            tableName: updatedName,
+            title: tab.type === "properties" 
+              ? `${newName} Properties` 
+              : tab.type === "diagram"
+              ? `${newName} Diagram`
+              : newName,
+          };
+        }
+        return tab;
+      }),
+    })),
 }));
 
 // Selectors

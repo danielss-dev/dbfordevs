@@ -16,6 +16,9 @@ import {
   Unplug,
   RefreshCw,
   ShoppingBag,
+  Copy,
+  ClipboardPaste,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -127,9 +130,9 @@ function TreeItem({
 
 function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { activeConnectionId, setActiveConnection } = useConnectionsStore();
-  const { openConnectionModal } = useUIStore();
+  const { openConnectionModal, openRenameTableDialog } = useUIStore();
   const { tables, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
-  const { connect, disconnect, getTables, deleteConnection, dropTable } = useDatabase();
+  const { connect, disconnect, getTables, deleteConnection, dropTable, generateTableDdl, executeQuery } = useDatabase();
   const { toast } = useToast();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(false);
@@ -206,6 +209,81 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 
   const handleTableDelete = async (tableIdentifier: string) => {
     setTableToDrop(tableIdentifier);
+  };
+
+  const handleCopyDdl = async (tableIdentifier: string) => {
+    const ddl = await generateTableDdl(connection.id, tableIdentifier);
+    if (ddl) {
+      await navigator.clipboard.writeText(ddl);
+      toast({
+        title: "DDL Copied",
+        description: "CREATE TABLE statement copied to clipboard.",
+      });
+    }
+  };
+
+  const handlePasteAsNewTable = async () => {
+    try {
+      const ddl = await navigator.clipboard.readText();
+      if (ddl && ddl.trim().toUpperCase().startsWith("CREATE TABLE")) {
+        await executeQuery({ connectionId: connection.id, sql: ddl }, crypto.randomUUID());
+        await getTables(connection.id);
+        toast({
+          title: "Table Created",
+          description: "New table created from clipboard DDL.",
+        });
+      } else {
+        toast({
+          title: "Invalid DDL",
+          description: "Clipboard does not contain a valid CREATE TABLE statement.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Paste Failed",
+        description: "Unable to read clipboard or execute DDL.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewProperties = (tableIdentifier: string, displayName: string) => {
+    const tabId = `properties-${connection.id}-${tableIdentifier}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: `${displayName} Properties`,
+        tableName: tableIdentifier,
+        type: "properties",
+        connectionId: connection.id,
+      });
+    }
+  };
+
+  const handleViewDiagram = (tableIdentifier: string, displayName: string) => {
+    const tabId = `diagram-${connection.id}-${tableIdentifier}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: `${displayName} Diagram`,
+        tableName: tableIdentifier,
+        type: "diagram",
+        connectionId: connection.id,
+      });
+    }
+  };
+
+  const handleRenameTable = (tableIdentifier: string) => {
+    openRenameTableDialog(tableIdentifier, connection.id);
   };
 
   const confirmTableDelete = async () => {
@@ -399,10 +477,32 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         />
                                       </div>
                                     </ContextMenuTrigger>
-                                    <ContextMenuContent className="w-48">
+                                    <ContextMenuContent className="w-56">
                                       <ContextMenuItem onSelect={() => handleTableClick(table.name, displayLabel)} className="gap-2">
                                         <Table className="h-4 w-4" />
                                         View Data
+                                      </ContextMenuItem>
+                                      <ContextMenuItem onSelect={() => handleViewProperties(table.name, displayLabel)} className="gap-2">
+                                        <Info className="h-4 w-4" />
+                                        View Properties
+                                      </ContextMenuItem>
+                                      <ContextMenuItem onSelect={() => handleViewDiagram(table.name, displayLabel)} className="gap-2">
+                                        <Network className="h-4 w-4" />
+                                        View Diagram
+                                      </ContextMenuItem>
+                                      <ContextMenuSeparator />
+                                      <ContextMenuItem onSelect={() => handleCopyDdl(table.name)} className="gap-2">
+                                        <Copy className="h-4 w-4" />
+                                        Copy (CREATE TABLE DDL)
+                                      </ContextMenuItem>
+                                      <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
+                                        <ClipboardPaste className="h-4 w-4" />
+                                        Paste as New Table
+                                      </ContextMenuItem>
+                                      <ContextMenuSeparator />
+                                      <ContextMenuItem onSelect={() => handleRenameTable(table.name)} className="gap-2">
+                                        <Pencil className="h-4 w-4" />
+                                        Rename Table
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
                                       <ContextMenuItem

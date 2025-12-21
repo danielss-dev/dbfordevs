@@ -81,6 +81,50 @@ export interface ForeignKeyInfo {
   referencesColumn: string;
 }
 
+// Extended types for table properties view
+
+export interface IndexInfo {
+  name: string;
+  columns: string[];
+  isUnique: boolean;
+  isPrimary: boolean;
+}
+
+export interface ConstraintInfo {
+  name: string;
+  constraintType: string; // CHECK, UNIQUE, EXCLUSION
+  definition: string;
+}
+
+export interface ExtendedColumnInfo {
+  name: string;
+  dataType: string;
+  nullable: boolean;
+  isPrimaryKey: boolean;
+  defaultValue?: string;
+  comment?: string;
+}
+
+export interface TableProperties {
+  tableName: string;
+  schema?: string;
+  columns: ExtendedColumnInfo[];
+  primaryKeys: string[];
+  foreignKeys: ForeignKeyInfo[];
+  indexes: IndexInfo[];
+  constraints: ConstraintInfo[];
+  rowCount?: number;
+  tableComment?: string;
+}
+
+export interface TableRelationship {
+  sourceTable: string;
+  sourceColumn: string;
+  targetTable: string;
+  targetColumn: string;
+  constraintName?: string;
+}
+
 // Validator types
 export interface ValidatorInfo {
   id: string;
@@ -118,10 +162,10 @@ export interface ValidationResult {
 export interface Tab {
   id: string;
   title: string;
-  type: "query" | "table" | "schema";
+  type: "query" | "table" | "schema" | "properties" | "diagram";
   connectionId: string;
   content?: string;
-  tableName?: string; // Full table identifier for "table" type
+  tableName?: string; // Full table identifier for "table", "properties", and "diagram" types
 }
 
 export interface PendingChange {

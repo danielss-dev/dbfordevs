@@ -9,6 +9,8 @@ import type {
   QueryResult,
   TableInfo,
   TableSchema,
+  TableProperties,
+  TableRelationship,
 } from "@/types";
 
 /**
@@ -382,6 +384,92 @@ export function useDatabase() {
     [setExecuting, setQueryError]
   );
 
+  /**
+   * Generate CREATE TABLE DDL for a table
+   */
+  const generateTableDdl = useCallback(
+    async (connectionId: string, tableName: string): Promise<string | null> => {
+      try {
+        const ddl = await invoke<string>("generate_table_ddl", {
+          connectionId,
+          tableName,
+        });
+        return ddl;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Rename a table
+   */
+  const renameTable = useCallback(
+    async (connectionId: string, oldName: string, newName: string): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("rename_table", {
+          connectionId,
+          oldName,
+          newName,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Get full table properties including extended column info, indexes, and constraints
+   */
+  const getTableProperties = useCallback(
+    async (connectionId: string, tableName: string): Promise<TableProperties | null> => {
+      try {
+        const properties = await invoke<TableProperties>("get_table_properties", {
+          connectionId,
+          tableName,
+        });
+        return properties;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Get table relationships (foreign keys both inbound and outbound)
+   */
+  const getTableRelationships = useCallback(
+    async (connectionId: string, tableName: string): Promise<TableRelationship[]> => {
+      try {
+        const relationships = await invoke<TableRelationship[]>("get_table_relationships", {
+          connectionId,
+          tableName,
+        });
+        return relationships;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
   return {
     testConnection,
     saveConnection,
@@ -397,6 +485,10 @@ export function useDatabase() {
     updateRow,
     deleteRow,
     dropTable,
+    generateTableDdl,
+    renameTable,
+    getTableProperties,
+    getTableRelationships,
   };
 }
 

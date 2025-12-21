@@ -1,6 +1,10 @@
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
-use crate::models::{ConnectionConfig, QueryResult, TableInfo, TableSchema, TestConnectionResult, ColumnInfo, ForeignKeyInfo};
+use crate::models::{
+    ConnectionConfig, ConstraintInfo, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
+    QueryResult, TableInfo, TableProperties, TableRelationship, TableSchema,
+    TestConnectionResult, ColumnInfo
+};
 use async_trait::async_trait;
 use sqlx::{mysql::MySqlPool, Row, Column};
 use std::time::Instant;
@@ -272,9 +276,313 @@ impl DatabaseDriver for MySqlDriver {
         let port = config.port.unwrap_or(3306);
         let username = config.username.as_deref().unwrap_or("root");
         let password = config.password.as_deref().unwrap_or("");
-        
-        format!("mysql://{}:{}@{}:{}/{}", 
+
+        format!("mysql://{}:{}@{}:{}/{}",
             username, password, host, port, config.database)
+    }
+
+    async fn generate_table_ddl(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // MySQL has SHOW CREATE TABLE which gives us the exact DDL
+        let query = format!("SHOW CREATE TABLE {}", table_name);
+        let row = sqlx::query(&query)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get DDL: {}", e)))?;
+
+        // The DDL is in the second column
+        let ddl: String = row.try_get(1)
+            .map_err(|e| AppError::QueryError(format!("Failed to extract DDL: {}", e)))?;
+
+        Ok(ddl)
+    }
+
+    async fn rename_table(&self, pool: PoolRef<'_>, old_name: &str, new_name: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!("RENAME TABLE {} TO {}", old_name, new_name);
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to rename table: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(0),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn get_indexes(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<Vec<IndexInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let query = r#"
+            SELECT
+                INDEX_NAME as index_name,
+                GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) as columns,
+                NOT NON_UNIQUE as is_unique,
+                INDEX_NAME = 'PRIMARY' as is_primary
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = ?
+            GROUP BY INDEX_NAME, NON_UNIQUE
+            ORDER BY INDEX_NAME
+        "#;
+
+        let rows = sqlx::query(query)
+            .bind(table_name)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get indexes: {}", e)))?;
+
+        let indexes: Vec<IndexInfo> = rows.iter().map(|row| {
+            let columns_str: String = row.get("columns");
+            IndexInfo {
+                name: row.get("index_name"),
+                columns: columns_str.split(',').map(|s| s.to_string()).collect(),
+                is_unique: row.get("is_unique"),
+                is_primary: row.get("is_primary"),
+            }
+        }).collect();
+
+        Ok(indexes)
+    }
+
+    async fn get_constraints(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<Vec<ConstraintInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let query = r#"
+            SELECT
+                CONSTRAINT_NAME as name,
+                CONSTRAINT_TYPE as constraint_type,
+                '' as definition
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = ?
+            AND CONSTRAINT_TYPE IN ('CHECK', 'UNIQUE')
+        "#;
+
+        let rows = sqlx::query(query)
+            .bind(table_name)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get constraints: {}", e)))?;
+
+        let constraints: Vec<ConstraintInfo> = rows.iter().map(|row| {
+            ConstraintInfo {
+                name: row.get("name"),
+                constraint_type: row.get("constraint_type"),
+                definition: row.get("definition"),
+            }
+        }).collect();
+
+        Ok(constraints)
+    }
+
+    async fn get_table_properties(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<TableProperties> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // Get columns with extended info
+        let columns_query = r#"
+            SELECT
+                COLUMN_NAME as column_name,
+                DATA_TYPE as data_type,
+                IS_NULLABLE as is_nullable,
+                COLUMN_DEFAULT as column_default,
+                COLUMN_KEY as column_key,
+                COLUMN_COMMENT as comment
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = ?
+            ORDER BY ORDINAL_POSITION
+        "#;
+
+        let columns_rows = sqlx::query(columns_query)
+            .bind(table_name)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get columns: {}", e)))?;
+
+        // Get primary keys
+        let pk_query = r#"
+            SELECT COLUMN_NAME as column_name
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = ?
+            AND CONSTRAINT_NAME = 'PRIMARY'
+        "#;
+
+        let pk_rows = sqlx::query(pk_query)
+            .bind(table_name)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get primary keys: {}", e)))?;
+
+        let primary_keys: Vec<String> = pk_rows
+            .iter()
+            .map(|row| row.get::<String, _>("column_name"))
+            .collect();
+
+        // Get foreign keys
+        let fk_query = r#"
+            SELECT
+                kcu.COLUMN_NAME as column_name,
+                kcu.REFERENCED_TABLE_NAME as foreign_table_name,
+                kcu.REFERENCED_COLUMN_NAME as foreign_column_name
+            FROM information_schema.KEY_COLUMN_USAGE kcu
+            WHERE kcu.TABLE_SCHEMA = DATABASE()
+            AND kcu.TABLE_NAME = ?
+            AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+        "#;
+
+        let fk_rows = sqlx::query(fk_query)
+            .bind(table_name)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get foreign keys: {}", e)))?;
+
+        let foreign_keys: Vec<ForeignKeyInfo> = fk_rows.iter().map(|row| {
+            ForeignKeyInfo {
+                column: row.get("column_name"),
+                references_table: row.get("foreign_table_name"),
+                references_column: row.get("foreign_column_name"),
+            }
+        }).collect();
+
+        // Get indexes
+        let indexes = self.get_indexes(PoolRef::MySql(pool), table_name).await?;
+
+        // Get constraints
+        let constraints = self.get_constraints(PoolRef::MySql(pool), table_name).await?;
+
+        // Get row count
+        let count_query = format!("SELECT COUNT(*) as count FROM {}", table_name);
+        let row_count: Option<i64> = sqlx::query_scalar(&count_query)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten();
+
+        // Get table comment
+        let comment_query = r#"
+            SELECT TABLE_COMMENT
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = ?
+        "#;
+
+        let table_comment: Option<String> = sqlx::query_scalar(comment_query)
+            .bind(table_name)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten();
+
+        // Build columns
+        let columns: Vec<ExtendedColumnInfo> = columns_rows.iter().map(|row| {
+            let col_name: String = row.get("column_name");
+            let column_key: String = row.get("column_key");
+            ExtendedColumnInfo {
+                name: col_name.clone(),
+                data_type: row.get("data_type"),
+                nullable: row.get::<String, _>("is_nullable") == "YES",
+                is_primary_key: column_key == "PRI",
+                default_value: row.try_get("column_default").ok(),
+                comment: row.try_get("comment").ok(),
+            }
+        }).collect();
+
+        Ok(TableProperties {
+            table_name: table_name.to_string(),
+            schema: None,
+            columns,
+            primary_keys,
+            foreign_keys,
+            indexes,
+            constraints,
+            row_count,
+            table_comment,
+        })
+    }
+
+    async fn get_table_relationships(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<Vec<TableRelationship>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // Get outgoing relationships
+        let outgoing_query = r#"
+            SELECT
+                kcu.CONSTRAINT_NAME as constraint_name,
+                kcu.TABLE_NAME as source_table,
+                kcu.COLUMN_NAME as source_column,
+                kcu.REFERENCED_TABLE_NAME as target_table,
+                kcu.REFERENCED_COLUMN_NAME as target_column
+            FROM information_schema.KEY_COLUMN_USAGE kcu
+            WHERE kcu.TABLE_SCHEMA = DATABASE()
+            AND kcu.TABLE_NAME = ?
+            AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+        "#;
+
+        let outgoing_rows = sqlx::query(outgoing_query)
+            .bind(table_name)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get outgoing relationships: {}", e)))?;
+
+        // Get incoming relationships
+        let incoming_query = r#"
+            SELECT
+                kcu.CONSTRAINT_NAME as constraint_name,
+                kcu.TABLE_NAME as source_table,
+                kcu.COLUMN_NAME as source_column,
+                kcu.REFERENCED_TABLE_NAME as target_table,
+                kcu.REFERENCED_COLUMN_NAME as target_column
+            FROM information_schema.KEY_COLUMN_USAGE kcu
+            WHERE kcu.TABLE_SCHEMA = DATABASE()
+            AND kcu.REFERENCED_TABLE_NAME = ?
+        "#;
+
+        let incoming_rows = sqlx::query(incoming_query)
+            .bind(table_name)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get incoming relationships: {}", e)))?;
+
+        let mut relationships: Vec<TableRelationship> = Vec::new();
+
+        for row in outgoing_rows.iter().chain(incoming_rows.iter()) {
+            relationships.push(TableRelationship {
+                source_table: row.get("source_table"),
+                source_column: row.get("source_column"),
+                target_table: row.get("target_table"),
+                target_column: row.get("target_column"),
+                constraint_name: row.try_get("constraint_name").ok(),
+            });
+        }
+
+        Ok(relationships)
     }
 }
 

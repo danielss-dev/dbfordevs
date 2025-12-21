@@ -53,3 +53,57 @@ pub struct ForeignKeyInfo {
     pub references_column: String,
 }
 
+// Extended types for table properties view
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexInfo {
+    pub name: String,
+    pub columns: Vec<String>,
+    pub is_unique: bool,
+    pub is_primary: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConstraintInfo {
+    pub name: String,
+    pub constraint_type: String, // CHECK, UNIQUE, EXCLUSION
+    pub definition: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtendedColumnInfo {
+    pub name: String,
+    pub data_type: String,
+    pub nullable: bool,
+    pub is_primary_key: bool,
+    pub default_value: Option<String>,
+    pub comment: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableProperties {
+    pub table_name: String,
+    pub schema: Option<String>,
+    pub columns: Vec<ExtendedColumnInfo>,
+    pub primary_keys: Vec<String>,
+    pub foreign_keys: Vec<ForeignKeyInfo>,
+    pub indexes: Vec<IndexInfo>,
+    pub constraints: Vec<ConstraintInfo>,
+    pub row_count: Option<i64>,
+    pub table_comment: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableRelationship {
+    pub source_table: String,
+    pub source_column: String,
+    pub target_table: String,
+    pub target_column: String,
+    pub constraint_name: Option<String>,
+}
+

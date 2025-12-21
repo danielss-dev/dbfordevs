@@ -4,6 +4,7 @@ import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout"
 import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal } from "@/components/connections";
 import { Marketplace } from "@/components/marketplace";
+import { RenameTableDialog } from "@/components/table";
 import { useUIStore } from "@/stores";
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
         <SettingsDialog />
         <ConnectionModal />
         <Marketplace />
+        <RenameTableDialog />
         <Toaster />
       </div>
     </TooltipProvider>

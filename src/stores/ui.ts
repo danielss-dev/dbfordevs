@@ -23,6 +23,9 @@ interface UIState {
   showMarketplace: boolean;
   showDiffModal: boolean;
   showSettingsDialog: boolean;
+  showRenameTableDialog: boolean;
+  renamingTableName: string | null;
+  renamingConnectionId: string | null;
   // Edit mode for data grid
   editMode: boolean;
 
@@ -41,6 +44,8 @@ interface UIState {
   setShowMarketplace: (show: boolean) => void;
   setShowDiffModal: (show: boolean) => void;
   setShowSettingsDialog: (show: boolean) => void;
+  setShowRenameTableDialog: (show: boolean) => void;
+  openRenameTableDialog: (tableName: string, connectionId: string) => void;
   setEditMode: (editMode: boolean) => void;
 }
 
@@ -59,6 +64,9 @@ export const useUIStore = create<UIState>()(
       showMarketplace: false,
       showDiffModal: false,
       showSettingsDialog: false,
+      showRenameTableDialog: false,
+      renamingTableName: null,
+      renamingConnectionId: null,
       editMode: false,
 
       setTheme: (theme) => {
@@ -127,6 +135,12 @@ export const useUIStore = create<UIState>()(
       setShowDiffModal: (showDiffModal) => set({ showDiffModal }),
 
       setShowSettingsDialog: (showSettingsDialog) => set({ showSettingsDialog }),
+
+      setShowRenameTableDialog: (showRenameTableDialog) =>
+        set({ showRenameTableDialog, renamingTableName: showRenameTableDialog ? null : null, renamingConnectionId: showRenameTableDialog ? null : null }),
+
+      openRenameTableDialog: (tableName, connectionId) =>
+        set({ showRenameTableDialog: true, renamingTableName: tableName, renamingConnectionId: connectionId }),
 
       setEditMode: (editMode) => set({ editMode }),
     }),
