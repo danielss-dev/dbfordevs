@@ -21,6 +21,9 @@ pub enum AppError {
 
     #[error("Serialization error: {0}")]
     SerdeError(#[from] serde_json::Error),
+
+    #[error("Error: {0}")]
+    GenericError(String),
 }
 
 // Implement serialize for Tauri command returns

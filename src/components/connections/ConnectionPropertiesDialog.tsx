@@ -19,6 +19,7 @@ import { Button, BrandIcon } from "@/components/ui";
 import { useDatabase } from "@/hooks";
 import { useConnectionsStore } from "@/stores";
 import type { ConnectionConfig, DatabaseType } from "@/types";
+import { copyToClipboard } from "@/lib/utils";
 
 const DB_CONFIG: Record<DatabaseType, { name: string; brand: string; color: string; bgColor: string }> = {
   postgresql: { name: "PostgreSQL", brand: "postgresql", color: "text-[#4169E1]", bgColor: "bg-[#4169E1]/10" },
@@ -44,11 +45,13 @@ interface PropertyItemProps {
 function PropertyItem({ icon, label, value, isSensitive, mono }: PropertyItemProps) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (value) {
-      navigator.clipboard.writeText(String(value));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      const success = await copyToClipboard(String(value));
+      if (success) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     }
   };
 

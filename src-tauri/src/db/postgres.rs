@@ -379,13 +379,13 @@ impl DatabaseDriver for PostgresDriver {
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get PK for DDL: {}", e)))?;
 
-        // Get foreign keys
+        // Get foreign keys with grouped columns
         let fk_query = r#"
             SELECT
                 tc.constraint_name::text as constraint_name,
-                kcu.column_name::text as column_name,
+                array_agg(kcu.column_name::text ORDER BY kcu.ordinal_position)::text[] as source_columns,
                 ccu.table_schema::text || '.' || ccu.table_name::text AS foreign_table,
-                ccu.column_name::text AS foreign_column
+                array_agg(ccu.column_name::text ORDER BY kcu.ordinal_position)::text[] AS foreign_columns
             FROM information_schema.table_constraints AS tc
             JOIN information_schema.key_column_usage AS kcu
                 ON tc.constraint_name = kcu.constraint_name
@@ -396,6 +396,7 @@ impl DatabaseDriver for PostgresDriver {
             WHERE tc.constraint_type = 'FOREIGN KEY'
             AND tc.table_schema = COALESCE($1, current_schema())
             AND tc.table_name = $2
+            GROUP BY tc.constraint_name, ccu.table_schema, ccu.table_name
         "#;
 
         let fk_rows = sqlx::query(fk_query)
@@ -406,8 +407,8 @@ impl DatabaseDriver for PostgresDriver {
             .map_err(|e| AppError::QueryError(format!("Failed to get FK for DDL: {}", e)))?;
 
         // Build the DDL
-        let schema_prefix = schema.as_ref().map(|s| format!("{}.", s)).unwrap_or_default();
-        let mut ddl = format!("CREATE TABLE {}{} (\n", schema_prefix, table);
+        let schema_prefix = schema.as_ref().map(|s| format!("\"{}\".", s)).unwrap_or_default();
+        let mut ddl = format!("CREATE TABLE {}\"{}\" (\n", schema_prefix, table);
 
         // Add columns
         let column_defs: Vec<String> = columns.iter().map(|row| {
@@ -447,7 +448,7 @@ impl DatabaseDriver for PostgresDriver {
                 _ => data_type.to_uppercase()
             };
 
-            let mut col_def = format!("    {} {}", col_name, type_str);
+            let mut col_def = format!("    \"{}\" {}", col_name, type_str);
 
             if is_nullable == "NO" {
                 col_def.push_str(" NOT NULL");
@@ -465,19 +466,34 @@ impl DatabaseDriver for PostgresDriver {
         // Add primary key constraint
         if let Some(pk_row) = pk_rows.first() {
             let pk_columns: Vec<String> = pk_row.get("columns");
-            ddl.push_str(&format!(",\n    PRIMARY KEY ({})", pk_columns.join(", ")));
+            let pk_cols_quoted: Vec<String> = pk_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+            ddl.push_str(&format!(",\n    PRIMARY KEY ({})", pk_cols_quoted.join(", ")));
         }
 
         // Add foreign key constraints
         for fk_row in &fk_rows {
             let constraint_name: String = fk_row.get("constraint_name");
-            let column: String = fk_row.get("column_name");
+            let source_columns: Vec<String> = fk_row.get("source_columns");
             let foreign_table: String = fk_row.get("foreign_table");
-            let foreign_column: String = fk_row.get("foreign_column");
+            let foreign_columns: Vec<String> = fk_row.get("foreign_columns");
+
+            let src_cols_quoted: Vec<String> = source_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+            let target_cols_quoted: Vec<String> = foreign_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+
+            // Split foreign table into schema and table if possible
+            let quoted_foreign_table = if let Some(dot_pos) = foreign_table.find('.') {
+                let (s, t) = foreign_table.split_at(dot_pos);
+                format!("\"{}\".\"{}\"", s, t.trim_start_matches('.'))
+            } else {
+                format!("\"{}\"", foreign_table)
+            };
 
             ddl.push_str(&format!(
-                ",\n    CONSTRAINT {} FOREIGN KEY ({}) REFERENCES {} ({})",
-                constraint_name, column, foreign_table, foreign_column
+                ",\n    CONSTRAINT \"{}\" FOREIGN KEY ({}) REFERENCES {} ({})",
+                constraint_name,
+                src_cols_quoted.join(", "),
+                quoted_foreign_table,
+                target_cols_quoted.join(", ")
             ));
         }
 

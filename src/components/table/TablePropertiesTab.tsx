@@ -8,11 +8,12 @@ import {
   ListOrdered,
   ShieldCheck,
   RefreshCw,
+  Copy,
 } from "lucide-react";
-import { Button } from "@/components/ui";
-import { useDatabase } from "@/hooks";
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
+import { useDatabase, useToast } from "@/hooks";
 import type { Tab, TableProperties } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 
 type CategoryType = "columns" | "primaryKeys" | "foreignKeys" | "indexes" | "constraints";
 
@@ -52,7 +53,8 @@ interface TablePropertiesTabProps {
 }
 
 export function TablePropertiesTab({ tab }: TablePropertiesTabProps) {
-  const { getTableProperties } = useDatabase();
+  const { getTableProperties, generateTableDdl } = useDatabase();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [properties, setProperties] = useState<TableProperties | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryType>("columns");
@@ -71,6 +73,29 @@ export function TablePropertiesTab({ tab }: TablePropertiesTabProps) {
       setError(err instanceof Error ? err.message : "Failed to load table properties");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCopyDdl = async () => {
+    if (!tab.tableName || !tab.connectionId) return;
+
+    try {
+      const ddl = await generateTableDdl(tab.connectionId, tab.tableName);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          toast({
+            title: "DDL Copied",
+            description: "CREATE TABLE statement copied to clipboard.",
+          });
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Copy Failed",
+        description: error instanceof Error ? error.message : "Could not copy DDL",
+        variant: "destructive",
+      });
     }
   };
 
@@ -124,9 +149,24 @@ export function TablePropertiesTab({ tab }: TablePropertiesTabProps) {
             </span>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={loadProperties}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={handleCopyDdl}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copy CREATE TABLE DDL</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={loadProperties}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh properties</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Content */}

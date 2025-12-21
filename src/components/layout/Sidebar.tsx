@@ -46,6 +46,7 @@ import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
+import { copyToClipboard, readFromClipboard } from "@/lib/utils";
 
 interface TreeItemProps {
   label: string;
@@ -212,25 +213,53 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   };
 
   const handleCopyDdl = async (tableIdentifier: string) => {
-    const ddl = await generateTableDdl(connection.id, tableIdentifier);
-    if (ddl) {
-      await navigator.clipboard.writeText(ddl);
+    try {
+      const ddl = await generateTableDdl(connection.id, tableIdentifier);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          toast({
+            title: "DDL Copied",
+            description: "CREATE TABLE statement copied to clipboard.",
+          });
+        } else {
+          throw new Error("Failed to copy to clipboard");
+        }
+      } else {
+        toast({
+          title: "Copy Failed",
+          description: "Could not generate DDL for this table.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "DDL Copied",
-        description: "CREATE TABLE statement copied to clipboard.",
+        title: "Copy Failed",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
       });
     }
   };
 
   const handlePasteAsNewTable = async () => {
     try {
-      const ddl = await navigator.clipboard.readText();
+      const ddl = await readFromClipboard();
       if (ddl && ddl.trim().toUpperCase().startsWith("CREATE TABLE")) {
-        await executeQuery({ connectionId: connection.id, sql: ddl }, crypto.randomUUID());
-        await getTables(connection.id);
+        // Instead of executing immediately, open a new query tab so the user can
+        // rename the table if it already exists or modify the DDL.
+        const tabId = crypto.randomUUID();
+        addTab({
+          id: tabId,
+          title: "New Table (Paste)",
+          type: "query",
+          connectionId: connection.id,
+          content: ddl,
+        });
+        setActiveTab(tabId);
+        
         toast({
-          title: "Table Created",
-          description: "New table created from clipboard DDL.",
+          title: "DDL Pasted",
+          description: "Opened in a new query tab. You can now rename the table and execute.",
         });
       } else {
         toast({
@@ -239,10 +268,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
           variant: "destructive",
         });
       }
-    } catch {
+    } catch (error) {
       toast({
         title: "Paste Failed",
-        description: "Unable to read clipboard or execute DDL.",
+        description: error instanceof Error ? error.message : "Unable to read clipboard or execute DDL.",
         variant: "destructive",
       });
     }

@@ -19,6 +19,7 @@ tokio = { version = "1", features = ["full"] }
 thiserror = "1"
 async-trait = "0.1"
 uuid = { version = "1", features = ["v4"] }
+arboard = "3.4.1"
 
 # Database drivers
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "mysql", "sqlite", "chrono"] }

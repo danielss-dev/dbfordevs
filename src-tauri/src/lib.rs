@@ -4,7 +4,7 @@ mod error;
 mod models;
 mod storage;
 
-use commands::{connections, queries, tables, validators};
+use commands::{connections, queries, tables, validators, utils};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,6 +32,8 @@ pub fn run() {
             tables::rename_table,
             tables::get_table_properties,
             tables::get_table_relationships,
+            utils::copy_to_clipboard,
+            utils::read_from_clipboard,
             validators::validate_connection_string,
             validators::list_validators,
         ])

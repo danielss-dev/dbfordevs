@@ -8,11 +8,12 @@ import {
   Maximize2,
   Move,
   MousePointer,
+  Copy,
 } from "lucide-react";
 import { Button, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
-import { useDatabase } from "@/hooks";
+import { useDatabase, useToast } from "@/hooks";
 import type { Tab, TableRelationship, TableProperties, ExtendedColumnInfo } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 
 interface TableDiagramTabProps {
   tab: Tab;
@@ -42,7 +43,8 @@ function calculateTableHeight(columns: ExtendedColumnInfo[]): number {
 }
 
 export function TableDiagramTab({ tab }: TableDiagramTabProps) {
-  const { getTableRelationships, getTableProperties, getTables } = useDatabase();
+  const { getTableRelationships, getTableProperties, getTables, generateTableDdl } = useDatabase();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [relationships, setRelationships] = useState<TableRelationship[]>([]);
   const [tableBoxes, setTableBoxes] = useState<TableBox[]>([]);
@@ -58,6 +60,29 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
   // Check if this is a schema diagram (no tableName means show all tables in schema)
   const isSchemaMode = tab.type === "diagram" && !tab.tableName;
   const schemaName = isSchemaMode ? tab.content : null;
+
+  const handleCopyDdl = async () => {
+    if (!tab.tableName || !tab.connectionId) return;
+
+    try {
+      const ddl = await generateTableDdl(tab.connectionId, tab.tableName);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          toast({
+            title: "DDL Copied",
+            description: "CREATE TABLE statement copied to clipboard.",
+          });
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Copy Failed",
+        description: error instanceof Error ? error.message : "Could not copy DDL",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadDiagram = useCallback(async () => {
     if (!tab.connectionId) return;
@@ -289,6 +314,19 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
             <TooltipContent>Fit to screen</TooltipContent>
           </Tooltip>
           <div className="w-px h-5 bg-border mx-1" />
+          {!isSchemaMode && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" onClick={handleCopyDdl}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Copy CREATE TABLE DDL</TooltipContent>
+              </Tooltip>
+              <div className="w-px h-5 bg-border mx-1" />
+            </>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="sm" onClick={loadDiagram}>
