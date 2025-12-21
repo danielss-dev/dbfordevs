@@ -92,7 +92,7 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
             );
           }
 
-          return <span className="text-sm text-[hsl(var(--text-secondary))]">{value}</span>;
+          return <span className="text-sm text-[hsl(var(--text-secondary))] whitespace-nowrap">{value}</span>;
         }
 
         if (typeof value === "number") {
@@ -193,7 +193,7 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
                     <th
                       key={header.id}
                       className={cn(
-                        "px-4 py-3 text-foreground/70 transition-colors relative",
+                        "px-4 py-3 text-foreground/70 transition-colors relative min-w-[100px]",
                         isNumeric ? "text-right" : "text-left",
                         idx === 0 && "pl-6",
                         "after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-border/30 last:after:hidden"
@@ -236,7 +236,7 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-4 py-2.5 transition-colors border-r border-[hsl(var(--border)/0.2)] last:border-r-0",
+                          "px-4 py-2.5 transition-colors border-r border-[hsl(var(--border)/0.2)] last:border-r-0 min-w-[100px]",
                           isNumeric ? "text-right" : "text-left",
                           cellIdx === 0 && "pl-6"
                         )}
