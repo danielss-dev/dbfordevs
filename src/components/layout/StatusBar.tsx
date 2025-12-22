@@ -1,12 +1,19 @@
 import { Database, Clock, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection } from "@/stores";
+import { getVersion } from "@tauri-apps/api/app";
+import { useEffect, useState } from "react";
 
 export function StatusBar() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const { isConnecting } = useConnectionsStore();
   const { isExecuting } = useQueryStore();
   const { pendingChanges } = useUIStore();
+  const [version, setVersion] = useState<string>("");
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(console.error);
+  }, []);
 
   const getConnectionStatus = () => {
     if (isConnecting) {
@@ -83,7 +90,7 @@ export function StatusBar() {
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Database className="h-3 w-3" />
           <span className="font-medium">dbfordevs</span>
-          <span className="text-muted-foreground/50">v0.1.0</span>
+          <span className="text-muted-foreground/50">v{version || "..."}</span>
         </div>
       </div>
     </footer>

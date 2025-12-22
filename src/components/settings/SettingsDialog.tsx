@@ -18,6 +18,8 @@ import {
 import { useUIStore } from "@/stores";
 import { useToast } from "@/hooks/useToast";
 import { open } from "@tauri-apps/plugin-shell";
+import { getVersion } from "@tauri-apps/api/app";
+import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun, Keyboard, User, Settings2, Code, Info, Database, ExternalLink, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +67,11 @@ function ShortcutItem({ label, keys }: ShortcutItemProps) {
 export function SettingsDialog() {
   const { showSettingsDialog, setShowSettingsDialog, theme, setTheme, appStyle, setAppStyle } = useUIStore();
   const { toast } = useToast();
+  const [version, setVersion] = useState<string>("");
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(console.error);
+  }, []);
 
   const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
     setTheme(newTheme);
@@ -321,7 +328,7 @@ export function SettingsDialog() {
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight">dbfordevs</h2>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="badge badge-info">v0.1.0</span>
+                      <span className="badge badge-info">v{version || "..."}</span>
                       <span className="badge bg-muted text-muted-foreground">Alpha</span>
                     </div>
 
