@@ -8,12 +8,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button, Input, Label } from "@/components/ui";
-import { useDatabase, useToast } from "@/hooks";
+import { useDatabase, useAsyncOperation } from "@/hooks";
 import { useUIStore } from "@/stores";
+import { showSuccessToast } from "@/lib/toast-helpers";
 
 export function RenameConnectionDialog() {
   const { getConnection, saveConnection, loadConnections } = useDatabase();
-  const { toast } = useToast();
   const {
     showRenameConnectionDialog,
     renamingConnectionId,
@@ -23,8 +23,7 @@ export function RenameConnectionDialog() {
   } = useUIStore();
 
   const [newName, setNewName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { execute, isLoading, error, setError } = useAsyncOperation();
 
   useEffect(() => {
     if (showRenameConnectionDialog && renamingConnectionName) {
@@ -36,14 +35,10 @@ export function RenameConnectionDialog() {
   const handleAction = async () => {
     if (!renamingConnectionId || !newName.trim()) return;
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
+    await execute(async () => {
       const config = await getConnection(renamingConnectionId);
       if (!config) {
-        setError("Connection configuration not found");
-        return;
+        throw new Error("Connection configuration not found");
       }
 
       if (isDuplicatingConnection) {
@@ -51,36 +46,32 @@ export function RenameConnectionDialog() {
         duplicateConfig.name = newName.trim();
         const result = await saveConnection(duplicateConfig);
         if (result) {
-          toast({
-            title: "Connection Duplicated",
-            description: `Successfully duplicated "${renamingConnectionName}" as "${newName.trim()}".`,
-          });
+          showSuccessToast(
+            "Connection Duplicated",
+            `Successfully duplicated "${renamingConnectionName}" as "${newName.trim()}".`
+          );
           // Refresh connections list to show new connection in sidebar
           await loadConnections();
           setShowRenameConnectionDialog(false);
         } else {
-          setError("Failed to duplicate connection");
+          throw new Error("Failed to duplicate connection");
         }
       } else {
         const updatedConfig = { ...config, name: newName.trim() };
         const result = await saveConnection(updatedConfig);
         if (result) {
-          toast({
-            title: "Connection Renamed",
-            description: `Successfully renamed connection to "${newName.trim()}".`,
-          });
+          showSuccessToast(
+            "Connection Renamed",
+            `Successfully renamed connection to "${newName.trim()}".`
+          );
           // Refresh connections list to show new name in sidebar
           await loadConnections();
           setShowRenameConnectionDialog(false);
         } else {
-          setError("Failed to rename connection");
+          throw new Error("Failed to rename connection");
         }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ${isDuplicatingConnection ? 'duplicate' : 'rename'} connection`);
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   const handleClose = (open: boolean) => {

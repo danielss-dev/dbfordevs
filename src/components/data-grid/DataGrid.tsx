@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, ChevronsLeft, ChevronsRight, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import type { QueryResult } from "@/types";
 
 interface DataGridProps {
@@ -268,10 +269,7 @@ export function DataGrid({ data, onRowClick }: DataGridProps) {
             <span className="font-semibold text-foreground/80">{totalRows}</span> rows
           </div>
           {data.executionTimeMs !== undefined && (
-            <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-[hsl(var(--success)/0.05)] border border-[hsl(var(--success)/0.1)] text-[10px] font-mono text-[hsl(var(--success))] font-bold uppercase tracking-wider">
-              <div className="h-1 w-1 rounded-full bg-[hsl(var(--success))]" />
-              <span className="tabular-nums">{data.executionTimeMs}ms</span>
-            </div>
+            <ExecutionTimeBadge timeMs={data.executionTimeMs} />
           )}
         </div>
         <div className="flex items-center gap-2">

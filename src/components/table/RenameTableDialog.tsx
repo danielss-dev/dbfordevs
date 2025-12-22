@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button, Input, Label } from "@/components/ui";
-import { useDatabase } from "@/hooks";
+import { useDatabase, useAsyncOperation } from "@/hooks";
 import { useUIStore, useQueryStore } from "@/stores";
 
 export function RenameTableDialog() {
@@ -22,8 +22,7 @@ export function RenameTableDialog() {
   } = useUIStore();
 
   const [newName, setNewName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { execute, isLoading, error, setError } = useAsyncOperation();
 
   // Get display name (strip schema prefix for display)
   const displayName = renamingTableName?.includes(".")
@@ -46,10 +45,7 @@ export function RenameTableDialog() {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
+    await execute(async () => {
       const result = await renameTable(renamingConnectionId, renamingTableName, newName.trim());
       if (result) {
         // Update all open tabs that refer to this table
@@ -58,13 +54,9 @@ export function RenameTableDialog() {
         await getTables(renamingConnectionId);
         setShowRenameTableDialog(false);
       } else {
-        setError("Failed to rename table");
+        throw new Error("Failed to rename table");
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to rename table");
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   const handleClose = (open: boolean) => {

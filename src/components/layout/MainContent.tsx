@@ -8,7 +8,6 @@ import {
   Loader2,
   AlertCircle,
   Terminal,
-  Rows3,
   RefreshCw,
   Info,
   Network,
@@ -36,6 +35,8 @@ import { useDatabase } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
 import { SqlEditor } from "@/components/editor";
 import { TablePropertiesTab, TableDiagramTab } from "@/components/table";
+import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
+import { RowCountBadge } from "@/components/ui/row-count-badge";
 import type { Tab } from "@/types";
 
 function TabItem({ tab, isActive, onClose, onClick }: {
@@ -222,18 +223,8 @@ function QueryEditor({ tab }: { tab: Tab }) {
 
         {results && (
           <div className="flex items-center gap-2 text-sm">
-            <span className="badge badge-success">
-              <Rows3 className="h-3 w-3 mr-1" />
-              {results.affectedRows !== undefined && results.affectedRows !== null ? (
-                <>{results.affectedRows} rows affected</>
-              ) : (
-                <>{results.rows.length} rows</>
-              )}
-            </span>
-            <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-[hsl(var(--success)/0.05)] border border-[hsl(var(--success)/0.1)] text-[10px] font-mono text-[hsl(var(--success))] font-bold uppercase tracking-wider">
-              <div className="h-1 w-1 rounded-full bg-[hsl(var(--success))]" />
-              <span className="tabular-nums">{results.executionTimeMs}ms</span>
-            </div>
+            <RowCountBadge rowCount={results.rows.length} affectedRows={results.affectedRows} />
+            <ExecutionTimeBadge timeMs={results.executionTimeMs} />
           </div>
         )}
       </div>
@@ -349,18 +340,8 @@ function TableViewer({ tab }: { tab: Tab }) {
 
         {tabResults && (
           <div className="flex items-center gap-2 text-sm">
-            <span className="badge badge-success">
-              <Rows3 className="h-3 w-3 mr-1" />
-              {tabResults.affectedRows !== undefined && tabResults.affectedRows !== null ? (
-                <>{tabResults.affectedRows} rows affected</>
-              ) : (
-                <>{tabResults.rows.length} rows</>
-              )}
-            </span>
-            <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-[hsl(var(--success)/0.05)] border border-[hsl(var(--success)/0.1)] text-[10px] font-mono text-[hsl(var(--success))] font-bold uppercase tracking-wider">
-              <div className="h-1 w-1 rounded-full bg-[hsl(var(--success))]" />
-              <span className="tabular-nums">{tabResults.executionTimeMs}ms</span>
-            </div>
+            <RowCountBadge rowCount={tabResults.rows.length} affectedRows={tabResults.affectedRows} />
+            <ExecutionTimeBadge timeMs={tabResults.executionTimeMs} />
           </div>
         )}
       </div>

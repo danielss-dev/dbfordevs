@@ -28,33 +28,7 @@ import { useUIStore } from "@/stores";
 import { useDatabase } from "@/hooks";
 import type { ConnectionConfig, DatabaseType } from "@/types";
 import { cn } from "@/lib/utils";
-
-// Database-specific defaults
-const DB_DEFAULTS: Record<DatabaseType, { port: number; username: string; host: string }> = {
-  postgresql: { port: 5432, username: "postgres", host: "localhost" },
-  mysql: { port: 3306, username: "root", host: "localhost" },
-  mariadb: { port: 3306, username: "root", host: "localhost" },
-  sqlite: { port: 0, username: "", host: "" },
-  mssql: { port: 1433, username: "sa", host: "localhost" },
-  oracle: { port: 1521, username: "system", host: "localhost" },
-  mongodb: { port: 27017, username: "", host: "localhost" },
-  redis: { port: 6379, username: "", host: "localhost" },
-  cockroachdb: { port: 26257, username: "root", host: "localhost" },
-  cassandra: { port: 9042, username: "cassandra", host: "localhost" },
-};
-
-const DB_LABELS: Record<DatabaseType, { name: string; icon: string; brand: string; color: string }> = {
-  postgresql: { name: "PostgreSQL", icon: "🐘", brand: "postgresql", color: "text-[#4169E1]" },
-  mysql: { name: "MySQL", icon: "🐬", brand: "mysql", color: "text-[#4479A1]" },
-  mariadb: { name: "MariaDB", icon: "🐬", brand: "mariadb", color: "text-[#003545]" },
-  sqlite: { name: "SQLite", icon: "📁", brand: "sqlite", color: "text-[#003B57]" },
-  mssql: { name: "SQL Server", icon: "🗄️", brand: "microsoftsqlserver", color: "text-[#CC2927]" },
-  oracle: { name: "Oracle", icon: "🔴", brand: "oracle", color: "text-[#F80000]" },
-  mongodb: { name: "MongoDB", icon: "🍃", brand: "mongodb", color: "text-[#47A248]" },
-  redis: { name: "Redis", icon: "🔴", brand: "redis", color: "text-[#FF4438]" },
-  cockroachdb: { name: "CockroachDB", icon: "🪳", brand: "cockroachdb", color: "text-[#6933FF]" },
-  cassandra: { name: "Cassandra", icon: "🔵", brand: "apachecassandra", color: "text-[#1287B1]" },
-};
+import { DATABASE_DEFAULTS, DATABASE_METADATA } from "@/lib/constants";
 
 const INITIAL_FORM_DATA: ConnectionConfig = {
   name: "",
@@ -131,7 +105,7 @@ export function ConnectionModal() {
   const [formData, setFormData] = useState<ConnectionConfig>(INITIAL_FORM_DATA);
 
   const isEditMode = editingConnectionId !== null;
-  const defaults = useMemo(() => DB_DEFAULTS[formData.databaseType], [formData.databaseType]);
+  const defaults = useMemo(() => DATABASE_DEFAULTS[formData.databaseType], [formData.databaseType]);
   const isSqlite = formData.databaseType === "sqlite";
 
   // Get effective values (use placeholder defaults when field is empty)
@@ -154,8 +128,8 @@ export function ConnectionModal() {
               ...config,
               // Show actual values, not defaults
               host: config.host === defaults.host ? "" : config.host,
-              port: config.port === DB_DEFAULTS[config.databaseType].port ? undefined : config.port,
-              username: config.username === DB_DEFAULTS[config.databaseType].username ? "" : config.username,
+              port: config.port === DATABASE_DEFAULTS[config.databaseType].port ? undefined : config.port,
+              username: config.username === DATABASE_DEFAULTS[config.databaseType].username ? "" : config.username,
             });
           }
         })
@@ -228,8 +202,8 @@ export function ConnectionModal() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BrandIcon
-              name={DB_LABELS[formData.databaseType].brand}
-              className={cn("h-5 w-5", DB_LABELS[formData.databaseType].color)}
+              name={DATABASE_METADATA[formData.databaseType].brand}
+              className={cn("h-5 w-5", DATABASE_METADATA[formData.databaseType].color)}
             />
             {isEditMode ? "Edit Connection" : "New Connection"}
           </DialogTitle>
@@ -285,11 +259,11 @@ export function ConnectionModal() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(DB_LABELS) as DatabaseType[]).map((type) => (
+                    {(Object.keys(DATABASE_METADATA) as DatabaseType[]).map((type) => (
                       <SelectItem key={type} value={type}>
                         <span className="flex items-center gap-2">
-                          <BrandIcon name={DB_LABELS[type].brand} className={cn("h-4 w-4", DB_LABELS[type].color)} />
-                          <span>{DB_LABELS[type].name}</span>
+                          <BrandIcon name={DATABASE_METADATA[type].brand} className={cn("h-4 w-4", DATABASE_METADATA[type].color)} />
+                          <span>{DATABASE_METADATA[type].name}</span>
                         </span>
                       </SelectItem>
                     ))}

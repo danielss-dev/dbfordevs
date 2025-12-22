@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button, Input, Label } from "@/components/ui";
-import { useDatabase } from "@/hooks";
+import { useDatabase, useAsyncOperation } from "@/hooks";
 import { useUIStore } from "@/stores";
 
 export function CreateSchemaDialog() {
@@ -20,8 +20,7 @@ export function CreateSchemaDialog() {
   } = useUIStore();
 
   const [schemaName, setSchemaName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { execute, isLoading, error, setError } = useAsyncOperation();
 
   const handleCreate = async () => {
     if (!creatingSchemaConnectionId || !schemaName.trim()) return;
@@ -32,10 +31,7 @@ export function CreateSchemaDialog() {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
+    await execute(async () => {
       const result = await executeQuery(
         {
           connectionId: creatingSchemaConnectionId,
@@ -50,13 +46,9 @@ export function CreateSchemaDialog() {
         setShowCreateSchemaDialog(false);
         setSchemaName("");
       } else {
-        setError("Failed to create schema");
+        throw new Error("Failed to create schema");
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create schema");
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   const handleClose = (open: boolean) => {

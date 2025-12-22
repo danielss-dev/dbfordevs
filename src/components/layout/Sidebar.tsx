@@ -47,6 +47,7 @@ import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
+import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
 
 interface TreeItemProps {
   label: string;
@@ -436,30 +437,9 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 
   const getIcon = () => {
     const baseClasses = "h-4 w-4";
-    switch (connection.databaseType) {
-      case "postgresql":
-        return <BrandIcon name="postgresql" className={cn(baseClasses, "text-[#4169E1]")} />;
-      case "mysql":
-        return <BrandIcon name="mysql" className={cn(baseClasses, "text-[#4479A1]")} />;
-      case "mariadb":
-        return <BrandIcon name="mariadb" className={cn(baseClasses, "text-[#003545]")} />;
-      case "sqlite":
-        return <BrandIcon name="sqlite" className={cn(baseClasses, "text-[#003B57]")} />;
-      case "mssql":
-        return <BrandIcon name="microsoftsqlserver" className={cn(baseClasses, "text-[#CC2927]")} />;
-      case "oracle":
-        return <BrandIcon name="oracle" className={cn(baseClasses, "text-[#F80000]")} />;
-      case "mongodb":
-        return <BrandIcon name="mongodb" className={cn(baseClasses, "text-[#47A248]")} />;
-      case "redis":
-        return <BrandIcon name="redis" className={cn(baseClasses, "text-[#FF4438]")} />;
-      case "cockroachdb":
-        return <BrandIcon name="cockroachdb" className={cn(baseClasses, "text-[#6933FF]")} />;
-      case "cassandra":
-        return <BrandIcon name="apachecassandra" className={cn(baseClasses, "text-[#1287B1]")} />;
-      default:
-        return <Database className={baseClasses} />;
-    }
+    const brand = getDatabaseBrand(connection.databaseType);
+    const color = getDatabaseColor(connection.databaseType);
+    return <BrandIcon name={brand} className={cn(baseClasses, color)} />;
   };
 
   const connectionTables = tablesByConnection[connection.id] || [];
