@@ -17,6 +17,7 @@ import {
 } from "@/components/ui";
 import { useUIStore } from "@/stores";
 import { useToast } from "@/hooks/useToast";
+import { open } from "@tauri-apps/plugin-shell";
 import { Monitor, Moon, Sun, Keyboard, User, Settings2, Code, Info, Database, ExternalLink, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -330,11 +331,33 @@ export function SettingsDialog() {
                       </p>
 
                       <div className="flex items-center justify-center gap-3 pt-4">
-                        <Button variant="outline" size="sm" className="gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-2"
+                          onClick={async () => {
+                            try {
+                              await open("https://github.com/danielss-dev/dbfordevs");
+                            } catch (error) {
+                              console.error("Failed to open URL:", error);
+                            }
+                          }}
+                        >
                           <Github className="h-4 w-4" />
                           GitHub
                         </Button>
-                        <Button variant="outline" size="sm" className="gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-2"
+                          onClick={async () => {
+                            try {
+                              await open("https://www.dbfordevs.app/docs");
+                            } catch (error) {
+                              console.error("Failed to open URL:", error);
+                            }
+                          }}
+                        >
                           <ExternalLink className="h-4 w-4" />
                           Documentation
                         </Button>

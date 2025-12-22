@@ -1,0 +1,32 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json#/definitions/Permission",
+  "identifier": "allow-all-app-commands",
+  "description": "Allows all commands in the application",
+  "commands": {
+    "allow": [
+      "test_connection",
+      "save_connection",
+      "connect",
+      "disconnect",
+      "list_connections",
+      "delete_connection",
+      "get_connection",
+      "execute_query",
+      "get_tables",
+      "get_table_schema",
+      "insert_row",
+      "update_row",
+      "delete_row",
+      "drop_table",
+      "generate_table_ddl",
+      "rename_table",
+      "get_table_properties",
+      "get_table_relationships",
+      "copy_to_clipboard",
+      "read_from_clipboard",
+      "validate_connection_string",
+      "list_validators"
+    ]
+  }
+}
+
