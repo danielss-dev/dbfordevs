@@ -623,7 +623,7 @@ dependencies = [
 
 [[package]]
 name = "dbfordevs"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "arboard",
  "async-trait",
@@ -2825,7 +2825,7 @@ dependencies = [
 
 [[package]]
 name = "plugin-core"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -4995,7 +4995,7 @@ dependencies = [
 
 [[package]]
 name = "validator-core"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "plugin-core",
  "serde",
@@ -5005,7 +5005,7 @@ dependencies = [
 
 [[package]]
 name = "validator-csharp"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "plugin-core",
  "regex",
@@ -5016,7 +5016,7 @@ dependencies = [
 
 [[package]]
 name = "validator-nodejs"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "plugin-core",
  "regex",
@@ -5028,7 +5028,7 @@ dependencies = [
 
 [[package]]
 name = "validator-python"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "plugin-core",
  "regex",
