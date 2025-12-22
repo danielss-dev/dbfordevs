@@ -218,6 +218,38 @@
   @apply rounded-md;
 }
 
+/* Move Find Widget to Bottom Right */
+.monaco-editor .find-widget {
+  transition: opacity 0.2s ease-in-out !important;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+}
+
+.monaco-editor .find-widget.visible {
+  top: auto !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  left: auto !important;
+  transform: none !important;
+  background-color: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  border-radius: var(--radius) !important;
+  padding: 8px !important;
+  display: flex !important;
+  height: auto !important;
+  width: auto !important;
+  min-width: 300px !important;
+}
+
+/* Ensure the widget is not clipped by Monaco's overlay container */
+.monaco-editor .overlayWidgets {
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+}
+
+
 /* Data grid styles */
 .data-grid-row:hover {
   @apply bg-accent/50;

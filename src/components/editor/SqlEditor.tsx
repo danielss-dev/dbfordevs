@@ -156,6 +156,7 @@ export function SqlEditor({
         // Find widget settings
         find: {
           addExtraSpaceOnTop: false,
+          autoFindInSelection: "multiline",
         },
       }}
     />
