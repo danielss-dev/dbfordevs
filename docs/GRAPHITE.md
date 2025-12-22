@@ -29,7 +29,7 @@ gt init
 When starting a new feature or fix, create a new branch using Graphite:
 
 ```bash
-gt branch create <branch-name>
+gt create <branch-name>
 ```
 
 ### 3. Making Changes & Committing
@@ -46,7 +46,7 @@ If you need to start a related task before the first one is merged:
 
 ```bash
 # While on your first branch
-gt branch create <next-branch-name>
+gt create <next-branch-name>
 # Make changes
 git add .
 git commit -m "feat: implement query runner for new database"
@@ -56,20 +56,55 @@ git commit -m "feat: implement query runner for new database"
 To submit your entire stack to GitHub as separate, linked pull requests:
 
 ```bash
-gt stack submit
+gt submit --stack
 ```
 
 Graphite will handle creating the PRs and setting the base branches correctly so that each PR only shows its own changes.
 
-## Common Commands
+## Command Cheatsheet
 
-| Command | Description |
-|---------|-------------|
-| `gt branch create <name>` | Create a new branch stacked on the current one |
-| `gt stack submit` | Push the current stack and create/update PRs |
-| `gt stack restack` | Rebase your entire stack if the base branch (main) has changed |
-| `gt branch checkout` | Interactively switch between branches in your stack |
-| `gt log` | View a visual representation of your current stacks |
+### Viewing your Stack
+
+| Task | Command | Short Form |
+| :--- | :--- | :--- |
+| See full information about all of your branches and their PRs | `gt log` | |
+| See all of your branches | `gt log short` | `gt ls` |
+
+### Creating and Modifying Branches
+
+| Task | Command | Short Form |
+| :--- | :--- | :--- |
+| Create a new branch | `gt create` | `gt c` |
+| Create a branch, stage all, commit with message | `gt create --all --message "msg"` | `gt c -am "msg"` |
+| Stage all changes and amend them to current branch | `gt modify --all` | `gt m -a` |
+| Stage all changes and add a new commit to current branch | `gt modify --commit --all --message "msg"` | `gt m -cam "msg"` |
+
+### Syncing and Submitting
+
+| Task | Command | Short Form |
+| :--- | :--- | :--- |
+| Pull trunk, clean up merged branches, restack | `gt sync` | |
+| Push current branch and all downstack branches | `gt submit` | |
+| Push all branches in current stack | `gt submit --stack` | `gt ss` |
+
+### Navigating your Stack
+
+| Task | Command | Short Form |
+| :--- | :--- | :--- |
+| Switch to a specific branch | `gt checkout` | `gt co` |
+| Move up one branch | `gt up` | `gt u` |
+| Move down one branch | `gt down` | `gt d` |
+| Go to the top of the stack | `gt top` | `gt t` |
+| Go to the bottom of the stack | `gt bottom` | `gt b` |
+
+### Reorganizing & Recovery
+
+| Task | Command | Short Form |
+| :--- | :--- | :--- |
+| Rebase your stack on its parent | `gt restack` | `gt r` |
+| Squash all commits in branch into one | `gt squash` | `gt sq` |
+| Split branch into multiple branches | `gt split` | `gt sp` |
+| Undo the most recent Graphite mutation | `gt undo` | |
 
 ## Tips for dbfordevs
 
