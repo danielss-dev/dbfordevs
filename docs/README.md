@@ -35,6 +35,9 @@ In-depth documentation on using the application, including:
 - Tips and best practices
 - Troubleshooting
 
+### [Graphite Workflow](./GRAPHITE.md)
+Guide for developers on using Graphite for stacked pull requests in this project.
+
 ## Quick Links
 
 - **GitHub**: Source code and issue tracking
