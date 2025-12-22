@@ -13,3 +13,4 @@ export * from "./toast";
 export * from "./toaster";
 export { Badge, badgeVariants } from "./badge";
 export { BrandIcon } from "./BrandIcon";
+export { Checkbox } from "./checkbox";

@@ -5,6 +5,20 @@ import type { PendingChange } from "@/types";
 type Theme = "light" | "dark" | "system";
 type AppStyle = "developer" | "web";
 
+interface EditorSettings {
+  fontFamily: string;
+  fontSize: number;
+  tabSize: number;
+  lineNumbers: boolean;
+  wordWrap: boolean;
+  showInvisibles: boolean;
+}
+
+interface GeneralSettings {
+  checkUpdatesOnStartup: boolean;
+  sendAnalytics: boolean;
+}
+
 interface UIState {
   // Theme
   theme: Theme;
@@ -17,12 +31,16 @@ interface UIState {
   sidePanelWidth: number;
   // Pending changes for diff view
   pendingChanges: PendingChange[];
+  // Settings
+  editorSettings: EditorSettings;
+  generalSettings: GeneralSettings;
   // Modal states
   showConnectionModal: boolean;
   editingConnectionId: string | null; // ID of connection being edited, null for new
   showMarketplace: boolean;
   showDiffModal: boolean;
   showSettingsDialog: boolean;
+  settingsDialogTab: "general" | "editor" | "appearance" | "extensions" | "keybindings" | "advanced" | "about";
   showRenameTableDialog: boolean;
   renamingTableName: string | null;
   showRenameConnectionDialog: boolean;
@@ -37,6 +55,8 @@ interface UIState {
   // Actions
   setTheme: (theme: Theme) => void;
   setAppStyle: (style: AppStyle) => void;
+  updateEditorSettings: (settings: Partial<EditorSettings>) => void;
+  updateGeneralSettings: (settings: Partial<GeneralSettings>) => void;
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   toggleSidePanel: () => void;
@@ -49,6 +69,7 @@ interface UIState {
   setShowMarketplace: (show: boolean) => void;
   setShowDiffModal: (show: boolean) => void;
   setShowSettingsDialog: (show: boolean) => void;
+  openSettingsWithTab: (tab: "general" | "editor" | "appearance" | "extensions" | "keybindings" | "advanced" | "about") => void;
   setShowRenameTableDialog: (show: boolean) => void;
   openRenameTableDialog: (tableName: string, connectionId: string) => void;
   setShowRenameConnectionDialog: (show: boolean) => void;
@@ -68,11 +89,24 @@ export const useUIStore = create<UIState>()(
       sidePanelOpen: false,
       sidePanelWidth: 400,
       pendingChanges: [],
+      editorSettings: {
+        fontFamily: "JetBrains Mono",
+        fontSize: 14,
+        tabSize: 2,
+        lineNumbers: true,
+        wordWrap: false,
+        showInvisibles: false,
+      },
+      generalSettings: {
+        checkUpdatesOnStartup: true,
+        sendAnalytics: false,
+      },
       showConnectionModal: false,
       editingConnectionId: null,
       showMarketplace: false,
       showDiffModal: false,
       showSettingsDialog: false,
+      settingsDialogTab: "general",
       showRenameTableDialog: false,
       renamingTableName: null,
       showRenameConnectionDialog: false,
@@ -100,6 +134,16 @@ export const useUIStore = create<UIState>()(
         root.classList.add(`style-${appStyle}`);
         set({ appStyle });
       },
+
+      updateEditorSettings: (settings) =>
+        set((state) => ({
+          editorSettings: { ...state.editorSettings, ...settings },
+        })),
+
+      updateGeneralSettings: (settings) =>
+        set((state) => ({
+          generalSettings: { ...state.generalSettings, ...settings },
+        })),
 
       toggleSidebar: () =>
         set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -150,6 +194,12 @@ export const useUIStore = create<UIState>()(
 
       setShowSettingsDialog: (showSettingsDialog) => set({ showSettingsDialog }),
 
+      openSettingsWithTab: (tab) =>
+        set({
+          showSettingsDialog: true,
+          settingsDialogTab: tab,
+        }),
+
       setShowRenameTableDialog: (showRenameTableDialog) =>
         set({ showRenameTableDialog, renamingTableName: showRenameTableDialog ? null : null, renamingConnectionId: showRenameTableDialog ? null : null }),
 
@@ -193,6 +243,8 @@ export const useUIStore = create<UIState>()(
         appStyle: state.appStyle,
         sidebarWidth: state.sidebarWidth,
         sidePanelWidth: state.sidePanelWidth,
+        editorSettings: state.editorSettings,
+        generalSettings: state.generalSettings,
       }),
     }
   )

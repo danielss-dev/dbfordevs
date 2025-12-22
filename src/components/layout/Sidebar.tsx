@@ -696,13 +696,12 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 }
 
 export function Sidebar() {
-  const { 
-    sidebarOpen, 
-    sidebarWidth, 
+  const {
+    sidebarOpen,
+    sidebarWidth,
     appStyle,
-    setShowConnectionModal, 
-    setShowMarketplace, 
-    setShowSettingsDialog 
+    setShowConnectionModal,
+    openSettingsWithTab,
   } = useUIStore();
   const { connections } = useConnectionsStore();
   const { loadConnections } = useDatabase();
@@ -786,7 +785,7 @@ export function Sidebar() {
                 variant="ghost"
                 size="sm"
                 className="flex-1 justify-start gap-2 h-9"
-                onClick={() => setShowMarketplace(true)}
+                onClick={() => openSettingsWithTab("extensions")}
               >
                 {isDeveloper ? (
                   <Wrench className="h-4 w-4" />
@@ -806,7 +805,7 @@ export function Sidebar() {
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9"
-                onClick={() => setShowSettingsDialog(true)}
+                onClick={() => openSettingsWithTab("general")}
               >
                 <Settings className="h-4 w-4" />
               </Button>
