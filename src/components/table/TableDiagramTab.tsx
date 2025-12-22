@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Loader2,
   Table as TableIcon,
@@ -9,6 +9,12 @@ import {
   Move,
   MousePointer,
   Copy,
+  LayoutGrid,
+  List,
+  Search,
+  X,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { Button, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 import { useDatabase, useToast } from "@/hooks";
@@ -30,36 +36,142 @@ interface TableBox {
   isMain?: boolean;
 }
 
-const TABLE_WIDTH = 240;
-const ROW_HEIGHT = 26;
-const HEADER_HEIGHT = 42;
-const PADDING = 16;
-const MAX_COLUMNS_DISPLAY = 10;
+type ViewMode = "detailed" | "compact";
 
-function calculateTableHeight(columns: ExtendedColumnInfo[]): number {
+// Constants for layout
+const TABLE_WIDTH = 220;
+const TABLE_WIDTH_COMPACT = 160;
+const ROW_HEIGHT = 22;
+const HEADER_HEIGHT = 36;
+const HEADER_HEIGHT_COMPACT = 32;
+const PADDING = 12;
+const MAX_COLUMNS_DISPLAY = 8;
+const GRID_GAP_X = 40;
+const GRID_GAP_Y = 30;
+
+// Threshold for switching to compact mode automatically
+const COMPACT_MODE_THRESHOLD = 15;
+
+function calculateTableHeight(columns: ExtendedColumnInfo[], viewMode: ViewMode): number {
+  if (viewMode === "compact") {
+    return HEADER_HEIGHT_COMPACT;
+  }
   const displayCols = Math.min(columns.length, MAX_COLUMNS_DISPLAY);
   const hasMore = columns.length > MAX_COLUMNS_DISPLAY;
-  return HEADER_HEIGHT + displayCols * ROW_HEIGHT + (hasMore ? 24 : 0) + PADDING;
+  return HEADER_HEIGHT + displayCols * ROW_HEIGHT + (hasMore ? 20 : 0) + PADDING;
 }
 
 export function TableDiagramTab({ tab }: TableDiagramTabProps) {
   const { getTableRelationships, getTableProperties, getTables, generateTableDdl } = useDatabase();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
   const [relationships, setRelationships] = useState<TableRelationship[]>([]);
-  const [tableBoxes, setTableBoxes] = useState<TableBox[]>([]);
+  const [allTables, setAllTables] = useState<TableProperties[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  const [panMode, setPanMode] = useState(false);
+  const [panMode, setPanMode] = useState(true); // Default to pan mode for large diagrams
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("detailed");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Check if this is a schema diagram (no tableName means show all tables in schema)
   const isSchemaMode = tab.type === "diagram" && !tab.tableName;
   const schemaName = isSchemaMode ? tab.content : null;
+
+  // Calculate table boxes based on view mode
+  const tableBoxes = useMemo(() => {
+    return layoutTables(allTables, tab.tableName, viewMode);
+  }, [allTables, tab.tableName, viewMode]);
+
+  // Search matches
+  const searchMatches = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    return tableBoxes.filter(box =>
+      box.displayName.toLowerCase().includes(query) ||
+      box.name.toLowerCase().includes(query)
+    );
+  }, [tableBoxes, searchQuery]);
+
+  // Pan to a specific table
+  const panToTable = useCallback((box: TableBox) => {
+    if (!containerRef.current) return;
+
+    const containerWidth = containerRef.current.clientWidth;
+    const containerHeight = containerRef.current.clientHeight;
+
+    // Center the table in the viewport
+    const targetX = containerWidth / 2 - (box.x + box.width / 2) * zoom;
+    const targetY = containerHeight / 2 - (box.y + box.height / 2) * zoom;
+
+    setPan({ x: targetX, y: targetY });
+  }, [zoom]);
+
+  // Navigate to next/previous search result
+  const goToMatch = useCallback((index: number) => {
+    if (searchMatches.length === 0) return;
+    const wrappedIndex = ((index % searchMatches.length) + searchMatches.length) % searchMatches.length;
+    setCurrentMatchIndex(wrappedIndex);
+    panToTable(searchMatches[wrappedIndex]);
+  }, [searchMatches, panToTable]);
+
+  // Handle search input change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setCurrentMatchIndex(0);
+  }, []);
+
+  // Pan to first match when search results change
+  useEffect(() => {
+    if (searchMatches.length > 0 && searchQuery) {
+      panToTable(searchMatches[0]);
+      setCurrentMatchIndex(0);
+    }
+  }, [searchMatches, searchQuery, panToTable]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + F to open search
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        setSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      }
+      // Escape to close search
+      if (e.key === "Escape" && searchOpen) {
+        setSearchOpen(false);
+        setSearchQuery("");
+      }
+      // Enter to go to next match, Shift+Enter for previous
+      if (e.key === "Enter" && searchOpen && searchMatches.length > 0) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          goToMatch(currentMatchIndex - 1);
+        } else {
+          goToMatch(currentMatchIndex + 1);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchOpen, searchMatches, currentMatchIndex, goToMatch]);
+
+  // Auto-switch to compact mode for large diagrams
+  useEffect(() => {
+    if (allTables.length > COMPACT_MODE_THRESHOLD && viewMode === "detailed") {
+      setViewMode("compact");
+    }
+  }, [allTables.length]);
 
   const handleCopyDdl = async () => {
     if (!tab.tableName || !tab.connectionId) return;
@@ -89,84 +201,98 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
 
     setIsLoading(true);
     setError(null);
+    setLoadingProgress({ current: 0, total: 0 });
 
     try {
-      let allTables: TableProperties[] = [];
+      let tableNames: string[] = [];
+      let loadedTables: TableProperties[] = [];
       let allRelationships: TableRelationship[] = [];
 
       if (isSchemaMode && schemaName) {
-        // Load all tables in the schema
+        // Get list of tables in schema first
         const tables = await getTables(tab.connectionId);
         const schemaTables = tables.filter(t => t.schema === schemaName || (!t.schema && schemaName === "default"));
-
-        for (const tableInfo of schemaTables) {
-          const props = await getTableProperties(tab.connectionId, tableInfo.name);
-          if (props) {
-            allTables.push(props);
-            const rels = await getTableRelationships(tab.connectionId, tableInfo.name);
-            // Add relationships that aren't already in the list
-            for (const rel of rels) {
-              if (!allRelationships.some(r =>
-                r.sourceTable === rel.sourceTable &&
-                r.sourceColumn === rel.sourceColumn &&
-                r.targetTable === rel.targetTable &&
-                r.targetColumn === rel.targetColumn
-              )) {
-                allRelationships.push(rel);
-              }
-            }
-          }
-        }
+        tableNames = schemaTables.map(t => t.name);
       } else if (tab.tableName) {
-        // Single table mode - load main table and related tables
-        const props = await getTableProperties(tab.connectionId, tab.tableName);
-        if (props) {
-          allTables.push(props);
-
-          const rels = await getTableRelationships(tab.connectionId, tab.tableName);
-          allRelationships = rels;
-
-          // Load related table properties
-          const relatedTableNames = new Set<string>();
-          rels.forEach((rel) => {
-            if (rel.sourceTable !== tab.tableName) relatedTableNames.add(rel.sourceTable);
-            if (rel.targetTable !== tab.tableName) relatedTableNames.add(rel.targetTable);
-          });
-
-          for (const tableName of relatedTableNames) {
-            const tableProps = await getTableProperties(tab.connectionId, tableName);
-            if (tableProps) {
-              allTables.push(tableProps);
-            }
-          }
-        }
+        // Single table mode - start with main table
+        tableNames = [tab.tableName];
       }
 
-      setRelationships(allRelationships);
+      setLoadingProgress({ current: 0, total: tableNames.length });
 
-      // Calculate positions for all tables
-      const boxes = layoutTables(allTables, tab.tableName);
-      setTableBoxes(boxes);
+      // Load table properties in parallel batches (batch size 5 for better UX)
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < tableNames.length; i += BATCH_SIZE) {
+        const batch = tableNames.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map(async (tableName) => {
+            const props = await getTableProperties(tab.connectionId, tableName);
+            return props;
+          })
+        );
 
-      // Auto-center the view
-      if (boxes.length > 0 && containerRef.current) {
-        const containerWidth = containerRef.current.clientWidth;
-        const containerHeight = containerRef.current.clientHeight;
-        const bounds = calculateBounds(boxes);
-        const contentWidth = bounds.maxX - bounds.minX;
-        const contentHeight = bounds.maxY - bounds.minY;
+        loadedTables = [...loadedTables, ...batchResults.filter((p): p is TableProperties => p !== null)];
+        setLoadingProgress({ current: Math.min(i + BATCH_SIZE, tableNames.length), total: tableNames.length });
+      }
 
-        setPan({
-          x: (containerWidth - contentWidth * zoom) / 2 - bounds.minX * zoom,
-          y: (containerHeight - contentHeight * zoom) / 2 - bounds.minY * zoom + 20,
+      // For single table mode, also load related tables
+      if (!isSchemaMode && tab.tableName && loadedTables.length > 0) {
+        const rels = await getTableRelationships(tab.connectionId, tab.tableName);
+        allRelationships = rels;
+
+        const relatedTableNames = new Set<string>();
+        rels.forEach((rel) => {
+          if (rel.sourceTable !== tab.tableName) relatedTableNames.add(rel.sourceTable);
+          if (rel.targetTable !== tab.tableName) relatedTableNames.add(rel.targetTable);
+        });
+
+        // Load related tables in parallel
+        const relatedResults = await Promise.all(
+          Array.from(relatedTableNames).map(tableName =>
+            getTableProperties(tab.connectionId, tableName)
+          )
+        );
+        loadedTables = [...loadedTables, ...relatedResults.filter((p): p is TableProperties => p !== null)];
+      }
+
+      // For schema mode, load relationships in parallel batches
+      if (isSchemaMode) {
+        const relBatches = [];
+        for (let i = 0; i < loadedTables.length; i += BATCH_SIZE) {
+          const batch = loadedTables.slice(i, i + BATCH_SIZE);
+          const batchRels = await Promise.all(
+            batch.map(table => getTableRelationships(tab.connectionId, table.tableName))
+          );
+          relBatches.push(...batchRels.flat());
+        }
+
+        // Deduplicate relationships
+        const seen = new Set<string>();
+        allRelationships = relBatches.filter(rel => {
+          const key = `${rel.sourceTable}:${rel.sourceColumn}:${rel.targetTable}:${rel.targetColumn}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
         });
       }
+
+      setAllTables(loadedTables);
+      setRelationships(allRelationships);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load diagram");
     } finally {
       setIsLoading(false);
     }
-  }, [tab.connectionId, tab.tableName, isSchemaMode, schemaName, getTableProperties, getTableRelationships, getTables, zoom]);
+  }, [tab.connectionId, tab.tableName, isSchemaMode, schemaName, getTableProperties, getTableRelationships, getTables]);
+
+  // Auto-fit when tables are loaded
+  useEffect(() => {
+    if (!isLoading && tableBoxes.length > 0 && containerRef.current) {
+      // Small delay to ensure container is rendered
+      setTimeout(() => fitToScreen(), 100);
+    }
+  }, [isLoading, tableBoxes.length]);
 
   useEffect(() => {
     loadDiagram();
@@ -174,7 +300,7 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
 
   // Mouse handlers for panning
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (panMode || e.button === 1) { // Middle mouse button or pan mode
+    if (panMode || e.button === 1) {
       setIsPanning(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
       e.preventDefault();
@@ -199,9 +325,8 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom(Math.max(0.25, Math.min(3, zoom + delta)));
+      setZoom(Math.max(0.1, Math.min(3, zoom + delta)));
     } else {
-      // Pan with scroll
       setPan({
         x: pan.x - e.deltaX,
         y: pan.y - e.deltaY,
@@ -209,36 +334,53 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
     }
   };
 
-  const fitToScreen = () => {
+  const fitToScreen = useCallback(() => {
     if (!containerRef.current || tableBoxes.length === 0) return;
 
     const containerWidth = containerRef.current.clientWidth;
     const containerHeight = containerRef.current.clientHeight;
     const bounds = calculateBounds(tableBoxes);
-    const contentWidth = bounds.maxX - bounds.minX + 100;
-    const contentHeight = bounds.maxY - bounds.minY + 100;
+    const contentWidth = bounds.maxX - bounds.minX + 80;
+    const contentHeight = bounds.maxY - bounds.minY + 80;
 
     const scaleX = containerWidth / contentWidth;
     const scaleY = containerHeight / contentHeight;
-    const newZoom = Math.min(scaleX, scaleY, 1.5);
+    const newZoom = Math.min(scaleX, scaleY, 1.2);
 
     setZoom(newZoom);
     setPan({
-      x: (containerWidth - contentWidth * newZoom) / 2 - bounds.minX * newZoom + 50,
-      y: (containerHeight - contentHeight * newZoom) / 2 - bounds.minY * newZoom + 50,
+      x: (containerWidth - contentWidth * newZoom) / 2 - bounds.minX * newZoom + 40,
+      y: (containerHeight - contentHeight * newZoom) / 2 - bounds.minY * newZoom + 40,
     });
-  };
+  }, [tableBoxes]);
 
   const displayName = tab.tableName?.includes(".")
     ? tab.tableName.split(".").pop()
     : tab.tableName;
 
   if (isLoading) {
+    const progressPercent = loadingProgress.total > 0
+      ? Math.round((loadingProgress.current / loadingProgress.total) * 100)
+      : 0;
+
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           <span className="text-sm text-muted-foreground">Loading diagram...</span>
+          {loadingProgress.total > 0 && (
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {loadingProgress.current} / {loadingProgress.total} tables
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -261,6 +403,9 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
     ? `${schemaName} - Schema Diagram`
     : `${displayName} - ER Diagram`;
 
+  // Determine if we should use simplified rendering (no shadows, simpler paths)
+  const useSimplifiedRendering = tableBoxes.length > 10;
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -273,6 +418,93 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
           </span>
         </div>
         <div className="flex items-center gap-1">
+          {/* Search */}
+          {searchOpen ? (
+            <div className="flex items-center gap-1 mr-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Search tables..."
+                  className="h-8 w-48 pl-7 pr-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                  autoFocus
+                />
+              </div>
+              {searchQuery && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {searchMatches.length > 0 ? (
+                    <>{currentMatchIndex + 1} / {searchMatches.length}</>
+                  ) : (
+                    "No results"
+                  )}
+                </span>
+              )}
+              {searchMatches.length > 1 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => goToMatch(currentMatchIndex - 1)}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => goToMatch(currentMatchIndex + 1)}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery("");
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchOpen(true);
+                    setTimeout(() => searchInputRef.current?.focus(), 50);
+                  }}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Search tables (Ctrl+F)</TooltipContent>
+            </Tooltip>
+          )}
+          <div className="w-px h-5 bg-border mx-1" />
+          {/* View mode toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={viewMode === "compact" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode(viewMode === "compact" ? "detailed" : "compact")}
+              >
+                {viewMode === "compact" ? <LayoutGrid className="h-4 w-4" /> : <List className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{viewMode === "compact" ? "Compact view" : "Detailed view"}</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -288,7 +520,7 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
           <div className="w-px h-5 bg-border mx-1" />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => setZoom(Math.max(0.25, zoom - 0.1))}>
+              <Button variant="ghost" size="sm" onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}>
                 <ZoomOut className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -342,7 +574,10 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
       <div
         ref={containerRef}
         className={cn(
-          "flex-1 overflow-hidden bg-[radial-gradient(circle_at_1px_1px,hsl(var(--muted))_1px,transparent_0)] [background-size:24px_24px]",
+          "flex-1 overflow-hidden",
+          useSimplifiedRendering
+            ? "bg-muted/10"
+            : "bg-[radial-gradient(circle_at_1px_1px,hsl(var(--muted))_1px,transparent_0)] [background-size:24px_24px]",
           panMode ? "cursor-grab" : "cursor-default",
           isPanning && "cursor-grabbing"
         )}
@@ -359,45 +594,38 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
           className="select-none"
         >
           <defs>
-            {/* Arrow markers */}
             <marker
               id="arrowhead"
-              markerWidth="12"
-              markerHeight="8"
-              refX="10"
-              refY="4"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
               orient="auto"
             >
-              <path
-                d="M0,0 L12,4 L0,8 L3,4 Z"
-                className="fill-primary/60"
-              />
+              <path d="M0,0 L10,3.5 L0,7 L2,3.5 Z" className="fill-primary/60" />
             </marker>
             <marker
               id="arrowhead-muted"
-              markerWidth="12"
-              markerHeight="8"
-              refX="10"
-              refY="4"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
               orient="auto"
             >
-              <path
-                d="M0,0 L12,4 L0,8 L3,4 Z"
-                className="fill-muted-foreground/40"
-              />
+              <path d="M0,0 L10,3.5 L0,7 L2,3.5 Z" className="fill-muted-foreground/40" />
             </marker>
-            {/* Drop shadow filter */}
-            <filter id="table-shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.15" />
-            </filter>
+            {!useSimplifiedRendering && (
+              <filter id="table-shadow" x="-10%" y="-10%" width="120%" height="120%">
+                <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.1" />
+              </filter>
+            )}
           </defs>
 
           <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-            {/* Relationship Lines */}
+            {/* Relationship Lines - render first so they're behind tables */}
             {relationships.map((rel, idx) => {
               const sourceBox = tableBoxes.find((b) => b.name === rel.sourceTable);
               const targetBox = tableBoxes.find((b) => b.name === rel.targetTable);
-
               if (!sourceBox || !targetBox) return null;
 
               return (
@@ -407,14 +635,29 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
                   sourceBox={sourceBox}
                   targetBox={targetBox}
                   mainTableName={tab.tableName}
+                  simplified={useSimplifiedRendering}
                 />
               );
             })}
 
             {/* Table Boxes */}
-            {tableBoxes.map((box) => (
-              <TableBoxComponent key={box.name} box={box} />
-            ))}
+            {tableBoxes.map((box) => {
+              const matchIndex = searchMatches.findIndex(m => m.name === box.name);
+              const isMatch = matchIndex !== -1;
+              const isCurrentMatch = isMatch && matchIndex === currentMatchIndex;
+
+              return (
+                <TableBoxComponent
+                  key={box.name}
+                  box={box}
+                  viewMode={viewMode}
+                  simplified={useSimplifiedRendering}
+                  isMatch={isMatch}
+                  isCurrentMatch={isCurrentMatch}
+                  dimmed={searchQuery.length > 0 && !isMatch}
+                />
+              );
+            })}
           </g>
         </svg>
       </div>
@@ -436,23 +679,21 @@ interface RelationshipLineProps {
   sourceBox: TableBox;
   targetBox: TableBox;
   mainTableName?: string;
+  simplified?: boolean;
 }
 
-function RelationshipLine({ rel, sourceBox, targetBox, mainTableName }: RelationshipLineProps) {
-  // Calculate connection points on the edges of boxes
+function RelationshipLine({ rel, sourceBox, targetBox, mainTableName, simplified }: RelationshipLineProps) {
   const sourceCenterX = sourceBox.x + sourceBox.width / 2;
   const sourceCenterY = sourceBox.y + sourceBox.height / 2;
   const targetCenterX = targetBox.x + targetBox.width / 2;
   const targetCenterY = targetBox.y + targetBox.height / 2;
 
-  // Determine which sides to connect
   const dx = targetCenterX - sourceCenterX;
   const dy = targetCenterY - sourceCenterY;
 
   let sourceX: number, sourceY: number, targetX: number, targetY: number;
 
   if (Math.abs(dx) > Math.abs(dy)) {
-    // Connect horizontally
     if (dx > 0) {
       sourceX = sourceBox.x + sourceBox.width;
       targetX = targetBox.x;
@@ -463,7 +704,6 @@ function RelationshipLine({ rel, sourceBox, targetBox, mainTableName }: Relation
     sourceY = sourceCenterY;
     targetY = targetCenterY;
   } else {
-    // Connect vertically
     if (dy > 0) {
       sourceY = sourceBox.y + sourceBox.height;
       targetY = targetBox.y;
@@ -475,60 +715,76 @@ function RelationshipLine({ rel, sourceBox, targetBox, mainTableName }: Relation
     targetX = targetCenterX;
   }
 
-  // Create a curved path
-  const midX = (sourceX + targetX) / 2;
-  const midY = (sourceY + targetY) / 2;
-
   const isMainRelationship = rel.sourceTable === mainTableName || rel.targetTable === mainTableName;
 
-  // Use bezier curve for smoother lines
-  const path = Math.abs(dx) > Math.abs(dy)
-    ? `M${sourceX},${sourceY} C${midX},${sourceY} ${midX},${targetY} ${targetX},${targetY}`
-    : `M${sourceX},${sourceY} C${sourceX},${midY} ${targetX},${midY} ${targetX},${targetY}`;
+  // Simple straight line for simplified mode, curved for detailed
+  let path: string;
+  if (simplified) {
+    path = `M${sourceX},${sourceY} L${targetX},${targetY}`;
+  } else {
+    const midX = (sourceX + targetX) / 2;
+    const midY = (sourceY + targetY) / 2;
+    path = Math.abs(dx) > Math.abs(dy)
+      ? `M${sourceX},${sourceY} C${midX},${sourceY} ${midX},${targetY} ${targetX},${targetY}`
+      : `M${sourceX},${sourceY} C${sourceX},${midY} ${targetX},${midY} ${targetX},${targetY}`;
+  }
 
   return (
-    <g>
-      <path
-        d={path}
-        fill="none"
-        strokeWidth={isMainRelationship ? 2 : 1.5}
-        className={isMainRelationship ? "stroke-primary/50" : "stroke-muted-foreground/30"}
-        markerEnd={isMainRelationship ? "url(#arrowhead)" : "url(#arrowhead-muted)"}
-      />
-      {/* Relationship label */}
-      <text
-        x={midX}
-        y={midY - 8}
-        textAnchor="middle"
-        className="fill-muted-foreground/70"
-        style={{ fontSize: "10px", fontFamily: "ui-monospace, monospace" }}
-      >
-        {rel.sourceColumn} → {rel.targetColumn}
-      </text>
-    </g>
+    <path
+      d={path}
+      fill="none"
+      strokeWidth={isMainRelationship ? 1.5 : 1}
+      className={isMainRelationship ? "stroke-primary/50" : "stroke-muted-foreground/25"}
+      markerEnd={isMainRelationship ? "url(#arrowhead)" : "url(#arrowhead-muted)"}
+    />
   );
 }
 
 interface TableBoxComponentProps {
   box: TableBox;
+  viewMode: ViewMode;
+  simplified?: boolean;
+  isMatch?: boolean;
+  isCurrentMatch?: boolean;
+  dimmed?: boolean;
 }
 
-function TableBoxComponent({ box }: TableBoxComponentProps) {
-  const displayColumns = box.columns.slice(0, MAX_COLUMNS_DISPLAY);
-  const hasMore = box.columns.length > MAX_COLUMNS_DISPLAY;
+function TableBoxComponent({ box, viewMode, simplified, isMatch, isCurrentMatch, dimmed }: TableBoxComponentProps) {
+  const isCompact = viewMode === "compact";
+  const headerHeight = isCompact ? HEADER_HEIGHT_COMPACT : HEADER_HEIGHT;
+  const displayColumns = isCompact ? [] : box.columns.slice(0, MAX_COLUMNS_DISPLAY);
+  const hasMore = !isCompact && box.columns.length > MAX_COLUMNS_DISPLAY;
 
   return (
-    <g transform={`translate(${box.x}, ${box.y})`} filter="url(#table-shadow)">
+    <g
+      transform={`translate(${box.x}, ${box.y})`}
+      filter={simplified ? undefined : "url(#table-shadow)"}
+      opacity={dimmed ? 0.3 : 1}
+    >
+      {/* Highlight ring for current match */}
+      {isCurrentMatch && (
+        <rect
+          x="-4"
+          y="-4"
+          width={box.width + 8}
+          height={box.height + 8}
+          rx="10"
+          className="fill-none stroke-primary stroke-2"
+          strokeDasharray="4 2"
+        />
+      )}
       {/* Background */}
       <rect
         x="0"
         y="0"
         width={box.width}
         height={box.height}
-        rx="8"
+        rx="6"
         className={cn(
           "fill-background",
-          box.isMain ? "stroke-primary stroke-2" : "stroke-border"
+          isCurrentMatch ? "stroke-primary stroke-2" :
+          isMatch ? "stroke-amber-500 stroke-[1.5]" :
+          box.isMain ? "stroke-primary stroke-[1.5]" : "stroke-border"
         )}
       />
 
@@ -537,89 +793,92 @@ function TableBoxComponent({ box }: TableBoxComponentProps) {
         x="0"
         y="0"
         width={box.width}
-        height={HEADER_HEIGHT}
-        rx="8"
-        className={box.isMain ? "fill-primary/10" : "fill-muted/80"}
+        height={headerHeight}
+        rx="6"
+        className={box.isMain ? "fill-primary/10" : "fill-muted/70"}
       />
-      {/* Header bottom square corners */}
-      <rect
-        x="0"
-        y={HEADER_HEIGHT - 8}
-        width={box.width}
-        height="8"
-        className={box.isMain ? "fill-primary/10" : "fill-muted/80"}
-      />
-      {/* Header border */}
-      <line
-        x1="0"
-        y1={HEADER_HEIGHT}
-        x2={box.width}
-        y2={HEADER_HEIGHT}
-        className="stroke-border"
-        strokeWidth="1"
-      />
+      {!isCompact && (
+        <rect
+          x="0"
+          y={headerHeight - 6}
+          width={box.width}
+          height="6"
+          className={box.isMain ? "fill-primary/10" : "fill-muted/70"}
+        />
+      )}
+      {!isCompact && (
+        <line
+          x1="0"
+          y1={headerHeight}
+          x2={box.width}
+          y2={headerHeight}
+          className="stroke-border"
+          strokeWidth="1"
+        />
+      )}
 
-      {/* Table Icon (SVG grid) */}
-      <g transform="translate(14, 13)">
-        <rect x="0" y="0" width="6" height="6" rx="1" className={box.isMain ? "fill-primary/70" : "fill-muted-foreground/60"} />
-        <rect x="8" y="0" width="6" height="6" rx="1" className={box.isMain ? "fill-primary/70" : "fill-muted-foreground/60"} />
-        <rect x="0" y="8" width="6" height="6" rx="1" className={box.isMain ? "fill-primary/70" : "fill-muted-foreground/60"} />
-        <rect x="8" y="8" width="6" height="6" rx="1" className={box.isMain ? "fill-primary/70" : "fill-muted-foreground/60"} />
+      {/* Table Icon (simplified for compact) */}
+      <g transform={`translate(10, ${isCompact ? 9 : 10})`}>
+        <rect x="0" y="0" width="5" height="5" rx="1" className={box.isMain ? "fill-primary/70" : "fill-muted-foreground/50"} />
+        <rect x="6" y="0" width="5" height="5" rx="1" className={box.isMain ? "fill-primary/70" : "fill-muted-foreground/50"} />
+        <rect x="0" y="6" width="5" height="5" rx="1" className={box.isMain ? "fill-primary/70" : "fill-muted-foreground/50"} />
+        <rect x="6" y="6" width="5" height="5" rx="1" className={box.isMain ? "fill-primary/70" : "fill-muted-foreground/50"} />
       </g>
 
       {/* Table Name */}
       <text
-        x="40"
-        y="27"
+        x="28"
+        y={isCompact ? 21 : 24}
         className={box.isMain ? "fill-primary" : "fill-foreground"}
-        style={{ fontSize: "14px", fontWeight: 600 }}
+        style={{ fontSize: isCompact ? "11px" : "12px", fontWeight: 600 }}
       >
-        {box.displayName}
+        {truncateText(box.displayName, isCompact ? 14 : 18)}
       </text>
 
-      {/* Columns */}
+      {/* Column count badge for compact mode */}
+      {isCompact && (
+        <text
+          x={box.width - 8}
+          y="21"
+          textAnchor="end"
+          className="fill-muted-foreground"
+          style={{ fontSize: "9px" }}
+        >
+          {box.columns.length}
+        </text>
+      )}
+
+      {/* Columns (detailed mode only) */}
       {displayColumns.map((col, idx) => {
-        const y = HEADER_HEIGHT + idx * ROW_HEIGHT;
+        const y = headerHeight + idx * ROW_HEIGHT;
         const isPK = col.isPrimaryKey;
 
         return (
           <g key={col.name}>
-            {/* Row hover area */}
-            <rect
-              x="1"
-              y={y + 1}
-              width={box.width - 2}
-              height={ROW_HEIGHT - 1}
-              className="fill-transparent hover:fill-muted/50"
-              rx="2"
-            />
-            {/* PK/FK indicator */}
             {isPK && (
               <text
-                x="12"
-                y={y + 18}
+                x="8"
+                y={y + 15}
                 className="fill-amber-500"
-                style={{ fontSize: "10px", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}
+                style={{ fontSize: "9px", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}
               >
                 PK
               </text>
             )}
-            {/* Column name */}
             <text
-              x={isPK ? 32 : 12}
-              y={y + 18}
+              x={isPK ? 24 : 8}
+              y={y + 15}
               className="fill-foreground"
-              style={{ fontSize: "12px", fontFamily: "ui-monospace, monospace" }}
+              style={{ fontSize: "11px", fontFamily: "ui-monospace, monospace" }}
             >
-              {col.name.length > 20 ? col.name.slice(0, 18) + "…" : col.name}
+              {truncateText(col.name, isPK ? 14 : 16)}
             </text>
-            {/* Data type */}
             <text
-              x={box.width - 12}
-              y={y + 18}
+              x={box.width - 8}
+              y={y + 15}
               textAnchor="end"
               className="fill-muted-foreground"
-              style={{ fontSize: "10px", fontFamily: "ui-monospace, monospace" }}
+              style={{ fontSize: "9px", fontFamily: "ui-monospace, monospace" }}
             >
               {formatDataType(col.dataType)}
             </text>
@@ -631,113 +890,126 @@ function TableBoxComponent({ box }: TableBoxComponentProps) {
       {hasMore && (
         <text
           x={box.width / 2}
-          y={HEADER_HEIGHT + displayColumns.length * ROW_HEIGHT + 16}
+          y={headerHeight + displayColumns.length * ROW_HEIGHT + 14}
           textAnchor="middle"
           className="fill-muted-foreground"
-          style={{ fontSize: "11px" }}
+          style={{ fontSize: "10px" }}
         >
-          +{box.columns.length - MAX_COLUMNS_DISPLAY} more columns
+          +{box.columns.length - MAX_COLUMNS_DISPLAY} more
         </text>
       )}
     </g>
   );
 }
 
-// Helper function to format data types more concisely
+function truncateText(text: string, maxLen: number): string {
+  return text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
+}
+
 function formatDataType(dataType: string): string {
   const type = dataType.toLowerCase();
   if (type.includes("character varying")) return "varchar";
   if (type.includes("timestamp without time zone")) return "timestamp";
   if (type.includes("timestamp with time zone")) return "timestamptz";
   if (type.includes("double precision")) return "double";
-  if (type.length > 15) return type.slice(0, 13) + "…";
+  if (type.length > 12) return type.slice(0, 10) + "…";
   return type;
 }
 
-// Layout algorithm for positioning tables
-function layoutTables(tables: TableProperties[], mainTableName?: string): TableBox[] {
+// Improved layout algorithm with proper grid spacing
+function layoutTables(tables: TableProperties[], mainTableName?: string, viewMode: ViewMode = "detailed"): TableBox[] {
   if (tables.length === 0) return [];
 
+  const tableWidth = viewMode === "compact" ? TABLE_WIDTH_COMPACT : TABLE_WIDTH;
   const boxes: TableBox[] = [];
+
+  // Calculate all heights first
+  const tableHeights = new Map<string, number>();
+  tables.forEach(table => {
+    tableHeights.set(table.tableName, calculateTableHeight(table.columns, viewMode));
+  });
 
   // Find the main table if specified
   const mainTable = mainTableName
     ? tables.find(t => t.tableName === mainTableName)
-    : tables[0];
+    : null;
 
-  const otherTables = tables.filter(t => t !== mainTable);
+  const otherTables = mainTable ? tables.filter(t => t !== mainTable) : tables;
 
-  // Position main table
-  if (mainTable) {
-    const height = calculateTableHeight(mainTable.columns);
+  // For small number of tables, use circle layout
+  if (tables.length <= 6 && mainTable) {
+    const mainHeight = tableHeights.get(mainTable.tableName) || 100;
     boxes.push({
       name: mainTable.tableName,
-      displayName: mainTable.tableName.includes(".")
-        ? mainTable.tableName.split(".").pop()!
-        : mainTable.tableName,
+      displayName: getDisplayName(mainTable.tableName),
       columns: mainTable.columns,
       x: 0,
       y: 0,
-      width: TABLE_WIDTH,
-      height,
+      width: tableWidth,
+      height: mainHeight,
       isMain: true,
     });
-  }
 
-  // Position other tables in a circle/grid around the main table
-  if (otherTables.length > 0) {
-    const numTables = otherTables.length;
+    const radius = Math.max(300, 150 + otherTables.length * 50);
+    const angleStep = (2 * Math.PI) / otherTables.length;
 
-    if (numTables <= 6) {
-      // Circle layout for small number of tables
-      const radius = Math.max(350, 150 + numTables * 40);
-      const angleStep = (2 * Math.PI) / numTables;
-
-      otherTables.forEach((table, idx) => {
-        const angle = angleStep * idx - Math.PI / 2;
-        const height = calculateTableHeight(table.columns);
-        boxes.push({
-          name: table.tableName,
-          displayName: table.tableName.includes(".")
-            ? table.tableName.split(".").pop()!
-            : table.tableName,
-          columns: table.columns,
-          x: Math.cos(angle) * radius - TABLE_WIDTH / 2,
-          y: Math.sin(angle) * radius - height / 2,
-          width: TABLE_WIDTH,
-          height,
-        });
+    otherTables.forEach((table, idx) => {
+      const angle = angleStep * idx - Math.PI / 2;
+      const height = tableHeights.get(table.tableName) || 100;
+      boxes.push({
+        name: table.tableName,
+        displayName: getDisplayName(table.tableName),
+        columns: table.columns,
+        x: Math.cos(angle) * radius - tableWidth / 2,
+        y: Math.sin(angle) * radius - height / 2,
+        width: tableWidth,
+        height,
       });
-    } else {
-      // Grid layout for more tables
-      const cols = Math.ceil(Math.sqrt(numTables + 1));
-      const spacing = { x: TABLE_WIDTH + 80, y: 300 };
+    });
+  } else {
+    // Grid layout for larger number of tables
+    const allTables = mainTable ? [mainTable, ...otherTables] : otherTables;
+    const cols = Math.ceil(Math.sqrt(allTables.length));
 
-      otherTables.forEach((table, idx) => {
-        const gridIdx = idx + 1; // Skip center position for main table
-        const row = Math.floor(gridIdx / cols);
-        const col = gridIdx % cols;
-        const height = calculateTableHeight(table.columns);
-
-        boxes.push({
-          name: table.tableName,
-          displayName: table.tableName.includes(".")
-            ? table.tableName.split(".").pop()!
-            : table.tableName,
-          columns: table.columns,
-          x: (col - Math.floor(cols / 2)) * spacing.x,
-          y: (row - Math.floor(cols / 2)) * spacing.y,
-          width: TABLE_WIDTH,
-          height,
-        });
-      });
+    // Calculate row heights (max height in each row)
+    const rowHeights: number[] = [];
+    for (let i = 0; i < allTables.length; i += cols) {
+      const rowTables = allTables.slice(i, i + cols);
+      const maxHeight = Math.max(...rowTables.map(t => tableHeights.get(t.tableName) || 100));
+      rowHeights.push(maxHeight);
     }
+
+    let currentY = 0;
+    allTables.forEach((table, idx) => {
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      const height = tableHeights.get(table.tableName) || 100;
+
+      // Calculate Y position based on accumulated row heights
+      if (col === 0 && row > 0) {
+        currentY = rowHeights.slice(0, row).reduce((sum, h) => sum + h + GRID_GAP_Y, 0);
+      }
+
+      boxes.push({
+        name: table.tableName,
+        displayName: getDisplayName(table.tableName),
+        columns: table.columns,
+        x: col * (tableWidth + GRID_GAP_X),
+        y: row === 0 ? 0 : currentY,
+        width: tableWidth,
+        height,
+        isMain: table === mainTable,
+      });
+    });
   }
 
   return boxes;
 }
 
-// Calculate bounding box of all tables
+function getDisplayName(tableName: string): string {
+  return tableName.includes(".") ? tableName.split(".").pop()! : tableName;
+}
+
 function calculateBounds(boxes: TableBox[]): { minX: number; minY: number; maxX: number; maxY: number } {
   if (boxes.length === 0) {
     return { minX: 0, minY: 0, maxX: 0, maxY: 0 };

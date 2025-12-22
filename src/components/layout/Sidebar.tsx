@@ -315,6 +315,23 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     openRenameTableDialog(tableIdentifier, connection.id);
   };
 
+  const handleViewSchemaDiagram = (schemaName: string) => {
+    const tabId = `schema-diagram-${connection.id}-${schemaName}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: `${schemaName} Diagram`,
+        type: "diagram",
+        connectionId: connection.id,
+        content: schemaName, // Schema name stored in content for schema diagrams
+      });
+    }
+  };
+
   const confirmTableDelete = async () => {
     if (!tableToDrop) return;
     try {
@@ -489,14 +506,16 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                           </div>
                         ) : schemaNames.length > 0 ? (
                           schemaNames.map((schemaName) => (
-                            <TreeItem
-                              key={schemaName}
-                              label={schemaName}
-                              icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
-                              level={1}
-                              defaultOpen={isSingleSchema}
-                            >
-                              {tablesBySchema[schemaName].map((table) => {
+                            <ContextMenu key={schemaName}>
+                              <ContextMenuTrigger asChild>
+                                <div>
+                                  <TreeItem
+                                    label={schemaName}
+                                    icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                                    level={1}
+                                    defaultOpen={isSingleSchema}
+                                  >
+                                    {tablesBySchema[schemaName].map((table) => {
                                 // For display, strip the schema prefix if it's there
                                 const displayLabel = table.name.startsWith(`${schemaName}.`) 
                                   ? table.name.slice(schemaName.length + 1)
@@ -553,7 +572,16 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                   </ContextMenu>
                                 );
                               })}
-                            </TreeItem>
+                                  </TreeItem>
+                                </div>
+                              </ContextMenuTrigger>
+                              <ContextMenuContent className="w-48">
+                                <ContextMenuItem onSelect={() => handleViewSchemaDiagram(schemaName)} className="gap-2">
+                                  <Network className="h-4 w-4" />
+                                  View Diagram
+                                </ContextMenuItem>
+                              </ContextMenuContent>
+                            </ContextMenu>
                           ))
                         ) : tablesOpen ? (
                           <div className="ml-6 py-2 text-xs text-muted-foreground">No schemas found</div>
