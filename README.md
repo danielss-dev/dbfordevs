@@ -48,6 +48,15 @@ dbfordevs/
 └── docs/                   # Project documentation & PRD
 ```
 
+## 📖 Documentation
+
+For more detailed information, please refer to the documentation in the `docs/` folder:
+
+- **[Getting Started](docs/GETTING_STARTED.md)**: Installation and first steps.
+- **[User Guide](docs/USER_GUIDE.md)**: Comprehensive guide on using the application.
+- **[Architecture](docs/ARCHITECTURE.md)**: Technical details about the system.
+- **[Graphite Workflow](docs/GRAPHITE.md)**: Guide for developers on using Graphite for stacked PRs.
+
 ## 🚦 Getting Started
 
 ### Prerequisites
