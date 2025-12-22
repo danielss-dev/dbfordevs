@@ -209,7 +209,7 @@ const ALL_SETTINGS: SettingItem[] = [
   // Extensions
   { label: "Extensions", description: "Extend dbfordevs with plugins and integrations.", keywords: ["extension", "plugin", "marketplace", "install"], tabValue: "extensions" },
   // Keybindings
-  { label: "Keyboard Shortcuts", description: "Master dbfordevs with these handy keys.", keywords: ["keyboard", "shortcut", "key", "binding"], tabValue: "keybindings" },
+  { label: "Keyboard Shortcuts", description: "Master dbfordevs with these handy keys.", keywords: ["keyboard", "shortcut", "key", "binding", "find", "replace", "search", "shortcuts"], tabValue: "keybindings" },
   // Advanced
   { label: "Developer Mode", description: "Enable additional debugging information and console logging.", keywords: ["developer", "debug", "mode", "console"], tabValue: "advanced" },
   { label: "Debug Logging", description: "Log detailed information to help troubleshoot issues.", keywords: ["debug", "log", "logging", "troubleshoot"], tabValue: "advanced" },
@@ -759,9 +759,8 @@ export function SettingsDialog() {
                         <ShortcutItem label="Close tab" keys={["Cmd", "W"]} />
                         <ShortcutItem label="View changes diff" keys={["Cmd", "Shift", "D"]} />
                         <ShortcutItem label="Toggle fullscreen" keys={["F11"]} />
-                        <ShortcutItem label="Format query" keys={["Cmd", "Shift", "F"]} />
                         <ShortcutItem label="Find" keys={["Cmd", "F"]} />
-                        <ShortcutItem label="Replace" keys={["Cmd", "H"]} />
+                        <ShortcutItem label="Find and Replace" keys={["Cmd", "Option", "F"]} />
                         <ShortcutItem label="Search settings" keys={["Cmd", "F"]} />
                         <ShortcutItem label="Close dialogs" keys={["Esc"]} />
                       </div>

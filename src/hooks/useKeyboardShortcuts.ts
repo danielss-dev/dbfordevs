@@ -85,6 +85,114 @@ export function useKeyboardShortcuts() {
         setShowDiffModal(true);
       }
 
+      // Mod + Alt + F: Focus Find and Replace in Editor
+      if (isMod && e.altKey && e.key.toLowerCase() === "f") {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (activeTab && activeTab.type === "query") {
+          const monacoEditor = document.querySelector(".monaco-editor");
+          if (monacoEditor) {
+            e.preventDefault();
+            // If the editor doesn't have focus, focus it first
+            if (!monacoEditor.contains(document.activeElement)) {
+              const textarea = monacoEditor.querySelector("textarea");
+              if (textarea) {
+                textarea.focus();
+              }
+              
+              // Trigger find/replace via a new event
+              const event = new KeyboardEvent("keydown", {
+                key: "f",
+                code: "KeyF",
+                keyCode: 70,
+                metaKey: e.metaKey,
+                ctrlKey: e.ctrlKey,
+                altKey: true,
+                bubbles: true,
+                cancelable: true
+              });
+              textarea?.dispatchEvent(event);
+            }
+
+            // Robust polling to ensure the find widget opens with replace
+            let attempts = 0;
+            const focusReplaceInput = () => {
+              const findWidget = document.querySelector(".monaco-editor .find-widget");
+              if (findWidget) {
+                // Check if replace is expanded, if not, try to click the toggle
+                const replaceToggle = findWidget.querySelector(".monaco-button.expand") as HTMLElement;
+                if (replaceToggle && !findWidget.classList.contains("replace-expanded")) {
+                  replaceToggle.click();
+                }
+
+                const inputs = findWidget.querySelectorAll("input, textarea");
+                const findInput = inputs[0] as HTMLElement;
+
+                if (findInput) {
+                  findInput.focus();
+                  if (findInput instanceof HTMLInputElement || findInput instanceof HTMLTextAreaElement) {
+                    findInput.select();
+                  }
+                }
+              } else if (attempts < 10) {
+                attempts++;
+                setTimeout(focusReplaceInput, 50);
+              }
+            };
+            
+            setTimeout(focusReplaceInput, 50);
+          }
+        }
+      }
+
+      // Mod + F: Focus Find in Editor
+      if (isMod && !isShift && !e.altKey && e.key.toLowerCase() === "f") {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (activeTab && activeTab.type === "query") {
+          const monacoEditor = document.querySelector(".monaco-editor");
+          if (monacoEditor) {
+            // If the editor doesn't have focus, focus it first
+            if (!monacoEditor.contains(document.activeElement)) {
+              e.preventDefault();
+              const textarea = monacoEditor.querySelector("textarea");
+              if (textarea) {
+                textarea.focus();
+              }
+              
+              // Trigger find via a new event
+              const event = new KeyboardEvent("keydown", {
+                key: "f",
+                code: "KeyF",
+                keyCode: 70,
+                metaKey: e.metaKey,
+                ctrlKey: e.ctrlKey,
+                bubbles: true,
+                cancelable: true
+              });
+              textarea?.dispatchEvent(event);
+            }
+
+            // Robust polling to ensure the find widget input gets focus
+            let attempts = 0;
+            const focusFindInput = () => {
+              const findWidget = document.querySelector(".monaco-editor .find-widget");
+              const findInput = findWidget?.querySelector("input, textarea") as HTMLElement;
+              
+              if (findInput) {
+                findInput.focus();
+                if (findInput instanceof HTMLInputElement || findInput instanceof HTMLTextAreaElement) {
+                  findInput.select();
+                }
+              } else if (attempts < 10) {
+                attempts++;
+                setTimeout(focusFindInput, 50);
+              }
+            };
+            
+            setTimeout(focusFindInput, 50);
+          }
+        }
+      }
+
       // Mod + Z: Undo Pending Change
       if (isMod && !isShift && e.key.toLowerCase() === "z") {
         if (pendingChanges.length > 0) {
