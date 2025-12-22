@@ -7,9 +7,13 @@ import { Marketplace } from "@/components/marketplace";
 import { RenameTableDialog } from "@/components/table";
 import { CreateSchemaDialog } from "@/components/database";
 import { useUIStore } from "@/stores";
+import { useKeyboardShortcuts } from "@/hooks";
 
 function App() {
   const { theme, setTheme, appStyle, setAppStyle } = useUIStore();
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts();
 
   // Initialize theme on mount
   useEffect(() => {

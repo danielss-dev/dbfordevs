@@ -152,6 +152,11 @@ export function SqlEditor({
         showFoldingControls: "always",
         foldingHighlight: true,
         foldingStrategy: "indentation",
+
+        // Find widget settings
+        find: {
+          addExtraSpaceOnTop: false,
+        },
       }}
     />
   );

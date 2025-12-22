@@ -752,15 +752,18 @@ export function SettingsDialog() {
 
                       <div className="rounded-xl border border-border bg-card p-4 divide-y divide-border">
                         <ShortcutItem label="Execute query" keys={["Cmd", "Enter"]} />
-                        <ShortcutItem label="New connection" keys={["Cmd", "N"]} />
+                        <ShortcutItem label="New connection" keys={["Cmd", "K"]} />
                         <ShortcutItem label="Open settings" keys={["Cmd", ","]} />
                         <ShortcutItem label="Toggle sidebar" keys={["Cmd", "B"]} />
                         <ShortcutItem label="New query tab" keys={["Cmd", "T"]} />
                         <ShortcutItem label="Close tab" keys={["Cmd", "W"]} />
+                        <ShortcutItem label="View changes diff" keys={["Cmd", "Shift", "D"]} />
+                        <ShortcutItem label="Toggle fullscreen" keys={["F11"]} />
                         <ShortcutItem label="Format query" keys={["Cmd", "Shift", "F"]} />
                         <ShortcutItem label="Find" keys={["Cmd", "F"]} />
                         <ShortcutItem label="Replace" keys={["Cmd", "H"]} />
                         <ShortcutItem label="Search settings" keys={["Cmd", "F"]} />
+                        <ShortcutItem label="Close dialogs" keys={["Esc"]} />
                       </div>
                     </div>
                   )}
