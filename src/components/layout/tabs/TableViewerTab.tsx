@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui";
-import { useQueryStore } from "@/stores";
-import { useDatabase } from "@/hooks";
+import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { Button, Separator, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
+import { useQueryStore, useCRUDStore, useUIStore } from "@/stores";
+import { useDatabase, useCRUD } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
@@ -14,9 +14,14 @@ interface TableViewerTabProps {
 
 export function TableViewerTab({ tab }: TableViewerTabProps) {
   const { isExecuting, error, results } = useQueryStore();
+  const { pendingChanges, clearPendingChanges } = useCRUDStore();
+  const { toggleSidePanel, sidePanelOpen } = useUIStore();
   const { executeQuery } = useDatabase();
+  const { commitChanges } = useCRUD();
   const tabResults = results[tab.id];
   const connectionId = tab.connectionId;
+
+  const pendingCount = Object.keys(pendingChanges).length;
 
   const loadData = async () => {
     if (!connectionId) return;
@@ -27,7 +32,6 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
       {
         connectionId: connectionId,
         sql: `SELECT * FROM ${tableIdentifier}`,
-        limit: 100, // Default limit for table view
       },
       tab.id
     );
@@ -56,28 +60,87 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadData}
-          disabled={isExecuting || !connectionId}
-          className="gap-2"
-        >
-          {isExecuting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5" />
-          )}
-          Refresh
-        </Button>
+      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadData()}
+            disabled={isExecuting || !connectionId}
+            className="gap-2"
+          >
+            {isExecuting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            Refresh
+          </Button>
 
-        {tabResults && (
-          <div className="flex items-center gap-2 text-sm">
-            <RowCountBadge rowCount={tabResults.rows.length} affectedRows={tabResults.affectedRows} />
-            <ExecutionTimeBadge timeMs={tabResults.executionTimeMs} />
-          </div>
-        )}
+                 <Separator orientation="vertical" className="h-4" />
+       
+                 {pendingCount > 0 && (
+            <>
+              <Separator orientation="vertical" className="h-4" />
+              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearPendingChanges}
+                  className="text-muted-foreground hover:text-foreground gap-1.5 h-8 px-2"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Discard
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={commitChanges}
+                  className="bg-success hover:bg-success/90 text-success-foreground gap-1.5 h-8 px-3"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  Commit ({pendingCount})
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => !sidePanelOpen && toggleSidePanel()}
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-muted-foreground/30 px-1"
+                >
+                  View changes
+                </Button>
+              </div>
+            </>
+          )}
+
+          {tabResults && (
+            <div className="flex items-center gap-2 text-sm ml-2">
+              <RowCountBadge rowCount={tabResults.rows.length} affectedRows={tabResults.affectedRows} />
+              <ExecutionTimeBadge timeMs={tabResults.executionTimeMs} />
+            </div>
+          )}
+        </div>
+
+        {/* Side Panel Toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidePanel}
+              className="h-8 w-8"
+            >
+              {sidePanelOpen ? (
+                <PanelRightClose className="h-4 w-4" />
+              ) : (
+                <PanelRightOpen className="h-4 w-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {sidePanelOpen ? "Hide side panel" : "Show side panel"}
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Content Area */}
@@ -90,7 +153,10 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
             </div>
           </div>
         ) : tabResults ? (
-          <DataGrid data={tabResults} />
+          <DataGrid 
+            data={tabResults} 
+            tableName={tab.tableName || tab.title}
+          />
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin mb-2 opacity-30" />

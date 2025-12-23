@@ -117,7 +117,7 @@ export const useUIStore = create<UIState>()(
       isDuplicatingConnection: false,
       showCreateSchemaDialog: false,
       creatingSchemaConnectionId: null,
-      editMode: false,
+      editMode: true,
 
       setTheme: (theme) => {
         const root = document.documentElement;
