@@ -206,6 +206,7 @@ const ALL_SETTINGS: SettingItem[] = [
   // Appearance
   { label: "Theme", description: "Switch between light, dark, or system theme.", keywords: ["theme", "light", "dark", "system", "color"], tabValue: "appearance" },
   { label: "App Style", description: "Choose between a developer-focused IDE style or a modern web look.", keywords: ["style", "app", "developer", "web", "ide"], tabValue: "appearance" },
+  { label: "Enable Animations", description: "Enable smooth animations throughout the interface.", keywords: ["animation", "animations", "smooth", "motion", "transition", "effects"], tabValue: "appearance" },
   // Extensions
   { label: "Extensions", description: "Extend dbfordevs with plugins and integrations.", keywords: ["extension", "plugin", "marketplace", "install"], tabValue: "extensions" },
   // Keybindings
@@ -685,6 +686,18 @@ export function SettingsDialog() {
                               </SelectItem>
                             </SelectContent>
                           </Select>
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Enable Animations"
+                          description="Enable smooth animations throughout the interface."
+                        >
+                          <Checkbox
+                            checked={generalSettings.enableAnimations}
+                            onCheckedChange={(checked: boolean) =>
+                              handleGeneralSettingChange("enableAnimations", checked)
+                            }
+                          />
                         </SettingRow>
                       </div>
                     </div>

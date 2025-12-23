@@ -30,6 +30,7 @@ import { TablePropertiesTab, TableDiagramTab } from "@/components/table";
 import { QueryEditorTab } from "./tabs/QueryEditorTab";
 import { TableViewerTab } from "./tabs/TableViewerTab";
 import type { Tab } from "@/types";
+import { useAnime } from "@/hooks/useAnime";
 
 function TabItem({ tab, isActive, onClose, onClick }: {
   tab: Tab;
@@ -145,8 +146,11 @@ export function MainContent() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const previousTabIdRef = useRef<string | null>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const { animate } = useAnime();
 
   const checkScroll = useCallback(() => {
     const viewport = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
@@ -156,6 +160,22 @@ export function MainContent() {
       setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
     }
   }, []);
+
+  // Animate content when tab changes
+  useEffect(() => {
+    // Only animate if the tab actually changed (not on initial render or same tab)
+    if (contentRef.current && activeTabId && previousTabIdRef.current !== activeTabId) {
+      animate({
+        targets: contentRef.current,
+        opacity: [0.5, 1],
+        translateX: [20, 0],
+        duration: 300,
+        easing: "easeOutQuad",
+      });
+    }
+    // Update the previous tab ID
+    previousTabIdRef.current = activeTabId;
+  }, [activeTabId, animate]);
 
   useEffect(() => {
     checkScroll();
@@ -284,7 +304,7 @@ export function MainContent() {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-hidden">
+      <div ref={contentRef} className="flex-1 overflow-hidden">
         {activeTab ? (
           activeTab.type === "query" ? (
             <QueryEditorTab tab={activeTab} />

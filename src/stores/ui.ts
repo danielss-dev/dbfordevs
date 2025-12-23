@@ -17,6 +17,7 @@ interface EditorSettings {
 interface GeneralSettings {
   checkUpdatesOnStartup: boolean;
   sendAnalytics: boolean;
+  enableAnimations: boolean;
 }
 
 interface UIState {
@@ -100,6 +101,7 @@ export const useUIStore = create<UIState>()(
       generalSettings: {
         checkUpdatesOnStartup: true,
         sendAnalytics: false,
+        enableAnimations: true,
       },
       showConnectionModal: false,
       editingConnectionId: null,
