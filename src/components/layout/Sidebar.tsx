@@ -48,6 +48,7 @@ import type { ConnectionInfo, TableInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
+import { showSuccessToast, showErrorToast, showInfoToast } from "@/lib/toast-helpers";
 
 interface TreeItemProps {
   label: string;
@@ -219,26 +220,15 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
       if (ddl) {
         const success = await copyToClipboard(ddl);
         if (success) {
-          toast({
-            title: "DDL Copied",
-            description: "CREATE TABLE statement copied to clipboard.",
-          });
+          showInfoToast("DDL Copied", "CREATE TABLE statement copied to clipboard.");
         } else {
           throw new Error("Failed to copy to clipboard");
         }
       } else {
-        toast({
-          title: "Copy Failed",
-          description: "Could not generate DDL for this table.",
-          variant: "destructive",
-        });
+        showErrorToast("Copy Failed", "Could not generate DDL for this table.");
       }
     } catch (error) {
-      toast({
-        title: "Copy Failed",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      });
+      showErrorToast("Copy Failed", error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -381,18 +371,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     try {
       const result = await deleteConnection(connection.id);
       if (result) {
-        toast({
-          title: "Connection deleted",
-          description: `Connection "${connection.name}" has been deleted successfully.`,
-          variant: "success",
-        });
+        showSuccessToast("Connection deleted", `Connection "${connection.name}" has been deleted successfully.`);
       }
     } catch (error) {
-      toast({
-        title: "Failed to delete connection",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      });
+      showErrorToast("Failed to delete connection", error instanceof Error ? error.message : String(error));
     } finally {
       setShowDeleteConnectionDialog(false);
     }
@@ -402,18 +384,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     try {
       const success = await connect(connection.id);
       if (success) {
-        toast({
-          title: "Connected",
-          description: `Connected to "${connection.name}" successfully.`,
-          variant: "success",
-        });
+        showSuccessToast("Connected", `Connected to "${connection.name}" successfully.`);
       }
     } catch (error) {
-      toast({
-        title: "Connection failed",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      });
+      showErrorToast("Connection failed", error instanceof Error ? error.message : String(error));
     }
   };
 
