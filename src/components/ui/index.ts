@@ -1,4 +1,5 @@
 export { Button, buttonVariants } from "./button";
+export { AnimatedButton } from "./animated-button";
 export { Input } from "./input";
 export { Separator } from "./separator";
 export { ScrollArea, ScrollBar } from "./scroll-area";

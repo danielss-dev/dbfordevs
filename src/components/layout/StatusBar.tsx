@@ -2,7 +2,8 @@ import { Database, Clock, AlertCircle, CheckCircle, Loader2 } from "lucide-react
 import { cn } from "@/lib/utils";
 import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection } from "@/stores";
 import { getVersion } from "@tauri-apps/api/app";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useAnime } from "@/hooks/useAnime";
 
 export function StatusBar() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
@@ -10,10 +11,41 @@ export function StatusBar() {
   const { isExecuting } = useQueryStore();
   const { pendingChanges } = useUIStore();
   const [version, setVersion] = useState<string>("");
+  const { animate } = useAnime();
+  const statusRef = useRef<HTMLDivElement>(null);
+  const previousStatusRef = useRef<{ connected: boolean | undefined; isConnecting: boolean }>({
+    connected: undefined,
+    isConnecting: false,
+  });
 
   useEffect(() => {
     getVersion().then(setVersion).catch(console.error);
   }, []);
+
+  // Animate status changes
+  useEffect(() => {
+    const currentConnected = activeConnection?.connected;
+    const prevStatus = previousStatusRef.current;
+
+    // Only animate if the status actually changed
+    if (statusRef.current &&
+        (prevStatus.connected !== currentConnected || prevStatus.isConnecting !== isConnecting) &&
+        prevStatus.connected !== undefined) {
+      animate({
+        targets: statusRef.current,
+        scale: [0.95, 1],
+        opacity: [0.5, 1],
+        duration: 300,
+        easing: "easeOutQuad",
+      });
+    }
+
+    // Update the previous status
+    previousStatusRef.current = {
+      connected: currentConnected,
+      isConnecting,
+    };
+  }, [activeConnection?.connected, isConnecting, animate]);
 
   const getConnectionStatus = () => {
     if (isConnecting) {
@@ -55,7 +87,7 @@ export function StatusBar() {
       {/* Left side */}
       <div className="flex items-center gap-4">
         {/* Connection status */}
-        <div className={cn("flex items-center gap-2", status.textClass)}>
+        <div ref={statusRef} className={cn("flex items-center gap-2", status.textClass)}>
           {status.dotClass && <span className={cn("status-dot", status.dotClass)} />}
           {!status.dotClass && status.icon}
           <span className="font-medium">{status.text}</span>
