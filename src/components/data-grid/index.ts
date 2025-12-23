@@ -1,2 +1,3 @@
-export { DataGrid } from "./DataGrid";
+export { DataGrid, generateRowId } from "./DataGrid";
+export { EditableCell } from "./EditableCell";
 
