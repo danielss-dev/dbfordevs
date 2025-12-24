@@ -1,0 +1,111 @@
+/**
+ * Nordic Dark Theme for dbfordevs
+ * 
+ * An arctic, north-bluish color palette inspired by the beauty of the Nordic wilderness.
+ * Based on the Nord color scheme (https://www.nordtheme.com/)
+ * 
+ * Color Palette:
+ * - Polar Night: #2E3440, #3B4252, #434C5E, #4C566A (backgrounds)
+ * - Snow Storm: #D8DEE9, #E5E9F0, #ECEFF4 (text)
+ * - Frost: #8FBCBB, #88C0D0, #81A1C1, #5E81AC (accents)
+ * - Aurora: #BF616A (red), #D08770 (orange), #EBCB8B (yellow), #A3BE8C (green), #B48EAD (purple)
+ */
+
+:root {
+  /* ============================================
+     NORDIC DARK THEME
+     ============================================ */
+  
+  /* Background colors - Polar Night */
+  --background: 220 16% 22%;           /* nord0: #2E3440 */
+  --foreground: 218 27% 92%;           /* nord6: #ECEFF4 */
+  
+  /* Card colors - Polar Night (lighter) */
+  --card: 220 17% 24%;                 /* nord1: #3B4252 */
+  --card-foreground: 218 27% 92%;      /* nord6: #ECEFF4 */
+  
+  /* Popover colors */
+  --popover: 220 16% 22%;              /* nord0: #2E3440 */
+  --popover-foreground: 218 27% 92%;   /* nord6: #ECEFF4 */
+  
+  /* Primary - Frost Blue (nord8: #88C0D0) */
+  --primary: 193 43% 67%;
+  --primary-foreground: 220 16% 22%;
+  
+  /* Secondary - Polar Night (nord2) */
+  --secondary: 220 16% 31%;            /* nord2: #434C5E */
+  --secondary-foreground: 218 27% 92%;
+  
+  /* Muted colors */
+  --muted: 220 16% 31%;                /* nord2: #434C5E */
+  --muted-foreground: 220 17% 40%;     /* nord3: #4C566A */
+  
+  /* Accent - Frost (nord9: #81A1C1) */
+  --accent: 213 32% 63%;
+  --accent-foreground: 220 16% 22%;
+  
+  /* Destructive - Aurora Red (nord11: #BF616A) */
+  --destructive: 354 42% 56%;
+  --destructive-foreground: 218 27% 92%;
+  
+  /* Border and input */
+  --border: 220 16% 36%;               /* nord3: #4C566A */
+  --input: 220 16% 36%;
+  --ring: 193 43% 67%;                 /* nord8: #88C0D0 */
+  
+  /* Semantic colors - Aurora */
+  --success: 92 28% 65%;               /* nord14: #A3BE8C - Green */
+  --warning: 40 81% 73%;               /* nord13: #EBCB8B - Yellow */
+  
+  /* Border radius */
+  --radius: 0.5rem;
+  
+  /* Chart colors - Aurora + Frost palette */
+  --chart-1: 193 43% 67%;              /* nord8: Frost blue */
+  --chart-2: 179 25% 65%;              /* nord7: Teal */
+  --chart-3: 92 28% 65%;               /* nord14: Green */
+  --chart-4: 40 81% 73%;               /* nord13: Yellow */
+  --chart-5: 311 20% 63%;              /* nord15: Purple */
+  
+  /* Sidebar specific */
+  --sidebar-background: 220 16% 20%;   /* Slightly darker */
+  --sidebar-foreground: 218 27% 92%;
+  --sidebar-primary: 193 43% 67%;
+  --sidebar-primary-foreground: 220 16% 22%;
+  --sidebar-accent: 220 16% 28%;
+  --sidebar-accent-foreground: 218 27% 92%;
+  --sidebar-border: 220 16% 28%;
+  --sidebar-ring: 193 43% 67%;
+}
+
+/* Custom scrollbar for Nordic theme */
+.nordic-dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.nordic-dark ::-webkit-scrollbar-track {
+  background: hsl(220 16% 22%);
+}
+
+.nordic-dark ::-webkit-scrollbar-thumb {
+  background: hsl(220 16% 36%);
+  border-radius: 4px;
+}
+
+.nordic-dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(213 32% 63%);
+}
+
+/* Selection colors */
+.nordic-dark ::selection {
+  background: hsl(193 43% 67% / 0.3);
+  color: hsl(218 27% 92%);
+}
+
+/* Focus rings */
+.nordic-dark *:focus-visible {
+  outline: 2px solid hsl(193 43% 67%);
+  outline-offset: 2px;
+}
+

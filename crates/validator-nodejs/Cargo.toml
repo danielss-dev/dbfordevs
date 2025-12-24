@@ -7,7 +7,7 @@ license.workspace = true
 description = "Node.js connection string validator for dbfordevs (pg, mysql2, mssql packages)"
 
 [dependencies]
-plugin-core = { path = "../plugin-core" }
+extension-core = { path = "../extension-core" }
 validator-core = { path = "../validator-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }

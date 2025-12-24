@@ -108,7 +108,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
           onExecute={handleExecute}
           tables={tables}
           getTableSchema={fetchTableSchema}
-          theme={theme}
+          theme={theme.startsWith("ext:") ? "dark" : theme as "light" | "dark" | "system"}
           height="100%"
         />
       </div>

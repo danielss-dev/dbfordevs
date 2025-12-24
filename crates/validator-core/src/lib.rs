@@ -3,7 +3,7 @@
 //! This crate provides the foundational interfaces that all language-specific
 //! connection string validators must implement.
 
-use plugin_core::Plugin;
+use extension_core::Extension;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -114,7 +114,7 @@ pub struct ValidationMessage {
 }
 
 /// Trait that all connection string validators must implement
-pub trait ConnectionStringValidator: Plugin + Send + Sync {
+pub trait ConnectionStringValidator: Extension + Send + Sync {
     /// Parse a connection string into its components
     fn parse(&self, connection_string: &str) -> Result<ParsedConnection, ValidatorError>;
 

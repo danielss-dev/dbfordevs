@@ -6,14 +6,21 @@ import { ConnectionModal, RenameConnectionDialog } from "@/components/connection
 import { Marketplace } from "@/components/marketplace";
 import { RenameTableDialog } from "@/components/table";
 import { CreateSchemaDialog } from "@/components/database";
+import { AIPanel } from "@/components/ai";
 import { useUIStore } from "@/stores";
 import { useKeyboardShortcuts } from "@/hooks";
+import { initializeExtensions } from "@/extensions";
 
 function App() {
   const { theme, setTheme, appStyle, setAppStyle } = useUIStore();
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
+
+  // Initialize extension system (registers official themes, etc.)
+  useEffect(() => {
+    initializeExtensions();
+  }, []);
 
   // Initialize theme on mount
   useEffect(() => {
@@ -41,6 +48,7 @@ function App() {
         <RenameTableDialog />
         <RenameConnectionDialog />
         <CreateSchemaDialog />
+        <AIPanel />
         <Toaster />
       </div>
     </TooltipProvider>

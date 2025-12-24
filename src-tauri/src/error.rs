@@ -24,6 +24,12 @@ pub enum AppError {
 
     #[error("Error: {0}")]
     GenericError(String),
+
+    #[error("Internal error: {0}")]
+    Internal(String),
+
+    #[error("Extension error: {0}")]
+    ExtensionError(String),
 }
 
 // Implement serialize for Tauri command returns

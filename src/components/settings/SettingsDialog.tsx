@@ -40,8 +40,14 @@ import {
   Settings,
   Layers,
   X,
+  Power,
+  Trash2,
+  Check,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useExtensions, type ExtensionWithStatus, useInstalledThemes } from "@/extensions";
 
 interface SettingRowProps {
   label: string;
@@ -84,88 +90,15 @@ function ShortcutItem({ label, keys }: ShortcutItemProps) {
   );
 }
 
-interface PluginData {
-  id: string;
-  name: string;
-  description: string;
-  version: string;
-  author: string;
-  category: "Validators" | "AI" | "Exporters" | "Themes";
-  downloads: string;
-  rating: number;
-  isOfficial: boolean;
-  isFeatured?: boolean;
+// Extension card with actions - uses data from extension store
+interface ExtensionCardProps {
+  extension: ExtensionWithStatus;
+  onInstall: () => void;
+  onUninstall: () => void;
+  onEnable: () => void;
+  onDisable: () => void;
+  isLoading: boolean;
 }
-
-const PLUGINS: PluginData[] = [
-  {
-    id: "validator-csharp",
-    name: "C# / .NET Validator",
-    description: "Validate ADO.NET connection strings for SQL Server, PostgreSQL, and MySQL.",
-    version: "1.0.2",
-    author: "dbfordevs",
-    category: "Validators",
-    downloads: "1.2k",
-    rating: 4.8,
-    isOfficial: true,
-  },
-  {
-    id: "validator-nodejs",
-    name: "Node.js Validator",
-    description: "Support for pg, mysql2, and mssql connection string formats (URL and JSON).",
-    version: "1.1.0",
-    author: "dbfordevs",
-    category: "Validators",
-    downloads: "2.5k",
-    rating: 4.9,
-    isOfficial: true,
-  },
-  {
-    id: "validator-python",
-    name: "Python Validator",
-    description: "SQLAlchemy, psycopg2, and PyMySQL connection URL validation.",
-    version: "1.0.5",
-    author: "dbfordevs",
-    category: "Validators",
-    downloads: "800",
-    rating: 4.7,
-    isOfficial: true,
-  },
-  {
-    id: "ai-assistant",
-    name: "AI Query Assistant",
-    description: "Generate SQL from natural language, optimize slow queries, and explain plans.",
-    version: "2.0.1",
-    author: "dbfordevs",
-    category: "AI",
-    downloads: "5.4k",
-    rating: 5.0,
-    isOfficial: true,
-    isFeatured: true,
-  },
-  {
-    id: "exporter-parquet",
-    name: "Parquet Exporter",
-    description: "Export result sets to Apache Parquet format for big data processing.",
-    version: "0.9.0",
-    author: "Community",
-    category: "Exporters",
-    downloads: "300",
-    rating: 4.5,
-    isOfficial: false,
-  },
-  {
-    id: "theme-nord",
-    name: "Nord Theme",
-    description: "An arctic, north-bluish color palette for dbfordevs.",
-    version: "1.0.0",
-    author: "Arctic Ice Studio",
-    category: "Themes",
-    downloads: "1.5k",
-    rating: 4.8,
-    isOfficial: false,
-  },
-];
 
 type TabValue = "general" | "editor" | "appearance" | "extensions" | "keybindings" | "advanced" | "about";
 
@@ -218,61 +151,141 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Clear cache", description: "Clear cached data and temporary files.", keywords: ["cache", "clear", "temporary", "files"], tabValue: "advanced" },
 ];
 
-function PluginCard({ plugin }: { plugin: PluginData }) {
+function ExtensionCard({ 
+  extension, 
+  onInstall, 
+  onUninstall, 
+  onEnable, 
+  onDisable,
+  isLoading 
+}: ExtensionCardProps) {
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case "AI":
-        return <MessageSquare className="h-6 w-6 text-primary" />;
-      case "Validators":
-        return <ShieldCheck className="h-6 w-6 text-primary" />;
-      case "Themes":
-        return <LayoutIcon className="h-6 w-6 text-primary" />;
+      case "ai":
+        return <MessageSquare className="h-5 w-5 text-primary" />;
+      case "validator":
+        return <ShieldCheck className="h-5 w-5 text-primary" />;
+      case "theme":
+        return <LayoutIcon className="h-5 w-5 text-primary" />;
       default:
-        return <Database className="h-6 w-6 text-primary" />;
+        return <Database className="h-5 w-5 text-primary" />;
     }
   };
 
+  const { installed, enabled } = extension;
+
   return (
-    <div className="group flex flex-col rounded-xl border border-border bg-background p-5 transition-all hover:border-primary/50 hover:shadow-md">
-      <div className="mb-4 flex items-start justify-between">
-        <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/5">
-          {getCategoryIcon(plugin.category)}
-        </div>
-        {plugin.isFeatured && (
-          <span className="badge badge-primary bg-primary/10 text-primary hover:bg-primary/20 text-[10px]">
-            Featured
-          </span>
-        )}
+    <div className={cn(
+      "group flex items-center gap-4 rounded-xl border bg-background p-4 transition-all hover:shadow-md",
+      installed 
+        ? enabled 
+          ? "border-primary/30 bg-primary/5" 
+          : "border-muted-foreground/20"
+        : "border-border hover:border-primary/50"
+    )}>
+      {/* Icon */}
+      <div className={cn(
+        "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+        installed && enabled ? "bg-primary/10" : "bg-muted"
+      )}>
+        {getCategoryIcon(extension.category)}
       </div>
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          <h4 className="font-bold text-sm">{plugin.name}</h4>
-          {plugin.isOfficial && (
-            <span className="badge badge-outline h-5 px-1.5 text-[10px] uppercase font-bold tracking-tighter bg-primary/5 text-primary border-primary/20">
+      
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <h4 className="font-semibold text-sm truncate">{extension.name}</h4>
+          {extension.isOfficial && (
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] uppercase font-bold tracking-tight rounded bg-primary/10 text-primary">
               Official
             </span>
           )}
+          {extension.isFeatured && (
+            <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+          )}
         </div>
-        <p className="mb-4 text-xs text-muted-foreground line-clamp-2">{plugin.description}</p>
+        <p className="text-xs text-muted-foreground line-clamp-1">{extension.description}</p>
+        <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+            {extension.rating}
+          </span>
+          <span className="flex items-center gap-1">
+            <Download className="h-3 w-3" />
+            {extension.downloads}
+          </span>
+          <span className="font-mono">v{extension.version}</span>
+        </div>
       </div>
-      <div className="mt-auto pt-4 border-t border-border/50">
-        <div className="mb-4 flex items-center justify-between text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-              {plugin.rating}
-            </span>
-            <span className="flex items-center gap-1">
-              <Download className="h-3 w-3" />
-              {plugin.downloads}
-            </span>
-          </div>
-          <span className="font-mono">v{plugin.version}</span>
+      
+      {/* Status Badge */}
+      {installed && (
+        <div className="shrink-0">
+          <span className={cn(
+            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium",
+            enabled 
+              ? "bg-green-500/10 text-green-600" 
+              : "bg-muted text-muted-foreground"
+          )}>
+            {enabled ? (
+              <>
+                <Check className="h-3 w-3" />
+                Active
+              </>
+            ) : (
+              "Disabled"
+            )}
+          </span>
         </div>
-        <Button className="w-full" size="sm">
-          <Download className="mr-2 h-4 w-4" />
-          Install
-        </Button>
+      )}
+      
+      {/* Actions */}
+      <div className="flex items-center gap-2 shrink-0">
+        {!installed ? (
+          <Button 
+            size="sm" 
+            onClick={onInstall}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Install
+              </>
+            )}
+          </Button>
+        ) : (
+          <>
+            {enabled ? (
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={onDisable}
+              >
+                <Power className="mr-1.5 h-3.5 w-3.5" />
+                Disable
+              </Button>
+            ) : (
+              <Button 
+                size="sm"
+                onClick={onEnable}
+              >
+                <Power className="mr-1.5 h-3.5 w-3.5" />
+                Enable
+              </Button>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={onUninstall}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -326,11 +339,28 @@ export function SettingsDialog() {
     }
   }, [showSettingsDialog, searchOpen]);
 
-  const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
-    setTheme(newTheme);
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme as "light" | "dark" | "system" | `ext:${string}`);
+    
+    // Get label from built-in themes or find from installed extensions
+    const builtInLabels: Record<string, string> = {
+      system: "System",
+      light: "Light",
+      dark: "Dark",
+    };
+    
+    let label = builtInLabels[newTheme];
+    if (!label && newTheme.startsWith("ext:")) {
+      const extId = newTheme.slice(4);
+      // useInstalledThemes is reactive, so it's fine to use it here in the parent scope
+      // but for this handler, we can just find it in the list
+      const themeExt = installedThemeExtensions.find(t => t.id === extId);
+      label = themeExt?.name || extId;
+    }
+    
     toast({
       title: "Theme updated",
-      description: `Interface theme set to ${newTheme}.`,
+      description: `Interface theme set to ${label}.`,
     });
   };
 
@@ -358,14 +388,43 @@ export function SettingsDialog() {
     });
   };
 
-  const filteredPlugins = useMemo(() => {
-    return PLUGINS.filter((plugin) => {
-      const matchesSearch = plugin.name.toLowerCase().includes(pluginSearch.toLowerCase()) ||
-        plugin.description.toLowerCase().includes(pluginSearch.toLowerCase());
-      const matchesCategory = pluginCategory === "all" || plugin.category.toLowerCase() === pluginCategory.toLowerCase();
+  // Extension management from store
+  const {
+    catalog: extensionCatalog,
+    installedExtensions,
+    isLoading: extensionsLoading,
+    install: installExtension,
+    uninstall: uninstallExtension,
+    enable: enableExtension,
+    disable: disableExtension,
+  } = useExtensions();
+
+  const installedThemeExtensions = useInstalledThemes();
+
+  const filteredExtensions = useMemo(() => {
+    return extensionCatalog.filter((ext) => {
+      const matchesSearch = ext.name.toLowerCase().includes(pluginSearch.toLowerCase()) ||
+        ext.description.toLowerCase().includes(pluginSearch.toLowerCase());
+      
+      let matchesCategory = pluginCategory === "all";
+      if (!matchesCategory) {
+        // Map UI category names to store category values
+        const categoryMap: Record<string, string> = {
+          "themes": "theme",
+          "ai": "ai",
+          "validators": "validator",
+          "exporters": "exporter",
+          "installed": "installed",
+        };
+        if (pluginCategory === "installed") {
+          matchesCategory = ext.installed;
+        } else {
+          matchesCategory = ext.category === categoryMap[pluginCategory];
+        }
+      }
       return matchesSearch && matchesCategory;
     });
-  }, [pluginSearch, pluginCategory]);
+  }, [extensionCatalog, pluginSearch, pluginCategory]);
 
   // Filter tabs based on search query by searching all settings
   const filteredTabs = useMemo(() => {
@@ -634,10 +693,10 @@ export function SettingsDialog() {
                       <div className="rounded-xl border border-border bg-card p-1">
                         <SettingRow
                           label="Theme"
-                          description="Switch between light, dark, or system theme."
+                          description="Choose a color theme for the interface."
                         >
                           <Select value={theme} onValueChange={handleThemeChange}>
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-44">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -659,6 +718,19 @@ export function SettingsDialog() {
                                   <span>Dark</span>
                                 </div>
                               </SelectItem>
+                              {/* Installed theme extensions */}
+                              {installedThemeExtensions.map((themeExt) => (
+                                <SelectItem key={themeExt.id} value={`ext:${themeExt.id}`}>
+                                  <div className="flex items-center gap-2">
+                                    {themeExt.id.includes("dark") ? (
+                                      <Moon className="h-4 w-4 text-primary" />
+                                    ) : (
+                                      <Sun className="h-4 w-4 text-primary" />
+                                    )}
+                                    <span>{themeExt.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </SettingRow>
@@ -725,27 +797,67 @@ export function SettingsDialog() {
 
                         {/* Category Tabs */}
                         <div className="flex gap-2 flex-wrap">
-                          {["all", "validators", "ai", "exporters", "themes"].map((cat) => (
+                          {[
+                            { id: "all", label: "All" },
+                            { id: "installed", label: `Installed (${installedExtensions.length})` },
+                            { id: "themes", label: "Themes" },
+                            { id: "ai", label: "AI" },
+                            { id: "validators", label: "Validators" },
+                          ].map((cat) => (
                             <button
-                              key={cat}
-                              onClick={() => setPluginCategory(cat)}
+                              key={cat.id}
+                              onClick={() => setPluginCategory(cat.id)}
                               className={cn(
                                 "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-                                pluginCategory === cat
+                                pluginCategory === cat.id
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-muted text-muted-foreground hover:bg-muted/80"
                               )}
                             >
-                              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                              {cat.label}
                             </button>
                           ))}
                         </div>
                       </div>
 
-                      {/* Plugin Grid */}
-                      <div className="grid grid-cols-1 gap-4">
-                        {filteredPlugins.length > 0 ? (
-                          filteredPlugins.map((plugin) => <PluginCard key={plugin.id} plugin={plugin} />)
+                      {/* Extension List */}
+                      <div className="space-y-3">
+                        {filteredExtensions.length > 0 ? (
+                          filteredExtensions.map((ext) => (
+                            <ExtensionCard 
+                              key={ext.id} 
+                              extension={ext}
+                              onInstall={() => {
+                                installExtension(ext.id);
+                                toast({
+                                  title: "Extension installed",
+                                  description: `${ext.name} has been installed and enabled.`,
+                                });
+                              }}
+                              onUninstall={() => {
+                                uninstallExtension(ext.id);
+                                toast({
+                                  title: "Extension uninstalled",
+                                  description: `${ext.name} has been removed.`,
+                                });
+                              }}
+                              onEnable={() => {
+                                enableExtension(ext.id);
+                                toast({
+                                  title: "Extension enabled",
+                                  description: `${ext.name} is now active.`,
+                                });
+                              }}
+                              onDisable={() => {
+                                disableExtension(ext.id);
+                                toast({
+                                  title: "Extension disabled",
+                                  description: `${ext.name} has been disabled.`,
+                                });
+                              }}
+                              isLoading={extensionsLoading}
+                            />
+                          ))
                         ) : (
                           <div className="text-center py-12">
                             <p className="text-sm text-muted-foreground">No extensions found.</p>
@@ -768,6 +880,7 @@ export function SettingsDialog() {
                         <ShortcutItem label="New connection" keys={["Cmd", "K"]} />
                         <ShortcutItem label="Open settings" keys={["Cmd", ","]} />
                         <ShortcutItem label="Toggle sidebar" keys={["Cmd", "B"]} />
+                        <ShortcutItem label="Toggle AI Assistant" keys={["Cmd", "Shift", "A"]} />
                         <ShortcutItem label="New query tab" keys={["Cmd", "T"]} />
                         <ShortcutItem label="Close tab" keys={["Cmd", "W"]} />
                         <ShortcutItem label="View changes diff" keys={["Cmd", "Shift", "D"]} />

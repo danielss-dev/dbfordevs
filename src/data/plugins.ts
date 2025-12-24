@@ -1,4 +1,4 @@
-export interface PluginData {
+export interface ExtensionData {
   id: string;
   name: string;
   description: string;
@@ -11,7 +11,7 @@ export interface PluginData {
   isFeatured?: boolean;
 }
 
-export const PLUGINS: PluginData[] = [
+export const EXTENSIONS: ExtensionData[] = [
   {
     id: "validator-csharp",
     name: "C# / .NET Validator",
@@ -58,6 +58,29 @@ export const PLUGINS: PluginData[] = [
     isFeatured: true,
   },
   {
+    id: "nordic-dark",
+    name: "Nordic Dark",
+    description: "An arctic, north-bluish dark theme inspired by the Nordic wilderness. Features Polar Night backgrounds and Frost accents.",
+    version: "1.0.0",
+    author: "dbfordevs",
+    category: "Themes",
+    downloads: "2.1k",
+    rating: 4.9,
+    isOfficial: true,
+    isFeatured: true,
+  },
+  {
+    id: "nordic-light",
+    name: "Nordic Light",
+    description: "A light variant of the Nordic theme with Snow Storm backgrounds and aurora accent colors.",
+    version: "1.0.0",
+    author: "dbfordevs",
+    category: "Themes",
+    downloads: "1.8k",
+    rating: 4.8,
+    isOfficial: true,
+  },
+  {
     id: "exporter-parquet",
     name: "Parquet Exporter",
     description: "Export result sets to Apache Parquet format for big data processing.",
@@ -68,15 +91,8 @@ export const PLUGINS: PluginData[] = [
     rating: 4.5,
     isOfficial: false,
   },
-  {
-    id: "theme-nord",
-    name: "Nord Theme",
-    description: "An arctic, north-bluish color palette for dbfordevs.",
-    version: "1.0.0",
-    author: "Arctic Ice Studio",
-    category: "Themes",
-    downloads: "1.5k",
-    rating: 4.8,
-    isOfficial: false,
-  },
 ];
+
+// Backwards compatibility alias
+export type PluginData = ExtensionData;
+export const PLUGINS = EXTENSIONS;

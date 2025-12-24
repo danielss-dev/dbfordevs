@@ -2,7 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PendingChange } from "@/types";
 
-type Theme = "light" | "dark" | "system";
+/**
+ * Theme type:
+ * - "light" | "dark" | "system": Built-in themes handled by UI store
+ * - "ext:<id>": Extension theme, delegated to theme store (e.g., "ext:nordic-dark")
+ */
+type Theme = "light" | "dark" | "system" | `ext:${string}`;
 type AppStyle = "developer" | "web";
 
 interface EditorSettings {
@@ -121,12 +126,35 @@ export const useUIStore = create<UIState>()(
 
       setTheme: (theme) => {
         const root = document.documentElement;
-        if (theme === "system") {
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          root.classList.toggle("dark", prefersDark);
+        
+        // Check if this is an extension theme
+        if (theme.startsWith("ext:")) {
+          const extensionThemeId = theme.slice(4); // Remove "ext:" prefix
+          
+          // Dynamically import to avoid circular dependency
+          import("@/extensions").then(({ useThemeStore }) => {
+            const themeStore = useThemeStore.getState();
+            themeStore.activateTheme(extensionThemeId);
+          });
         } else {
-          root.classList.toggle("dark", theme === "dark");
+          // Built-in theme - deactivate any extension theme first
+          import("@/extensions").then(({ useThemeStore }) => {
+            const themeStore = useThemeStore.getState();
+            themeStore.activateTheme(null);
+          });
+          
+          // Remove dark class (extension themes handle their own classes)
+          root.classList.remove("dark");
+          
+          if (theme === "system") {
+            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            root.classList.toggle("dark", prefersDark);
+          } else if (theme === "dark") {
+            root.classList.add("dark");
+          }
+          // "light" theme - no class needed (default)
         }
+        
         set({ theme });
       },
 
