@@ -4,8 +4,10 @@
  * React hooks for consuming extension functionality.
  */
 
-import { useCallback, useEffect } from "react";
-import { useExtensionStore } from "./store";
+import { useCallback, useMemo } from "react";
+import { useExtensionStore, EXTENSION_CATALOG, type MarketplaceExtension } from "./store";
+
+export type ExtensionWithStatus = MarketplaceExtension & { installed: boolean; enabled: boolean };
 import type { TableInfo } from "./types";
 
 /**
@@ -24,9 +26,11 @@ export function useAIAssistant() {
     setAIContext,
     settings,
     setAiApiKey,
+    isEnabled,
   } = useExtensionStore();
 
   const isConfigured = Boolean(settings.aiApiKey);
+  const isAIExtensionEnabled = isEnabled("ai-assistant");
 
   const sendMessage = useCallback(
     async (message: string) => {
@@ -46,6 +50,7 @@ export function useAIAssistant() {
   return {
     isOpen: aiPanelOpen,
     isConfigured,
+    isEnabled: isAIExtensionEnabled,
     isLoading: aiIsLoading,
     messages: aiMessages,
     context: aiContext,
@@ -60,39 +65,118 @@ export function useAIAssistant() {
 }
 
 /**
- * Hook for extension management
+ * Hook for extension management (Marketplace)
  */
 export function useExtensions() {
   const {
-    extensions,
+    installedExtensions,
     isLoading,
     error,
-    loadExtensions,
+    installExtension,
+    uninstallExtension,
     enableExtension,
     disableExtension,
-    uninstallExtension,
+    isInstalled,
+    isEnabled,
     installFromGitHub,
   } = useExtensionStore();
 
-  // Load extensions on mount
-  useEffect(() => {
-    loadExtensions();
-  }, [loadExtensions]);
+  // Get catalog with installation status
+  const catalog = useMemo((): ExtensionWithStatus[] => {
+    return EXTENSION_CATALOG.map((ext) => ({
+      ...ext,
+      installed: isInstalled(ext.id),
+      enabled: isEnabled(ext.id),
+    }));
+  }, [installedExtensions, isInstalled, isEnabled]);
 
-  const officialExtensions = extensions.filter((ext) => ext.isOfficial);
-  const communityExtensions = extensions.filter((ext) => !ext.isOfficial);
+  // Split by category
+  const themeExtensions = useMemo(
+    () => catalog.filter((e) => e.category === "theme"),
+    [catalog]
+  );
+
+  const aiExtensions = useMemo(
+    () => catalog.filter((e) => e.category === "ai"),
+    [catalog]
+  );
+
+  const validatorExtensions = useMemo(
+    () => catalog.filter((e) => e.category === "validator"),
+    [catalog]
+  );
+
+  const officialExtensions = useMemo(
+    () => catalog.filter((e) => e.isOfficial),
+    [catalog]
+  );
+
+  const communityExtensions = useMemo(
+    () => catalog.filter((e) => !e.isOfficial),
+    [catalog]
+  );
+
+  const featuredExtensions = useMemo(
+    () => catalog.filter((e) => e.isFeatured),
+    [catalog]
+  );
+
+  const installedList = useMemo(
+    () => catalog.filter((e) => e.installed),
+    [catalog]
+  );
 
   return {
-    extensions,
+    catalog,
+    installedExtensions: installedList,
+    themeExtensions,
+    aiExtensions,
+    validatorExtensions,
     officialExtensions,
     communityExtensions,
+    featuredExtensions,
     isLoading,
     error,
-    refresh: loadExtensions,
+    install: installExtension,
+    uninstall: uninstallExtension,
     enable: enableExtension,
     disable: disableExtension,
-    uninstall: uninstallExtension,
+    isInstalled,
+    isEnabled,
     installFromGitHub,
+  };
+}
+
+/**
+ * Hook for a single extension
+ */
+export function useExtension(extensionId: string) {
+  const { 
+    isInstalled, 
+    isEnabled, 
+    getExtension,
+    installExtension,
+    uninstallExtension,
+    enableExtension,
+    disableExtension,
+    isLoading,
+  } = useExtensionStore();
+
+  const catalogEntry = EXTENSION_CATALOG.find((e) => e.id === extensionId);
+  const installed = isInstalled(extensionId);
+  const enabled = isEnabled(extensionId);
+  const extension = getExtension(extensionId);
+
+  return {
+    extension: catalogEntry,
+    installedInfo: extension,
+    installed,
+    enabled,
+    isLoading,
+    install: () => installExtension(extensionId),
+    uninstall: () => uninstallExtension(extensionId),
+    enable: () => enableExtension(extensionId),
+    disable: () => disableExtension(extensionId),
   };
 }
 
@@ -102,13 +186,9 @@ export function useExtensions() {
 export function useExtensionSettings() {
   const { settings, loadSettings, updateSettings } = useExtensionStore();
 
-  useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
-
   return {
     settings,
+    loadSettings,
     updateSettings,
   };
 }
-

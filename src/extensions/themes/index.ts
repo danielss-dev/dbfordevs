@@ -160,7 +160,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   activateTheme: (themeId: string | null) => {
     const { activeThemeId } = get();
 
-    // Deactivate current theme
+    // Deactivate current theme - remove its CSS
     if (activeThemeId) {
       removeCSS(activeThemeId);
     }
@@ -173,8 +173,11 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
         applyThemeClass(themeId, theme.variant);
       }
     } else {
-      // Reset to default (system theme)
+      // Reset to default (system theme) - also remove any lingering theme CSS
       applyThemeClass(null, null);
+      
+      // Clean up any theme CSS that might have been orphaned
+      document.querySelectorAll(`[id^="${THEME_STYLE_PREFIX}"]`).forEach(el => el.remove());
     }
 
     // Update state and persist

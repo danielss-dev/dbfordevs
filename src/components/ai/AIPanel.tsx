@@ -23,6 +23,7 @@ export function AIPanel() {
   const {
     isOpen,
     isConfigured,
+    isEnabled,
     isLoading,
     messages,
     close,
@@ -41,7 +42,8 @@ export function AIPanel() {
     }
   }, [messages]);
 
-  if (!isOpen) return null;
+  // Don't show if not open or if extension is disabled
+  if (!isOpen || !isEnabled) return null;
 
   return (
     <>

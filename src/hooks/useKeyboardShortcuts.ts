@@ -26,7 +26,8 @@ export function useKeyboardShortcuts() {
 
   const activeConnection = useConnectionsStore(selectActiveConnection);
   
-  const { aiPanelOpen, toggleAIPanel, setAIPanelOpen } = useExtensionStore();
+  const { aiPanelOpen, toggleAIPanel, setAIPanelOpen, isEnabled } = useExtensionStore();
+  const isAIEnabled = isEnabled("ai-assistant");
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -83,10 +84,12 @@ export function useKeyboardShortcuts() {
         toggleSidebar();
       }
 
-      // Mod + Shift + A: Toggle AI Assistant
+      // Mod + Shift + A: Toggle AI Assistant (only if extension is enabled)
       if (isMod && isShift && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        toggleAIPanel();
+        if (isAIEnabled) {
+          toggleAIPanel();
+        }
       }
 
       // Mod + Shift + D: View Changes Diff
@@ -249,6 +252,7 @@ export function useKeyboardShortcuts() {
     showDiffModal,
     showMarketplace,
     aiPanelOpen,
+    isAIEnabled,
     activeConnection,
     tabs.length,
     activeTabId,
