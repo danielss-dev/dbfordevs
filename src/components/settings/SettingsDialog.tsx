@@ -326,11 +326,19 @@ export function SettingsDialog() {
     }
   }, [showSettingsDialog, searchOpen]);
 
-  const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
-    setTheme(newTheme);
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme as "light" | "dark" | "system" | `ext:${string}`);
+    const themeLabels: Record<string, string> = {
+      system: "System",
+      light: "Light",
+      dark: "Dark",
+      "ext:nordic-dark": "Nordic Dark",
+      "ext:nordic-light": "Nordic Light",
+    };
+    const label = themeLabels[newTheme] || newTheme.replace("ext:", "");
     toast({
       title: "Theme updated",
-      description: `Interface theme set to ${newTheme}.`,
+      description: `Interface theme set to ${label}.`,
     });
   };
 
@@ -634,10 +642,10 @@ export function SettingsDialog() {
                       <div className="rounded-xl border border-border bg-card p-1">
                         <SettingRow
                           label="Theme"
-                          description="Switch between light, dark, or system theme."
+                          description="Choose a color theme for the interface."
                         >
                           <Select value={theme} onValueChange={handleThemeChange}>
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-44">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -657,6 +665,18 @@ export function SettingsDialog() {
                                 <div className="flex items-center gap-2">
                                   <Moon className="h-4 w-4" />
                                   <span>Dark</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="ext:nordic-dark">
+                                <div className="flex items-center gap-2">
+                                  <Moon className="h-4 w-4 text-[#88C0D0]" />
+                                  <span>Nordic Dark</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="ext:nordic-light">
+                                <div className="flex items-center gap-2">
+                                  <Sun className="h-4 w-4 text-[#5E81AC]" />
+                                  <span>Nordic Light</span>
                                 </div>
                               </SelectItem>
                             </SelectContent>
@@ -768,6 +788,7 @@ export function SettingsDialog() {
                         <ShortcutItem label="New connection" keys={["Cmd", "K"]} />
                         <ShortcutItem label="Open settings" keys={["Cmd", ","]} />
                         <ShortcutItem label="Toggle sidebar" keys={["Cmd", "B"]} />
+                        <ShortcutItem label="Toggle AI Assistant" keys={["Cmd", "Shift", "A"]} />
                         <ShortcutItem label="New query tab" keys={["Cmd", "T"]} />
                         <ShortcutItem label="Close tab" keys={["Cmd", "W"]} />
                         <ShortcutItem label="View changes diff" keys={["Cmd", "Shift", "D"]} />

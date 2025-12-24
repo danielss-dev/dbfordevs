@@ -1,6 +1,7 @@
-import { Database, Clock, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Database, Clock, AlertCircle, CheckCircle, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection } from "@/stores";
+import { useExtensionStore } from "@/extensions";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState, useRef } from "react";
 import { useAnime } from "@/hooks/useAnime";
@@ -10,6 +11,7 @@ export function StatusBar() {
   const { isConnecting } = useConnectionsStore();
   const { isExecuting } = useQueryStore();
   const { pendingChanges } = useUIStore();
+  const { toggleAIPanel, aiPanelOpen } = useExtensionStore();
   const [version, setVersion] = useState<string>("");
   const { animate } = useAnime();
   const statusRef = useRef<HTMLDivElement>(null);
@@ -118,6 +120,28 @@ export function StatusBar() {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
+        {/* AI Assistant button */}
+        <button
+          onClick={toggleAIPanel}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-all",
+            "hover:bg-violet-500/10 group",
+            aiPanelOpen && "bg-violet-500/10 text-violet-500"
+          )}
+          title="Toggle AI Assistant (Cmd+Shift+A)"
+        >
+          <Sparkles className={cn(
+            "h-3 w-3 transition-colors",
+            aiPanelOpen ? "text-violet-500" : "text-muted-foreground group-hover:text-violet-500"
+          )} />
+          <span className={cn(
+            "font-medium transition-colors",
+            aiPanelOpen ? "text-violet-500" : "text-muted-foreground group-hover:text-violet-500"
+          )}>
+            AI
+          </span>
+        </button>
+
         {/* App info */}
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Database className="h-3 w-3" />

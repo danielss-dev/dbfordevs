@@ -16,7 +16,7 @@
 //! {"server":"localhost","database":"mydb","user":"user","password":"pass"}
 //! ```
 
-use plugin_core::{Plugin, PluginCategory, PluginMetadata};
+use extension_core::{Extension, ExtensionCategory, ExtensionMetadata};
 use std::collections::HashMap;
 use url::Url;
 use validator_core::{
@@ -145,15 +145,18 @@ impl Default for NodeJsValidator {
     }
 }
 
-impl Plugin for NodeJsValidator {
-    fn metadata(&self) -> PluginMetadata {
-        PluginMetadata {
+impl Extension for NodeJsValidator {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
             id: "nodejs".to_string(),
             name: "Node.js Validator".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             description: "Connection strings for pg, mysql2, mssql packages".to_string(),
             author: "Daniels".to_string(),
-            category: PluginCategory::Validator,
+            category: ExtensionCategory::Validator,
+            is_official: true,
+            repository: None,
+            min_app_version: None,
         }
     }
 }

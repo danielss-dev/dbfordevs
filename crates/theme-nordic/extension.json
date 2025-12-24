@@ -1,0 +1,35 @@
+{
+  "id": "theme-nordic",
+  "version": "1.0.0",
+  "displayName": "Nordic Theme",
+  "description": "An arctic, north-bluish color palette inspired by the beauty of the Nordic wilderness. Features cool blues, soft whites, and subtle aurora accents.",
+  "author": {
+    "name": "dbfordevs",
+    "url": "https://dbfordevs.app"
+  },
+  "categories": ["theme"],
+  "isOfficial": true,
+  "capabilities": [
+    {
+      "type": "theme",
+      "id": "theme-nordic.dark",
+      "label": "Nordic Dark",
+      "file": "themes/nordic-dark.css",
+      "variant": "dark"
+    },
+    {
+      "type": "theme",
+      "id": "theme-nordic.light",
+      "label": "Nordic Light",
+      "file": "themes/nordic-light.css",
+      "variant": "light"
+    }
+  ],
+  "activationEvents": ["onTheme:theme-nordic"],
+  "repository": "https://github.com/dbfordevs/dbfordevs",
+  "homepage": "https://dbfordevs.app",
+  "license": "MIT",
+  "minAppVersion": "0.1.0",
+  "icon": "snowflake"
+}
+

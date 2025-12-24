@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useUIStore, useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
+import { useExtensionStore } from "@/extensions";
 
 export function useKeyboardShortcuts() {
   const {
@@ -24,6 +25,8 @@ export function useKeyboardShortcuts() {
   } = useQueryStore();
 
   const activeConnection = useConnectionsStore(selectActiveConnection);
+  
+  const { aiPanelOpen, toggleAIPanel, setAIPanelOpen } = useExtensionStore();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -36,6 +39,7 @@ export function useKeyboardShortcuts() {
         if (showSettingsDialog) setShowSettingsDialog(false);
         if (showDiffModal) setShowDiffModal(false);
         if (showMarketplace) setShowMarketplace(false);
+        if (aiPanelOpen) setAIPanelOpen(false);
         return;
       }
 
@@ -77,6 +81,12 @@ export function useKeyboardShortcuts() {
       if (isMod && e.key.toLowerCase() === "b") {
         e.preventDefault();
         toggleSidebar();
+      }
+
+      // Mod + Shift + A: Toggle AI Assistant
+      if (isMod && isShift && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        toggleAIPanel();
       }
 
       // Mod + Shift + D: View Changes Diff
@@ -238,6 +248,7 @@ export function useKeyboardShortcuts() {
     showSettingsDialog,
     showDiffModal,
     showMarketplace,
+    aiPanelOpen,
     activeConnection,
     tabs.length,
     activeTabId,
@@ -246,6 +257,8 @@ export function useKeyboardShortcuts() {
     setShowSettingsDialog,
     setShowDiffModal,
     setShowMarketplace,
+    setAIPanelOpen,
+    toggleAIPanel,
     addTab,
     removeTab,
     toggleSidebar,

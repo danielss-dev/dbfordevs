@@ -9,7 +9,7 @@
 //! Server=localhost;Database=mydb;User Id=user;Password=pass;
 //! ```
 
-use plugin_core::{Plugin, PluginCategory, PluginMetadata};
+use extension_core::{Extension, ExtensionCategory, ExtensionMetadata};
 use std::collections::HashMap;
 use validator_core::{
     ConnectionStringValidator, DatabaseType, ParsedConnection,
@@ -93,15 +93,18 @@ impl Default for CSharpValidator {
     }
 }
 
-impl Plugin for CSharpValidator {
-    fn metadata(&self) -> PluginMetadata {
-        PluginMetadata {
+impl Extension for CSharpValidator {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
             id: "csharp".to_string(),
             name: "C# / .NET Validator".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             description: "ADO.NET connection strings (SqlConnection, NpgsqlConnection, MySqlConnection)".to_string(),
             author: "Daniels".to_string(),
-            category: PluginCategory::Validator,
+            category: ExtensionCategory::Validator,
+            is_official: true,
+            repository: None,
+            min_app_version: None,
         }
     }
 }
