@@ -4,36 +4,24 @@
  * Public exports for the dbfordevs extension system.
  */
 
-// Types
-export type {
-  ExtensionInfo,
-  ExtensionSettings,
-  ExtensionStatus,
-  ExtensionCategory,
-  TableInfo,
-  ColumnInfo,
-  GenerateSQLRequest,
-  GeneratedSQL,
-  ExplainQueryRequest,
-  QueryExplanation,
-  AIChatMessage,
-  AIChatRequest,
-  AIChatResponse,
-} from "./types";
+// Core
+export * from "./core/types";
+export * from "./core/store";
+export * from "./core/hooks";
+export * as extensionApi from "./core/api";
+export { EXTENSION_CATALOG } from "./core/catalog";
 
-// Store
-export { useExtensionStore } from "./store";
+// AI Assistant
+export * from "./ai/types";
+export * from "./ai/store";
+export * from "./ai/hooks";
+export * as aiApi from "./ai/api";
 
-// Hooks
-export { useAIAssistant, useExtensions, useExtensionSettings } from "./hooks";
+// Themes
+export * from "./themes";
 
-// API (for direct access when needed)
-export * as extensionApi from "./api";
-
-// Theme System
-export { useThemeStore, useThemes } from "./themes";
-export type { ThemeDefinition } from "./themes";
-export { officialThemes, registerOfficialThemes } from "./themes/official";
+// Initialization
+import { useThemeStore } from "./themes/store";
 
 /**
  * Initialize the extension system.
@@ -56,7 +44,3 @@ export function initializeExtensions(): void {
     }
   });
 }
-
-// Re-export the theme store for direct access
-import { useThemeStore } from "./themes";
-

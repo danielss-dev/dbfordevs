@@ -1,55 +1,6 @@
 /**
- * Extension System Types
- *
- * TypeScript interfaces for the dbfordevs extension system.
+ * AI Assistant Types
  */
-
-/** Extension status */
-export type ExtensionStatus =
-  | "installed"
-  | "active"
-  | "disabled"
-  | { error: string }
-  | "installing"
-  | "updating";
-
-/** Extension category */
-export type ExtensionCategory =
-  | "validator"
-  | "ai"
-  | "exporter"
-  | "theme"
-  | "connector"
-  | { other: string };
-
-/** Extension information from the backend */
-export interface ExtensionInfo {
-  id: string;
-  name: string;
-  version: string;
-  description: string;
-  author: string;
-  category: string;
-  status: ExtensionStatus;
-  isOfficial: boolean;
-  repository?: string;
-  icon?: string;
-}
-
-/** Extension settings */
-export interface ExtensionSettings {
-  aiApiKey?: string;
-  aiProvider: string;
-}
-
-/** Request to install from GitHub */
-export interface InstallFromGitHubRequest {
-  repositoryUrl: string;
-}
-
-// ============================================================================
-// AI Assistant Types
-// ============================================================================
 
 /** Table information for AI context */
 export interface TableInfo {
@@ -115,5 +66,11 @@ export interface AIChatResponse {
   message: string;
   sql?: string;
   explanation?: string;
+}
+
+/** AI-specific settings */
+export interface AISettings {
+  aiApiKey?: string;
+  aiProvider: string;
 }
 

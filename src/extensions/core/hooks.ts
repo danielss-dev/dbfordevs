@@ -1,68 +1,12 @@
 /**
- * Extension Hooks
- *
- * React hooks for consuming extension functionality.
+ * Core Extension Hooks
  */
 
-import { useCallback, useMemo } from "react";
-import { useExtensionStore, EXTENSION_CATALOG, type MarketplaceExtension } from "./store";
+import { useMemo } from "react";
+import { useExtensionStore } from "./store";
+import { EXTENSION_CATALOG, type MarketplaceExtension } from "./catalog";
 
 export type ExtensionWithStatus = MarketplaceExtension & { installed: boolean; enabled: boolean };
-import type { TableInfo } from "./types";
-
-/**
- * Hook for AI Assistant functionality
- */
-export function useAIAssistant() {
-  const {
-    aiPanelOpen,
-    aiMessages,
-    aiIsLoading,
-    aiContext,
-    setAIPanelOpen,
-    toggleAIPanel,
-    sendAIMessage,
-    clearAIMessages,
-    setAIContext,
-    settings,
-    setAiApiKey,
-    isEnabled,
-  } = useExtensionStore();
-
-  const isConfigured = Boolean(settings.aiApiKey);
-  const isAIExtensionEnabled = isEnabled("ai-assistant");
-
-  const sendMessage = useCallback(
-    async (message: string) => {
-      if (!message.trim()) return;
-      await sendAIMessage(message);
-    },
-    [sendAIMessage]
-  );
-
-  const updateContext = useCallback(
-    (tables: TableInfo[], selectedTable?: string, databaseType?: string) => {
-      setAIContext({ tables, selectedTable, databaseType });
-    },
-    [setAIContext]
-  );
-
-  return {
-    isOpen: aiPanelOpen,
-    isConfigured,
-    isEnabled: isAIExtensionEnabled,
-    isLoading: aiIsLoading,
-    messages: aiMessages,
-    context: aiContext,
-    open: () => setAIPanelOpen(true),
-    close: () => setAIPanelOpen(false),
-    toggle: toggleAIPanel,
-    sendMessage,
-    clearMessages: clearAIMessages,
-    updateContext,
-    setApiKey: setAiApiKey,
-  };
-}
 
 /**
  * Hook for extension management (Marketplace)
@@ -78,7 +22,6 @@ export function useExtensions() {
     disableExtension,
     isInstalled,
     isEnabled,
-    installFromGitHub,
   } = useExtensionStore();
 
   // Get catalog with installation status
@@ -111,11 +54,6 @@ export function useExtensions() {
     [catalog]
   );
 
-  const communityExtensions = useMemo(
-    () => catalog.filter((e) => !e.isOfficial),
-    [catalog]
-  );
-
   const featuredExtensions = useMemo(
     () => catalog.filter((e) => e.isFeatured),
     [catalog]
@@ -133,7 +71,6 @@ export function useExtensions() {
     aiExtensions,
     validatorExtensions,
     officialExtensions,
-    communityExtensions,
     featuredExtensions,
     isLoading,
     error,
@@ -143,7 +80,6 @@ export function useExtensions() {
     disable: disableExtension,
     isInstalled,
     isEnabled,
-    installFromGitHub,
   };
 }
 
@@ -192,3 +128,4 @@ export function useExtensionSettings() {
     updateSettings,
   };
 }
+

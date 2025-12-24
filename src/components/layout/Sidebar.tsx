@@ -16,6 +16,7 @@ import {
   Unplug,
   RefreshCw,
   ShoppingBag,
+  Download,
   Copy,
   ClipboardPaste,
   Network,
@@ -44,6 +45,7 @@ import {
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
+import { useExtensionStore, useAIStore } from "@/extensions";
 import type { ConnectionInfo, TableInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
@@ -656,9 +658,13 @@ export function Sidebar() {
     appStyle,
     setShowConnectionModal,
     openSettingsWithTab,
+    setShowMarketplace,
   } = useUIStore();
   const { connections } = useConnectionsStore();
   const { loadConnections } = useDatabase();
+  const { isEnabled } = useExtensionStore();
+  
+  const isAIEnabled = isEnabled("ai-assistant");
 
   useEffect(() => {
     loadConnections();
@@ -737,22 +743,26 @@ export function Sidebar() {
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                size="sm"
-                className="flex-1 justify-start gap-2 h-9"
-                onClick={() => openSettingsWithTab("extensions")}
+                size="icon"
+                className="h-9 w-9 group"
+                onClick={() => setShowMarketplace(true)}
               >
-                {isDeveloper ? (
-                  <Wrench className="h-4 w-4" />
+                {!isAIEnabled ? (
+                  <div className="flex items-center gap-0.5">
+                    <Sparkles className="h-3 w-3 text-muted-foreground/50" />
+                    <span className="text-[10px] font-bold text-muted-foreground/50 leading-none">AI</span>
+                    <Download className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                  </div>
                 ) : (
                   <ShoppingBag className="h-4 w-4" />
                 )}
-                <span className="text-xs">{isDeveloper ? "Plugins" : "Marketplace"}</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">
-              {isDeveloper ? "Plugins" : "Marketplace"}
-            </TooltipContent>
+            <TooltipContent side="right">Extensions</TooltipContent>
           </Tooltip>
+
+          <div className="flex-1" />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -764,7 +774,7 @@ export function Sidebar() {
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Settings</TooltipContent>
+            <TooltipContent side="right">Settings</TooltipContent>
           </Tooltip>
         </div>
       </div>

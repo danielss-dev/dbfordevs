@@ -1,7 +1,7 @@
 import { Database, Clock, AlertCircle, CheckCircle, Loader2, Sparkles, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection } from "@/stores";
-import { useExtensionStore } from "@/extensions";
+import { useExtensionStore, useAIStore } from "@/extensions";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState, useRef } from "react";
 import { useAnime } from "@/hooks/useAnime";
@@ -11,9 +11,10 @@ export function StatusBar() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const { isConnecting } = useConnectionsStore();
   const { isExecuting } = useQueryStore();
-  const { pendingChanges } = useUIStore();
-  const { toggleAIPanel, aiPanelOpen, isEnabled } = useExtensionStore();
-  const { setShowMarketplace } = useUIStore();
+  const { pendingChanges, setShowMarketplace } = useUIStore();
+  const { isEnabled } = useExtensionStore();
+  const { togglePanel: toggleAIPanel, panelOpen: aiPanelOpen } = useAIStore();
+  
   const isAIEnabled = isEnabled("ai-assistant");
   const [version, setVersion] = useState<string>("");
   const { animate } = useAnime();

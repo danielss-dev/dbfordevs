@@ -47,7 +47,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useExtensions, type ExtensionWithStatus } from "@/extensions/hooks";
+import { useExtensions, type ExtensionWithStatus, useInstalledThemes } from "@/extensions";
 
 interface SettingRowProps {
   label: string;
@@ -352,7 +352,9 @@ export function SettingsDialog() {
     let label = builtInLabels[newTheme];
     if (!label && newTheme.startsWith("ext:")) {
       const extId = newTheme.slice(4);
-      const themeExt = themeExtensions.find(t => t.id === extId);
+      // useInstalledThemes is reactive, so it's fine to use it here in the parent scope
+      // but for this handler, we can just find it in the list
+      const themeExt = installedThemeExtensions.find(t => t.id === extId);
       label = themeExt?.name || extId;
     }
     
@@ -390,13 +392,14 @@ export function SettingsDialog() {
   const {
     catalog: extensionCatalog,
     installedExtensions,
-    themeExtensions,
     isLoading: extensionsLoading,
     install: installExtension,
     uninstall: uninstallExtension,
     enable: enableExtension,
     disable: disableExtension,
   } = useExtensions();
+
+  const installedThemeExtensions = useInstalledThemes();
 
   const filteredExtensions = useMemo(() => {
     return extensionCatalog.filter((ext) => {
@@ -716,7 +719,7 @@ export function SettingsDialog() {
                                 </div>
                               </SelectItem>
                               {/* Installed theme extensions */}
-                              {themeExtensions.filter(t => t.installed && t.enabled).map((themeExt) => (
+                              {installedThemeExtensions.map((themeExt) => (
                                 <SelectItem key={themeExt.id} value={`ext:${themeExt.id}`}>
                                   <div className="flex items-center gap-2">
                                     {themeExt.id.includes("dark") ? (
