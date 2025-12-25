@@ -70,20 +70,24 @@ function removeCSS(themeId: string): void {
 function applyThemeClass(themeId: string | null, variant: "light" | "dark" | null): void {
   const root = document.documentElement;
 
-  // Remove all theme classes
+  // Remove all extension theme classes
   const classesToRemove = Array.from(root.classList).filter(
-    (c) => c.startsWith(THEME_ROOT_CLASS_PREFIX) || c === "dark"
+    (c) => c.startsWith(THEME_ROOT_CLASS_PREFIX)
   );
   classesToRemove.forEach((c) => root.classList.remove(c));
 
   if (themeId) {
     // Add theme-specific class
     root.classList.add(`${THEME_ROOT_CLASS_PREFIX}${themeId}`);
-    // Add dark class if it's a dark variant (for components that rely on .dark)
+    
+    // Manage dark class for extension themes
     if (variant === "dark") {
       root.classList.add("dark");
+    } else if (variant === "light") {
+      root.classList.remove("dark");
     }
   }
+  // If themeId is null, we don't touch the "dark" class because it's managed by UI store
 }
 
 // ============================================================================

@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui";
 import { useAIStore } from "@/extensions/ai/store";
-import { PROVIDER_INFO, type AIProviderType } from "@/extensions/ai/types";
+import { PROVIDER_INFO, DEFAULT_MODELS, type AIProviderType } from "@/extensions/ai/types";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 
 interface AISettingsDialogProps {
@@ -48,8 +48,8 @@ export function AISettingsDialog({
     provider: settings.aiProvider || "anthropic",
     anthropicApiKey: settings.aiAnthropicApiKey || settings.aiApiKey || "",
     geminiApiKey: settings.aiGeminiApiKey || "",
-    anthropicModel: settings.aiAnthropicModel || "claude-haiku-4-5-20250514",
-    geminiModel: settings.aiGeminiModel || "gemini-flash-3",
+    anthropicModel: settings.aiAnthropicModel || DEFAULT_MODELS.anthropic,
+    geminiModel: settings.aiGeminiModel || DEFAULT_MODELS.gemini,
     temperature: settings.aiTemperature ?? 0.1,
     maxTokens: settings.aiMaxTokens ?? 2048,
   });
@@ -75,8 +75,8 @@ export function AISettingsDialog({
         provider: settings.aiProvider || "anthropic",
         anthropicApiKey: settings.aiAnthropicApiKey || settings.aiApiKey || "",
         geminiApiKey: settings.aiGeminiApiKey || "",
-        anthropicModel: settings.aiAnthropicModel || "claude-haiku-4-5-20250514",
-        geminiModel: settings.aiGeminiModel || "gemini-flash-3",
+        anthropicModel: settings.aiAnthropicModel || DEFAULT_MODELS.anthropic,
+        geminiModel: settings.aiGeminiModel || DEFAULT_MODELS.gemini,
         temperature: settings.aiTemperature ?? 0.1,
         maxTokens: settings.aiMaxTokens ?? 2048,
       });
@@ -298,8 +298,8 @@ export function AISettingsDialog({
                 )}
                 {currentProvider === "gemini" && (
                   <>
-                    <li><strong>Gemini Pro 3:</strong> Most capable for complex reasoning</li>
-                    <li><strong>Gemini Flash 3:</strong> Fast, optimized for speed</li>
+                    <li><strong>Gemini 3 Pro:</strong> Most capable for complex reasoning</li>
+                    <li><strong>Gemini 3 Flash:</strong> Fast, optimized for speed</li>
                   </>
                 )}
               </ul>

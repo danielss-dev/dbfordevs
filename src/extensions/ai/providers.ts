@@ -8,7 +8,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { tauriFetchWrapper } from "./tauri-fetch";
-import type { AISettings, AIProviderType } from "./types";
+import { DEFAULT_MODELS, type AISettings, type AIProviderType } from "./types";
 
 /**
  * Create an Anthropic provider instance with Tauri fetch
@@ -45,7 +45,13 @@ export function getProviderModel(settings: AISettings) {
       throw new Error("Anthropic API key is not configured");
     }
     const anthropic = createAnthropicProvider(apiKey);
-    const modelId = settings.aiAnthropicModel || "claude-haiku-4-5-20251001";
+    let modelId = settings.aiAnthropicModel || DEFAULT_MODELS.anthropic;
+
+    // Fix known buggy IDs from previous version
+    if (modelId === "claude-haiku-4-5-20250514") {
+      modelId = DEFAULT_MODELS.anthropic;
+    }
+
     return anthropic(modelId);
   }
 
@@ -55,7 +61,13 @@ export function getProviderModel(settings: AISettings) {
       throw new Error("Gemini API key is not configured");
     }
     const gemini = createGeminiProvider(apiKey);
-    const modelId = settings.aiGeminiModel || "gemini-3-flash-preview";
+    let modelId = settings.aiGeminiModel || DEFAULT_MODELS.gemini;
+
+    // Fix known buggy IDs from previous version
+    if (modelId === "gemini-flash-3") {
+      modelId = DEFAULT_MODELS.gemini;
+    }
+
     return gemini(modelId);
   }
 
@@ -74,8 +86,8 @@ export async function validateApiKey(
 
     const model =
       provider === "anthropic"
-        ? createAnthropicProvider(apiKey)("claude-haiku-4-5-20251001")
-        : createGeminiProvider(apiKey)("gemini-3-flash-preview");
+        ? createAnthropicProvider(apiKey)(DEFAULT_MODELS.anthropic)
+        : createGeminiProvider(apiKey)(DEFAULT_MODELS.gemini);
 
     await generateText({
       model,
