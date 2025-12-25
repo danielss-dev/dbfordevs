@@ -4,11 +4,9 @@ import { useDatabase } from "@/hooks";
 import { useToast } from "@/hooks/useToast";
 
 export function useCRUD() {
-  const { 
-    pendingChanges, 
-    clearPendingChanges, 
+  const {
+    pendingChanges,
     removePendingChange,
-    commitMode 
   } = useCRUDStore();
   const { updateRow, deleteRow, insertRow } = useDatabase();
   const activeTab = useQueryStore(selectActiveTab);

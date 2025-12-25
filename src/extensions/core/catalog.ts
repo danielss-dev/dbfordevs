@@ -42,19 +42,6 @@ export const EXTENSION_CATALOG: MarketplaceExtension[] = [
     downloads: "1.8k",
     rating: 4.8,
   },
-  // AI Extensions
-  {
-    id: "ai-assistant",
-    name: "AI Query Assistant",
-    description: "Generate SQL from natural language, optimize slow queries, and get intelligent explanations. Powered by Claude.",
-    version: "2.0.1",
-    author: "dbfordevs",
-    category: "ai",
-    isOfficial: true,
-    isFeatured: true,
-    downloads: "5.4k",
-    rating: 5.0,
-  },
   // Validator Extensions (for future)
   {
     id: "validator-csharp",
@@ -90,4 +77,6 @@ export const EXTENSION_CATALOG: MarketplaceExtension[] = [
     rating: 4.7,
   },
 ];
+
+
 

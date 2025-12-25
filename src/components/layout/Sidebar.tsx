@@ -7,7 +7,6 @@ import {
   Settings,
   ChevronRight,
   ChevronDown,
-  Wrench,
   Loader2,
   Pencil,
   Trash2,
@@ -20,6 +19,7 @@ import {
   Copy,
   ClipboardPaste,
   Network,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -45,7 +45,7 @@ import {
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
-import { useExtensionStore, useAIStore } from "@/extensions";
+import { useExtensionStore } from "@/extensions";
 import type { ConnectionInfo, TableInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
@@ -655,7 +655,6 @@ export function Sidebar() {
   const {
     sidebarOpen,
     sidebarWidth,
-    appStyle,
     setShowConnectionModal,
     openSettingsWithTab,
     setShowMarketplace,
@@ -673,8 +672,6 @@ export function Sidebar() {
   if (!sidebarOpen) {
     return null;
   }
-
-  const isDeveloper = appStyle === "developer";
 
   return (
     <aside

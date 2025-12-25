@@ -7,7 +7,6 @@ members = [
     "crates/validator-csharp",
     "crates/validator-nodejs",
     "crates/validator-python",
-    "crates/ai-assistant",
     "crates/theme-nordic",
 ]
 

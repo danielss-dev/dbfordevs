@@ -5,7 +5,9 @@
 /** Table information for AI context */
 export interface TableInfo {
   name: string;
-  columns: ColumnInfo[];
+  schema?: string;
+  tableType?: string;
+  columns?: ColumnInfo[];
 }
 
 /** Column information for AI context */
@@ -68,9 +70,138 @@ export interface AIChatResponse {
   explanation?: string;
 }
 
+/** Available AI provider types */
+export type AIProviderType = "anthropic" | "gemini";
+
+/** AI model definition */
+export interface AIModel {
+  id: string;
+  name: string;
+  default?: boolean;
+}
+
+/** Models available per provider */
+export interface AIModelsConfig {
+  anthropic: AIModel[];
+  gemini: AIModel[];
+}
+
 /** AI-specific settings */
 export interface AISettings {
+  // Core
+  /** Enable/disable AI Assistant feature */
+  aiEnabled?: boolean;
+
+  // Legacy field - kept for backwards compatibility
   aiApiKey?: string;
-  aiProvider: string;
+
+  /** Current AI provider */
+  aiProvider: AIProviderType;
+
+  // Provider-specific API keys
+  aiAnthropicApiKey?: string;
+  aiGeminiApiKey?: string;
+
+  // Provider-specific models
+  aiAnthropicModel?: string;
+  aiGeminiModel?: string;
+
+  /** Temperature for AI generation (0.0 - 2.0) */
+  aiTemperature?: number;
+
+  /** Max tokens for AI generation */
+  aiMaxTokens?: number;
 }
+
+/** Table reference for @ mentions */
+export interface TableReference {
+  name: string;
+  schema?: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+/** Column reference for @ mentions */
+export interface ColumnReference {
+  tableName: string;
+  columnName: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+/** Query history item
+ * @deprecated Use AIChatSession instead
+ */
+export interface AIQueryHistoryItem {
+  id: string;
+  prompt: string;
+  generatedSQL?: string;
+  provider: AIProviderType;
+  model: string;
+  timestamp: Date;
+  isFavorite: boolean;
+}
+
+/** Chat session containing multiple messages */
+export interface AIChatSession {
+  id: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+  messages: AIChatMessage[];
+  isFavorite: boolean;
+  connectionId?: string;
+  databaseType?: string;
+}
+
+/** Settings for chat history cleanup */
+export interface AIChatHistorySettings {
+  autoCleanupEnabled: boolean;
+  maxDaysOld: number;
+  maxChatCount: number;
+  cleanupOnStartup: boolean;
+}
+
+/** Storage metadata for versioning and migrations */
+export interface AIStorageMetadata {
+  version: number;
+  migratedAt?: Date;
+}
+
+/** Provider display info */
+export const PROVIDER_INFO: Record<AIProviderType, { name: string; displayName: string; icon: string; apiKeyUrl: string }> = {
+  anthropic: {
+    name: "anthropic",
+    displayName: "Anthropic (Claude)",
+    icon: "sparkles",
+    apiKeyUrl: "https://console.anthropic.com/settings/keys",
+  },
+  gemini: {
+    name: "gemini",
+    displayName: "Google (Gemini)",
+    icon: "stars",
+    apiKeyUrl: "https://aistudio.google.com/app/apikey",
+  },
+};
+
+/** Available models per provider (frontend-defined, no backend call needed) */
+export const AVAILABLE_MODELS: AIModelsConfig = {
+  anthropic: [
+    { id: "claude-opus-4-5-20251101", name: "Claude Opus 4.5" },
+    { id: "claude-sonnet-4-5-20251101", name: "Claude Sonnet 4.5" },
+    { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", default: true },
+  ],
+  gemini: [
+    { id: "gemini-3-pro-preview", name: "Gemini 3 Pro "},
+    { id: "gemini-3-flash-preview", name: "Gemini 3 Flash", default: true },
+  ],
+};
+
+/** Default models for each provider */
+export const DEFAULT_MODELS: Record<AIProviderType, string> = {
+  anthropic: "claude-haiku-4-5-20251001",
+  gemini: "gemini-3-flash-preview",
+};
+
+
 

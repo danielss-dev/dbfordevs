@@ -4,7 +4,6 @@
 
 import { useCallback } from "react";
 import { useAIStore } from "./store";
-import { useExtensionStore } from "../core/store";
 import type { TableInfo } from "./types";
 
 /**
@@ -13,22 +12,24 @@ import type { TableInfo } from "./types";
 export function useAIAssistant() {
   const {
     panelOpen,
-    messages,
     isLoading,
     context,
+    settings,
     setPanelOpen,
     togglePanel,
     sendMessage: storeSendMessage,
-    clearMessages,
     setContext,
-    settings,
     setApiKey,
+    isConfigured: checkIsConfigured,
+    getActiveSession,
   } = useAIStore();
 
-  const { isEnabled } = useExtensionStore();
-  
-  const isAIExtensionEnabled = isEnabled("ai-assistant");
-  const isConfigured = Boolean(settings.aiApiKey);
+  const isAIEnabled = settings.aiEnabled ?? true;
+  const isConfigured = checkIsConfigured();
+
+  // Get messages from active session
+  const activeSession = getActiveSession();
+  const messages = activeSession?.messages || [];
 
   const sendMessage = useCallback(
     async (message: string) => {
@@ -39,8 +40,8 @@ export function useAIAssistant() {
   );
 
   const updateContext = useCallback(
-    (tables: TableInfo[], selectedTable?: string, databaseType?: string) => {
-      setContext({ tables, selectedTable, databaseType });
+    (tables: TableInfo[], selectedTable?: string, databaseType?: string, connectionId?: string) => {
+      setContext({ tables, selectedTable, databaseType, connectionId });
     },
     [setContext]
   );
@@ -48,7 +49,7 @@ export function useAIAssistant() {
   return {
     isOpen: panelOpen,
     isConfigured,
-    isEnabled: isAIExtensionEnabled,
+    isEnabled: isAIEnabled,
     isLoading: isLoading,
     messages: messages,
     context: context,
@@ -56,9 +57,10 @@ export function useAIAssistant() {
     close: () => setPanelOpen(false),
     toggle: togglePanel,
     sendMessage,
-    clearMessages: clearMessages,
     updateContext,
     setApiKey: setApiKey,
   };
 }
+
+
 

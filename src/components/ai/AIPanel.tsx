@@ -2,11 +2,12 @@ import { useRef, useEffect, useState } from "react";
 import {
   X,
   Sparkles,
-  Trash2,
   Settings,
   Bot,
   AlertCircle,
   Loader2,
+  History,
+  Plus,
 } from "lucide-react";
 import {
   Button,
@@ -14,10 +15,15 @@ import {
   Badge,
 } from "@/components/ui";
 import { useAIAssistant } from "@/extensions";
+import { useAIStore } from "@/extensions/ai/store";
+import { PROVIDER_INFO } from "@/extensions/ai/types";
+import { useConnectionsStore, useQueryStore, selectActiveConnection } from "@/stores";
 import { cn } from "@/lib/utils";
 import { ChatMessage } from "./ChatMessage";
 import { AIInput } from "./AIInput";
 import { AISettingsDialog } from "./AISettingsDialog";
+import { ProviderModelSwitcher } from "./ProviderModelSwitcher";
+import { ChatHistoryPanel } from "./ChatHistoryPanel";
 
 export function AIPanel() {
   const {
@@ -28,12 +34,47 @@ export function AIPanel() {
     messages,
     close,
     sendMessage,
-    clearMessages,
     context,
+    updateContext,
   } = useAIAssistant();
+
+  const {
+    getCurrentProvider,
+    historyPanelOpen,
+    toggleHistoryPanel,
+    getActiveSession,
+    createNewChatSession,
+  } = useAIStore();
+
+  const activeSession = getActiveSession();
+
+  // Get active connection and its tables
+  const activeConnection = useConnectionsStore(selectActiveConnection);
+  const tablesByConnection = useQueryStore((state) => state.tablesByConnection);
 
   const [showSettings, setShowSettings] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const currentProvider = getCurrentProvider();
+  const providerDisplayName = PROVIDER_INFO[currentProvider]?.displayName || "AI";
+
+  // Sync tables from active connection to AI context
+  useEffect(() => {
+    if (activeConnection) {
+      const tables = tablesByConnection[activeConnection.id] || [];
+      console.log("[AIPanel] Syncing tables to context:", {
+        connectionId: activeConnection.id,
+        databaseType: activeConnection.databaseType,
+        tableCount: tables.length,
+        tables: tables.slice(0, 3), // Log first 3 for debugging
+      });
+      // Pass connectionId so we can fetch table schemas when @table is used
+      updateContext(tables, undefined, activeConnection.databaseType, activeConnection.id);
+    } else {
+      console.log("[AIPanel] No active connection, clearing context");
+      updateContext([], undefined, undefined, undefined);
+    }
+  }, [activeConnection, tablesByConnection, updateContext]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -61,10 +102,15 @@ export function AIPanel() {
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-semibold text-sm">AI Assistant</h2>
-              <p className="text-[10px] text-muted-foreground">
-                Powered by Claude
-              </p>
+              <h2 className="font-semibold text-sm">
+                {activeSession ? activeSession.title : "AI Assistant"}
+              </h2>
+              {activeSession && (
+                <p className="text-xs text-muted-foreground">
+                  {activeSession.messages.length} messages
+                </p>
+              )}
+              {!activeSession && <ProviderModelSwitcher />}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -72,7 +118,17 @@ export function AIPanel() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
+              onClick={toggleHistoryPanel}
+              title="Chat History"
+            >
+              <History className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
               onClick={() => setShowSettings(true)}
+              title="Settings"
             >
               <Settings className="h-4 w-4" />
             </Button>
@@ -80,16 +136,17 @@ export function AIPanel() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={clearMessages}
-              disabled={messages.length === 0}
+              onClick={createNewChatSession}
+              title="New Chat"
             >
-              <Trash2 className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8"
               onClick={close}
+              title="Close"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -112,8 +169,8 @@ export function AIPanel() {
         )}
 
         {/* Messages area */}
-        <ScrollArea className="flex-1" ref={scrollRef}>
-          <div className="flex flex-col gap-4 p-4">
+        <ScrollArea className="flex-1 overflow-hidden" ref={scrollRef}>
+          <div className="flex flex-col gap-6 p-4 pb-6 overflow-hidden">
             {!isConfigured && (
               <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
@@ -122,7 +179,7 @@ export function AIPanel() {
                 <div>
                   <h3 className="font-medium">API Key Required</h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-[280px]">
-                    Please configure your Anthropic API key to use the AI
+                    Please configure your {providerDisplayName} API key to use the AI
                     Assistant.
                   </p>
                 </div>
@@ -191,6 +248,11 @@ export function AIPanel() {
       </div>
 
       <AISettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+
+      {/* History Panel */}
+      {historyPanelOpen && (
+        <ChatHistoryPanel onClose={toggleHistoryPanel} />
+      )}
     </>
   );
 }
