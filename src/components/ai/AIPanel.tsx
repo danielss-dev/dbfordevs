@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils";
 import { ChatMessage } from "./ChatMessage";
 import { AIInput } from "./AIInput";
 import { AISettingsDialog } from "./AISettingsDialog";
-import { ProviderModelSwitcher } from "./ProviderModelSwitcher";
 import { ChatHistoryPanel } from "./ChatHistoryPanel";
 
 export function AIPanel() {
@@ -110,7 +109,6 @@ export function AIPanel() {
                   {activeSession.messages.length} messages
                 </p>
               )}
-              {!activeSession && <ProviderModelSwitcher />}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -244,7 +242,7 @@ export function AIPanel() {
         </ScrollArea>
 
         {/* Input area */}
-        {isConfigured && <AIInput onSend={sendMessage} isLoading={isLoading} />}
+        <AIInput onSend={sendMessage} isLoading={isLoading} />
       </div>
 
       <AISettingsDialog open={showSettings} onOpenChange={setShowSettings} />

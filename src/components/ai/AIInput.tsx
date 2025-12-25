@@ -4,6 +4,7 @@ import { Button } from "@/components/ui";
 import { useAIStore } from "@/extensions/ai/store";
 import { cn } from "@/lib/utils";
 import { TableReferenceDropdown } from "./TableReferenceDropdown";
+import { ProviderModelSwitcher } from "./ProviderModelSwitcher";
 
 interface AIInputProps {
   onSend: (message: string) => void;
@@ -24,8 +25,9 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
   const highlightRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { context } = useAIStore();
+  const { context, isConfigured: checkConfigured } = useAIStore();
   const tables = context.tables || [];
+  const configured = checkConfigured();
 
   // Check if a reference matches any table (handles both "table" and "schema.table" formats)
   const isValidTableReference = useCallback((reference: string): boolean => {
@@ -206,7 +208,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
   };
 
   const handleSubmit = () => {
-    if (!value.trim() || isLoading) return;
+    if (!value.trim() || isLoading || !configured) return;
     onSend(value.trim());
     setValue("");
     setDropdown((prev) => ({ ...prev, show: false }));
@@ -226,6 +228,9 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
 
   return (
     <div className="border-t border-border bg-muted/30 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <ProviderModelSwitcher />
+      </div>
       <div
         ref={containerRef}
         className={cn(
@@ -265,8 +270,8 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onScroll={handleScroll}
-            placeholder="Ask a question... Use @ to reference tables"
-            disabled={isLoading}
+            placeholder={configured ? "Ask a question... Use @ to reference tables" : "Please configure API key to chat"}
+            disabled={isLoading || !configured}
             rows={1}
             className={cn(
               "relative w-full resize-none bg-transparent px-2 py-2 text-sm",
@@ -281,7 +286,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
         <Button
           size="icon"
           onClick={handleSubmit}
-          disabled={!value.trim() || isLoading}
+          disabled={!value.trim() || isLoading || !configured}
           className={cn(
             "h-9 w-9 shrink-0 rounded-lg",
             "bg-gradient-to-r from-violet-500 to-purple-600",
