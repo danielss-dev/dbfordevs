@@ -2,7 +2,44 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2025-12-25
+
+### Added
+
+#### AI Query Assistant
+- **AI-Powered Chat Interface**: Introduced a dedicated AI panel for natural language interaction with your database
+- **Multi-Provider Support**:
+  - Integrated **Anthropic Claude** (supporting Claude 4.5 models)
+  - Integrated **Google Gemini** (supporting Gemini 3 models)
+- **SQL Generation**: Generate complex SQL queries from natural language descriptions with engine-specific syntax
+- **Query Explanation**: Step-by-step breakdown of SQL logic, performance, and best practices
+- **Context-Awareness**:
+  - Automatic schema context enrichment for better AI understanding
+  - Implemented `@` mentions for tables and columns in chat prompts
+- **Chat Management**:
+  - Persistent local storage for AI conversations
+  - Chat history session management (create, rename, delete, favorite)
+  - Configurable auto-cleanup for history sessions
+- **Secure Infrastructure**:
+  - Native Tauri HTTP proxy for AI API calls to bypass CORS restrictions
+  - Secure local storage for API keys
+
+#### UI & Experience
+- **Sidebar Integration**: Added sparkles icon to the main sidebar for quick AI access
+- **AI Settings**: Dedicated settings section for provider configuration and API key management
+- **Enhanced Code Blocks**: SQL code blocks in AI chat now include "Copy to Editor" and "Execute" actions
+
+### Changed
+- **Tauri Integration**: Updated internal networking to leverage Tauri's native capabilities for AI features
+- **Project Structure**: Organized AI logic into modular extension structure under `src/extensions/ai`
+
+### Fixed
+- Fixed various minor UI inconsistencies in sidebar layouts
+
+---
+
 ## [0.1.2] - 2025-12-21
+
 
 ### Added
 
