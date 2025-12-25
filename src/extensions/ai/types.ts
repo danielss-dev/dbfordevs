@@ -129,7 +129,9 @@ export interface ColumnReference {
   endIndex: number;
 }
 
-/** Query history item */
+/** Query history item
+ * @deprecated Use AIChatSession instead
+ */
 export interface AIQueryHistoryItem {
   id: string;
   prompt: string;
@@ -138,6 +140,32 @@ export interface AIQueryHistoryItem {
   model: string;
   timestamp: Date;
   isFavorite: boolean;
+}
+
+/** Chat session containing multiple messages */
+export interface AIChatSession {
+  id: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+  messages: AIChatMessage[];
+  isFavorite: boolean;
+  connectionId?: string;
+  databaseType?: string;
+}
+
+/** Settings for chat history cleanup */
+export interface AIChatHistorySettings {
+  autoCleanupEnabled: boolean;
+  maxDaysOld: number;
+  maxChatCount: number;
+  cleanupOnStartup: boolean;
+}
+
+/** Storage metadata for versioning and migrations */
+export interface AIStorageMetadata {
+  version: number;
+  migratedAt?: Date;
 }
 
 /** Provider display info */

@@ -3,6 +3,7 @@ export { ChatMessage } from "./ChatMessage";
 export { AIInput } from "./AIInput";
 export { AISettingsDialog } from "./AISettingsDialog";
 export { ProviderModelSwitcher } from "./ProviderModelSwitcher";
-export { QueryHistoryPanel } from "./QueryHistoryPanel";
+export { ChatHistoryPanel } from "./ChatHistoryPanel";
+export { ChatHistoryItem } from "./ChatHistoryItem";
 export { TableReferenceDropdown } from "./TableReferenceDropdown";
 

@@ -12,21 +12,24 @@ import type { TableInfo } from "./types";
 export function useAIAssistant() {
   const {
     panelOpen,
-    messages,
     isLoading,
     context,
     settings,
     setPanelOpen,
     togglePanel,
     sendMessage: storeSendMessage,
-    clearMessages,
     setContext,
     setApiKey,
     isConfigured: checkIsConfigured,
+    getActiveSession,
   } = useAIStore();
 
   const isAIEnabled = settings.aiEnabled ?? true;
   const isConfigured = checkIsConfigured();
+
+  // Get messages from active session
+  const activeSession = getActiveSession();
+  const messages = activeSession?.messages || [];
 
   const sendMessage = useCallback(
     async (message: string) => {
@@ -54,7 +57,6 @@ export function useAIAssistant() {
     close: () => setPanelOpen(false),
     toggle: togglePanel,
     sendMessage,
-    clearMessages: clearMessages,
     updateContext,
     setApiKey: setApiKey,
   };

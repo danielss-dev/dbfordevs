@@ -2,12 +2,12 @@ import { useRef, useEffect, useState } from "react";
 import {
   X,
   Sparkles,
-  Trash2,
   Settings,
   Bot,
   AlertCircle,
   Loader2,
   History,
+  Plus,
 } from "lucide-react";
 import {
   Button,
@@ -23,7 +23,7 @@ import { ChatMessage } from "./ChatMessage";
 import { AIInput } from "./AIInput";
 import { AISettingsDialog } from "./AISettingsDialog";
 import { ProviderModelSwitcher } from "./ProviderModelSwitcher";
-import { QueryHistoryPanel } from "./QueryHistoryPanel";
+import { ChatHistoryPanel } from "./ChatHistoryPanel";
 
 export function AIPanel() {
   const {
@@ -34,7 +34,6 @@ export function AIPanel() {
     messages,
     close,
     sendMessage,
-    clearMessages,
     context,
     updateContext,
   } = useAIAssistant();
@@ -43,7 +42,11 @@ export function AIPanel() {
     getCurrentProvider,
     historyPanelOpen,
     toggleHistoryPanel,
+    getActiveSession,
+    createNewChatSession,
   } = useAIStore();
+
+  const activeSession = getActiveSession();
 
   // Get active connection and its tables
   const activeConnection = useConnectionsStore(selectActiveConnection);
@@ -99,8 +102,15 @@ export function AIPanel() {
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-semibold text-sm">AI Assistant</h2>
-              <ProviderModelSwitcher />
+              <h2 className="font-semibold text-sm">
+                {activeSession ? activeSession.title : "AI Assistant"}
+              </h2>
+              {activeSession && (
+                <p className="text-xs text-muted-foreground">
+                  {activeSession.messages.length} messages
+                </p>
+              )}
+              {!activeSession && <ProviderModelSwitcher />}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -109,7 +119,7 @@ export function AIPanel() {
               size="icon"
               className="h-8 w-8"
               onClick={toggleHistoryPanel}
-              title="Query History"
+              title="Chat History"
             >
               <History className="h-4 w-4" />
             </Button>
@@ -126,11 +136,10 @@ export function AIPanel() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={clearMessages}
-              disabled={messages.length === 0}
-              title="Clear Messages"
+              onClick={createNewChatSession}
+              title="New Chat"
             >
-              <Trash2 className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -242,7 +251,7 @@ export function AIPanel() {
 
       {/* History Panel */}
       {historyPanelOpen && (
-        <QueryHistoryPanel onClose={toggleHistoryPanel} onSelectQuery={sendMessage} />
+        <ChatHistoryPanel onClose={toggleHistoryPanel} />
       )}
     </>
   );

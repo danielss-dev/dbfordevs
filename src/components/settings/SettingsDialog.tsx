@@ -615,19 +615,102 @@ export function SettingsDialog() {
                         </div>
 
                         {settings.aiEnabled && (
-                          <div className="rounded-xl border border-border bg-muted/50 p-4">
-                            <div className="flex items-start gap-3">
-                              <Bot className="h-5 w-5 text-violet-500 mt-0.5" />
-                              <div className="flex-1 space-y-2">
-                                <h3 className="font-medium text-sm">Configure AI Settings</h3>
-                                <p className="text-xs text-muted-foreground leading-relaxed">
-                                  To configure your AI provider, API keys, and model preferences, click the
-                                  <Sparkles className="inline h-3.5 w-3.5 mx-1 text-violet-500" />
-                                  icon in the sidebar to open the AI Assistant panel, then click the settings icon.
-                                </p>
+                          <>
+                            <div className="rounded-xl border border-border bg-muted/50 p-4">
+                              <div className="flex items-start gap-3">
+                                <Bot className="h-5 w-5 text-violet-500 mt-0.5" />
+                                <div className="flex-1 space-y-2">
+                                  <h3 className="font-medium text-sm">Configure AI Settings</h3>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">
+                                    To configure your AI provider, API keys, and model preferences, click the
+                                    <Sparkles className="inline h-3.5 w-3.5 mx-1 text-violet-500" />
+                                    icon in the sidebar to open the AI Assistant panel, then click the settings icon.
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
+
+                            {(() => {
+                              const { historySettings, updateHistorySettings } = useAIStore.getState();
+
+                              return (
+                                <div className="rounded-xl border border-border bg-card p-1">
+                                  <div className="px-4 py-3 border-b border-border">
+                                    <h3 className="font-medium text-sm">Chat History Cleanup</h3>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Automatically manage your chat history storage
+                                    </p>
+                                  </div>
+
+                                  <SettingRow
+                                    label="Auto-cleanup on startup"
+                                    description="Automatically remove old chats when the app opens"
+                                  >
+                                    <Checkbox
+                                      checked={historySettings.cleanupOnStartup}
+                                      onCheckedChange={(checked: boolean) => {
+                                        updateHistorySettings({ cleanupOnStartup: checked });
+                                        toast({
+                                          title: checked ? "Auto-cleanup enabled" : "Auto-cleanup disabled",
+                                          description: checked
+                                            ? "Old chats will be cleaned up on app startup."
+                                            : "Auto-cleanup has been disabled.",
+                                        });
+                                      }}
+                                    />
+                                  </SettingRow>
+
+                                  <Separator />
+
+                                  <SettingRow
+                                    label="Delete chats older than (days)"
+                                    description="Automatically remove chats older than this many days"
+                                  >
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="365"
+                                      value={historySettings.maxDaysOld}
+                                      onChange={(e) => {
+                                        const value = parseInt(e.target.value);
+                                        if (!isNaN(value) && value > 0) {
+                                          updateHistorySettings({ maxDaysOld: value });
+                                        }
+                                      }}
+                                      className="w-20"
+                                    />
+                                  </SettingRow>
+
+                                  <Separator />
+
+                                  <SettingRow
+                                    label="Keep maximum chats"
+                                    description="Maximum number of chats to keep (most recent)"
+                                  >
+                                    <Input
+                                      type="number"
+                                      min="10"
+                                      max="500"
+                                      value={historySettings.maxChatCount}
+                                      onChange={(e) => {
+                                        const value = parseInt(e.target.value);
+                                        if (!isNaN(value) && value >= 10) {
+                                          updateHistorySettings({ maxChatCount: value });
+                                        }
+                                      }}
+                                      className="w-20"
+                                    />
+                                  </SettingRow>
+
+                                  <div className="px-4 py-3 bg-muted/30">
+                                    <p className="text-xs text-muted-foreground">
+                                      <strong>Note:</strong> Favorited chats are never deleted during auto-cleanup.
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </>
                         )}
                       </div>
                     );

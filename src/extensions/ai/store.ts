@@ -15,9 +15,13 @@ import type {
   AIProviderType,
   AIQueryHistoryItem,
   ColumnInfo,
+  AIChatSession,
+  AIChatHistorySettings,
+  AIStorageMetadata,
 } from "./types";
 import { AVAILABLE_MODELS, DEFAULT_MODELS } from "./types";
 import * as api from "./api";
+import { generateChatTitle, cleanupOldChats, migrateToVersion1 } from "./utils";
 
 /** Extract @table references from a message (supports @table and @schema.table formats) */
 function extractTableReferences(message: string): string[] {
@@ -90,7 +94,6 @@ interface AIState {
 
   // AI Panel state
   panelOpen: boolean;
-  messages: AIChatMessage[];
   isLoading: boolean;
   context: {
     connectionId?: string;
@@ -101,9 +104,18 @@ interface AIState {
     selectedTable?: string;
   };
 
-  // Query history
-  queryHistory: AIQueryHistoryItem[];
+  // Chat sessions (replaces messages and queryHistory)
+  chatSessions: AIChatSession[];
+  activeChatSessionId: string | null;
   historyPanelOpen: boolean;
+
+  // History settings
+  historySettings: AIChatHistorySettings;
+  storageMetadata: AIStorageMetadata;
+
+  // Legacy fields for migration
+  _legacy_messages?: AIChatMessage[];
+  _legacy_queryHistory?: AIQueryHistoryItem[];
 
   // Table reference dropdown state
   tableDropdownOpen: boolean;
@@ -113,7 +125,6 @@ interface AIState {
   setPanelOpen: (open: boolean) => void;
   togglePanel: () => void;
   sendMessage: (message: string) => Promise<void>;
-  clearMessages: () => void;
   setContext: (context: Partial<AIState["context"]>) => void;
   updateSettings: (settings: Partial<AISettings>) => Promise<void>;
   setApiKey: (key: string, provider?: AIProviderType) => Promise<void>;
@@ -123,11 +134,14 @@ interface AIState {
   setProvider: (provider: AIProviderType) => Promise<void>;
   setModel: (provider: AIProviderType, model: string) => Promise<void>;
 
-  // History actions
+  // Session actions (replaces clearMessages, addToHistory, clearHistory)
+  createNewChatSession: () => void;
+  switchChatSession: (sessionId: string) => void;
+  deleteChatSession: (sessionId: string) => void;
+  updateChatSessionTitle: (sessionId: string, title: string) => void;
+  toggleSessionFavorite: (sessionId: string) => void;
+  updateHistorySettings: (settings: Partial<AIChatHistorySettings>) => void;
   toggleHistoryPanel: () => void;
-  addToHistory: (item: Omit<AIQueryHistoryItem, "id" | "timestamp">) => void;
-  toggleFavorite: (id: string) => void;
-  clearHistory: () => void;
 
   // Table reference actions
   openTableDropdown: (filter: string) => void;
@@ -137,6 +151,7 @@ interface AIState {
   getCurrentProvider: () => AIProviderType;
   getCurrentModel: () => string;
   isConfigured: () => boolean;
+  getActiveSession: () => AIChatSession | null;
 }
 
 export const useAIStore = create<AIState>()(
@@ -150,13 +165,22 @@ export const useAIStore = create<AIState>()(
       availableModels: null,
       modelsLoading: false,
       panelOpen: false,
-      messages: [],
       isLoading: false,
       context: {
         tables: [],
       },
-      queryHistory: [],
+      chatSessions: [],
+      activeChatSessionId: null,
       historyPanelOpen: false,
+      historySettings: {
+        autoCleanupEnabled: true,
+        maxDaysOld: 30,
+        maxChatCount: 100,
+        cleanupOnStartup: true,
+      },
+      storageMetadata: {
+        version: 0,
+      },
       tableDropdownOpen: false,
       tableDropdownFilter: "",
 
@@ -167,10 +191,23 @@ export const useAIStore = create<AIState>()(
 
       // Chat actions
       sendMessage: async (message: string) => {
-        const { context, messages, settings, addToHistory } = get();
+        const { context, chatSessions, activeChatSessionId, settings, createNewChatSession } = get();
 
         console.log("[AI Store] sendMessage called with:", message);
         console.log("[AI Store] Current context:", JSON.stringify(context, null, 2));
+
+        // Create new session if none active
+        let sessionId = activeChatSessionId;
+        if (!sessionId) {
+          createNewChatSession();
+          sessionId = get().activeChatSessionId;
+        }
+
+        const activeSession = chatSessions.find(s => s.id === sessionId);
+        if (!activeSession) {
+          console.error("[AI Store] No active session found");
+          return;
+        }
 
         const userMessage: AIChatMessage = {
           id: crypto.randomUUID(),
@@ -179,10 +216,22 @@ export const useAIStore = create<AIState>()(
           timestamp: new Date(),
         };
 
-        set({
-          messages: [...messages, userMessage],
+        // Add user message to session
+        const messages = [...activeSession.messages, userMessage];
+
+        // Auto-generate title from first message
+        const title = activeSession.messages.length === 0
+          ? generateChatTitle(userMessage)
+          : activeSession.title;
+
+        set((state) => ({
+          chatSessions: state.chatSessions.map(s =>
+            s.id === sessionId
+              ? { ...s, messages, title, updatedAt: new Date() }
+              : s
+          ),
           isLoading: true,
-        });
+        }));
 
         try {
           // Extract @table references from the message
@@ -289,21 +338,15 @@ export const useAIStore = create<AIState>()(
             timestamp: new Date(),
           };
 
+          // Add assistant message to session
           set((state) => ({
-            messages: [...state.messages, assistantMessage],
+            chatSessions: state.chatSessions.map(s =>
+              s.id === sessionId
+                ? { ...s, messages: [...s.messages, assistantMessage], updatedAt: new Date() }
+                : s
+            ),
             isLoading: false,
           }));
-
-          // Add to history if SQL was generated
-          if (response.sql) {
-            addToHistory({
-              prompt: message,
-              generatedSQL: response.sql,
-              provider: settings.aiProvider,
-              model: get().getCurrentModel(),
-              isFavorite: false,
-            });
-          }
         } catch (error) {
           const errorMessage: AIChatMessage = {
             id: crypto.randomUUID(),
@@ -316,13 +359,15 @@ export const useAIStore = create<AIState>()(
           };
 
           set((state) => ({
-            messages: [...state.messages, errorMessage],
+            chatSessions: state.chatSessions.map(s =>
+              s.id === sessionId
+                ? { ...s, messages: [...s.messages, errorMessage], updatedAt: new Date() }
+                : s
+            ),
             isLoading: false,
           }));
         }
       },
-
-      clearMessages: () => set({ messages: [] }),
 
       setContext: (context) =>
         set((state) => ({
@@ -358,30 +403,66 @@ export const useAIStore = create<AIState>()(
         await get().updateSettings({ [modelField]: model });
       },
 
-      // History actions
-      toggleHistoryPanel: () =>
-        set((state) => ({ historyPanelOpen: !state.historyPanelOpen })),
-
-      addToHistory: (item) => {
-        const newItem: AIQueryHistoryItem = {
-          ...item,
+      // Session actions
+      createNewChatSession: () => {
+        const newSession: AIChatSession = {
           id: crypto.randomUUID(),
-          timestamp: new Date(),
+          title: "New Chat",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          messages: [],
+          isFavorite: false,
+          connectionId: get().context.connectionId,
+          databaseType: get().context.databaseType,
         };
         set((state) => ({
-          queryHistory: [newItem, ...state.queryHistory].slice(0, 100), // Keep last 100
+          chatSessions: [newSession, ...state.chatSessions],
+          activeChatSessionId: newSession.id,
         }));
       },
 
-      toggleFavorite: (id: string) => {
+      switchChatSession: (sessionId: string) => {
+        set({ activeChatSessionId: sessionId });
+      },
+
+      deleteChatSession: (sessionId: string) => {
+        set((state) => {
+          const newSessions = state.chatSessions.filter(s => s.id !== sessionId);
+          // If we deleted the active session, switch to the first one
+          const newActiveId = state.activeChatSessionId === sessionId
+            ? (newSessions.length > 0 ? newSessions[0].id : null)
+            : state.activeChatSessionId;
+          return {
+            chatSessions: newSessions,
+            activeChatSessionId: newActiveId,
+          };
+        });
+      },
+
+      updateChatSessionTitle: (sessionId: string, title: string) => {
         set((state) => ({
-          queryHistory: state.queryHistory.map((item) =>
-            item.id === id ? { ...item, isFavorite: !item.isFavorite } : item
+          chatSessions: state.chatSessions.map(s =>
+            s.id === sessionId ? { ...s, title } : s
           ),
         }));
       },
 
-      clearHistory: () => set({ queryHistory: [] }),
+      toggleSessionFavorite: (sessionId: string) => {
+        set((state) => ({
+          chatSessions: state.chatSessions.map(s =>
+            s.id === sessionId ? { ...s, isFavorite: !s.isFavorite } : s
+          ),
+        }));
+      },
+
+      updateHistorySettings: (newSettings: Partial<AIChatHistorySettings>) => {
+        set((state) => ({
+          historySettings: { ...state.historySettings, ...newSettings },
+        }));
+      },
+
+      toggleHistoryPanel: () =>
+        set((state) => ({ historyPanelOpen: !state.historyPanelOpen })),
 
       // Table reference actions
       openTableDropdown: (filter: string) =>
@@ -417,19 +498,57 @@ export const useAIStore = create<AIState>()(
         }
         return !!apiKey;
       },
+
+      getActiveSession: () => {
+        const { chatSessions, activeChatSessionId } = get();
+        return chatSessions.find(s => s.id === activeChatSessionId) || null;
+      },
     }),
     {
       name: "dbfordevs-ai-assistant",
       partialize: (state) => ({
         settings: state.settings,
-        messages: state.messages.slice(-50),
-        queryHistory: state.queryHistory.slice(0, 100),
+        historySettings: state.historySettings,
+        storageMetadata: state.storageMetadata,
+        activeChatSessionId: state.activeChatSessionId,
+        // Limit stored sessions and messages per session
+        chatSessions: state.chatSessions.slice(0, 100).map(session => ({
+          ...session,
+          messages: session.messages.slice(-50), // Max 50 messages per session
+        })),
+        // Keep legacy fields during migration
+        _legacy_messages: state._legacy_messages,
+        _legacy_queryHistory: state._legacy_queryHistory,
+        messages: state._legacy_messages || (state as any).messages, // Capture old messages field
+        queryHistory: state._legacy_queryHistory || (state as any).queryHistory, // Capture old queryHistory field
       }),
       onRehydrateStorage: () => (state) => {
-        // Settings are stored locally - just log rehydration
-        if (state) {
-          console.log("[AI Store] Rehydrated settings from local storage");
+        if (!state) return;
+
+        console.log("[AI Store] Rehydrating from local storage...");
+
+        // Check version and run migration if needed
+        const currentVersion = state.storageMetadata?.version || 0;
+
+        if (currentVersion === 0) {
+          // Store legacy fields for migration
+          state._legacy_messages = (state as any).messages;
+          state._legacy_queryHistory = (state as any).queryHistory;
+
+          console.log("[AI Store] Found version 0, running migration...");
+          migrateToVersion1(state);
         }
+
+        // Auto-cleanup if enabled
+        if (state.historySettings?.cleanupOnStartup) {
+          console.log("[AI Store] Running auto-cleanup on startup...");
+          state.chatSessions = cleanupOldChats(
+            state.chatSessions,
+            state.historySettings
+          );
+        }
+
+        console.log(`[AI Store] Rehydration complete. ${state.chatSessions.length} chat sessions loaded.`);
       },
     }
   )
