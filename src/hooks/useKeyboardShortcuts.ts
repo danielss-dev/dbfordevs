@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useUIStore, useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
-import { useExtensionStore, useAIStore } from "@/extensions";
+import { useAIStore } from "@/extensions";
 
 export function useKeyboardShortcuts() {
   const {
@@ -26,9 +26,8 @@ export function useKeyboardShortcuts() {
 
   const activeConnection = useConnectionsStore(selectActiveConnection);
 
-  const { isEnabled } = useExtensionStore();
-  const { panelOpen: aiPanelOpen, togglePanel: toggleAIPanel, setPanelOpen: setAIPanelOpen } = useAIStore();
-  const isAIEnabled = isEnabled("ai-assistant");
+  const { settings: aiSettings, panelOpen: aiPanelOpen, togglePanel: toggleAIPanel, setPanelOpen: setAIPanelOpen } = useAIStore();
+  const isAIEnabled = aiSettings.aiEnabled ?? true;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -85,8 +84,8 @@ export function useKeyboardShortcuts() {
         toggleSidebar();
       }
 
-      // Mod + Alt + B: Toggle AI Assistant (Cmd+Option+B on Mac, Ctrl+Alt+B on Windows)
-      if (isMod && e.altKey && e.key.toLowerCase() === "b") {
+      // Mod + Alt + B or Mod + Shift + A: Toggle AI Assistant
+      if ((isMod && e.altKey && e.key.toLowerCase() === "b") || (isMod && isShift && e.key.toLowerCase() === "a")) {
         e.preventDefault();
         if (isAIEnabled) {
           toggleAIPanel();

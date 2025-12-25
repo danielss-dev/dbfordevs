@@ -1,21 +1,19 @@
-import { Database, Clock, AlertCircle, CheckCircle, Loader2, Sparkles, Download } from "lucide-react";
+import { Database, Clock, AlertCircle, CheckCircle, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection } from "@/stores";
-import { useExtensionStore, useAIStore } from "@/extensions";
+import { useAIStore } from "@/extensions";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState, useRef } from "react";
 import { useAnime } from "@/hooks/useAnime";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 
 export function StatusBar() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const { isConnecting } = useConnectionsStore();
   const { isExecuting } = useQueryStore();
-  const { pendingChanges, setShowMarketplace } = useUIStore();
-  const { isEnabled } = useExtensionStore();
-  const { togglePanel: toggleAIPanel, panelOpen: aiPanelOpen } = useAIStore();
+  const { pendingChanges } = useUIStore();
+  const { togglePanel: toggleAIPanel, panelOpen: aiPanelOpen, settings: aiSettings } = useAIStore();
   
-  const isAIEnabled = isEnabled("ai-assistant");
+  const isAIEnabled = aiSettings.aiEnabled ?? true;
   const [version, setVersion] = useState<string>("");
   const { animate } = useAnime();
   const statusRef = useRef<HTMLDivElement>(null);
@@ -124,8 +122,7 @@ export function StatusBar() {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        {/* AI Assistant button */}
-        {isAIEnabled ? (
+        {isAIEnabled && (
           <button
             onClick={toggleAIPanel}
             className={cn(
@@ -146,23 +143,6 @@ export function StatusBar() {
               AI
             </span>
           </button>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setShowMarketplace(true)}
-                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-all hover:bg-muted group"
-                title="Install AI Assistant extension"
-              >
-                <Sparkles className="h-3 w-3 text-muted-foreground/50" />
-                <span className="font-medium text-muted-foreground/50">AI</span>
-                <Download className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p>Install AI Assistant extension</p>
-            </TooltipContent>
-          </Tooltip>
         )}
 
         {/* App info */}
