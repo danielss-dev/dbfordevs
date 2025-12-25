@@ -22,7 +22,7 @@ import { useUIStore } from "@/stores";
 import { useExtensions } from "@/extensions";
 import { useToast } from "@/hooks/useToast";
 
-type CategoryFilter = "all" | "theme" | "ai" | "validator" | "exporter" | "installed";
+type CategoryFilter = "all" | "theme" | "validator" | "exporter" | "installed";
 
 export function Marketplace() {
   const { showMarketplace, setShowMarketplace } = useUIStore();
@@ -178,7 +178,6 @@ export function Marketplace() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="theme">Themes</TabsTrigger>
-              <TabsTrigger value="ai">AI</TabsTrigger>
               <TabsTrigger value="validator">Validators</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -226,14 +225,6 @@ export function Marketplace() {
               >
                 <Layout className="h-4 w-4" />
                 Themes
-              </Button>
-              <Button 
-                variant="ghost" 
-                className={`w-full justify-start gap-2 text-sm ${category === "ai" ? "bg-primary/5 text-primary font-medium" : ""}`}
-                onClick={() => setCategory("ai")}
-              >
-                <MessageSquare className="h-4 w-4" />
-                AI Assistants
               </Button>
               <Button 
                 variant="ghost" 

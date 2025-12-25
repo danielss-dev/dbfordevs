@@ -15,11 +15,9 @@ import {
   Unplug,
   RefreshCw,
   ShoppingBag,
-  Download,
   Copy,
   ClipboardPaste,
   Network,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -45,7 +43,6 @@ import {
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
-import { useExtensionStore } from "@/extensions";
 import type { ConnectionInfo, TableInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
@@ -661,9 +658,6 @@ export function Sidebar() {
   } = useUIStore();
   const { connections } = useConnectionsStore();
   const { loadConnections } = useDatabase();
-  const { isEnabled } = useExtensionStore();
-  
-  const isAIEnabled = isEnabled("ai-assistant");
 
   useEffect(() => {
     loadConnections();
@@ -744,15 +738,7 @@ export function Sidebar() {
                 className="h-9 w-9 group"
                 onClick={() => setShowMarketplace(true)}
               >
-                {!isAIEnabled ? (
-                  <div className="flex items-center gap-0.5">
-                    <Sparkles className="h-3 w-3 text-muted-foreground/50" />
-                    <span className="text-[10px] font-bold text-muted-foreground/50 leading-none">AI</span>
-                    <Download className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary transition-colors" />
-                  </div>
-                ) : (
-                  <ShoppingBag className="h-4 w-4" />
-                )}
+                <ShoppingBag className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">Extensions</TooltipContent>
