@@ -527,6 +527,16 @@ export const useAIStore = create<AIState>()(
 
         console.log("[AI Store] Rehydrating from local storage...");
 
+        // Fix buggy model IDs from version 0.2.0 early builds
+        if (state.settings) {
+          if (state.settings.aiAnthropicModel === "claude-haiku-4-5-20250514") {
+            state.settings.aiAnthropicModel = DEFAULT_MODELS.anthropic;
+          }
+          if (state.settings.aiGeminiModel === "gemini-flash-3") {
+            state.settings.aiGeminiModel = DEFAULT_MODELS.gemini;
+          }
+        }
+
         // Check version and run migration if needed
         const currentVersion = state.storageMetadata?.version || 0;
 
