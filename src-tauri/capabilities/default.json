@@ -5,6 +5,14 @@
   "windows": ["*"],
   "permissions": [
     "core:default",
-    "shell:default"
+    "shell:default",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "https://api.anthropic.com/*" },
+        { "url": "https://generativelanguage.googleapis.com/*" }
+      ]
+    }
   ]
 }

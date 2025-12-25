@@ -10,6 +10,7 @@ export * from "./tabs";
 export * from "./select";
 export * from "./label";
 export * from "./context-menu";
+export * from "./dropdown-menu";
 export * from "./toast";
 export * from "./toaster";
 export { Badge, badgeVariants } from "./badge";

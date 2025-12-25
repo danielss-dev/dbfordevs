@@ -45,9 +45,11 @@ import {
   Check,
   Loader2,
   Sparkles,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useExtensions, type ExtensionWithStatus, useInstalledThemes } from "@/extensions";
+import { useAIStore } from "@/extensions/ai/store";
 
 interface SettingRowProps {
   label: string;
@@ -100,7 +102,7 @@ interface ExtensionCardProps {
   isLoading: boolean;
 }
 
-type TabValue = "general" | "editor" | "appearance" | "extensions" | "keybindings" | "advanced" | "about";
+type TabValue = "general" | "ai" | "editor" | "appearance" | "extensions" | "keybindings" | "advanced" | "about";
 
 interface TabConfig {
   value: TabValue;
@@ -110,6 +112,7 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   { value: "general", label: "General", icon: <User className="h-4 w-4" /> },
+  { value: "ai", label: "AI Assistant", icon: <Bot className="h-4 w-4" /> },
   { value: "editor", label: "Editor", icon: <Code className="h-4 w-4" /> },
   { value: "appearance", label: "Appearance", icon: <Sun className="h-4 w-4" /> },
   { value: "extensions", label: "Extensions", icon: <Layers className="h-4 w-4" /> },
@@ -577,6 +580,58 @@ export function SettingsDialog() {
                       </div>
                     </div>
                   )}
+
+                  {/* AI Assistant Tab */}
+                  {activeTab === "ai" && (() => {
+                    const { settings, updateSettings } = useAIStore.getState();
+
+                    return (
+                      <div className="space-y-6 animate-fade-in">
+                        <div>
+                          <h2 className="text-xl font-semibold mb-1">AI Assistant</h2>
+                          <p className="text-sm text-muted-foreground">
+                            Configure AI-powered SQL generation and assistance.
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-card p-1">
+                          <SettingRow
+                            label="Enable AI Assistant"
+                            description="Enable or disable the AI Assistant feature throughout the application."
+                          >
+                            <Checkbox
+                              checked={settings.aiEnabled ?? true}
+                              onCheckedChange={(checked: boolean) => {
+                                updateSettings({ aiEnabled: checked });
+                                toast({
+                                  title: checked ? "AI Assistant enabled" : "AI Assistant disabled",
+                                  description: checked
+                                    ? "You can now use AI features in the application."
+                                    : "AI features have been disabled.",
+                                });
+                              }}
+                            />
+                          </SettingRow>
+                        </div>
+
+                        {settings.aiEnabled && (
+                          <div className="rounded-xl border border-border bg-muted/50 p-4">
+                            <div className="flex items-start gap-3">
+                              <Bot className="h-5 w-5 text-violet-500 mt-0.5" />
+                              <div className="flex-1 space-y-2">
+                                <h3 className="font-medium text-sm">Configure AI Settings</h3>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  To configure your AI provider, API keys, and model preferences, click the
+                                  <Sparkles className="inline h-3.5 w-3.5 mx-1 text-violet-500" />
+                                  icon in the sidebar to open the AI Assistant panel, then click the settings icon.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Editor Tab */}
                   {activeTab === "editor" && (

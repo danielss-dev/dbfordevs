@@ -58,15 +58,56 @@ impl From<&InstalledExtension> for ExtensionInfo {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtensionSettings {
-    /// AI Assistant API key (stored securely)
+    // Legacy field - kept for backwards compatibility
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ai_api_key: Option<String>,
-    /// Preferred AI provider
+
+    /// Current AI provider: "anthropic" or "gemini"
     #[serde(default = "default_ai_provider")]
     pub ai_provider: String,
+
+    // Provider-specific API keys
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_anthropic_api_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_gemini_api_key: Option<String>,
+
+    // Provider-specific models
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_anthropic_model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_gemini_model: Option<String>,
+
+    /// Temperature for AI generation (0.0 - 2.0)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_temperature: Option<f32>,
+
+    /// Max tokens for AI generation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_max_tokens: Option<u32>,
 }
 
 fn default_ai_provider() -> String {
     "anthropic".to_string()
+}
+
+impl ExtensionSettings {
+    /// Get the API key for the current provider
+    pub fn current_api_key(&self) -> Option<&String> {
+        match self.ai_provider.as_str() {
+            "anthropic" => self.ai_anthropic_api_key.as_ref().or(self.ai_api_key.as_ref()),
+            "gemini" => self.ai_gemini_api_key.as_ref(),
+            _ => self.ai_anthropic_api_key.as_ref().or(self.ai_api_key.as_ref()),
+        }
+    }
+
+    /// Get the model for the current provider
+    pub fn current_model(&self) -> Option<&String> {
+        match self.ai_provider.as_str() {
+            "anthropic" => self.ai_anthropic_model.as_ref(),
+            "gemini" => self.ai_gemini_model.as_ref(),
+            _ => self.ai_anthropic_model.as_ref(),
+        }
+    }
 }
 

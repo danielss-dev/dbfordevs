@@ -13,6 +13,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
+tauri-plugin-http = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
@@ -36,7 +37,6 @@ validator-core = { path = "../crates/validator-core" }
 validator-csharp = { path = "../crates/validator-csharp" }
 validator-nodejs = { path = "../crates/validator-nodejs" }
 validator-python = { path = "../crates/validator-python" }
-ai-assistant = { path = "../crates/ai-assistant" }
 
 # HTTP client for extensions
 reqwest = { version = "0.12", features = ["json"] }

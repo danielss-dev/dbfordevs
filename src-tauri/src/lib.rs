@@ -14,6 +14,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_http::init())
         .manage(ext_cmds::ExtensionState::new())
         .invoke_handler(tauri::generate_handler![
             // Connection commands
@@ -52,10 +53,6 @@ pub fn run() {
             ext_cmds::install_extension_from_github,
             ext_cmds::update_extension_settings,
             ext_cmds::get_extension_settings,
-            // AI Assistant commands
-            ext_cmds::ai_generate_sql,
-            ext_cmds::ai_explain_query,
-            ext_cmds::ai_chat,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

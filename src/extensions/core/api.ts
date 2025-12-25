@@ -57,3 +57,5 @@ export async function getExtensionSettings(): Promise<ExtensionSettings> {
   return invoke("get_extension_settings");
 }
 
+
+

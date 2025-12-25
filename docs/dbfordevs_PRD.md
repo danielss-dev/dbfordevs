@@ -336,16 +336,16 @@ The application follows a three-panel layout:
 - [x] Basic connection management (PostgreSQL, MySQL, SQLite)
 - [x] Table browsing and basic data grid
 - [x] Simple SQL query execution
-- [ ] Basic CRUD operations
-- [ ] Plugin system architecture (plugin-core)
+- [x] Basic CRUD operations
+- [x] Plugin system architecture (plugin-core)
 
 ### Phase 2: Core Features (Months 4-6)
 
 - [ ] Microsoft SQL Server support
 - [ ] Side panel editor implementation
 - [ ] Change diff preview system
-- [ ] Plugin Marketplace UI
-- [ ] AI Query Assistant (Basic NL-to-SQL)
+- [x] Plugin Marketplace UI
+- [x] AI Query Assistant (Basic NL-to-SQL)
 - [ ] Connection string validator (C# plugin)
 - [ ] Query history and favorites
 

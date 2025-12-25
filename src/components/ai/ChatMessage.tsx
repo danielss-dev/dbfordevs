@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Check, Play, Bot, User } from "lucide-react";
+import { Copy, Check, Play, Bot, User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { AIChatMessage } from "@/extensions";
@@ -12,6 +12,7 @@ interface ChatMessageProps {
 export function ChatMessage({ message, onExecuteSQL }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
+  const isError = message.content.toLowerCase().startsWith("error:");
 
   const copyToClipboard = async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -25,80 +26,108 @@ export function ChatMessage({ message, onExecuteSQL }: ChatMessageProps) {
     }
   };
 
+  // Clean error message by removing URLs and technical details
+  const cleanErrorMessage = (content: string): string => {
+    if (!isError) return content;
+
+    // Remove URLs in parentheses
+    let cleaned = content.replace(/\(https?:\/\/[^\)]+\)/g, "");
+    // Remove standalone URLs
+    cleaned = cleaned.replace(/https?:\/\/\S+/g, "");
+    // Clean up extra whitespace
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+    return cleaned || "An error occurred. Please try again.";
+  };
+
   return (
     <div
       className={cn(
-        "flex gap-3",
+        "flex gap-3 group",
         isUser ? "flex-row-reverse" : "flex-row"
       )}
     >
       {/* Avatar */}
       <div
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-background",
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
+            ? "bg-blue-500 ring-blue-500/20"
+            : isError
+            ? "bg-red-500 ring-red-500/20"
+            : "bg-gradient-to-br from-violet-500 to-purple-600 ring-violet-500/20"
         )}
       >
-        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+        {isUser ? (
+          <User className="h-4 w-4 text-white" />
+        ) : isError ? (
+          <AlertCircle className="h-4 w-4 text-white" />
+        ) : (
+          <Bot className="h-4 w-4 text-white" />
+        )}
       </div>
 
       {/* Content */}
       <div
         className={cn(
-          "flex flex-col gap-2 max-w-[85%]",
+          "flex flex-col gap-2.5 min-w-0 flex-1 max-w-[85%]",
           isUser ? "items-end" : "items-start"
         )}
       >
         {/* Message text */}
         <div
           className={cn(
-            "rounded-xl px-4 py-2.5 text-sm",
+            "rounded-2xl px-4 py-3 text-sm shadow-sm",
             isUser
-              ? "bg-primary text-primary-foreground rounded-br-sm"
-              : "bg-muted rounded-bl-sm"
+              ? "bg-blue-500 text-white rounded-br-md"
+              : isError
+              ? "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-900 dark:text-red-200 rounded-bl-md"
+              : "bg-muted/80 backdrop-blur-sm rounded-bl-md"
           )}
         >
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap break-words leading-relaxed">
+            {cleanErrorMessage(message.content)}
+          </p>
         </div>
 
         {/* SQL block */}
         {message.sql && (
-          <div className="w-full rounded-xl border border-border bg-[#1e1e2e] overflow-hidden">
+          <div className="w-full max-w-full rounded-xl border border-border bg-[#1e1e2e] overflow-hidden shadow-md">
             {/* SQL header */}
-            <div className="flex items-center justify-between px-3 py-2 bg-[#181825] border-b border-border/50">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                SQL
+            <div className="flex items-center justify-between px-3 py-2 bg-[#181825]/80 backdrop-blur-sm border-b border-border/30">
+              <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">
+                Generated SQL
               </span>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 hover:bg-white/10"
+                  className="h-7 w-7 hover:bg-white/10 transition-colors"
                   onClick={() => copyToClipboard(message.sql!)}
+                  title="Copy SQL"
                 >
                   {copied ? (
-                    <Check className="h-3 w-3 text-green-400" />
+                    <Check className="h-3.5 w-3.5 text-green-400" />
                   ) : (
-                    <Copy className="h-3 w-3 text-muted-foreground" />
+                    <Copy className="h-3.5 w-3.5 text-gray-400" />
                   )}
                 </Button>
                 {onExecuteSQL && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 hover:bg-white/10"
+                    className="h-7 w-7 hover:bg-white/10 transition-colors"
                     onClick={handleExecute}
+                    title="Execute SQL"
                   >
-                    <Play className="h-3 w-3 text-green-400" />
+                    <Play className="h-3.5 w-3.5 text-green-400 fill-green-400/20" />
                   </Button>
                 )}
               </div>
             </div>
             {/* SQL code */}
-            <pre className="p-3 overflow-x-auto text-xs">
-              <code className="text-[#cdd6f4] font-mono">
+            <pre className="p-4 overflow-x-auto text-xs max-w-full">
+              <code className="text-[#cdd6f4] font-mono whitespace-pre-wrap break-all leading-relaxed">
                 {formatSQL(message.sql)}
               </code>
             </pre>
@@ -106,7 +135,7 @@ export function ChatMessage({ message, onExecuteSQL }: ChatMessageProps) {
         )}
 
         {/* Timestamp */}
-        <span className="text-[10px] text-muted-foreground/60">
+        <span className="text-[10px] text-muted-foreground/50 px-1">
           {formatTime(message.timestamp)}
         </span>
       </div>

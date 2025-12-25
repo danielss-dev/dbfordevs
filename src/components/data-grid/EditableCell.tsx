@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { X, Check, Ban } from "lucide-react";
+import { Ban } from "lucide-react";
 
 interface EditableCellProps {
   value: unknown;
