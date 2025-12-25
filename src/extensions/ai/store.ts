@@ -188,6 +188,12 @@ export const useAIStore = create<AIState>()(
           // Extract @table references from the message
           const referencedTables = extractTableReferences(message);
           console.log("[AI Store] Referenced tables:", referencedTables);
+          console.log("[AI Store] Available tables in context:", context.tables?.map(t => ({
+            name: t.name,
+            schema: t.schema,
+            hasColumns: !!(t.columns && t.columns.length > 0),
+            columnCount: t.columns?.length || 0
+          })));
 
           // Fetch schemas for referenced tables
           let tablesWithSchema: TableInfo[] = context.tables || [];
@@ -197,21 +203,55 @@ export const useAIStore = create<AIState>()(
               (context.tables || []).map(async (table) => {
                 // Check if this table matches any of the referenced tables
                 const isReferenced = referencedTables.some((ref) => tableMatchesReference(table, ref));
+                console.log(`[AI Store] Table ${table.schema}.${table.name} - isReferenced: ${isReferenced}, hasColumns: ${!!(table.columns && table.columns.length > 0)}`);
 
                 // If table is referenced and doesn't have columns, fetch them
                 if (isReferenced && (!table.columns || table.columns.length === 0)) {
-                  // Build the full table name with schema for PostgreSQL
-                  const fullTableName = table.schema ? `${table.schema}.${table.name}` : table.name;
-                  console.log(`[AI Store] Fetching schema for referenced table: ${fullTableName}`);
-                  const schema = await fetchTableSchema(context.connectionId!, fullTableName);
+                  // Build the table name for schema fetching
+                  // Different databases expect different formats:
+                  // - PostgreSQL: "schema.table" (e.g., "public.accounts")
+                  // - MySQL: just "table" (e.g., "users") - uses current database
+                  // - SQLite: just "table"
+
+                  let tableNameForFetch: string;
+
+                  // Check if table.name already includes schema/database prefix
+                  const tableNameIncludesSchema = table.name.includes('.');
+
+                  // For MySQL and SQLite, use just the table name (no schema prefix)
+                  const dbType = context.databaseType?.toLowerCase();
+                  const isMySQLOrSQLite = dbType === 'mysql' || dbType === 'mariadb' || dbType === 'sqlite';
+
+                  if (isMySQLOrSQLite) {
+                    // For MySQL/SQLite: use just the table name, never include schema/database
+                    tableNameForFetch = tableNameIncludesSchema ? table.name.split('.').pop()! : table.name;
+                  } else {
+                    // For PostgreSQL and others: use schema.table format
+                    tableNameForFetch = tableNameIncludesSchema
+                      ? table.name
+                      : (table.schema ? `${table.schema}.${table.name}` : table.name);
+                  }
+
+                  console.log(`[AI Store] Fetching schema for referenced table: ${tableNameForFetch} (dbType: ${dbType})`);
+                  const schema = await fetchTableSchema(context.connectionId!, tableNameForFetch);
                   if (schema) {
+                    console.log(`[AI Store] Successfully fetched schema for ${tableNameForFetch}, columns:`, schema.columns.map(c => c.name));
                     return { ...table, columns: schema.columns };
+                  } else {
+                    console.warn(`[AI Store] Failed to fetch schema for ${tableNameForFetch}`);
                   }
                 }
                 return table;
               })
             );
             tablesWithSchema = enrichedTables;
+
+            // Log final tables with schema
+            console.log("[AI Store] Final tables with schema:", tablesWithSchema.map(t => ({
+              name: t.name,
+              schema: t.schema,
+              columns: t.columns?.map(c => c.name) || []
+            })));
           }
 
           // Determine the selected table from @ references

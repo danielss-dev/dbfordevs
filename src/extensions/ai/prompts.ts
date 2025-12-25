@@ -30,6 +30,7 @@ IMPORTANT RULES:
 5. For destructive operations (DELETE, UPDATE, DROP), always include safety measures
 6. Return ONLY the SQL query without any explanation or markdown formatting
 7. If the request is ambiguous, generate the most likely interpretation
+8. **CRITICAL**: When table schemas are provided below, you MUST use ONLY the exact column names listed. DO NOT invent or assume column names that don't exist in the schema.
 
 `;
 
@@ -61,7 +62,8 @@ IMPORTANT RULES:
 
   // Add schema context
   if (context.tables.length > 0) {
-    prompt += "AVAILABLE TABLES:\n";
+    prompt += "AVAILABLE TABLES AND THEIR COLUMNS:\n";
+    prompt += "=".repeat(50) + "\n";
     const tablesWithSchema: TableInfo[] = [];
     const tablesWithoutSchema: string[] = [];
 
@@ -75,26 +77,63 @@ IMPORTANT RULES:
 
     // Tables with full schema
     for (const table of tablesWithSchema) {
-      prompt += `\n${table.name}:\n`;
+      // Build display name for the table
+      // Different databases use different naming conventions:
+      // - PostgreSQL: schema.table (e.g., "public.accounts")
+      // - MySQL: just table name (e.g., "users") - database is implicit
+      // - SQLite: just table name
+      const tableNameIncludesSchema = table.name.includes('.');
+
+      let displayTableName: string;
+      const dbType = context.databaseType?.toLowerCase();
+      const isMySQLOrSQLite = dbType === 'mysql' || dbType === 'mariadb' || dbType === 'sqlite';
+
+      if (isMySQLOrSQLite) {
+        // For MySQL/SQLite: show just the table name (no database prefix in queries)
+        displayTableName = tableNameIncludesSchema ? table.name.split('.').pop()! : table.name;
+        // Optionally add database info in comment
+        if (table.schema) {
+          displayTableName = `${displayTableName}  /* database: ${table.schema} */`;
+        }
+      } else {
+        // For PostgreSQL: use schema.table format
+        displayTableName = tableNameIncludesSchema
+          ? table.name
+          : (table.schema ? `${table.schema}.${table.name}` : table.name);
+      }
+
+      prompt += `\nTable: ${displayTableName}\n`;
+      prompt += `Columns (USE THESE EXACT NAMES ONLY):\n`;
       for (const col of table.columns || []) {
-        const pk = col.isPrimaryKey ? " (PK)" : "";
+        const pk = col.isPrimaryKey ? " (PRIMARY KEY)" : "";
         const nullable = col.isNullable ? " NULL" : " NOT NULL";
-        prompt += `  - ${col.name} ${col.dataType}${nullable}${pk}\n`;
+        prompt += `  - ${col.name} : ${col.dataType}${nullable}${pk}\n`;
       }
     }
 
     // Tables without schema (just names)
     if (tablesWithoutSchema.length > 0) {
       prompt += `\nOther available tables (schema not loaded): ${tablesWithoutSchema.join(", ")}\n`;
+      prompt += "Note: For tables without loaded schemas, you may need to ask the user to specify column names.\n";
     }
 
-    prompt += "\n";
+    prompt += "=".repeat(50) + "\n\n";
+
+    if (tablesWithSchema.length > 0) {
+      prompt += "⚠️ IMPORTANT: The columns listed above are the ONLY columns that exist in these tables.\n";
+      prompt += "You MUST use the exact column names as shown. DO NOT assume or invent column names.\n";
+      prompt += "For example, if you see 'USERNAME' in the schema, use 'USERNAME' not 'name' or 'user_name'.\n\n";
+    }
   }
 
   // Add selected table context
   if (context.selectedTable) {
     prompt += `CURRENTLY SELECTED TABLE: ${context.selectedTable}\n\n`;
   }
+
+  // Debug logging
+  console.log("[AI Prompt] Generated system prompt with", context.tables.length, "tables");
+  console.log("[AI Prompt] Tables with columns:", context.tables.filter(t => t.columns && t.columns.length > 0).map(t => `${t.schema}.${t.name} (${t.columns?.length} columns)`));
 
   return prompt;
 }

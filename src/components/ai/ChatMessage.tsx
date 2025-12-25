@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { Copy, Check, Play, Bot, User, AlertCircle } from "lucide-react";
+import { Copy, Check, FileEdit, Bot, User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { AIChatMessage } from "@/extensions";
+import { useQueryStore } from "@/stores/query";
+import { useConnectionsStore } from "@/stores/connections";
 
 interface ChatMessageProps {
   message: AIChatMessage;
-  onExecuteSQL?: (sql: string) => void;
 }
 
-export function ChatMessage({ message, onExecuteSQL }: ChatMessageProps) {
+export function ChatMessage({ message }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
+  const queryStore = useQueryStore();
+  const activeConnectionId = useConnectionsStore((state) => state.activeConnectionId);
   const isUser = message.role === "user";
   const isError = message.content.toLowerCase().startsWith("error:");
 
@@ -20,9 +23,28 @@ export function ChatMessage({ message, onExecuteSQL }: ChatMessageProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleExecute = () => {
-    if (message.sql && onExecuteSQL) {
-      onExecuteSQL(message.sql);
+  const handleInsertSQL = () => {
+    if (!message.sql) return;
+
+    const { tabs, activeTabId, addTab, updateTabContent } = queryStore;
+    const activeTab = tabs.find((t) => t.id === activeTabId && t.type === "query");
+
+    if (activeTab) {
+      // Update active query tab
+      updateTabContent(activeTab.id, message.sql);
+    } else {
+      // Create new tab
+      if (!activeConnectionId) {
+        console.error("No active connection - cannot create query tab");
+        return;
+      }
+      addTab({
+        id: crypto.randomUUID(),
+        title: "AI Query",
+        type: "query",
+        connectionId: activeConnectionId,
+        content: message.sql,
+      });
     }
   };
 
@@ -112,17 +134,15 @@ export function ChatMessage({ message, onExecuteSQL }: ChatMessageProps) {
                     <Copy className="h-3.5 w-3.5 text-gray-400" />
                   )}
                 </Button>
-                {onExecuteSQL && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 hover:bg-white/10 transition-colors"
-                    onClick={handleExecute}
-                    title="Execute SQL"
-                  >
-                    <Play className="h-3.5 w-3.5 text-green-400 fill-green-400/20" />
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 hover:bg-white/10 transition-colors"
+                  onClick={handleInsertSQL}
+                  title="Insert into Query Editor"
+                >
+                  <FileEdit className="h-3.5 w-3.5 text-blue-400" />
+                </Button>
               </div>
             </div>
             {/* SQL code */}

@@ -9,7 +9,6 @@ import { getProviderModel } from "./providers";
 import {
   sqlGenerationPrompt,
   queryExplanationPrompt,
-  chatPrompt,
   type QueryContext,
 } from "./prompts";
 import type {
@@ -171,6 +170,8 @@ export async function aiChat(
 ): Promise<AIChatResponse> {
   console.log("[AI API] aiChat request:", JSON.stringify(request, null, 2));
   console.log("[AI API] Message history length:", messages.length);
+
+  const { chatPrompt } = await import("./prompts");
 
   const model = getProviderModel(settings);
   const context: QueryContext = request.context
