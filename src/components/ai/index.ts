@@ -6,4 +6,5 @@ export { ProviderModelSwitcher } from "./ProviderModelSwitcher";
 export { ChatHistoryPanel } from "./ChatHistoryPanel";
 export { ChatHistoryItem } from "./ChatHistoryItem";
 export { TableReferenceDropdown } from "./TableReferenceDropdown";
+export { QueryDiffView } from "./QueryDiffView";
 

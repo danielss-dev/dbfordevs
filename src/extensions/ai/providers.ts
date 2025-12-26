@@ -7,6 +7,7 @@
 
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { tauriFetchWrapper } from "./tauri-fetch";
 import { DEFAULT_MODELS, type AISettings, type AIProviderType } from "./types";
 
@@ -28,6 +29,16 @@ export function createAnthropicProvider(apiKey: string) {
  */
 export function createGeminiProvider(apiKey: string) {
   return createGoogleGenerativeAI({
+    apiKey,
+    fetch: tauriFetchWrapper,
+  });
+}
+
+/**
+ * Create an OpenAI provider instance with Tauri fetch
+ */
+export function createOpenAIProvider(apiKey: string) {
+  return createOpenAI({
     apiKey,
     fetch: tauriFetchWrapper,
   });
@@ -71,6 +82,17 @@ export function getProviderModel(settings: AISettings) {
     return gemini(modelId);
   }
 
+  if (provider === "openai") {
+    const apiKey = settings.aiOpenaiApiKey;
+    if (!apiKey) {
+      throw new Error("OpenAI API key is not configured");
+    }
+    const openai = createOpenAIProvider(apiKey);
+    const modelId = settings.aiOpenaiModel || DEFAULT_MODELS.openai;
+
+    return openai(modelId);
+  }
+
   throw new Error(`Unknown provider: ${provider}`);
 }
 
@@ -84,10 +106,16 @@ export async function validateApiKey(
   try {
     const { generateText } = await import("ai");
 
-    const model =
-      provider === "anthropic"
-        ? createAnthropicProvider(apiKey)(DEFAULT_MODELS.anthropic)
-        : createGeminiProvider(apiKey)(DEFAULT_MODELS.gemini);
+    let model;
+    if (provider === "anthropic") {
+      model = createAnthropicProvider(apiKey)(DEFAULT_MODELS.anthropic);
+    } else if (provider === "gemini") {
+      model = createGeminiProvider(apiKey)(DEFAULT_MODELS.gemini);
+    } else if (provider === "openai") {
+      model = createOpenAIProvider(apiKey)(DEFAULT_MODELS.openai);
+    } else {
+      throw new Error(`Unknown provider: ${provider}`);
+    }
 
     await generateText({
       model,

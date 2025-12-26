@@ -8,11 +8,16 @@ import {
   Loader2,
   History,
   Plus,
+  Coins,
 } from "lucide-react";
 import {
   Button,
   ScrollArea,
   Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui";
 import { useAIAssistant } from "@/extensions";
 import { useAIStore } from "@/extensions/ai/store";
@@ -30,7 +35,9 @@ export function AIPanel() {
     isConfigured,
     isEnabled,
     isLoading,
+    isStreaming,
     messages,
+    usageStats,
     close,
     sendMessage,
     context,
@@ -50,6 +57,12 @@ export function AIPanel() {
   // Get active connection and its tables
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const tablesByConnection = useQueryStore((state) => state.tablesByConnection);
+  const tabs = useQueryStore((state) => state.tabs);
+  const activeTabId = useQueryStore((state) => state.activeTabId);
+
+  // Get current query from active tab
+  const activeTab = tabs.find(t => t.id === activeTabId);
+  const currentQuery = activeTab?.type === "query" ? activeTab.content : undefined;
 
   const [showSettings, setShowSettings] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -57,23 +70,23 @@ export function AIPanel() {
   const currentProvider = getCurrentProvider();
   const providerDisplayName = PROVIDER_INFO[currentProvider]?.displayName || "AI";
 
-  // Sync tables from active connection to AI context
+  // Sync tables and current query from active connection to AI context
   useEffect(() => {
     if (activeConnection) {
       const tables = tablesByConnection[activeConnection.id] || [];
-      console.log("[AIPanel] Syncing tables to context:", {
+      console.log("[AIPanel] Syncing context:", {
         connectionId: activeConnection.id,
         databaseType: activeConnection.databaseType,
         tableCount: tables.length,
-        tables: tables.slice(0, 3), // Log first 3 for debugging
+        hasCurrentQuery: !!currentQuery,
       });
-      // Pass connectionId so we can fetch table schemas when @table is used
-      updateContext(tables, undefined, activeConnection.databaseType, activeConnection.id);
+      // Pass connectionId and currentQuery so AI has full context
+      updateContext(tables, undefined, activeConnection.databaseType, activeConnection.id, currentQuery);
     } else {
       console.log("[AIPanel] No active connection, clearing context");
-      updateContext([], undefined, undefined, undefined);
+      updateContext([], undefined, undefined, undefined, undefined);
     }
-  }, [activeConnection, tablesByConnection, updateContext]);
+  }, [activeConnection, tablesByConnection, currentQuery, updateContext]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -105,9 +118,32 @@ export function AIPanel() {
                 {activeSession ? activeSession.title : "AI Assistant"}
               </h2>
               {activeSession && (
-                <p className="text-xs text-muted-foreground">
-                  {activeSession.messages.length} messages
-                </p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{activeSession.messages.length} messages</span>
+                  {usageStats && usageStats.totalTokens > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex items-center gap-1 text-violet-400">
+                            <Coins className="h-3 w-3" />
+                            {usageStats.totalTokens >= 1000
+                              ? `${(usageStats.totalTokens / 1000).toFixed(1)}k`
+                              : usageStats.totalTokens}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">
+                          <div className="space-y-1">
+                            <div>Input: {usageStats.totalPromptTokens.toLocaleString()} tokens</div>
+                            <div>Output: {usageStats.totalCompletionTokens.toLocaleString()} tokens</div>
+                            <div className="font-semibold">
+                              Est. cost: ${usageStats.estimatedCost.toFixed(4)}
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -225,10 +261,13 @@ export function AIPanel() {
             )}
 
             {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
+              <ChatMessage
+                key={message.id}
+                message={message}
+              />
             ))}
 
-            {isLoading && (
+            {isLoading && !isStreaming && (
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
                   <Loader2 className="h-4 w-4 text-white animate-spin" />

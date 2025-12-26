@@ -99,8 +99,22 @@ export function registerCustomThemes(monaco: typeof Monaco) {
 
 /**
  * Get the Monaco theme name based on the app's current theme setting
+ *
+ * @param appTheme - The current app theme (light/dark/system or extension theme like "ext:nordic-light")
+ * @param getThemeVariant - Optional function to get theme variant for extension themes
  */
-export function getMonacoTheme(appTheme: "light" | "dark" | "system"): string {
+export function getMonacoTheme(
+  appTheme: "light" | "dark" | "system" | string,
+  getThemeVariant?: (themeId: string) => "light" | "dark" | undefined
+): string {
+  // Handle extension themes (e.g., "ext:nordic-light")
+  if (appTheme.startsWith("ext:")) {
+    const extensionThemeId = appTheme.slice(4); // Remove "ext:" prefix
+    const variant = getThemeVariant?.(extensionThemeId);
+    return variant === "light" ? "dbfordevs-light" : "dbfordevs-dark";
+  }
+
+  // Handle built-in themes
   if (appTheme === "system") {
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     return prefersDark ? "dbfordevs-dark" : "dbfordevs-light";

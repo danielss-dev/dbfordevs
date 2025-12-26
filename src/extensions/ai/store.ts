@@ -18,10 +18,42 @@ import type {
   AIChatSession,
   AIChatHistorySettings,
   AIStorageMetadata,
+  TokenUsage,
+  SessionUsageStats,
 } from "./types";
 import { AVAILABLE_MODELS, DEFAULT_MODELS } from "./types";
+import { calculateCost, aiChatStream } from "./api";
 import * as api from "./api";
 import { generateChatTitle, cleanupOldChats, migrateToVersion1 } from "./utils";
+
+/** Calculate aggregated usage stats for a session */
+function calculateSessionUsageStats(messages: AIChatMessage[], modelId: string): SessionUsageStats {
+  let totalPromptTokens = 0;
+  let totalCompletionTokens = 0;
+  let messageCount = 0;
+
+  for (const msg of messages) {
+    if (msg.role === "assistant" && msg.usage) {
+      totalPromptTokens += msg.usage.promptTokens;
+      totalCompletionTokens += msg.usage.completionTokens;
+      messageCount++;
+    }
+  }
+
+  const totalTokens = totalPromptTokens + totalCompletionTokens;
+  const estimatedCost = calculateCost(
+    { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens, totalTokens },
+    modelId
+  );
+
+  return {
+    totalTokens,
+    totalPromptTokens,
+    totalCompletionTokens,
+    estimatedCost,
+    messageCount,
+  };
+}
 
 /** Extract @table references from a message (supports @table and @schema.table formats) */
 function extractTableReferences(message: string): string[] {
@@ -95,6 +127,8 @@ interface AIState {
   // AI Panel state
   panelOpen: boolean;
   isLoading: boolean;
+  isStreaming: boolean;
+  streamingMessageId: string | null;
   context: {
     connectionId?: string;
     databaseType?: string;
@@ -102,6 +136,8 @@ interface AIState {
     schemaName?: string;
     tables: TableInfo[];
     selectedTable?: string;
+    /** Current query from the editor (for context-aware AI) */
+    currentQuery?: string;
   };
 
   // Chat sessions (replaces messages and queryHistory)
@@ -124,7 +160,7 @@ interface AIState {
   // Actions
   setPanelOpen: (open: boolean) => void;
   togglePanel: () => void;
-  sendMessage: (message: string) => Promise<void>;
+  sendMessage: (message: string, useStreaming?: boolean) => Promise<void>;
   setContext: (context: Partial<AIState["context"]>) => void;
   updateSettings: (settings: Partial<AISettings>) => Promise<void>;
   setApiKey: (key: string, provider?: AIProviderType) => Promise<void>;
@@ -152,6 +188,7 @@ interface AIState {
   getCurrentModel: () => string;
   isConfigured: () => boolean;
   getActiveSession: () => AIChatSession | null;
+  getSessionUsageStats: (sessionId?: string) => SessionUsageStats | null;
 }
 
 export const useAIStore = create<AIState>()(
@@ -166,6 +203,8 @@ export const useAIStore = create<AIState>()(
       modelsLoading: false,
       panelOpen: false,
       isLoading: false,
+      isStreaming: false,
+      streamingMessageId: null,
       context: {
         tables: [],
       },
@@ -190,8 +229,8 @@ export const useAIStore = create<AIState>()(
       togglePanel: () => set((state) => ({ panelOpen: !state.panelOpen })),
 
       // Chat actions
-      sendMessage: async (message: string) => {
-        const { context, chatSessions, activeChatSessionId, settings, createNewChatSession } = get();
+      sendMessage: async (message: string, useStreaming: boolean = true) => {
+        const { context, chatSessions, activeChatSessionId, settings, createNewChatSession, getCurrentModel } = get();
 
         console.log("[AI Store] sendMessage called with:", message);
         console.log("[AI Store] Current context:", JSON.stringify(context, null, 2));
@@ -224,6 +263,9 @@ export const useAIStore = create<AIState>()(
           ? generateChatTitle(userMessage)
           : activeSession.title;
 
+        // Create placeholder for streaming assistant message
+        const assistantMessageId = crypto.randomUUID();
+
         set((state) => ({
           chatSessions: state.chatSessions.map(s =>
             s.id === sessionId
@@ -231,18 +273,14 @@ export const useAIStore = create<AIState>()(
               : s
           ),
           isLoading: true,
+          isStreaming: useStreaming,
+          streamingMessageId: useStreaming ? assistantMessageId : null,
         }));
 
         try {
           // Extract @table references from the message
           const referencedTables = extractTableReferences(message);
           console.log("[AI Store] Referenced tables:", referencedTables);
-          console.log("[AI Store] Available tables in context:", context.tables?.map(t => ({
-            name: t.name,
-            schema: t.schema,
-            hasColumns: !!(t.columns && t.columns.length > 0),
-            columnCount: t.columns?.length || 0
-          })));
 
           // Fetch schemas for referenced tables
           let tablesWithSchema: TableInfo[] = context.tables || [];
@@ -250,60 +288,34 @@ export const useAIStore = create<AIState>()(
           if (context.connectionId && referencedTables.length > 0) {
             const enrichedTables = await Promise.all(
               (context.tables || []).map(async (table) => {
-                // Check if this table matches any of the referenced tables
                 const isReferenced = referencedTables.some((ref) => tableMatchesReference(table, ref));
-                console.log(`[AI Store] Table ${table.schema}.${table.name} - isReferenced: ${isReferenced}, hasColumns: ${!!(table.columns && table.columns.length > 0)}`);
 
-                // If table is referenced and doesn't have columns, fetch them
                 if (isReferenced && (!table.columns || table.columns.length === 0)) {
-                  // Build the table name for schema fetching
-                  // Different databases expect different formats:
-                  // - PostgreSQL: "schema.table" (e.g., "public.accounts")
-                  // - MySQL: just "table" (e.g., "users") - uses current database
-                  // - SQLite: just "table"
-
-                  let tableNameForFetch: string;
-
-                  // Check if table.name already includes schema/database prefix
                   const tableNameIncludesSchema = table.name.includes('.');
-
-                  // For MySQL and SQLite, use just the table name (no schema prefix)
                   const dbType = context.databaseType?.toLowerCase();
                   const isMySQLOrSQLite = dbType === 'mysql' || dbType === 'mariadb' || dbType === 'sqlite';
 
+                  let tableNameForFetch: string;
                   if (isMySQLOrSQLite) {
-                    // For MySQL/SQLite: use just the table name, never include schema/database
                     tableNameForFetch = tableNameIncludesSchema ? table.name.split('.').pop()! : table.name;
                   } else {
-                    // For PostgreSQL and others: use schema.table format
                     tableNameForFetch = tableNameIncludesSchema
                       ? table.name
                       : (table.schema ? `${table.schema}.${table.name}` : table.name);
                   }
 
-                  console.log(`[AI Store] Fetching schema for referenced table: ${tableNameForFetch} (dbType: ${dbType})`);
+                  console.log(`[AI Store] Fetching schema for: ${tableNameForFetch}`);
                   const schema = await fetchTableSchema(context.connectionId!, tableNameForFetch);
                   if (schema) {
-                    console.log(`[AI Store] Successfully fetched schema for ${tableNameForFetch}, columns:`, schema.columns.map(c => c.name));
                     return { ...table, columns: schema.columns };
-                  } else {
-                    console.warn(`[AI Store] Failed to fetch schema for ${tableNameForFetch}`);
                   }
                 }
                 return table;
               })
             );
             tablesWithSchema = enrichedTables;
-
-            // Log final tables with schema
-            console.log("[AI Store] Final tables with schema:", tablesWithSchema.map(t => ({
-              name: t.name,
-              schema: t.schema,
-              columns: t.columns?.map(c => c.name) || []
-            })));
           }
 
-          // Determine the selected table from @ references
           const selectedTable = referencedTables.length === 1
             ? (context.tables || []).find(t => tableMatchesReference(t, referencedTables[0]))?.name
             : context.selectedTable;
@@ -315,38 +327,165 @@ export const useAIStore = create<AIState>()(
             schemaName: context.schemaName,
             tables: tablesWithSchema,
             selectedTable,
-          };
-          console.log("[AI Store] Sending request with context:", JSON.stringify(requestContext, null, 2));
-
-          // Pass full message history for conversational context
-          const messagesWithUser = [...messages, userMessage];
-
-          const response = await api.aiChat(
-            {
-              message,
-              context: requestContext,
-            },
-            messagesWithUser,
-            settings
-          );
-
-          const assistantMessage: AIChatMessage = {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: response.message,
-            sql: response.sql,
-            timestamp: new Date(),
+            currentQuery: context.currentQuery,
           };
 
-          // Add assistant message to session
-          set((state) => ({
-            chatSessions: state.chatSessions.map(s =>
-              s.id === sessionId
-                ? { ...s, messages: [...s.messages, assistantMessage], updatedAt: new Date() }
-                : s
-            ),
-            isLoading: false,
-          }));
+          const messagesWithUser = [...messages];
+
+          if (useStreaming) {
+            // Streaming mode
+            const streamingMessage: AIChatMessage = {
+              id: assistantMessageId,
+              role: "assistant",
+              content: "",
+              timestamp: new Date(),
+              isStreaming: true,
+            };
+
+            // Add placeholder message
+            set((state) => ({
+              chatSessions: state.chatSessions.map(s =>
+                s.id === sessionId
+                  ? { ...s, messages: [...s.messages, streamingMessage], updatedAt: new Date() }
+                  : s
+              ),
+            }));
+
+            const stream = aiChatStream(
+              { message, context: requestContext },
+              messagesWithUser,
+              settings
+            );
+
+            let finalUsage: TokenUsage | undefined;
+
+            for await (const chunk of stream) {
+              if (chunk.done) {
+                finalUsage = chunk.usage;
+              }
+
+              // Update streaming message content
+              set((state) => ({
+                chatSessions: state.chatSessions.map(s =>
+                  s.id === sessionId
+                    ? {
+                        ...s,
+                        messages: s.messages.map(m =>
+                          m.id === assistantMessageId
+                            ? { ...m, content: chunk.text, isStreaming: !chunk.done }
+                            : m
+                        ),
+                        updatedAt: new Date(),
+                      }
+                    : s
+                ),
+              }));
+            }
+
+            // Parse final response for SQL
+            const finalText = get().chatSessions.find(s => s.id === sessionId)?.messages
+              .find(m => m.id === assistantMessageId)?.content || "";
+
+            // Try to extract SQL from code blocks first
+            const sqlCodeBlockMatch = finalText.match(/```(?:sql)?\s*([\s\S]*?)```/i);
+            let sql: string | undefined;
+
+            if (sqlCodeBlockMatch) {
+              sql = sqlCodeBlockMatch[1].trim();
+            } else {
+              // No code block - check if the entire response looks like SQL
+              const trimmedText = finalText.trim();
+              const sqlPattern = /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|WITH|EXPLAIN)\s/i;
+              if (sqlPattern.test(trimmedText)) {
+                // Extract the SQL statement (everything up to the first non-SQL content or end)
+                // This handles cases where AI returns just SQL without code blocks
+                sql = trimmedText;
+              }
+            }
+
+            const looksLikeSQL = sql && /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|WITH|EXPLAIN)\s/i.test(sql);
+
+            // Prepare content - if SQL was extracted, clean up the content
+            let finalContent = finalText;
+            if (looksLikeSQL && sql) {
+              if (sqlCodeBlockMatch) {
+                // Remove the code block from content, keep any surrounding text
+                finalContent = finalText.replace(/```(?:sql)?\s*[\s\S]*?```/gi, "").trim();
+              } else {
+                // SQL was the entire content - use a default message
+                finalContent = "";
+              }
+              // If no content left after removing SQL, use a default message
+              if (!finalContent) {
+                finalContent = "Here's the SQL query for your request:";
+              }
+            }
+
+            // Finalize message with SQL and usage
+            set((state) => ({
+              chatSessions: state.chatSessions.map(s =>
+                s.id === sessionId
+                  ? {
+                      ...s,
+                      messages: s.messages.map(m =>
+                        m.id === assistantMessageId
+                          ? {
+                              ...m,
+                              content: finalContent,
+                              sql: looksLikeSQL ? sql : undefined,
+                              usage: finalUsage,
+                              isStreaming: false,
+                            }
+                          : m
+                      ),
+                      updatedAt: new Date(),
+                    }
+                  : s
+              ),
+              isLoading: false,
+              isStreaming: false,
+              streamingMessageId: null,
+            }));
+          } else {
+            // Non-streaming mode
+            const response = await api.aiChat(
+              { message, context: requestContext },
+              messagesWithUser,
+              settings
+            );
+
+            const assistantMessage: AIChatMessage = {
+              id: assistantMessageId,
+              role: "assistant",
+              content: response.message,
+              sql: response.sql,
+              timestamp: new Date(),
+              usage: response.usage,
+            };
+
+            set((state) => ({
+              chatSessions: state.chatSessions.map(s =>
+                s.id === sessionId
+                  ? { ...s, messages: [...s.messages, assistantMessage], updatedAt: new Date() }
+                  : s
+              ),
+              isLoading: false,
+              isStreaming: false,
+              streamingMessageId: null,
+            }));
+          }
+
+          // Update session usage stats
+          const currentSession = get().chatSessions.find(s => s.id === sessionId);
+          if (currentSession) {
+            const modelId = getCurrentModel();
+            const usageStats = calculateSessionUsageStats(currentSession.messages, modelId);
+            set((state) => ({
+              chatSessions: state.chatSessions.map(s =>
+                s.id === sessionId ? { ...s, usageStats } : s
+              ),
+            }));
+          }
         } catch (error) {
           const errorMessage: AIChatMessage = {
             id: crypto.randomUUID(),
@@ -365,6 +504,8 @@ export const useAIStore = create<AIState>()(
                 : s
             ),
             isLoading: false,
+            isStreaming: false,
+            streamingMessageId: null,
           }));
         }
       },
@@ -474,9 +615,9 @@ export const useAIStore = create<AIState>()(
       // Computed helpers
       getCurrentProvider: () => {
         const provider = get().settings.aiProvider as string;
-        // Handle legacy "openai" provider or invalid values - migrate to anthropic
-        if (!provider || provider === "openai") return "anthropic";
-        if (provider !== "anthropic" && provider !== "gemini") return "anthropic";
+        // Handle invalid values - default to anthropic
+        if (!provider) return "anthropic";
+        if (provider !== "anthropic" && provider !== "gemini" && provider !== "openai") return "anthropic";
         return provider as AIProviderType;
       },
 
@@ -502,6 +643,20 @@ export const useAIStore = create<AIState>()(
       getActiveSession: () => {
         const { chatSessions, activeChatSessionId } = get();
         return chatSessions.find(s => s.id === activeChatSessionId) || null;
+      },
+
+      getSessionUsageStats: (sessionId?: string) => {
+        const { chatSessions, activeChatSessionId, getCurrentModel } = get();
+        const targetId = sessionId || activeChatSessionId;
+        if (!targetId) return null;
+
+        const session = chatSessions.find(s => s.id === targetId);
+        if (!session) return null;
+
+        // Return cached stats or calculate new ones
+        if (session.usageStats) return session.usageStats;
+
+        return calculateSessionUsageStats(session.messages, getCurrentModel());
       },
     }),
     {

@@ -13,6 +13,8 @@ export interface QueryContext {
   schemaName?: string;
   tables: TableInfo[];
   selectedTable?: string;
+  /** Current query from the editor (if any) */
+  currentQuery?: string;
 }
 
 /**
@@ -129,6 +131,20 @@ IMPORTANT RULES:
   // Add selected table context
   if (context.selectedTable) {
     prompt += `CURRENTLY SELECTED TABLE: ${context.selectedTable}\n\n`;
+  }
+
+  // Add current query context if available
+  if (context.currentQuery && context.currentQuery.trim()) {
+    prompt += `CURRENT QUERY IN EDITOR:
+The user currently has the following SQL query in their editor. They may ask you to modify, explain, or improve it:
+\`\`\`sql
+${context.currentQuery}
+\`\`\`
+
+If the user asks about "this query", "my query", "the current query", or similar, they are referring to the query above.
+You can reference this query when generating new queries or providing explanations.
+
+`;
   }
 
   // Debug logging

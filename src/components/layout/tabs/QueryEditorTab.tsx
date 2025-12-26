@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Play, Loader2, Table, Terminal, AlertCircle } from "lucide-react";
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
 import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults } from "@/stores";
 import { useUIStore } from "@/stores/ui";
+import { useAIStore } from "@/extensions/ai/store";
+import { useThemeStore } from "@/extensions/themes/store";
 import { useDatabase } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
 import { SqlEditor } from "@/components/editor";
@@ -21,14 +23,37 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
   const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
   const results = useQueryStore(selectActiveResults);
   const { theme } = useUIStore();
+  const { getTheme } = useThemeStore();
+  const { setPanelOpen, sendMessage, settings } = useAIStore();
+  const isAIEnabled = settings.aiEnabled ?? true;
   const { executeQuery, getTableSchema } = useDatabase();
   const [content, setContent] = useState(tab.content || "");
+
+  // Get theme variant for extension themes
+  const themeVariant = theme.startsWith("ext:")
+    ? getTheme(theme.slice(4))?.variant
+    : undefined;
 
   // Create a schema fetcher for the SQL editor
   const fetchTableSchema = async (tableName: string) => {
     if (!connectionId) return null;
     return getTableSchema(connectionId, tableName);
   };
+
+  // AI context menu handlers
+  const handleExplainWithAI = useCallback((sql: string) => {
+    if (!isAIEnabled) return;
+    setPanelOpen(true);
+    // Send message to AI to explain the query
+    sendMessage(`Please explain this SQL query:\n\n\`\`\`sql\n${sql}\n\`\`\``);
+  }, [isAIEnabled, setPanelOpen, sendMessage]);
+
+  const handleOptimizeWithAI = useCallback((sql: string) => {
+    if (!isAIEnabled) return;
+    setPanelOpen(true);
+    // Send message to AI to optimize the query
+    sendMessage(`Please optimize this SQL query for better performance:\n\n\`\`\`sql\n${sql}\n\`\`\``);
+  }, [isAIEnabled, setPanelOpen, sendMessage]);
 
   // Handle F5 refresh (re-run query)
   useEffect(() => {
@@ -106,9 +131,12 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
             updateTabContent(tab.id, value);
           }}
           onExecute={handleExecute}
+          onExplainWithAI={isAIEnabled ? handleExplainWithAI : undefined}
+          onOptimizeWithAI={isAIEnabled ? handleOptimizeWithAI : undefined}
           tables={tables}
           getTableSchema={fetchTableSchema}
-          theme={theme.startsWith("ext:") ? "dark" : theme as "light" | "dark" | "system"}
+          theme={theme}
+          themeVariant={themeVariant}
           height="100%"
         />
       </div>
