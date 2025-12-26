@@ -11,37 +11,89 @@ use std::time::Instant;
 
 pub struct PostgresDriver;
 
-#[async_trait]
-impl DatabaseDriver for PostgresDriver {
-    async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult> {
-        let connection_string = self.build_connection_string(config);
-        
-        let pool = PgPool::connect(&connection_string).await
-            .map_err(|e| AppError::ConnectionError(format!("PostgreSQL connection failed: {}", e)))?;
-        
-        // Get server version
-        let version: String = sqlx::query_scalar("SELECT version()")
-            .fetch_one(&pool)
-            .await
-            .map_err(|e| AppError::ConnectionError(format!("Failed to get version: {}", e)))?;
-        
-        pool.close().await;
-        
-        Ok(TestConnectionResult {
-            success: true,
-            message: format!("PostgreSQL connection to {} successful", config.database),
-            server_version: Some(version),
-        })
+/// Helper methods for PostgresDriver
+impl PostgresDriver {
+    /// Safely split SQL into individual statements, handling quotes and comments
+    fn split_sql_statements(sql: &str) -> Vec<String> {
+        let mut statements = Vec::new();
+        let mut current = String::new();
+        let mut chars = sql.chars().peekable();
+        let mut in_single_quote = false;
+        let mut in_double_quote = false;
+        let mut in_backtick = false;
+        let mut in_line_comment = false;
+        let mut in_block_comment = false;
+
+        while let Some(c) = chars.next() {
+            match c {
+                '\'' if !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    in_single_quote = !in_single_quote;
+                    current.push(c);
+                }
+                '"' if !in_single_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    in_double_quote = !in_double_quote;
+                    current.push(c);
+                }
+                '`' if !in_single_quote && !in_double_quote && !in_line_comment && !in_block_comment => {
+                    in_backtick = !in_backtick;
+                    current.push(c);
+                }
+                '-' if !in_single_quote && !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    if let Some(&'-') = chars.peek() {
+                        chars.next();
+                        in_line_comment = true;
+                    } else {
+                        current.push(c);
+                    }
+                }
+                '\n' if in_line_comment => {
+                    in_line_comment = false;
+                }
+                '/' if !in_single_quote && !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    if let Some(&'*') = chars.peek() {
+                        chars.next();
+                        in_block_comment = true;
+                    } else {
+                        current.push(c);
+                    }
+                }
+                '*' if in_block_comment => {
+                    if let Some(&'/') = chars.peek() {
+                        chars.next();
+                        in_block_comment = false;
+                    }
+                }
+                ';' if !in_single_quote && !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    let trimmed = current.trim().to_string();
+                    if !trimmed.is_empty() {
+                        statements.push(trimmed);
+                    }
+                    current.clear();
+                }
+                _ if !in_line_comment && !in_block_comment => {
+                    current.push(c);
+                }
+                _ => {
+                    // Skip characters in comments
+                }
+            }
+        }
+
+        let trimmed = current.trim().to_string();
+        if !trimmed.is_empty() {
+            statements.push(trimmed);
+        }
+
+        statements
     }
 
-    async fn execute_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<QueryResult> {
-        let pool = match pool {
+    /// Execute a single SQL statement
+    async fn execute_single_query(&self, pool_ref: PoolRef<'_>, sql: &str, start: Instant) -> AppResult<QueryResult> {
+        let pool = match pool_ref {
             PoolRef::Postgres(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
         };
 
-        let start = Instant::now();
-        
         // Check if it's a SELECT query, handling comments
         let mut clean_sql = sql.trim();
         while clean_sql.starts_with("--") || clean_sql.starts_with("/*") {
@@ -63,14 +115,14 @@ impl DatabaseDriver for PostgresDriver {
 
         let sql_upper = clean_sql.to_uppercase();
         let is_select = sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH");
-        
+
         if is_select {
             // Execute as query and fetch results
             let rows = sqlx::query(sql)
                 .fetch_all(pool)
                 .await
                 .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
-            
+
             if rows.is_empty() {
                 return Ok(QueryResult {
                     columns: vec![],
@@ -79,7 +131,7 @@ impl DatabaseDriver for PostgresDriver {
                     execution_time_ms: start.elapsed().as_millis() as u64,
                 });
             }
-            
+
             // Get column names from first row
             let columns: Vec<ColumnInfo> = rows[0]
                 .columns()
@@ -91,7 +143,7 @@ impl DatabaseDriver for PostgresDriver {
                     is_primary_key: false,
                 })
                 .collect();
-            
+
             // Convert rows to JSON values
             let json_rows: Vec<Vec<serde_json::Value>> = rows
                 .iter()
@@ -123,7 +175,7 @@ impl DatabaseDriver for PostgresDriver {
                         .collect()
                 })
                 .collect();
-            
+
             Ok(QueryResult {
                 columns,
                 rows: json_rows,
@@ -131,18 +183,218 @@ impl DatabaseDriver for PostgresDriver {
                 execution_time_ms: start.elapsed().as_millis() as u64,
             })
         } else {
-            // Execute as execute (INSERT, UPDATE, DELETE)
+            // Execute as execute (INSERT, UPDATE, DELETE, CREATE, DROP, etc.)
             let result = sqlx::query(sql)
                 .execute(pool)
                 .await
                 .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
-            
+
             Ok(QueryResult {
                 columns: vec![],
                 rows: vec![],
                 affected_rows: Some(result.rows_affected()),
                 execution_time_ms: start.elapsed().as_millis() as u64,
             })
+        }
+    }
+}
+
+#[async_trait]
+impl DatabaseDriver for PostgresDriver {
+    async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult> {
+        let connection_string = self.build_connection_string(config);
+        
+        let pool = PgPool::connect(&connection_string).await
+            .map_err(|e| AppError::ConnectionError(format!("PostgreSQL connection failed: {}", e)))?;
+        
+        // Get server version
+        let version: String = sqlx::query_scalar("SELECT version()")
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get version: {}", e)))?;
+        
+        pool.close().await;
+        
+        Ok(TestConnectionResult {
+            success: true,
+            message: format!("PostgreSQL connection to {} successful", config.database),
+            server_version: Some(version),
+        })
+    }
+
+    async fn execute_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // Split SQL into individual statements
+        let statements = Self::split_sql_statements(sql);
+
+        // If there's only one statement, execute it directly (original behavior)
+        if statements.len() == 1 {
+            return self.execute_single_query(PoolRef::Postgres(pool), &statements[0], start).await;
+        }
+
+        // Execute multiple statements in a transaction
+        // Start transaction
+        let mut tx = pool.begin().await
+            .map_err(|e| AppError::QueryError(format!("Failed to start transaction: {}", e)))?;
+
+        let execution_result: AppResult<QueryResult> = async {
+            let mut final_result = QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: None,
+                execution_time_ms: 0,
+            };
+
+            for (i, stmt) in statements.iter().enumerate() {
+                let stmt_start = Instant::now();
+
+                // Execute the statement directly on the transaction
+                let clean_sql = stmt.trim();
+                let mut check_sql = clean_sql;
+                while check_sql.starts_with("--") || check_sql.starts_with("/*") {
+                    if check_sql.starts_with("--") {
+                        if let Some(newline_pos) = check_sql.find('\n') {
+                            check_sql = check_sql[newline_pos..].trim();
+                        } else {
+                            check_sql = "";
+                            break;
+                        }
+                    } else if check_sql.starts_with("/*") {
+                        if let Some(end_pos) = check_sql.find("*/") {
+                            check_sql = check_sql[end_pos + 2..].trim();
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                let sql_upper = check_sql.to_uppercase();
+                let is_select = sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH");
+
+                let result = if is_select {
+                    // Execute SELECT and fetch results
+                    let rows = sqlx::query(stmt)
+                        .fetch_all(&mut *tx)
+                        .await
+                        .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
+
+                    if rows.is_empty() {
+                        QueryResult {
+                            columns: vec![],
+                            rows: vec![],
+                            affected_rows: None,
+                            execution_time_ms: stmt_start.elapsed().as_millis() as u64,
+                        }
+                    } else {
+                        // Get column names from first row
+                        let columns: Vec<ColumnInfo> = rows[0]
+                            .columns()
+                            .iter()
+                            .map(|col| ColumnInfo {
+                                name: col.name().to_string(),
+                                data_type: "unknown".to_string(),
+                                nullable: true,
+                                is_primary_key: false,
+                            })
+                            .collect();
+
+                        // Convert rows to JSON values
+                        let json_rows: Vec<Vec<serde_json::Value>> = rows
+                            .iter()
+                            .map(|row| {
+                                (0..columns.len())
+                                    .map(|idx| {
+                                        if let Ok(val) = row.try_get::<String, _>(idx) {
+                                            serde_json::Value::String(val)
+                                        } else if let Ok(val) = row.try_get::<i64, _>(idx) {
+                                            serde_json::Value::Number(val.into())
+                                        } else if let Ok(val) = row.try_get::<i32, _>(idx) {
+                                            serde_json::Value::Number(val.into())
+                                        } else if let Ok(val) = row.try_get::<f64, _>(idx) {
+                                            serde_json::Value::Number(serde_json::Number::from_f64(val).unwrap_or(0.into()))
+                                        } else if let Ok(val) = row.try_get::<bool, _>(idx) {
+                                            serde_json::Value::Bool(val)
+                                        } else if let Ok(val) = row.try_get::<chrono::NaiveDateTime, _>(idx) {
+                                            serde_json::Value::String(val.to_string())
+                                        } else if let Ok(val) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(idx) {
+                                            serde_json::Value::String(val.to_rfc3339())
+                                        } else if let Ok(val) = row.try_get::<serde_json::Value, _>(idx) {
+                                            val
+                                        } else {
+                                            serde_json::Value::String("Unsupported type".to_string())
+                                        }
+                                    })
+                                    .collect()
+                            })
+                            .collect();
+
+                        QueryResult {
+                            columns,
+                            rows: json_rows,
+                            affected_rows: None,
+                            execution_time_ms: stmt_start.elapsed().as_millis() as u64,
+                        }
+                    }
+                } else {
+                    // Execute INSERT, UPDATE, DELETE, CREATE, DROP, etc.
+                    let execute_result = sqlx::query(stmt)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
+
+                    QueryResult {
+                        columns: vec![],
+                        rows: vec![],
+                        affected_rows: Some(execute_result.rows_affected()),
+                        execution_time_ms: stmt_start.elapsed().as_millis() as u64,
+                    }
+                };
+
+                // Keep track of total affected rows and the last query result
+                if let Some(affected) = result.affected_rows {
+                    if let Some(total) = final_result.affected_rows {
+                        final_result.affected_rows = Some(total + affected);
+                    } else {
+                        final_result.affected_rows = Some(affected);
+                    }
+                }
+
+                // Use the last SELECT query's results as the final result
+                if result.rows.len() > 0 {
+                    final_result = result;
+                } else if i == statements.len() - 1 && final_result.rows.is_empty() {
+                    // If no SELECT queries, use the last result
+                    final_result = result;
+                }
+            }
+            Ok(final_result)
+        }.await;
+
+        // Commit or rollback based on execution result
+        match execution_result {
+            Ok(mut result) => {
+                tx.commit().await
+                    .map_err(|e| AppError::QueryError(format!("Failed to commit transaction: {}", e)))?;
+                result.execution_time_ms = start.elapsed().as_millis() as u64;
+                Ok(result)
+            }
+            Err(e) => {
+                tx.rollback().await
+                    .map_err(|rollback_err| {
+                        AppError::QueryError(format!(
+                            "Query failed: {}. Transaction rollback also failed: {}",
+                            e,
+                            rollback_err
+                        ))
+                    })?;
+                Err(e)
+            }
         }
     }
 

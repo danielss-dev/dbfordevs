@@ -680,7 +680,6 @@ export function Sidebar() {
           </div>
           <div>
             <span className="font-semibold text-sm">dbfordevs</span>
-            <span className="text-[10px] text-muted-foreground ml-1.5">v0.1</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
