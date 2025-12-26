@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import type { AIChatMessage } from "@/extensions";
 import { useQueryStore } from "@/stores/query";
 import { useConnectionsStore } from "@/stores/connections";
-import { invoke } from "@tauri-apps/api/core";
+import { useDatabase } from "@/hooks/useDatabase";
 import { QueryDiffView } from "./QueryDiffView";
 
 interface ChatMessageProps {
@@ -56,6 +56,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const [isRunning, setIsRunning] = useState(false);
   const queryStore = useQueryStore();
   const activeConnectionId = useConnectionsStore((state) => state.activeConnectionId);
+  const { executeQuery } = useDatabase();
   const isUser = message.role === "user";
   const isError = message.content.toLowerCase().startsWith("error:");
   const isStreaming = message.isStreaming;
@@ -72,25 +73,28 @@ export function ChatMessage({ message }: ChatMessageProps) {
   };
 
   const handleInsertSQL = () => {
-    if (!message.sql) return;
+    if (!message.sql) return null;
 
     const { tabs, activeTabId, addTab, updateTabContent } = queryStore;
     const activeTab = tabs.find((t) => t.id === activeTabId && t.type === "query");
 
     if (activeTab) {
       updateTabContent(activeTab.id, message.sql);
+      return activeTab.id;
     } else {
       if (!activeConnectionId) {
         console.error("No active connection - cannot create query tab");
-        return;
+        return null;
       }
+      const tabId = crypto.randomUUID();
       addTab({
-        id: crypto.randomUUID(),
+        id: tabId,
         title: "AI Query",
         type: "query",
         connectionId: activeConnectionId,
         content: message.sql,
       });
+      return tabId;
     }
   };
 
@@ -100,20 +104,20 @@ export function ChatMessage({ message }: ChatMessageProps) {
     setIsRunning(true);
     try {
       // Insert SQL into editor first
-      handleInsertSQL();
+      const tabId = handleInsertSQL();
 
-      // Execute the query
-      const result = await invoke<unknown>("execute_query", {
-        connectionId: activeConnectionId,
-        query: message.sql,
-      });
-
-      console.log("[ChatMessage] Query executed:", result);
-
-      // Find the query tab to focus on results
-      const { tabs } = queryStore;
-      const resultsTab = tabs.find(t => t.type === "query" && t.connectionId === activeConnectionId);
-      console.log("[ChatMessage] Results tab:", resultsTab?.id);
+      // Execute the query using the proper executeQuery function
+      if (tabId) {
+        await executeQuery(
+          {
+            connectionId: activeConnectionId,
+            sql: message.sql,
+            limit: undefined,
+            offset: undefined,
+          },
+          tabId
+        );
+      }
     } catch (error) {
       console.error("[ChatMessage] Query execution failed:", error);
     } finally {
