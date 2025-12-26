@@ -13,6 +13,7 @@ export function useAIAssistant() {
   const {
     panelOpen,
     isLoading,
+    isStreaming,
     context,
     settings,
     setPanelOpen,
@@ -22,6 +23,7 @@ export function useAIAssistant() {
     setApiKey,
     isConfigured: checkIsConfigured,
     getActiveSession,
+    getSessionUsageStats,
   } = useAIStore();
 
   const isAIEnabled = settings.aiEnabled ?? true;
@@ -30,18 +32,19 @@ export function useAIAssistant() {
   // Get messages from active session
   const activeSession = getActiveSession();
   const messages = activeSession?.messages || [];
+  const usageStats = getSessionUsageStats();
 
   const sendMessage = useCallback(
-    async (message: string) => {
+    async (message: string, useStreaming: boolean = true) => {
       if (!message.trim()) return;
-      await storeSendMessage(message);
+      await storeSendMessage(message, useStreaming);
     },
     [storeSendMessage]
   );
 
   const updateContext = useCallback(
-    (tables: TableInfo[], selectedTable?: string, databaseType?: string, connectionId?: string) => {
-      setContext({ tables, selectedTable, databaseType, connectionId });
+    (tables: TableInfo[], selectedTable?: string, databaseType?: string, connectionId?: string, currentQuery?: string) => {
+      setContext({ tables, selectedTable, databaseType, connectionId, currentQuery });
     },
     [setContext]
   );
@@ -50,17 +53,16 @@ export function useAIAssistant() {
     isOpen: panelOpen,
     isConfigured,
     isEnabled: isAIEnabled,
-    isLoading: isLoading,
-    messages: messages,
-    context: context,
+    isLoading,
+    isStreaming,
+    messages,
+    context,
+    usageStats,
     open: () => setPanelOpen(true),
     close: () => setPanelOpen(false),
     toggle: togglePanel,
     sendMessage,
     updateContext,
-    setApiKey: setApiKey,
+    setApiKey,
   };
 }
-
-
-

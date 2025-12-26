@@ -5,7 +5,7 @@
  */
 
 import { useEffect } from "react";
-import { ChevronDown, Sparkles, Cpu, Check } from "lucide-react";
+import { ChevronDown, Sparkles, Cpu, Check, Brain } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 const PROVIDER_ICONS: Record<AIProviderType, React.ReactNode> = {
   anthropic: <Sparkles className="h-3.5 w-3.5" />,
   gemini: <Cpu className="h-3.5 w-3.5" />,
+  openai: <Brain className="h-3.5 w-3.5" />,
 };
 
 export function ProviderModelSwitcher() {
@@ -83,7 +84,9 @@ export function ProviderModelSwitcher() {
           const providerConfigured =
             provider === "anthropic"
               ? !!(settings.aiAnthropicApiKey || settings.aiApiKey)
-              : !!settings.aiGeminiApiKey;
+              : provider === "gemini"
+              ? !!settings.aiGeminiApiKey
+              : !!settings.aiOpenaiApiKey;
 
           return (
             <DropdownMenuGroup key={provider}>
@@ -109,7 +112,7 @@ export function ProviderModelSwitcher() {
                   )}
                 </DropdownMenuItem>
               ))}
-              {provider !== "gemini" && <DropdownMenuSeparator />}
+              {provider !== "openai" && <DropdownMenuSeparator />}
             </DropdownMenuGroup>
           );
         })}

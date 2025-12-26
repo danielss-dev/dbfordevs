@@ -9,9 +9,12 @@ interface SqlEditorProps {
   value: string;
   onChange: (value: string) => void;
   onExecute?: () => void;
+  onExplainWithAI?: (sql: string) => void;
+  onOptimizeWithAI?: (sql: string) => void;
   tables?: TableInfo[];
   getTableSchema?: (tableName: string) => Promise<TableSchema | null>;
-  theme?: "light" | "dark" | "system";
+  theme?: "light" | "dark" | "system" | string;
+  themeVariant?: "light" | "dark";
   readOnly?: boolean;
   height?: string | number;
 }
@@ -20,17 +23,23 @@ export function SqlEditor({
   value,
   onChange,
   onExecute,
+  onExplainWithAI,
+  onOptimizeWithAI,
   tables = [],
   getTableSchema,
   theme = "dark",
+  themeVariant,
   readOnly = false,
   height = "100%",
 }: SqlEditorProps) {
   const editorRef = useRef<MonacoEditor.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const completionDisposableRef = useRef<MonacoEditor.IDisposable | null>(null);
+  const actionDisposablesRef = useRef<MonacoEditor.IDisposable[]>([]);
   const tablesRef = useRef<TableInfo[]>(tables);
   const getTableSchemaRef = useRef(getTableSchema);
+  const onExplainWithAIRef = useRef(onExplainWithAI);
+  const onOptimizeWithAIRef = useRef(onOptimizeWithAI);
 
   // Keep refs in sync
   useEffect(() => {
@@ -41,11 +50,25 @@ export function SqlEditor({
     getTableSchemaRef.current = getTableSchema;
   }, [getTableSchema]);
 
+  useEffect(() => {
+    onExplainWithAIRef.current = onExplainWithAI;
+  }, [onExplainWithAI]);
+
+  useEffect(() => {
+    onOptimizeWithAIRef.current = onOptimizeWithAI;
+  }, [onOptimizeWithAI]);
+
   // Schema cache
   const schemaCache = useMemo(() => new Map<string, TableSchema>(), []);
 
   // Determine Monaco theme based on app theme
-  const monacoTheme = useMemo(() => getMonacoTheme(theme), [theme]);
+  const monacoTheme = useMemo(() => {
+    // For extension themes, use the explicit themeVariant prop
+    if (theme.startsWith("ext:") && themeVariant) {
+      return themeVariant === "light" ? "dbfordevs-light" : "dbfordevs-dark";
+    }
+    return getMonacoTheme(theme);
+  }, [theme, themeVariant]);
 
   // Handle editor mount
   const handleEditorMount: OnMount = (editor, monaco) => {
@@ -74,7 +97,7 @@ export function SqlEditor({
     );
 
     // Register Ctrl/Cmd+Enter shortcut for query execution
-    editor.addAction({
+    const executeAction = editor.addAction({
       id: "execute-query",
       label: "Execute Query",
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
@@ -82,15 +105,62 @@ export function SqlEditor({
         onExecute?.();
       },
     });
+    actionDisposablesRef.current.push(executeAction);
+
+    // Register "Explain with AI" context menu action
+    const explainAction = editor.addAction({
+      id: "explain-with-ai",
+      label: "Explain with AI",
+      contextMenuGroupId: "ai",
+      contextMenuOrder: 1,
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyE],
+      run: (ed) => {
+        const selection = ed.getSelection();
+        let sql = "";
+        if (selection && !selection.isEmpty()) {
+          sql = ed.getModel()?.getValueInRange(selection) || "";
+        } else {
+          sql = ed.getValue();
+        }
+        if (sql.trim() && onExplainWithAIRef.current) {
+          onExplainWithAIRef.current(sql);
+        }
+      },
+    });
+    actionDisposablesRef.current.push(explainAction);
+
+    // Register "Optimize with AI" context menu action
+    const optimizeAction = editor.addAction({
+      id: "optimize-with-ai",
+      label: "Optimize with AI",
+      contextMenuGroupId: "ai",
+      contextMenuOrder: 2,
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyO],
+      run: (ed) => {
+        const selection = ed.getSelection();
+        let sql = "";
+        if (selection && !selection.isEmpty()) {
+          sql = ed.getModel()?.getValueInRange(selection) || "";
+        } else {
+          sql = ed.getValue();
+        }
+        if (sql.trim() && onOptimizeWithAIRef.current) {
+          onOptimizeWithAIRef.current(sql);
+        }
+      },
+    });
+    actionDisposablesRef.current.push(optimizeAction);
 
     // Focus the editor
     editor.focus();
   };
 
-  // Cleanup completion provider on unmount
+  // Cleanup completion provider and actions on unmount
   useEffect(() => {
     return () => {
       completionDisposableRef.current?.dispose();
+      actionDisposablesRef.current.forEach(d => d.dispose());
+      actionDisposablesRef.current = [];
     };
   }, []);
 

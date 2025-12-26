@@ -672,7 +672,7 @@ checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 
 [[package]]
 name = "dbfordevs"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "arboard",
  "async-trait",
@@ -1002,7 +1002,7 @@ dependencies = [
 
 [[package]]
 name = "extension-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -4896,7 +4896,7 @@ dependencies = [
 
 [[package]]
 name = "theme-nordic"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "extension-core",
  "serde",
@@ -5467,7 +5467,7 @@ dependencies = [
 
 [[package]]
 name = "validator-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "extension-core",
  "serde",
@@ -5477,7 +5477,7 @@ dependencies = [
 
 [[package]]
 name = "validator-csharp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "extension-core",
  "regex",
@@ -5488,7 +5488,7 @@ dependencies = [
 
 [[package]]
 name = "validator-nodejs"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "extension-core",
  "regex",
@@ -5500,7 +5500,7 @@ dependencies = [
 
 [[package]]
 name = "validator-python"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "extension-core",
  "regex",

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, ExternalLink, Settings2, Sparkles, Cpu } from "lucide-react";
+import { Eye, EyeOff, ExternalLink, Settings2, Sparkles, Cpu, Brain } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,7 @@ interface AISettingsDialogProps {
 const PROVIDER_ICONS: Record<AIProviderType, React.ReactNode> = {
   anthropic: <Sparkles className="h-4 w-4" />,
   gemini: <Cpu className="h-4 w-4" />,
+  openai: <Brain className="h-4 w-4" />,
 };
 
 export function AISettingsDialog({
@@ -48,8 +49,10 @@ export function AISettingsDialog({
     provider: settings.aiProvider || "anthropic",
     anthropicApiKey: settings.aiAnthropicApiKey || settings.aiApiKey || "",
     geminiApiKey: settings.aiGeminiApiKey || "",
+    openaiApiKey: settings.aiOpenaiApiKey || "",
     anthropicModel: settings.aiAnthropicModel || DEFAULT_MODELS.anthropic,
     geminiModel: settings.aiGeminiModel || DEFAULT_MODELS.gemini,
+    openaiModel: settings.aiOpenaiModel || DEFAULT_MODELS.openai,
     temperature: settings.aiTemperature ?? 0.1,
     maxTokens: settings.aiMaxTokens ?? 2048,
   });
@@ -57,6 +60,7 @@ export function AISettingsDialog({
   const [showKeys, setShowKeys] = useState<Record<AIProviderType, boolean>>({
     anthropic: false,
     gemini: false,
+    openai: false,
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -75,8 +79,10 @@ export function AISettingsDialog({
         provider: settings.aiProvider || "anthropic",
         anthropicApiKey: settings.aiAnthropicApiKey || settings.aiApiKey || "",
         geminiApiKey: settings.aiGeminiApiKey || "",
+        openaiApiKey: settings.aiOpenaiApiKey || "",
         anthropicModel: settings.aiAnthropicModel || DEFAULT_MODELS.anthropic,
         geminiModel: settings.aiGeminiModel || DEFAULT_MODELS.gemini,
+        openaiModel: settings.aiOpenaiModel || DEFAULT_MODELS.openai,
         temperature: settings.aiTemperature ?? 0.1,
         maxTokens: settings.aiMaxTokens ?? 2048,
       });
@@ -90,8 +96,10 @@ export function AISettingsDialog({
         aiProvider: localSettings.provider as AIProviderType,
         aiAnthropicApiKey: localSettings.anthropicApiKey || undefined,
         aiGeminiApiKey: localSettings.geminiApiKey || undefined,
+        aiOpenaiApiKey: localSettings.openaiApiKey || undefined,
         aiAnthropicModel: localSettings.anthropicModel,
         aiGeminiModel: localSettings.geminiModel,
+        aiOpenaiModel: localSettings.openaiModel,
         aiTemperature: localSettings.temperature,
         aiMaxTokens: localSettings.maxTokens,
       });
@@ -113,21 +121,25 @@ export function AISettingsDialog({
     setShowKeys((prev) => ({ ...prev, [provider]: !prev[provider] }));
   };
 
-  const getApiKeyField = (provider: AIProviderType) => {
+  const getApiKeyField = (provider: AIProviderType): "anthropicApiKey" | "geminiApiKey" | "openaiApiKey" => {
     switch (provider) {
       case "anthropic":
         return "anthropicApiKey";
       case "gemini":
         return "geminiApiKey";
+      case "openai":
+        return "openaiApiKey";
     }
   };
 
-  const getModelField = (provider: AIProviderType) => {
+  const getModelField = (provider: AIProviderType): "anthropicModel" | "geminiModel" | "openaiModel" => {
     switch (provider) {
       case "anthropic":
         return "anthropicModel";
       case "gemini":
         return "geminiModel";
+      case "openai":
+        return "openaiModel";
     }
   };
 
@@ -137,6 +149,8 @@ export function AISettingsDialog({
         return "sk-ant-api03-...";
       case "gemini":
         return "AIza...";
+      case "openai":
+        return "sk-...";
     }
   };
 
@@ -300,6 +314,13 @@ export function AISettingsDialog({
                   <>
                     <li><strong>Gemini 3 Pro:</strong> Most capable for complex reasoning</li>
                     <li><strong>Gemini 3 Flash:</strong> Fast, optimized for speed</li>
+                  </>
+                )}
+                {currentProvider === "openai" && (
+                  <>
+                    <li><strong>GPT-5.2:</strong> Most capable, great for complex queries</li>
+                    <li><strong>GPT-5 Mini:</strong> Fast and cost-effective</li>
+                    <li><strong>GPT-5.2 Pro:</strong> Advanced reasoning model</li>
                   </>
                 )}
               </ul>
