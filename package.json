@@ -5,8 +5,12 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:build": "tauri build",
+    "tauri:dev": "tauri dev",
     "version:bump": "bun scripts/bump-version.ts"
   },
   "dependencies": {
