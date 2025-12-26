@@ -4,11 +4,79 @@ Quick reference for dbfordevs releases. For detailed changes, see [CHANGELOG.md]
 
 ---
 
-## Latest Release: v0.2.0
+## Latest Release: v0.2.1
 
-**Release Date**: December 25, 2025
+**Release Date**: December 26, 2025
 
 ### What's New
+
+This release enhances AI Query Assistant with OpenAI integration, visual query optimization, and significantly improves PostgreSQL query handling and multi-statement support.
+
+#### Highlights
+
+🧠 **OpenAI Provider Integration**
+- Support for **OpenAI GPT** models (GPT-5.2, GPT-5 Mini, GPT-5.2 Pro)
+- Third major AI provider alongside Anthropic Claude and Google Gemini
+- Provider switcher in settings with model selection
+- Unified API key management across all providers
+
+📊 **Query Optimization Diff View**
+- Visual comparison of original and optimized SQL queries
+- Color-coded diff showing additions (green), removals (red), and changes
+- Change summary highlighting specific performance improvements
+- One-click Apply or Copy functionality for quick integration
+- Side-by-side comparison view for detailed analysis
+
+⚡ **Enhanced PostgreSQL Support**
+- **Comprehensive Type Handling**: Support for all PostgreSQL data types including:
+  - Binary data (BYTEA) with Base64 encoding
+  - Arrays, Intervals, Money types
+  - Network types (IP addresses, MAC addresses)
+  - All date/time representations (chrono and time crate)
+  - JSON/JSONB native support
+  - Bit vectors and custom composite types
+- **Multi-Statement Execution**: Execute multiple SQL statements in a single query:
+  - Intelligent SQL splitting with quote and comment handling
+  - Transaction-based execution for atomicity
+  - Proper error handling with automatic rollback on failure
+- **Expanded SQLx Features**: Added support for additional database types
+
+🎯 **Improved AI Context**
+- Current query from editor now included in AI context
+- Better understanding of user intent when asking about "this query"
+- Support for query variants (multiple approaches in single response)
+- Enhanced error handling with clearer streaming message updates
+
+### Key Features Added Since v0.2.0
+
+| Feature | Category | Impact |
+|---------|----------|--------|
+| OpenAI Provider Support | AI | High |
+| Query Optimization Diff | AI | High |
+| PostgreSQL Multi-Statement | Database | High |
+| Comprehensive Type Handling | Database | Medium |
+| Enhanced AI Context | AI | Medium |
+
+### Downloads & Installation
+
+Visit the [GitHub Releases Page](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.1) to download v0.2.1 for your platform:
+- **Windows**: `.msi` installer
+- **macOS**: `.dmg` installer (Intel & Apple Silicon)
+- **Linux**: `.AppImage` or `.deb` package
+
+### System Requirements
+
+- **RAM**: 512 MB minimum (4+ GB recommended for AI features)
+- **Storage**: 150 MB free space
+- **Network**: Internet connection required for AI features
+
+---
+
+## Previous Releases
+
+### v0.2.0
+
+**Release Date**: December 25, 2025
 
 This release introduces the **AI Query Assistant**, transforming dbfordevs into an intelligent database development partner. Generate SQL, explain queries, and get database-specific advice using industry-leading AI models.
 
@@ -36,34 +104,6 @@ This release introduces the **AI Query Assistant**, transforming dbfordevs into 
 - Automatic schema context enrichment
 - `@` mentions for tables and columns in prompts
 - Database-specific query generation (PG, MySQL, etc.)
-
-### Key Features Added Since v0.1.2
-
-| Feature | Category | Impact |
-|---------|----------|--------|
-| AI SQL Generation | AI | High |
-| Query Explanation | AI | High |
-| Multi-Provider Support | AI | High |
-| Chat History | AI | Medium |
-| @ Table Mentions | AI | Medium |
-| Tauri HTTP Proxy | Infrastructure | Medium |
-
-### Downloads & Installation
-
-Visit the [GitHub Releases Page](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.0) to download v0.2.0 for your platform:
-- **Windows**: `.msi` installer
-- **macOS**: `.dmg` installer (Intel & Apple Silicon)
-- **Linux**: `.AppImage` or `.deb` package
-
-### System Requirements
-
-- **RAM**: 512 MB minimum (4+ GB recommended for AI features)
-- **Storage**: 150 MB free space
-- **Network**: Internet connection required for AI features
-
----
-
-## Previous Releases
 
 ### v0.1.2
 
@@ -93,7 +133,8 @@ The inaugural release of dbfordevs - a lightweight, cross-platform database clie
 
 | Version | Release Date | Type | Downloads |
 |---------|--------------|------|-----------|
-| [v0.2.0](#latest-release-v020) | Dec 25, 2025 | Minor | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.0) |
+| [v0.2.1](#latest-release-v021) | Dec 26, 2025 | Minor | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.1) |
+| [v0.2.0](#previous-releases-v020) | Dec 25, 2025 | Minor | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.0) |
 | [v0.1.2](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.2) | Dec 21, 2025 | Minor | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.2) |
 | [v0.1.0](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.0) | Dec 15, 2025 | Initial | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.0) |
 

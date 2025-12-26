@@ -2,6 +2,46 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2025-12-26
+
+### Added
+
+#### AI Query Assistant
+- **OpenAI Provider Integration**: Added support for OpenAI GPT models including GPT-5.2, GPT-5 Mini, and GPT-5.2 Pro
+- **Query Optimization Diff View**: New visual component for comparing original and optimized SQL queries with:
+  - Side-by-side diff view with color-coded changes
+  - Change summary highlighting specific improvements
+  - Copy and Apply functionality for quick integration
+- **Enhanced AI Context**: Improved context management including current query from editor for better understanding
+- **Query Variants**: Support for multiple alternative query approaches in single AI response
+
+#### PostgreSQL Enhancements
+- **Comprehensive Value Handling**: Expanded PostgresDriver to handle all PostgreSQL data types including:
+  - Binary data (BYTEA) encoded as Base64
+  - Complex types: Arrays, Intervals, Money, Networks (IP/MAC)
+  - All date/time types (chrono and time crate representations)
+  - JSON/JSONB with native support
+  - Bit vectors and custom composite types
+- **Multi-Statement Execution**: Implemented SQL statement splitting with support for:
+  - Proper handling of quotes (single, double, backticks)
+  - Comment handling (single-line `--` and block `/* */`)
+  - Escaped quote detection for PostgreSQL string literals
+- **Transaction Support**: Multiple SQL statements now execute within a transaction for atomicity
+- **Expanded SQLx Features**: Added support for additional database types in Cargo.toml
+
+### Changed
+- **AI Error Handling**: Enhanced error reporting with improved streaming message error management
+- **Session Management**: Chat sessions now re-fetch after potential session creation to ensure consistency
+- **Sidebar UI**: Removed version display from sidebar for cleaner interface
+- **Model ID Handling**: Automatic migration of buggy model IDs from v0.2.0 early builds
+
+### Fixed
+- Fixed AI model ID inconsistencies from v0.2.0 early builds (haiku and gemini model IDs)
+- Improved error display in streaming AI messages
+- Fixed chat session synchronization issues
+
+---
+
 ## [0.2.0] - 2025-12-25
 
 ### Added
