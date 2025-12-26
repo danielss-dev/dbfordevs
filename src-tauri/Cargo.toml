@@ -23,13 +23,26 @@ uuid = { version = "1", features = ["v4"] }
 arboard = "3.4.1"
 
 # Database drivers
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "mysql", "sqlite", "chrono"] }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "postgres",
+    "mysql",
+    "sqlite",
+    "chrono",
+    "uuid",
+    "time",
+    "rust_decimal",
+    "mac_address",
+    "ipnetwork",
+    "bit-vec"
+] }
 tiberius = { version = "0.12", default-features = false, features = ["rustls", "chrono"] }
 
 # Utilities
 dirs = "5"
 once_cell = "1"
 chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
 
 # Extension crates (workspace dependencies)
 extension-core = { path = "../crates/extension-core" }

@@ -230,7 +230,7 @@ export const useAIStore = create<AIState>()(
 
       // Chat actions
       sendMessage: async (message: string, useStreaming: boolean = true) => {
-        const { context, chatSessions, activeChatSessionId, settings, createNewChatSession, getCurrentModel } = get();
+        const { context, activeChatSessionId, settings, createNewChatSession, getCurrentModel } = get();
 
         console.log("[AI Store] sendMessage called with:", message);
         console.log("[AI Store] Current context:", JSON.stringify(context, null, 2));
@@ -241,6 +241,9 @@ export const useAIStore = create<AIState>()(
           createNewChatSession();
           sessionId = get().activeChatSessionId;
         }
+
+        // Re-fetch chatSessions after potential session creation
+        const chatSessions = get().chatSessions;
 
         const activeSession = chatSessions.find(s => s.id === sessionId);
         if (!activeSession) {
@@ -487,20 +490,39 @@ export const useAIStore = create<AIState>()(
             }));
           }
         } catch (error) {
-          const errorMessage: AIChatMessage = {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content:
-              error instanceof Error
-                ? `Error: ${error.message}`
-                : "An error occurred while processing your request.",
-            timestamp: new Date(),
-          };
+          const streamingMessageId = get().streamingMessageId;
+          const currentSession = get().chatSessions.find(s => s.id === sessionId);
+          const existingStreamingMessage = currentSession?.messages.find(m => m.id === streamingMessageId);
 
           set((state) => ({
             chatSessions: state.chatSessions.map(s =>
               s.id === sessionId
-                ? { ...s, messages: [...s.messages, errorMessage], updatedAt: new Date() }
+                ? {
+                    ...s,
+                    messages: existingStreamingMessage
+                      ? s.messages.map(m =>
+                          m.id === streamingMessageId
+                            ? {
+                                ...m,
+                                content:
+                                  error instanceof Error
+                                    ? `Error: ${error.message}`
+                                    : "An error occurred while processing your request.",
+                                isStreaming: false,
+                              }
+                            : m
+                        )
+                      : [...s.messages, {
+                          id: crypto.randomUUID(),
+                          role: "assistant",
+                          content:
+                            error instanceof Error
+                              ? `Error: ${error.message}`
+                              : "An error occurred while processing your request.",
+                          timestamp: new Date(),
+                        }],
+                    updatedAt: new Date(),
+                  }
                 : s
             ),
             isLoading: false,
