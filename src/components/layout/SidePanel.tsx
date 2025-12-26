@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table, Code } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table, Code, GitCommit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
   Button, 
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { useUIStore, useCRUDStore } from "@/stores";
 import { useCRUD } from "@/hooks";
+import { DiffViewer } from "@/components/data-grid/DiffViewer";
 
 interface FieldEditorProps {
   name: string;
@@ -90,6 +91,7 @@ export function SidePanel() {
   
   const [activePanel, setActivePanel] = useState("fields");
   const [currentRowIndex, setCurrentRowIndex] = useState(0);
+  const [viewMode, setViewMode] = useState<"sql" | "diff">("sql");
 
   // Get the current selected row with full context (multi-table safe)
   const currentSelection = selectedRows[currentRowIndex] || selectedRows[0];
@@ -282,70 +284,102 @@ export function SidePanel() {
           )}
         </TabsContent>
 
-        <TabsContent value="sql" className="flex-1 m-0 overflow-hidden">
+        <TabsContent value="sql" className="flex-1 m-0 overflow-hidden flex flex-col">
+          {/* View mode toggle */}
+          {pendingChangesList.length > 0 && (
+            <div className="px-4 py-2 border-b border-border bg-muted/20">
+              <div className="flex bg-muted rounded p-0.5 border border-border w-fit">
+                <Button
+                  variant={viewMode === "sql" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-6 px-3 text-[10px] gap-1.5"
+                  onClick={() => setViewMode("sql")}
+                >
+                  <Code className="h-3 w-3" />
+                  SQL
+                </Button>
+                <Button
+                  variant={viewMode === "diff" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-6 px-3 text-[10px] gap-1.5"
+                  onClick={() => setViewMode("diff")}
+                >
+                  <GitCommit className="h-3 w-3" />
+                  Diff
+                </Button>
+              </div>
+            </div>
+          )}
+
           <ScrollArea className="h-full">
-            <div className="p-4 font-mono text-xs space-y-4">
-              {pendingChangesList.length > 0 ? (
-                pendingChangesList.map((change, idx) => (
-                  <div key={change.id} className="space-y-2 pb-4 border-b border-border last:border-0">
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">
-                      <span>Change #{idx + 1}: {change.type}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-4 w-4 hover:text-destructive"
-                        onClick={() => removePendingChange(JSON.stringify(change.primaryKey))}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+            <div className="p-4">
+              {viewMode === "sql" ? (
+                <div className="font-mono text-xs space-y-4">
+                  {pendingChangesList.length > 0 ? (
+                    pendingChangesList.map((change, idx) => (
+                      <div key={change.id} className="space-y-2 pb-4 border-b border-border last:border-0">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">
+                          <span>Change #{idx + 1}: {change.type}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 hover:text-destructive"
+                            onClick={() => removePendingChange(JSON.stringify(change.primaryKey))}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="bg-muted/50 p-3 rounded border border-border overflow-x-auto">
+                          <pre className="text-foreground">
+                            {change.type === "update" && (
+                              <>
+                                <span className="text-blue-500">UPDATE</span> {change.tableName} <br />
+                                <span className="text-blue-500">SET</span> {
+                                  Object.entries(change.newData || {}).map(([key, val], i, arr) => (
+                                    <span key={key}>
+                                      {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
+                                      {i < arr.length - 1 ? ", " : ""}
+                                    </span>
+                                  ))
+                                } <br />
+                                <span className="text-blue-500">WHERE</span> {
+                                  Object.entries(change.primaryKey).map(([key, val], i, arr) => (
+                                    <span key={key}>
+                                      {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
+                                      {i < arr.length - 1 ? " AND " : ""}
+                                    </span>
+                                  ))
+                                };
+                              </>
+                            )}
+                            {change.type === "delete" && (
+                              <>
+                                <span className="text-destructive">DELETE FROM</span> {change.tableName} <br />
+                                <span className="text-blue-500">WHERE</span> {
+                                  Object.entries(change.primaryKey).map(([key, val], i, arr) => (
+                                    <span key={key}>
+                                      {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
+                                      {i < arr.length - 1 ? " AND " : ""}
+                                    </span>
+                                  ))
+                                };
+                              </>
+                            )}
+                          </pre>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center mt-20">
+                      <div className="bg-muted p-4 rounded-full mb-4">
+                        <Code className="h-8 w-8 opacity-20" />
+                      </div>
+                      <p className="text-sm">No pending changes to display</p>
                     </div>
-                    <div className="bg-muted/50 p-3 rounded border border-border overflow-x-auto">
-                      <pre className="text-foreground">
-                        {change.type === "update" && (
-                          <>
-                            <span className="text-blue-500">UPDATE</span> {change.tableName} <br />
-                            <span className="text-blue-500">SET</span> {
-                              Object.entries(change.newData || {}).map(([key, val], i, arr) => (
-                                <span key={key}>
-                                  {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                  {i < arr.length - 1 ? ", " : ""}
-                                </span>
-                              ))
-                            } <br />
-                            <span className="text-blue-500">WHERE</span> {
-                              Object.entries(change.primaryKey).map(([key, val], i, arr) => (
-                                <span key={key}>
-                                  {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                  {i < arr.length - 1 ? " AND " : ""}
-                                </span>
-                              ))
-                            };
-                          </>
-                        )}
-                        {change.type === "delete" && (
-                          <>
-                            <span className="text-destructive">DELETE FROM</span> {change.tableName} <br />
-                            <span className="text-blue-500">WHERE</span> {
-                              Object.entries(change.primaryKey).map(([key, val], i, arr) => (
-                                <span key={key}>
-                                  {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                  {i < arr.length - 1 ? " AND " : ""}
-                                </span>
-                              ))
-                            };
-                          </>
-                        )}
-                      </pre>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center mt-20">
-                  <div className="bg-muted p-4 rounded-full mb-4">
-                    <Code className="h-8 w-8 opacity-20" />
-                  </div>
-                  <p className="text-sm">No pending changes to display</p>
+                  )}
                 </div>
+              ) : (
+                <DiffViewer changes={pendingChangesList} onRemoveChange={removePendingChange} />
               )}
             </div>
           </ScrollArea>
