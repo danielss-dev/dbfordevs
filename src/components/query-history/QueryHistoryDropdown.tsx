@@ -21,13 +21,15 @@ interface QueryHistoryDropdownProps {
 export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistoryDropdownProps) {
   const { queryHistory } = useQueryStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
 
   const connectionHistory = queryHistory[connectionId] || [];
   const hasHistory = connectionHistory.length > 0;
 
   return (
-    <DropdownMenu>
-      <Tooltip>
+    <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+      <Tooltip open={isHovering && !isDropdownOpen}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <Button
@@ -35,6 +37,8 @@ export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistory
               size="sm"
               disabled={!hasHistory}
               className="gap-2 ml-auto"
+              onMouseEnter={() => setIsHovering(true)}
+              onMouseLeave={() => setIsHovering(false)}
             >
               <History className="h-3.5 w-3.5" />
               History
