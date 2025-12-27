@@ -14,7 +14,6 @@ import {
   Plug,
   Unplug,
   RefreshCw,
-  ShoppingBag,
   Copy,
   ClipboardPaste,
   Network,
@@ -673,7 +672,6 @@ export function Sidebar() {
     sidebarWidth,
     setShowConnectionModal,
     openSettingsWithTab,
-    setShowMarketplace,
   } = useUIStore();
   const { connections } = useConnectionsStore();
   const { loadConnections } = useDatabase();
@@ -748,20 +746,6 @@ export function Sidebar() {
       {/* Footer */}
       <div className="border-t border-sidebar-border p-2">
         <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 group"
-                onClick={() => setShowMarketplace(true)}
-              >
-                <ShoppingBag className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Extensions</TooltipContent>
-          </Tooltip>
-
           <div className="flex-1" />
 
           <Tooltip>

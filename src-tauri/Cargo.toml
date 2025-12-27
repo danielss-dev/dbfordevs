@@ -44,16 +44,6 @@ once_cell = "1"
 chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.22"
 
-# Extension crates (workspace dependencies)
-extension-core = { path = "../crates/extension-core" }
-validator-core = { path = "../crates/validator-core" }
-validator-csharp = { path = "../crates/validator-csharp" }
-validator-nodejs = { path = "../crates/validator-nodejs" }
-validator-python = { path = "../crates/validator-python" }
-
-# HTTP client for extensions
-reqwest = { version = "0.12", features = ["json"] }
-
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

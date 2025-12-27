@@ -3,11 +3,14 @@ import { persist } from "zustand/middleware";
 import type { PendingChange } from "@/types";
 
 /**
- * Theme type:
- * - "light" | "dark" | "system": Built-in themes handled by UI store
- * - "ext:<id>": Extension theme, delegated to theme store (e.g., "ext:nordic-dark")
+ * Theme type - all built-in themes:
+ * - "light": Default light theme
+ * - "dark": Default dark theme
+ * - "system": Follows OS preference
+ * - "nordic-dark": Arctic, north-bluish dark theme based on Nord
+ * - "nordic-light": Arctic, north-bluish light theme based on Nord
  */
-type Theme = "light" | "dark" | "system" | `ext:${string}`;
+type Theme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light";
 type AppStyle = "developer" | "web";
 
 interface EditorSettings {
@@ -46,7 +49,7 @@ interface UIState {
   showMarketplace: boolean;
   showDiffModal: boolean;
   showSettingsDialog: boolean;
-  settingsDialogTab: "general" | "editor" | "appearance" | "extensions" | "keybindings" | "advanced" | "about";
+  settingsDialogTab: "general" | "editor" | "appearance" | "keybindings" | "advanced" | "about";
   showRenameTableDialog: boolean;
   renamingTableName: string | null;
   showRenameConnectionDialog: boolean;
@@ -75,7 +78,7 @@ interface UIState {
   setShowMarketplace: (show: boolean) => void;
   setShowDiffModal: (show: boolean) => void;
   setShowSettingsDialog: (show: boolean) => void;
-  openSettingsWithTab: (tab: "general" | "editor" | "appearance" | "extensions" | "keybindings" | "advanced" | "about") => void;
+  openSettingsWithTab: (tab: "general" | "editor" | "appearance" | "keybindings" | "advanced" | "about") => void;
   setShowRenameTableDialog: (show: boolean) => void;
   openRenameTableDialog: (tableName: string, connectionId: string) => void;
   setShowRenameConnectionDialog: (show: boolean) => void;
@@ -126,35 +129,23 @@ export const useUIStore = create<UIState>()(
 
       setTheme: (theme) => {
         const root = document.documentElement;
-        
-        // Check if this is an extension theme
-        if (theme.startsWith("ext:")) {
-          const extensionThemeId = theme.slice(4); // Remove "ext:" prefix
-          
-          // Dynamically import to avoid circular dependency
-          import("@/extensions").then(({ useThemeStore }) => {
-            const themeStore = useThemeStore.getState();
-            themeStore.activateTheme(extensionThemeId);
-          });
-        } else {
-          // Built-in theme - deactivate any extension theme first
-          import("@/extensions").then(({ useThemeStore }) => {
-            const themeStore = useThemeStore.getState();
-            themeStore.activateTheme(null);
-          });
-          
-          // Remove dark class (extension themes handle their own classes)
-          root.classList.remove("dark");
-          
-          if (theme === "system") {
-            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-            root.classList.toggle("dark", prefersDark);
-          } else if (theme === "dark") {
-            root.classList.add("dark");
-          }
-          // "light" theme - no class needed (default)
+
+        // Remove all theme classes
+        root.classList.remove("dark", "theme-nordic-dark", "theme-nordic-light");
+
+        // Apply theme-specific class
+        if (theme === "nordic-dark") {
+          root.classList.add("theme-nordic-dark");
+        } else if (theme === "nordic-light") {
+          root.classList.add("theme-nordic-light");
+        } else if (theme === "system") {
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          root.classList.toggle("dark", prefersDark);
+        } else if (theme === "dark") {
+          root.classList.add("dark");
         }
-        
+        // "light" theme - no class needed (default)
+
         set({ theme });
       },
 

@@ -11,8 +11,8 @@ import {
   Input,
   ScrollArea,
 } from "@/components/ui";
-import { useAIStore } from "@/extensions/ai/store";
-import { groupSessionsByTime } from "@/extensions/ai/utils";
+import { useAIStore } from "@/lib/ai/store";
+import { groupSessionsByTime } from "@/lib/ai/utils";
 import { ChatHistoryItem } from "./ChatHistoryItem";
 import { cn } from "@/lib/utils";
 

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Check, X, Copy, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import type { QueryDiff } from "@/extensions/ai/types";
+import type { QueryDiff } from "@/lib/ai/types";
 
 interface QueryDiffViewProps {
   diff: QueryDiff;

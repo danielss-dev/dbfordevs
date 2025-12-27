@@ -12,7 +12,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import type { AIChatMessage } from "@/extensions";
+import type { AIChatMessage } from "@/lib/ai";
 import { useQueryStore } from "@/stores/query";
 import { useConnectionsStore } from "@/stores/connections";
 import { useDatabase } from "@/hooks/useDatabase";

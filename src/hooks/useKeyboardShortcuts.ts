@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useUIStore, useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
-import { useAIStore } from "@/extensions";
+import { useAIStore } from "@/lib/ai/store";
 
 export function useKeyboardShortcuts() {
   const {
@@ -11,8 +11,6 @@ export function useKeyboardShortcuts() {
     showConnectionModal,
     showSettingsDialog,
     showDiffModal,
-    showMarketplace,
-    setShowMarketplace,
     pendingChanges,
     removePendingChange,
   } = useUIStore();
@@ -40,7 +38,6 @@ export function useKeyboardShortcuts() {
         if (showConnectionModal) setShowConnectionModal(false);
         if (showSettingsDialog) setShowSettingsDialog(false);
         if (showDiffModal) setShowDiffModal(false);
-        if (showMarketplace) setShowMarketplace(false);
         if (aiPanelOpen) setAIPanelOpen(false);
         return;
       }
@@ -259,7 +256,6 @@ export function useKeyboardShortcuts() {
     showConnectionModal,
     showSettingsDialog,
     showDiffModal,
-    showMarketplace,
     aiPanelOpen,
     isAIEnabled,
     activeConnection,
@@ -269,7 +265,6 @@ export function useKeyboardShortcuts() {
     setShowConnectionModal,
     setShowSettingsDialog,
     setShowDiffModal,
-    setShowMarketplace,
     setAIPanelOpen,
     toggleAIPanel,
     addTab,

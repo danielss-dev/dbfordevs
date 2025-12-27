@@ -41,24 +41,27 @@ bun scripts/bump-version.ts
 - **Editor**: Monaco editor with SQL syntax highlighting in `src/components/editor/`
 
 ### Backend (src-tauri/)
-- **Commands** (`src-tauri/src/commands/`): Tauri IPC handlers for connections, queries, tables, validators, extensions
+- **Commands** (`src-tauri/src/commands/`): Tauri IPC handlers for connections, queries, tables
 - **Database Layer** (`src-tauri/src/db/`): sqlx-based async connection pooling with driver-specific implementations (postgres.rs, mysql.rs, sqlite.rs)
 - **Connection Manager**: `src-tauri/src/db/manager.rs` - manages active connection pools per connection ID
 
-### Extension System
-- **Frontend Extensions** (`src/extensions/`):
-  - `ai/` - AI assistant with multi-provider support (Anthropic, OpenAI, Google)
-  - `themes/` - Dynamic theme injection system
-  - `core/` - Extension lifecycle management
-- **Rust Crates** (`crates/`):
-  - `extension-core` - Base `Extension` trait and manifest types
-  - `validator-*` - Connection string validators for C#, Node.js, Python
+### AI Integration (Built-in)
+- **Location**: `src/lib/ai/` - Built-in AI assistant (not extension-based)
+- **SDK**: Uses Vercel AI SDK (`ai` package) with custom Tauri fetch adapter (`src/lib/ai/tauri-fetch.ts`)
+- **Providers**: Multi-provider support for Anthropic Claude, OpenAI GPT, Google Gemini
+- **Features**:
+  - Context-aware: Extracts @table references and fetches schemas automatically
+  - Streaming support with token usage tracking
+  - Session-based chat history with usage statistics
+  - Query generation, explanation, and optimization
+- **Store**: `src/lib/ai/store.ts` - Zustand store for AI state management
+- **Components**: `src/components/ai/` - AI panel UI components
 
-### AI Integration
-- Uses Vercel AI SDK (`ai` package) with custom Tauri fetch adapter (`src/extensions/ai/tauri-fetch.ts`)
-- Multi-provider: Anthropic Claude, OpenAI GPT, Google Gemini
-- Context-aware: Extracts @table references and fetches schemas automatically
-- Streaming support with token usage tracking
+### Themes
+- **Built-in Themes**: Light, Dark, System (auto), Nordic Dark, Nordic Light
+- **Theme System**: CSS custom properties in `src/index.css`
+- **Theme Switching**: Managed by `useUIStore` in `src/stores/ui.ts`
+- **Monaco Editor**: Theme mapping in `src/components/editor/monaco-themes.ts`
 
 ## Key Patterns
 

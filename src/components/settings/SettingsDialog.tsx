@@ -31,25 +31,14 @@ import {
   ExternalLink,
   Github,
   Search,
-  Download,
-  Star,
-  ShieldCheck,
-  MessageSquare,
-  Layout as LayoutIcon,
   RotateCcw,
   Settings,
-  Layers,
   X,
-  Power,
-  Trash2,
-  Check,
-  Loader2,
   Sparkles,
   Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useExtensions, type ExtensionWithStatus, useInstalledThemes } from "@/extensions";
-import { useAIStore } from "@/extensions/ai/store";
+import { useAIStore } from "@/lib/ai/store";
 
 interface SettingRowProps {
   label: string;
@@ -92,17 +81,7 @@ function ShortcutItem({ label, keys }: ShortcutItemProps) {
   );
 }
 
-// Extension card with actions - uses data from extension store
-interface ExtensionCardProps {
-  extension: ExtensionWithStatus;
-  onInstall: () => void;
-  onUninstall: () => void;
-  onEnable: () => void;
-  onDisable: () => void;
-  isLoading: boolean;
-}
-
-type TabValue = "general" | "ai" | "editor" | "appearance" | "extensions" | "keybindings" | "advanced" | "about";
+type TabValue = "general" | "ai" | "editor" | "appearance" | "keybindings" | "advanced" | "about";
 
 interface TabConfig {
   value: TabValue;
@@ -115,7 +94,6 @@ const TABS: TabConfig[] = [
   { value: "ai", label: "AI Assistant", icon: <Bot className="h-4 w-4" /> },
   { value: "editor", label: "Editor", icon: <Code className="h-4 w-4" /> },
   { value: "appearance", label: "Appearance", icon: <Sun className="h-4 w-4" /> },
-  { value: "extensions", label: "Extensions", icon: <Layers className="h-4 w-4" /> },
   { value: "keybindings", label: "Keybindings", icon: <Keyboard className="h-4 w-4" /> },
   { value: "advanced", label: "Advanced", icon: <Settings className="h-4 w-4" /> },
   { value: "about", label: "About", icon: <Info className="h-4 w-4" /> },
@@ -143,8 +121,6 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Theme", description: "Switch between light, dark, or system theme.", keywords: ["theme", "light", "dark", "system", "color"], tabValue: "appearance" },
   { label: "App Style", description: "Choose between a developer-focused IDE style or a modern web look.", keywords: ["style", "app", "developer", "web", "ide"], tabValue: "appearance" },
   { label: "Enable Animations", description: "Enable smooth animations throughout the interface.", keywords: ["animation", "animations", "smooth", "motion", "transition", "effects"], tabValue: "appearance" },
-  // Extensions
-  { label: "Extensions", description: "Extend dbfordevs with plugins and integrations.", keywords: ["extension", "plugin", "marketplace", "install"], tabValue: "extensions" },
   // Keybindings
   { label: "Keyboard Shortcuts", description: "Master dbfordevs with these handy keys.", keywords: ["keyboard", "shortcut", "key", "binding", "find", "replace", "search", "shortcuts"], tabValue: "keybindings" },
   // Advanced
@@ -153,146 +129,6 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Reset all settings", description: "Restore all settings to their default values.", keywords: ["reset", "default", "restore"], tabValue: "advanced" },
   { label: "Clear cache", description: "Clear cached data and temporary files.", keywords: ["cache", "clear", "temporary", "files"], tabValue: "advanced" },
 ];
-
-function ExtensionCard({ 
-  extension, 
-  onInstall, 
-  onUninstall, 
-  onEnable, 
-  onDisable,
-  isLoading 
-}: ExtensionCardProps) {
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "ai":
-        return <MessageSquare className="h-5 w-5 text-primary" />;
-      case "validator":
-        return <ShieldCheck className="h-5 w-5 text-primary" />;
-      case "theme":
-        return <LayoutIcon className="h-5 w-5 text-primary" />;
-      default:
-        return <Database className="h-5 w-5 text-primary" />;
-    }
-  };
-
-  const { installed, enabled } = extension;
-
-  return (
-    <div className={cn(
-      "group flex items-center gap-4 rounded-xl border bg-background p-4 transition-all hover:shadow-md",
-      installed 
-        ? enabled 
-          ? "border-primary/30 bg-primary/5" 
-          : "border-muted-foreground/20"
-        : "border-border hover:border-primary/50"
-    )}>
-      {/* Icon */}
-      <div className={cn(
-        "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-        installed && enabled ? "bg-primary/10" : "bg-muted"
-      )}>
-        {getCategoryIcon(extension.category)}
-      </div>
-      
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <h4 className="font-semibold text-sm truncate">{extension.name}</h4>
-          {extension.isOfficial && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] uppercase font-bold tracking-tight rounded bg-primary/10 text-primary">
-              Official
-            </span>
-          )}
-          {extension.isFeatured && (
-            <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground line-clamp-1">{extension.description}</p>
-        <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-            {extension.rating}
-          </span>
-          <span className="flex items-center gap-1">
-            <Download className="h-3 w-3" />
-            {extension.downloads}
-          </span>
-          <span className="font-mono">v{extension.version}</span>
-        </div>
-      </div>
-      
-      {/* Status Badge */}
-      {installed && (
-        <div className="shrink-0">
-          <span className={cn(
-            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium",
-            enabled 
-              ? "bg-green-500/10 text-green-600" 
-              : "bg-muted text-muted-foreground"
-          )}>
-            {enabled ? (
-              <>
-                <Check className="h-3 w-3" />
-                Active
-              </>
-            ) : (
-              "Disabled"
-            )}
-          </span>
-        </div>
-      )}
-      
-      {/* Actions */}
-      <div className="flex items-center gap-2 shrink-0">
-        {!installed ? (
-          <Button 
-            size="sm" 
-            onClick={onInstall}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                Install
-              </>
-            )}
-          </Button>
-        ) : (
-          <>
-            {enabled ? (
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={onDisable}
-              >
-                <Power className="mr-1.5 h-3.5 w-3.5" />
-                Disable
-              </Button>
-            ) : (
-              <Button 
-                size="sm"
-                onClick={onEnable}
-              >
-                <Power className="mr-1.5 h-3.5 w-3.5" />
-                Enable
-              </Button>
-            )}
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={onUninstall}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function SettingsDialog() {
   const {
@@ -313,8 +149,6 @@ export function SettingsDialog() {
   const [activeTab, setActiveTab] = useState<TabValue>(settingsDialogTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [pluginSearch, setPluginSearch] = useState("");
-  const [pluginCategory, setPluginCategory] = useState("all");
 
   useEffect(() => {
     getVersion().then(setVersion).catch(console.error);
@@ -343,24 +177,19 @@ export function SettingsDialog() {
   }, [showSettingsDialog, searchOpen]);
 
   const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme as "light" | "dark" | "system" | `ext:${string}`);
-    
-    // Get label from built-in themes or find from installed extensions
+    setTheme(newTheme as "light" | "dark" | "system" | "nordic-dark" | "nordic-light");
+
+    // Get label from built-in themes
     const builtInLabels: Record<string, string> = {
       system: "System",
       light: "Light",
       dark: "Dark",
+      "nordic-dark": "Nordic Dark",
+      "nordic-light": "Nordic Light",
     };
-    
-    let label = builtInLabels[newTheme];
-    if (!label && newTheme.startsWith("ext:")) {
-      const extId = newTheme.slice(4);
-      // useInstalledThemes is reactive, so it's fine to use it here in the parent scope
-      // but for this handler, we can just find it in the list
-      const themeExt = installedThemeExtensions.find(t => t.id === extId);
-      label = themeExt?.name || extId;
-    }
-    
+
+    const label = builtInLabels[newTheme] || newTheme;
+
     toast({
       title: "Theme updated",
       description: `Interface theme set to ${label}.`,
@@ -391,43 +220,6 @@ export function SettingsDialog() {
     });
   };
 
-  // Extension management from store
-  const {
-    catalog: extensionCatalog,
-    installedExtensions,
-    isLoading: extensionsLoading,
-    install: installExtension,
-    uninstall: uninstallExtension,
-    enable: enableExtension,
-    disable: disableExtension,
-  } = useExtensions();
-
-  const installedThemeExtensions = useInstalledThemes();
-
-  const filteredExtensions = useMemo(() => {
-    return extensionCatalog.filter((ext) => {
-      const matchesSearch = ext.name.toLowerCase().includes(pluginSearch.toLowerCase()) ||
-        ext.description.toLowerCase().includes(pluginSearch.toLowerCase());
-      
-      let matchesCategory = pluginCategory === "all";
-      if (!matchesCategory) {
-        // Map UI category names to store category values
-        const categoryMap: Record<string, string> = {
-          "themes": "theme",
-          "ai": "ai",
-          "validators": "validator",
-          "exporters": "exporter",
-          "installed": "installed",
-        };
-        if (pluginCategory === "installed") {
-          matchesCategory = ext.installed;
-        } else {
-          matchesCategory = ext.category === categoryMap[pluginCategory];
-        }
-      }
-      return matchesSearch && matchesCategory;
-    });
-  }, [extensionCatalog, pluginSearch, pluginCategory]);
 
   // Filter tabs based on search query by searching all settings
   const filteredTabs = useMemo(() => {
@@ -856,19 +648,19 @@ export function SettingsDialog() {
                                   <span>Dark</span>
                                 </div>
                               </SelectItem>
-                              {/* Installed theme extensions */}
-                              {installedThemeExtensions.map((themeExt) => (
-                                <SelectItem key={themeExt.id} value={`ext:${themeExt.id}`}>
-                                  <div className="flex items-center gap-2">
-                                    {themeExt.id.includes("dark") ? (
-                                      <Moon className="h-4 w-4 text-primary" />
-                                    ) : (
-                                      <Sun className="h-4 w-4 text-primary" />
-                                    )}
-                                    <span>{themeExt.name}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
+                              {/* Nordic Themes */}
+                              <SelectItem value="nordic-dark">
+                                <div className="flex items-center gap-2">
+                                  <Moon className="h-4 w-4 text-primary" />
+                                  <span>Nordic Dark</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="nordic-light">
+                                <div className="flex items-center gap-2">
+                                  <Sun className="h-4 w-4 text-primary" />
+                                  <span>Nordic Light</span>
+                                </div>
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </SettingRow>
@@ -909,98 +701,6 @@ export function SettingsDialog() {
                             }
                           />
                         </SettingRow>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Extensions Tab */}
-                  {activeTab === "extensions" && (
-                    <div className="space-y-6 animate-fade-in">
-                      <div>
-                        <h2 className="text-xl font-semibold mb-1">Extensions</h2>
-                        <p className="text-sm text-muted-foreground">Extend dbfordevs with plugins and integrations.</p>
-                      </div>
-
-                      {/* Search & Filters */}
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            placeholder="Search extensions..."
-                            className="pl-10"
-                            value={pluginSearch}
-                            onChange={(e) => setPluginSearch(e.target.value)}
-                          />
-                        </div>
-
-                        {/* Category Tabs */}
-                        <div className="flex gap-2 flex-wrap">
-                          {[
-                            { id: "all", label: "All" },
-                            { id: "installed", label: `Installed (${installedExtensions.length})` },
-                            { id: "themes", label: "Themes" },
-                            { id: "ai", label: "AI" },
-                            { id: "validators", label: "Validators" },
-                          ].map((cat) => (
-                            <button
-                              key={cat.id}
-                              onClick={() => setPluginCategory(cat.id)}
-                              className={cn(
-                                "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-                                pluginCategory === cat.id
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-                              )}
-                            >
-                              {cat.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Extension List */}
-                      <div className="space-y-3">
-                        {filteredExtensions.length > 0 ? (
-                          filteredExtensions.map((ext) => (
-                            <ExtensionCard 
-                              key={ext.id} 
-                              extension={ext}
-                              onInstall={() => {
-                                installExtension(ext.id);
-                                toast({
-                                  title: "Extension installed",
-                                  description: `${ext.name} has been installed and enabled.`,
-                                });
-                              }}
-                              onUninstall={() => {
-                                uninstallExtension(ext.id);
-                                toast({
-                                  title: "Extension uninstalled",
-                                  description: `${ext.name} has been removed.`,
-                                });
-                              }}
-                              onEnable={() => {
-                                enableExtension(ext.id);
-                                toast({
-                                  title: "Extension enabled",
-                                  description: `${ext.name} is now active.`,
-                                });
-                              }}
-                              onDisable={() => {
-                                disableExtension(ext.id);
-                                toast({
-                                  title: "Extension disabled",
-                                  description: `${ext.name} has been disabled.`,
-                                });
-                              }}
-                              isLoading={extensionsLoading}
-                            />
-                          ))
-                        ) : (
-                          <div className="text-center py-12">
-                            <p className="text-sm text-muted-foreground">No extensions found.</p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}

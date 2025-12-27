@@ -13,8 +13,7 @@ interface SqlEditorProps {
   onOptimizeWithAI?: (sql: string) => void;
   tables?: TableInfo[];
   schemas?: Record<string, TableSchema>;
-  theme?: "light" | "dark" | "system" | string;
-  themeVariant?: "light" | "dark";
+  theme?: "light" | "dark" | "system" | "nordic-dark" | "nordic-light";
   readOnly?: boolean;
   height?: string | number;
 }
@@ -28,7 +27,6 @@ export function SqlEditor({
   tables = [],
   schemas = {},
   theme = "dark",
-  themeVariant,
   readOnly = false,
   height = "100%",
 }: SqlEditorProps) {
@@ -65,12 +63,8 @@ export function SqlEditor({
 
   // Determine Monaco theme based on app theme
   const monacoTheme = useMemo(() => {
-    // For extension themes, use the explicit themeVariant prop
-    if (theme.startsWith("ext:") && themeVariant) {
-      return themeVariant === "light" ? "dbfordevs-light" : "dbfordevs-dark";
-    }
     return getMonacoTheme(theme);
-  }, [theme, themeVariant]);
+  }, [theme]);
 
   // Handle editor mount
   const handleEditorMount: OnMount = (editor, monaco) => {

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Send, Sparkles, Search, PlusCircle, RefreshCw, Trash2, GitMerge, Database, Table2, FileCode } from "lucide-react";
 import { Button } from "@/components/ui";
-import { useAIStore } from "@/extensions/ai/store";
+import { useAIStore } from "@/lib/ai/store";
 import { cn } from "@/lib/utils";
 import { TableReferenceDropdown } from "./TableReferenceDropdown";
 import { ProviderModelSwitcher } from "./ProviderModelSwitcher";

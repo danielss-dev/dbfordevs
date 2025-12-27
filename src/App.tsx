@@ -3,13 +3,11 @@ import { TooltipProvider, Toaster } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout";
 import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal, RenameConnectionDialog } from "@/components/connections";
-import { Marketplace } from "@/components/marketplace";
 import { RenameTableDialog } from "@/components/table";
 import { CreateSchemaDialog } from "@/components/database";
 import { AIPanel } from "@/components/ai";
 import { useUIStore } from "@/stores";
 import { useKeyboardShortcuts } from "@/hooks";
-import { initializeExtensions } from "@/extensions";
 
 function App() {
   const { theme, setTheme, appStyle, setAppStyle } = useUIStore();
@@ -17,12 +15,7 @@ function App() {
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
 
-  // Initialize extension system (registers official themes, etc.)
-  useEffect(() => {
-    initializeExtensions();
-  }, []);
-
-  // Initialize theme on mount
+  // Initialize theme and app style on mount
   useEffect(() => {
     setTheme(theme);
     setAppStyle(appStyle);
@@ -44,7 +37,6 @@ function App() {
         {/* Modals & Overlays */}
         <SettingsDialog />
         <ConnectionModal />
-        <Marketplace />
         <RenameTableDialog />
         <RenameConnectionDialog />
         <CreateSchemaDialog />

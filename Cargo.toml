@@ -2,12 +2,6 @@
 resolver = "2"
 members = [
     "src-tauri",
-    "crates/extension-core",
-    "crates/validator-core",
-    "crates/validator-csharp",
-    "crates/validator-nodejs",
-    "crates/validator-python",
-    "crates/theme-nordic",
 ]
 
 [workspace.package]

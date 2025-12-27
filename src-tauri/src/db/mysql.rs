@@ -300,7 +300,7 @@ impl DatabaseDriver for MySqlDriver {
         })
     }
 
-    async fn get_all_table_schemas(&self, pool: PoolRef<'_>, config: &ConnectionConfig) -> AppResult<Vec<TableSchema>> {
+    async fn get_all_table_schemas(&self, pool: PoolRef<'_>, _config: &ConnectionConfig) -> AppResult<Vec<TableSchema>> {
         let pool = match pool {
             PoolRef::MySql(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
