@@ -8,7 +8,7 @@ import type { TableInfo, TableSchema } from "@/types";
 interface SqlEditorProps {
   value: string;
   onChange: (value: string) => void;
-  onExecute?: () => void;
+  onExecute?: (sql: string) => void;
   onExplainWithAI?: (sql: string) => void;
   onOptimizeWithAI?: (sql: string) => void;
   tables?: TableInfo[];
@@ -38,6 +38,7 @@ export function SqlEditor({
   const actionDisposablesRef = useRef<MonacoEditor.IDisposable[]>([]);
   const tablesRef = useRef<TableInfo[]>(tables);
   const getTableSchemaRef = useRef(getTableSchema);
+  const onExecuteRef = useRef(onExecute);
   const onExplainWithAIRef = useRef(onExplainWithAI);
   const onOptimizeWithAIRef = useRef(onOptimizeWithAI);
 
@@ -49,6 +50,10 @@ export function SqlEditor({
   useEffect(() => {
     getTableSchemaRef.current = getTableSchema;
   }, [getTableSchema]);
+
+  useEffect(() => {
+    onExecuteRef.current = onExecute;
+  }, [onExecute]);
 
   useEffect(() => {
     onExplainWithAIRef.current = onExplainWithAI;
@@ -101,8 +106,11 @@ export function SqlEditor({
       id: "execute-query",
       label: "Execute Query",
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-      run: () => {
-        onExecute?.();
+      run: (ed) => {
+        const sql = ed.getValue();
+        if (sql.trim() && onExecuteRef.current) {
+          onExecuteRef.current(sql);
+        }
       },
     });
     actionDisposablesRef.current.push(executeAction);

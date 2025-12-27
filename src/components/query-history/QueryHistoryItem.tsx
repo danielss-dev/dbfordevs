@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 import type { QueryHistoryEntry } from "@/types";
 import { cn } from "@/lib/utils";
+import { formatRelativeTime, formatExecutionTime, truncateSQL } from "./query-history-utils";
 
 interface QueryHistoryItemProps {
   entry: QueryHistoryEntry;
@@ -12,32 +13,6 @@ interface QueryHistoryItemProps {
 }
 
 export function QueryHistoryItem({ entry, onLoad, onDelete }: QueryHistoryItemProps) {
-  const formatRelativeTime = (timestamp: number): string => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return "just now";
-  };
-
-  const formatExecutionTime = (ms?: number): string => {
-    if (ms === undefined) return "";
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(2)}s`;
-  };
-
-  const truncateSQL = (sql: string, maxLength: number = 100): string => {
-    const singleLine = sql.replace(/\s+/g, " ").trim();
-    if (singleLine.length <= maxLength) return singleLine;
-    return singleLine.substring(0, maxLength) + "...";
-  };
-
   return (
     <div
       className={cn(

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Play, Loader2, Table, Terminal, AlertCircle } from "lucide-react";
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
 import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults } from "@/stores";
@@ -11,6 +11,7 @@ import { SqlEditor } from "@/components/editor";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
+import { QueryHistoryDropdown } from "@/components/query-history/QueryHistoryDropdown";
 import type { Tab, QueryHistoryEntry } from "@/types";
 
 interface QueryEditorTabProps {
@@ -56,31 +57,19 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
     sendMessage(`Please optimize this SQL query for better performance:\n\n\`\`\`sql\n${sql}\n\`\`\``);
   }, [isAIEnabled, setPanelOpen, sendMessage]);
 
-  // Handle F5 refresh (re-run query)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "F5") {
-        e.preventDefault();
-        handleExecute();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [content, connectionId, isExecuting]);
-
   useEffect(() => {
     setContent(tab.content || "");
   }, [tab.content]);
 
-  const handleExecute = async () => {
-    if (!connectionId || !content.trim()) return;
+  const handleExecute = async (sql?: string) => {
+    const queryToExecute = sql || content;
+    if (!connectionId || !queryToExecute.trim()) return;
 
     const startTime = Date.now();
     const result = await executeQuery(
       {
         connectionId: connectionId,
-        sql: content,
+        sql: queryToExecute,
         limit: undefined,
         offset: undefined,
       },
@@ -91,7 +80,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
     const historyEntry: QueryHistoryEntry = {
       id: `${connectionId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
       connectionId,
-      sql: content,
+      sql: queryToExecute,
       executedAt: startTime,
       executionTimeMs: result?.executionTimeMs,
       rowCount: result?.rows?.length ?? result?.affectedRows,
@@ -101,6 +90,25 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
 
     addQueryToHistory(historyEntry);
   };
+
+  // Keep handleExecute in a ref for use in event listeners
+  const handleExecuteRef = useRef(handleExecute);
+  useEffect(() => {
+    handleExecuteRef.current = handleExecute;
+  }, [handleExecute]);
+
+  // Handle F5 refresh (re-run query)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F5") {
+        e.preventDefault();
+        handleExecuteRef.current?.();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleSelectExample = (sql: string) => {
     setContent(sql);
@@ -115,7 +123,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
           <TooltipTrigger asChild>
             <Button
               size="sm"
-              onClick={handleExecute}
+              onClick={() => handleExecute()}
               disabled={isExecuting || !connectionId || !content.trim()}
               className="gap-2"
             >
@@ -140,6 +148,13 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
             <RowCountBadge rowCount={results.rows.length} affectedRows={results.affectedRows} />
             <ExecutionTimeBadge timeMs={results.executionTimeMs} />
           </div>
+        )}
+
+        {connectionId && (
+          <QueryHistoryDropdown
+            connectionId={connectionId}
+            onLoadQuery={handleSelectExample}
+          />
         )}
       </div>
 
