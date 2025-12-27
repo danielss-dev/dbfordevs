@@ -75,6 +75,27 @@ pub async fn get_table_schema(
     driver.get_table_schema(pool_ref, &table_name).await
 }
 
+/// Get schemas for all tables in the connected database
+#[tauri::command]
+pub async fn get_all_table_schemas(
+    connection_id: String,
+) -> AppResult<Vec<TableSchema>> {
+    let manager = get_connection_manager().read().await;
+    
+    // Verify connection exists
+    if !manager.is_connected(&connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+    
+    let config = storage::get_connection(&connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+    
+    let driver = get_driver(&config);
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
+    
+    driver.get_all_table_schemas(pool_ref, &config).await
+}
+
 /// Insert a new row into a table
 #[tauri::command]
 pub async fn insert_row(

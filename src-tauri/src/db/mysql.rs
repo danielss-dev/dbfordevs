@@ -7,6 +7,7 @@ use crate::models::{
 };
 use async_trait::async_trait;
 use sqlx::{mysql::MySqlPool, Row, Column};
+use std::collections::HashMap;
 use std::time::Instant;
 
 fn decode_string(row: &sqlx::mysql::MySqlRow, column: &str) -> String {
@@ -297,6 +298,128 @@ impl DatabaseDriver for MySqlDriver {
             primary_keys,
             foreign_keys,
         })
+    }
+
+    async fn get_all_table_schemas(&self, pool: PoolRef<'_>, config: &ConnectionConfig) -> AppResult<Vec<TableSchema>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // Get all columns for all tables in one query
+        let all_columns_query = r#"
+            SELECT
+                TABLE_NAME as table_name,
+                COLUMN_NAME as column_name,
+                DATA_TYPE as data_type,
+                IS_NULLABLE as is_nullable,
+                COLUMN_KEY as column_key
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+            ORDER BY TABLE_NAME, ORDINAL_POSITION
+        "#;
+
+        let all_columns = sqlx::query(all_columns_query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get all columns: {}", e)))?;
+
+        // Get all primary keys in one query
+        let all_pks_query = r#"
+            SELECT
+                TABLE_NAME as table_name,
+                COLUMN_NAME as column_name
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND CONSTRAINT_NAME = 'PRIMARY'
+            ORDER BY TABLE_NAME
+        "#;
+
+        let all_pks = sqlx::query(all_pks_query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get all primary keys: {}", e)))?;
+
+        // Get all foreign keys in one query
+        let all_fks_query = r#"
+            SELECT
+                TABLE_NAME as table_name,
+                COLUMN_NAME as column_name,
+                REFERENCED_TABLE_NAME as foreign_table_name,
+                REFERENCED_COLUMN_NAME as foreign_column_name
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND REFERENCED_TABLE_NAME IS NOT NULL
+            ORDER BY TABLE_NAME
+        "#;
+
+        let all_fks = sqlx::query(all_fks_query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get all foreign keys: {}", e)))?;
+
+        // Build a map of table_name -> list of column info
+        let mut table_columns: HashMap<String, Vec<ColumnInfo>> = HashMap::new();
+        let mut table_pks: HashMap<String, Vec<String>> = HashMap::new();
+        let mut table_fks: HashMap<String, Vec<ForeignKeyInfo>> = HashMap::new();
+
+        // Process columns
+        for row in all_columns {
+            let table_name = decode_string(&row, "table_name");
+
+            let column_info = ColumnInfo {
+                name: decode_string(&row, "column_name"),
+                data_type: decode_string(&row, "data_type"),
+                nullable: decode_string(&row, "is_nullable") == "YES",
+                is_primary_key: false, // Will be updated below
+            };
+
+            table_columns.entry(table_name.clone()).or_default().push(column_info);
+        }
+
+        // Process primary keys
+        for row in all_pks {
+            let table_name = decode_string(&row, "table_name");
+            let column_name = decode_string(&row, "column_name");
+
+            table_pks.entry(table_name.clone()).or_default().push(column_name);
+        }
+
+        // Process foreign keys
+        for row in all_fks {
+            let table_name = decode_string(&row, "table_name");
+
+            let fk_info = ForeignKeyInfo {
+                column: decode_string(&row, "column_name"),
+                references_table: decode_string(&row, "foreign_table_name"),
+                references_column: decode_string(&row, "foreign_column_name"),
+            };
+
+            table_fks.entry(table_name.clone()).or_default().push(fk_info);
+        }
+
+        // Build TableSchema for each table
+        let mut schemas = Vec::new();
+        for (table_name, mut columns) in table_columns {
+            let pks = table_pks.get(&table_name).cloned().unwrap_or_default();
+            let fks = table_fks.get(&table_name).cloned().unwrap_or_default();
+
+            // Mark primary keys in columns
+            for column in &mut columns {
+                column.is_primary_key = pks.contains(&column.name);
+            }
+
+            // For MySQL, use database name as schema prefix if needed
+            // But keep it simple for now - just use table_name directly
+            schemas.push(TableSchema {
+                table_name: table_name.clone(),
+                columns,
+                primary_keys: pks,
+                foreign_keys: fks,
+            });
+        }
+
+        Ok(schemas)
     }
 
     fn build_connection_string(&self, config: &ConnectionConfig) -> String {

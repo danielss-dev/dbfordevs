@@ -29,6 +29,7 @@ pub fn run() {
             queries::execute_query,
             queries::get_tables,
             queries::get_table_schema,
+            queries::get_all_table_schemas,
             queries::insert_row,
             queries::update_row,
             queries::delete_row,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, Table, Terminal, AlertCircle } from "lucide-react";
+import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw } from "lucide-react";
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
-import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults } from "@/stores";
+import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore } from "@/stores";
 import { useUIStore } from "@/stores/ui";
 import { useAIStore } from "@/extensions/ai/store";
 import { useThemeStore } from "@/extensions/themes/store";
@@ -21,26 +21,42 @@ interface QueryEditorTabProps {
 export function QueryEditorTab({ tab }: QueryEditorTabProps) {
   const { updateTabContent, isExecuting, error, tablesByConnection, addQueryToHistory } = useQueryStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
+  const { getSchemas } = useSchemaStore();
   const connectionId = tab.connectionId || activeConnection?.id;
   const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
+  const schemas = connectionId ? getSchemas(connectionId) : {};
   const results = useQueryStore(selectActiveResults);
   const { theme } = useUIStore();
   const { getTheme } = useThemeStore();
   const { setPanelOpen, sendMessage, settings } = useAIStore();
   const isAIEnabled = settings.aiEnabled ?? true;
-  const { executeQuery, getTableSchema } = useDatabase();
+  const { executeQuery, fetchAllSchemas, refreshSchemas } = useDatabase();
   const [content, setContent] = useState(tab.content || "");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   // Get theme variant for extension themes
   const themeVariant = theme.startsWith("ext:")
     ? getTheme(theme.slice(4))?.variant
     : undefined;
 
-  // Create a schema fetcher for the SQL editor
-  const fetchTableSchema = async (tableName: string) => {
-    if (!connectionId) return null;
-    return getTableSchema(connectionId, tableName);
-  };
+  // Fetch all schemas when connection changes
+  useEffect(() => {
+    if (connectionId) {
+      fetchAllSchemas(connectionId);
+    }
+  }, [connectionId, fetchAllSchemas]);
+
+  // Handle schema refresh
+  const handleRefreshSchemas = useCallback(async () => {
+    if (!connectionId) return;
+    setIsRefreshing(true);
+    try {
+      await refreshSchemas(connectionId);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [connectionId, refreshSchemas]);
 
   // AI context menu handlers
   const handleExplainWithAI = useCallback((sql: string) => {
@@ -85,7 +101,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
       executionTimeMs: result?.executionTimeMs,
       rowCount: result?.rows?.length ?? result?.affectedRows,
       success: result !== null,
-      error: result === null ? (error ?? undefined) : undefined,
+      error: result === null ? useQueryStore.getState().error ?? undefined : undefined,
     };
 
     addQueryToHistory(historyEntry);
@@ -119,13 +135,15 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
     <div className="flex h-full flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-2">
-        <Tooltip>
+        <Tooltip open={activeTooltip === "run"}>
           <TooltipTrigger asChild>
             <Button
               size="sm"
               onClick={() => handleExecute()}
               disabled={isExecuting || !connectionId || !content.trim()}
               className="gap-2"
+              onMouseEnter={() => setActiveTooltip("run")}
+              onMouseLeave={() => setActiveTooltip(null)}
             >
               {isExecuting ? (
                 <>
@@ -154,7 +172,38 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
           <QueryHistoryDropdown
             connectionId={connectionId}
             onLoadQuery={handleSelectExample}
+            activeTooltip={activeTooltip}
+            onSetActiveTooltip={setActiveTooltip}
           />
+        )}
+
+        {connectionId && (
+          <Tooltip open={activeTooltip === "refresh"}>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRefreshSchemas}
+                disabled={isRefreshing}
+                className="gap-2"
+                onMouseEnter={() => setActiveTooltip("refresh")}
+                onMouseLeave={() => setActiveTooltip(null)}
+              >
+                {isRefreshing ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Refresh Schema
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh table schemas from database</TooltipContent>
+          </Tooltip>
         )}
       </div>
 
@@ -170,7 +219,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
           onExplainWithAI={isAIEnabled ? handleExplainWithAI : undefined}
           onOptimizeWithAI={isAIEnabled ? handleOptimizeWithAI : undefined}
           tables={tables}
-          getTableSchema={fetchTableSchema}
+          schemas={schemas}
           theme={theme}
           themeVariant={themeVariant}
           height="100%"

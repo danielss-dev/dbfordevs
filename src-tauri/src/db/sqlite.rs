@@ -233,6 +233,41 @@ impl DatabaseDriver for SqliteDriver {
         })
     }
 
+    async fn get_all_table_schemas(&self, pool: PoolRef<'_>, config: &ConnectionConfig) -> AppResult<Vec<TableSchema>> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        // Get all table names first
+        let tables_query = r#"
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+            AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+        "#;
+
+        let table_names_rows = sqlx::query(tables_query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get table names: {}", e)))?;
+
+        let table_names: Vec<String> = table_names_rows
+            .iter()
+            .map(|row| row.get::<String, _>("name"))
+            .collect();
+
+        // Build schemas for all tables
+        let mut schemas = Vec::new();
+        for table_name in table_names {
+            let schema = self.get_table_schema(PoolRef::Sqlite(pool), &table_name).await?;
+            schemas.push(schema);
+        }
+
+        Ok(schemas)
+    }
+
     fn build_connection_string(&self, config: &ConnectionConfig) -> String {
         let path = config.file_path.as_deref()
             .unwrap_or_else(|| config.database.as_str());

@@ -7,6 +7,7 @@ use crate::models::{
 };
 use async_trait::async_trait;
 use sqlx::{postgres::PgPool, Row, Column, ValueRef};
+use std::collections::HashMap;
 use std::time::Instant;
 
 pub struct PostgresDriver;
@@ -717,6 +718,143 @@ impl DatabaseDriver for PostgresDriver {
             primary_keys,
             foreign_keys,
         })
+    }
+
+    async fn get_all_table_schemas(&self, pool: PoolRef<'_>, _config: &ConnectionConfig) -> AppResult<Vec<TableSchema>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Get all columns for all tables in one query
+        let all_columns_query = r#"
+            SELECT 
+                table_schema::text as table_schema,
+                table_name::text as table_name,
+                column_name::text as column_name,
+                data_type::text as data_type,
+                is_nullable::text as is_nullable
+            FROM information_schema.columns
+            WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY table_schema, table_name, ordinal_position
+        "#;
+
+        let all_columns = sqlx::query(all_columns_query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get all columns: {}", e)))?;
+
+        // Get all primary keys in one query
+        let all_pks_query = r#"
+            SELECT 
+                tc.table_schema::text as table_schema,
+                tc.table_name::text as table_name,
+                kcu.column_name::text as column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            WHERE tc.constraint_type = 'PRIMARY KEY'
+            AND tc.table_schema NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY tc.table_schema, tc.table_name
+        "#;
+
+        let all_pks = sqlx::query(all_pks_query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get all primary keys: {}", e)))?;
+
+        // Get all foreign keys in one query
+        let all_fks_query = r#"
+            SELECT
+                tc.table_schema::text as table_schema,
+                tc.table_name::text as table_name,
+                kcu.column_name::text as column_name,
+                ccu.table_name::text AS foreign_table_name,
+                ccu.column_name::text AS foreign_column_name
+            FROM information_schema.table_constraints AS tc
+            JOIN information_schema.key_column_usage AS kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage AS ccu
+                ON ccu.constraint_name = tc.constraint_name
+                AND ccu.table_schema = tc.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+            AND tc.table_schema NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY tc.table_schema, tc.table_name
+        "#;
+
+        let all_fks = sqlx::query(all_fks_query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get all foreign keys: {}", e)))?;
+
+        // Build a map of table_key -> list of column info
+        let mut table_columns: HashMap<String, Vec<ColumnInfo>> = HashMap::new();
+        let mut table_pks: HashMap<String, Vec<String>> = HashMap::new();
+        let mut table_fks: HashMap<String, Vec<ForeignKeyInfo>> = HashMap::new();
+
+        // Process columns
+        for row in all_columns {
+            let schema_name: String = row.get("table_schema");
+            let table_name: String = row.get("table_name");
+            let table_key = format!("{}.{}", schema_name, table_name);
+
+            let column_info = ColumnInfo {
+                name: row.get("column_name"),
+                data_type: row.get("data_type"),
+                nullable: row.get::<String, _>("is_nullable") == "YES",
+                is_primary_key: false, // Will be updated below
+            };
+
+            table_columns.entry(table_key.clone()).or_default().push(column_info);
+        }
+
+        // Process primary keys
+        for row in all_pks {
+            let schema_name: String = row.get("table_schema");
+            let table_name: String = row.get("table_name");
+            let table_key = format!("{}.{}", schema_name, table_name);
+            let column_name: String = row.get("column_name");
+
+            table_pks.entry(table_key.clone()).or_default().push(column_name);
+        }
+
+        // Process foreign keys
+        for row in all_fks {
+            let schema_name: String = row.get("table_schema");
+            let table_name: String = row.get("table_name");
+            let table_key = format!("{}.{}", schema_name, table_name);
+
+            let fk_info = ForeignKeyInfo {
+                column: row.get("column_name"),
+                references_table: row.get("foreign_table_name"),
+                references_column: row.get("foreign_column_name"),
+            };
+
+            table_fks.entry(table_key.clone()).or_default().push(fk_info);
+        }
+
+        // Build TableSchema for each table
+        let mut schemas = Vec::new();
+        for (table_key, mut columns) in table_columns {
+            let pks = table_pks.get(&table_key).cloned().unwrap_or_default();
+            let fks = table_fks.get(&table_key).cloned().unwrap_or_default();
+
+            // Mark primary keys in columns
+            for column in &mut columns {
+                column.is_primary_key = pks.contains(&column.name);
+            }
+
+            schemas.push(TableSchema {
+                table_name: table_key,
+                columns,
+                primary_keys: pks,
+                foreign_keys: fks,
+            });
+        }
+
+        Ok(schemas)
     }
 
     fn build_connection_string(&self, config: &ConnectionConfig) -> String {
