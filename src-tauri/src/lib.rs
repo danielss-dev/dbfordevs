@@ -1,11 +1,10 @@
 mod commands;
 mod db;
 mod error;
-mod extensions;
 mod models;
 mod storage;
 
-use commands::{connections, extensions as ext_cmds, queries, tables, validators, utils};
+use commands::{connections, queries, tables, utils};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,7 +14,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
-        .manage(ext_cmds::ExtensionState::new())
         .invoke_handler(tauri::generate_handler![
             // Connection commands
             connections::test_connection,
@@ -42,18 +40,6 @@ pub fn run() {
             // Utility commands
             utils::copy_to_clipboard,
             utils::read_from_clipboard,
-            // Validator commands
-            validators::validate_connection_string,
-            validators::list_validators,
-            // Extension commands
-            ext_cmds::list_extensions,
-            ext_cmds::get_extension,
-            ext_cmds::enable_extension,
-            ext_cmds::disable_extension,
-            ext_cmds::uninstall_extension,
-            ext_cmds::install_extension_from_github,
-            ext_cmds::update_extension_settings,
-            ext_cmds::get_extension_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

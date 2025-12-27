@@ -3,8 +3,7 @@ import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw } from "lucide-r
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
 import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore } from "@/stores";
 import { useUIStore } from "@/stores/ui";
-import { useAIStore } from "@/extensions/ai/store";
-import { useThemeStore } from "@/extensions/themes/store";
+import { useAIStore } from "@/lib/ai/store";
 import { useDatabase } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
 import { SqlEditor } from "@/components/editor";
@@ -27,18 +26,12 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
   const schemas = connectionId ? getSchemas(connectionId) : {};
   const results = useQueryStore(selectActiveResults);
   const { theme } = useUIStore();
-  const { getTheme } = useThemeStore();
   const { setPanelOpen, sendMessage, settings } = useAIStore();
   const isAIEnabled = settings.aiEnabled ?? true;
   const { executeQuery, fetchAllSchemas, refreshSchemas } = useDatabase();
   const [content, setContent] = useState(tab.content || "");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-
-  // Get theme variant for extension themes
-  const themeVariant = theme.startsWith("ext:")
-    ? getTheme(theme.slice(4))?.variant
-    : undefined;
 
   // Fetch all schemas when connection changes
   useEffect(() => {
@@ -221,7 +214,6 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
           tables={tables}
           schemas={schemas}
           theme={theme}
-          themeVariant={themeVariant}
           height="100%"
         />
       </div>

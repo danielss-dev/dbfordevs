@@ -1,7 +1,7 @@
 import { Database, Clock, AlertCircle, CheckCircle, Loader2, Sparkles, Table, FileCode, Info, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection, selectActiveTab, selectActiveResults } from "@/stores";
-import { useAIStore } from "@/extensions";
+import { useAIStore } from "@/lib/ai/store";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState, useRef } from "react";
 import { useAnime } from "@/hooks/useAnime";

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useUIStore, useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
-import { useAIStore } from "@/extensions";
+import { useAIStore } from "@/lib/ai/store";
 
 export function useKeyboardShortcuts() {
   const {

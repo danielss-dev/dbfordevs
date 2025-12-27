@@ -7,8 +7,8 @@
 import { useState } from "react";
 import { Edit2, Trash2, Star } from "lucide-react";
 import { Button, Input } from "@/components/ui";
-import { useAIStore } from "@/extensions/ai/store";
-import type { AIChatSession } from "@/extensions/ai/types";
+import { useAIStore } from "@/lib/ai/store";
+import type { AIChatSession } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
 

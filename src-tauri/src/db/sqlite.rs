@@ -233,7 +233,7 @@ impl DatabaseDriver for SqliteDriver {
         })
     }
 
-    async fn get_all_table_schemas(&self, pool: PoolRef<'_>, config: &ConnectionConfig) -> AppResult<Vec<TableSchema>> {
+    async fn get_all_table_schemas(&self, pool: PoolRef<'_>, _config: &ConnectionConfig) -> AppResult<Vec<TableSchema>> {
         let pool = match pool {
             PoolRef::Sqlite(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),

@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Table, Columns, Check } from "lucide-react";
 import { ScrollArea } from "@/components/ui";
-import type { TableInfo } from "@/extensions/ai/types";
+import type { TableInfo } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
 
 interface TableReferenceDropdownProps {

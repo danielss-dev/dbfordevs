@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui";
-import { useAIStore } from "@/extensions/ai/store";
-import { PROVIDER_INFO, DEFAULT_MODELS, type AIProviderType } from "@/extensions/ai/types";
+import { useAIStore } from "@/lib/ai/store";
+import { PROVIDER_INFO, DEFAULT_MODELS, type AIProviderType } from "@/lib/ai/types";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 
 interface AISettingsDialogProps {

@@ -16,8 +16,8 @@ import {
   DropdownMenuTrigger,
   Button,
 } from "@/components/ui";
-import { useAIStore } from "@/extensions/ai/store";
-import { PROVIDER_INFO, type AIProviderType } from "@/extensions/ai/types";
+import { useAIStore } from "@/lib/ai/store";
+import { PROVIDER_INFO, type AIProviderType } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
 
 const PROVIDER_ICONS: Record<AIProviderType, React.ReactNode> = {

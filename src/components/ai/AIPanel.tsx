@@ -19,9 +19,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui";
-import { useAIAssistant } from "@/extensions";
-import { useAIStore } from "@/extensions/ai/store";
-import { PROVIDER_INFO } from "@/extensions/ai/types";
+import { useAIStore } from "@/lib/ai/store";
+import { useAIAssistant } from "@/lib/ai/hooks";
+import { PROVIDER_INFO } from "@/lib/ai/types";
 import { useConnectionsStore, useQueryStore, selectActiveConnection } from "@/stores";
 import { cn } from "@/lib/utils";
 import { ChatMessage } from "./ChatMessage";
