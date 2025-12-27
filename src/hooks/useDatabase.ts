@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useConnectionsStore, useQueryStore } from "@/stores";
+import { useConnectionsStore, useQueryStore, useSchemaStore } from "@/stores";
 import type {
   ConnectionConfig,
   ConnectionInfo,
@@ -35,6 +35,8 @@ export function useDatabase() {
     setExecuting,
     setError: setQueryError,
   } = useQueryStore();
+
+  const { setSchemas, clearSchemas } = useSchemaStore();
 
   /**
    * Test a database connection
@@ -271,6 +273,44 @@ export function useDatabase() {
   );
 
   /**
+   * Fetch all table schemas for a connection and cache them
+   */
+  const fetchAllSchemas = useCallback(
+    async (connectionId: string): Promise<void> => {
+      setLoading(true);
+      setQueryError(null);
+
+      try {
+        const schemas = await invoke<TableSchema[]>("get_all_table_schemas", {
+          connectionId,
+        });
+
+        // Cache all schemas
+        schemas.forEach((schema) => {
+          setSchemas(connectionId, schema.tableName, schema);
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [setLoading, setQueryError, setSchemas]
+  );
+
+  /**
+   * Refresh all cached schemas for a connection
+   */
+  const refreshSchemas = useCallback(
+    async (connectionId: string): Promise<void> => {
+      clearSchemas(connectionId);
+      await fetchAllSchemas(connectionId);
+    },
+    [clearSchemas, fetchAllSchemas]
+  );
+
+  /**
    * Insert a new row
    */
   const insertRow = useCallback(
@@ -484,6 +524,8 @@ export function useDatabase() {
     executeQuery,
     getTables,
     getTableSchema,
+    fetchAllSchemas,
+    refreshSchemas,
     insertRow,
     updateRow,
     deleteRow,

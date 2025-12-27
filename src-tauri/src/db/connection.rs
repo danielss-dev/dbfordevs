@@ -27,6 +27,9 @@ pub trait DatabaseDriver: Send + Sync {
     /// Get schema for a specific table
     async fn get_table_schema(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<TableSchema>;
 
+    /// Get schemas for all tables in the database
+    async fn get_all_table_schemas(&self, pool: PoolRef<'_>, config: &ConnectionConfig) -> AppResult<Vec<TableSchema>>;
+
     /// Build a connection string from configuration
     fn build_connection_string(&self, config: &ConnectionConfig) -> String;
 

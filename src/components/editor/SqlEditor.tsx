@@ -12,7 +12,7 @@ interface SqlEditorProps {
   onExplainWithAI?: (sql: string) => void;
   onOptimizeWithAI?: (sql: string) => void;
   tables?: TableInfo[];
-  getTableSchema?: (tableName: string) => Promise<TableSchema | null>;
+  schemas?: Record<string, TableSchema>;
   theme?: "light" | "dark" | "system" | string;
   themeVariant?: "light" | "dark";
   readOnly?: boolean;
@@ -26,7 +26,7 @@ export function SqlEditor({
   onExplainWithAI,
   onOptimizeWithAI,
   tables = [],
-  getTableSchema,
+  schemas = {},
   theme = "dark",
   themeVariant,
   readOnly = false,
@@ -37,7 +37,7 @@ export function SqlEditor({
   const completionDisposableRef = useRef<MonacoEditor.IDisposable | null>(null);
   const actionDisposablesRef = useRef<MonacoEditor.IDisposable[]>([]);
   const tablesRef = useRef<TableInfo[]>(tables);
-  const getTableSchemaRef = useRef(getTableSchema);
+  const schemasRef = useRef<Record<string, TableSchema>>(schemas);
   const onExecuteRef = useRef(onExecute);
   const onExplainWithAIRef = useRef(onExplainWithAI);
   const onOptimizeWithAIRef = useRef(onOptimizeWithAI);
@@ -48,8 +48,8 @@ export function SqlEditor({
   }, [tables]);
 
   useEffect(() => {
-    getTableSchemaRef.current = getTableSchema;
-  }, [getTableSchema]);
+    schemasRef.current = schemas;
+  }, [schemas]);
 
   useEffect(() => {
     onExecuteRef.current = onExecute;
@@ -62,9 +62,6 @@ export function SqlEditor({
   useEffect(() => {
     onOptimizeWithAIRef.current = onOptimizeWithAI;
   }, [onOptimizeWithAI]);
-
-  // Schema cache
-  const schemaCache = useMemo(() => new Map<string, TableSchema>(), []);
 
   // Determine Monaco theme based on app theme
   const monacoTheme = useMemo(() => {
@@ -91,13 +88,7 @@ export function SqlEditor({
       "sql",
       createSqlCompletionProvider({
         getTables: () => tablesRef.current,
-        getTableSchema: async (tableName) => {
-          if (getTableSchemaRef.current) {
-            return getTableSchemaRef.current(tableName);
-          }
-          return null;
-        },
-        schemaCache,
+        getTableSchema: (tableName) => schemasRef.current[tableName] || null,
       })
     );
 

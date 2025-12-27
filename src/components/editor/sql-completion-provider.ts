@@ -40,12 +40,11 @@ export const SQL_KEYWORDS = [
   "TRUNCATE", "EXPLAIN", "ANALYZE", "GRANT", "REVOKE", "TOP",
 ];
 
-export type SchemaFetcher = (tableName: string) => Promise<TableSchema | null>;
+export type SchemaFetcher = (tableName: string) => TableSchema | null;
 
 interface CompletionProviderContext {
   getTables: () => TableInfo[];
   getTableSchema: SchemaFetcher;
-  schemaCache: Map<string, TableSchema>;
 }
 
 /**
@@ -93,19 +92,19 @@ function extractTableReferences(sql: string, availableTables: TableInfo[]): stri
 /**
  * Get columns for a table, using cache if available
  */
-async function getColumnsForTable(
+function getColumnsForTable(
   tableName: string,
   context: CompletionProviderContext
-): Promise<ColumnInfo[]> {
-  const { getTables, getTableSchema, schemaCache } = context;
+): ColumnInfo[] {
+  const { getTables, getTableSchema } = context;
 
-  // Check cache first
-  const cacheKey = tableName.toLowerCase();
-  if (schemaCache.has(cacheKey)) {
-    return schemaCache.get(cacheKey)!.columns;
+  // Try to get schema from pre-fetched cache
+  const schema = getTableSchema(tableName);
+  if (schema) {
+    return schema.columns;
   }
 
-  // Find the table in available tables
+  // Fallback: Find the table in available tables
   const tables = getTables();
   const table = tables.find(
     (t) =>
@@ -115,16 +114,12 @@ async function getColumnsForTable(
 
   if (!table) return [];
 
-  // Fetch schema using the table name (backend expects schema.name format if applicable)
+  // Try to get schema for table with schema prefix
   const fetchName = table.schema ? `${table.schema}.${table.name}` : table.name;
-  try {
-    const schema = await getTableSchema(fetchName);
-    if (schema) {
-      schemaCache.set(cacheKey, schema);
-      return schema.columns;
-    }
-  } catch {
-    // Silently fail - just return empty
+  const schemaWithPrefix = getTableSchema(fetchName);
+
+  if (schemaWithPrefix) {
+    return schemaWithPrefix.columns;
   }
 
   return [];
@@ -139,7 +134,7 @@ export function createSqlCompletionProvider(
   return {
     triggerCharacters: [".", " "],
 
-    provideCompletionItems: async (model, position) => {
+    provideCompletionItems: (model, position) => {
       const { getTables } = context;
 
       // Get text from start of document to cursor position
@@ -165,7 +160,7 @@ export function createSqlCompletionProvider(
       const dotMatch = textUntilPosition.match(/(\w+)\.\s*$/);
       if (dotMatch) {
         const tableName = dotMatch[1];
-        const columns = await getColumnsForTable(tableName, context);
+        const columns = getColumnsForTable(tableName, context);
 
         columns.forEach((col) => {
           suggestions.push({
@@ -230,7 +225,7 @@ export function createSqlCompletionProvider(
       // Add columns from tables referenced in the query
       const referencedTables = extractTableReferences(textUntilPosition, tables);
       for (const tableName of referencedTables) {
-        const columns = await getColumnsForTable(tableName, context);
+        const columns = getColumnsForTable(tableName, context);
         columns.forEach((col) => {
           suggestions.push({
             label: col.name,
