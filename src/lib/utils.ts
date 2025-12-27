@@ -81,3 +81,38 @@ export async function readFromClipboard(): Promise<string | null> {
 
   return null;
 }
+
+/**
+ * Format timestamp to ISO 8601 without milliseconds (YYYY-MM-DD HH:mm:ss)
+ */
+export interface FormattedTimestamp {
+  formatted: string;
+  date: string;
+  time: string;
+  milliseconds?: string;
+  timezone?: string;
+}
+
+export function formatTimestamp(value: string): FormattedTimestamp | null {
+  // Match various timestamp formats
+  const timestampRegex = /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?([+-]\d{2}:\d{2}|Z)?$/;
+  const match = value.match(timestampRegex);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hour, minute, second, milliseconds, timezone] = match;
+
+  const date = `${year}-${month}-${day}`;
+  const time = `${hour}:${minute}:${second}`;
+  const formatted = `${date} ${time}`;
+
+  return {
+    formatted,
+    date,
+    time,
+    milliseconds,
+    timezone,
+  };
+}

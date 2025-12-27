@@ -1,15 +1,18 @@
-import { Database, Clock, AlertCircle, CheckCircle, Loader2, Sparkles } from "lucide-react";
+import { Database, Clock, AlertCircle, CheckCircle, Loader2, Sparkles, Table, FileCode, Info, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection } from "@/stores";
+import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection, selectActiveTab, selectActiveResults } from "@/stores";
 import { useAIStore } from "@/extensions";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState, useRef } from "react";
 import { useAnime } from "@/hooks/useAnime";
+import { BrandIcon } from "@/components/ui";
 
 export function StatusBar() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const { isConnecting } = useConnectionsStore();
   const { isExecuting } = useQueryStore();
+  const activeTab = useQueryStore(selectActiveTab);
+  const activeResults = useQueryStore(selectActiveResults);
   const { pendingChanges } = useUIStore();
   const { togglePanel: toggleAIPanel, panelOpen: aiPanelOpen, settings: aiSettings } = useAIStore();
   
@@ -84,7 +87,27 @@ export function StatusBar() {
     };
   };
 
+  const getTabTypeInfo = () => {
+    if (!activeTab) return null;
+
+    switch (activeTab.type) {
+      case "query":
+        return { icon: <FileCode className="h-3 w-3" />, text: "Query" };
+      case "table":
+        return { icon: <Table className="h-3 w-3" />, text: "Table" };
+      case "properties":
+        return { icon: <Info className="h-3 w-3" />, text: "Properties" };
+      case "diagram":
+        return { icon: <Network className="h-3 w-3" />, text: "Diagram" };
+      case "schema":
+        return { icon: <Database className="h-3 w-3" />, text: "Schema" };
+      default:
+        return null;
+    }
+  };
+
   const status = getConnectionStatus();
+  const tabInfo = getTabTypeInfo();
 
   return (
     <footer className="flex h-7 items-center justify-between border-t border-border bg-muted/30 px-3 text-xs">
@@ -98,10 +121,40 @@ export function StatusBar() {
           {activeConnection && (
             <>
               <span className="text-border">|</span>
+              <BrandIcon name={activeConnection.databaseType} className="h-3 w-3" />
               <span className="text-foreground font-medium">{activeConnection.name}</span>
             </>
           )}
         </div>
+
+        {/* Tab context */}
+        {tabInfo && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            {tabInfo.icon}
+            <span>{tabInfo.text}</span>
+            {activeTab?.tableName && (
+              <>
+                <span className="text-border">·</span>
+                <span className="text-foreground font-medium">{activeTab.tableName}</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Results info */}
+        {activeResults && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Table className="h-3 w-3" />
+            <span>{activeResults.rows.length} rows</span>
+            {activeResults.executionTimeMs !== undefined && (
+              <>
+                <span className="text-border">·</span>
+                <Clock className="h-3 w-3" />
+                <span>{activeResults.executionTimeMs}ms</span>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Query status */}
         {isExecuting && (

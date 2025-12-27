@@ -4,6 +4,13 @@ import type { PendingChange, ColumnInfo } from "@/types";
 
 export type CommitMode = "staged" | "immediate";
 
+// Column filter configuration
+export interface ColumnFilter {
+  columnId: string;
+  value: string;
+  operator?: "contains" | "equals" | "startsWith" | "endsWith" | "gt" | "lt" | "gte" | "lte";
+}
+
 // Selection with full context for multi-table editing
 export interface SelectedRow {
   rowId: string;
@@ -28,7 +35,10 @@ interface CRUDState {
   // Client-side Pagination
   pageSize: number;
   pageIndex: number;
-  
+
+  // Column filtering
+  columnFilters: Record<string, ColumnFilter>;
+
   // Actions
   setSelectedRowIds: (ids: string[]) => void;
   addSelectedRow: (row: SelectedRow) => void;
@@ -45,6 +55,10 @@ interface CRUDState {
   setCommitMode: (mode: CommitMode) => void;
   setPageSize: (size: number) => void;
   setPageIndex: (index: number) => void;
+
+  setColumnFilter: (filter: ColumnFilter) => void;
+  clearColumnFilter: (columnId: string) => void;
+  clearAllFilters: () => void;
 }
 
 export const useCRUDStore = create<CRUDState>()(
@@ -57,6 +71,7 @@ export const useCRUDStore = create<CRUDState>()(
       commitMode: "staged",
       pageSize: 50,
       pageIndex: 0,
+      columnFilters: {},
 
       setSelectedRowIds: (selectedRowIds) => set({ selectedRowIds }),
       
@@ -119,9 +134,27 @@ export const useCRUDStore = create<CRUDState>()(
       clearPendingChanges: () => set({ pendingChanges: {} }),
 
       setCommitMode: (commitMode) => set({ commitMode }),
-      
+
       setPageSize: (pageSize) => set({ pageSize, pageIndex: 0 }),
       setPageIndex: (pageIndex) => set({ pageIndex }),
+
+      setColumnFilter: (filter) =>
+        set((state) => ({
+          columnFilters: {
+            ...state.columnFilters,
+            [filter.columnId]: filter,
+          },
+          pageIndex: 0, // Reset to first page when filtering
+        })),
+
+      clearColumnFilter: (columnId) =>
+        set((state) => {
+          const newFilters = { ...state.columnFilters };
+          delete newFilters[columnId];
+          return { columnFilters: newFilters };
+        }),
+
+      clearAllFilters: () => set({ columnFilters: {} }),
     }),
     {
       name: "dbfordevs-crud",

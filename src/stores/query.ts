@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { QueryResult, Tab, TableInfo, TableSchema } from "@/types";
+import { persist } from "zustand/middleware";
+import type { QueryResult, Tab, TableInfo, TableSchema, QueryHistoryEntry } from "@/types";
 
 interface QueryState {
   // Open tabs
@@ -16,6 +17,8 @@ interface QueryState {
   isExecuting: boolean;
   // Error state
   error: string | null;
+  // Query history per connection (keyed by connectionId)
+  queryHistory: Record<string, QueryHistoryEntry[]>;
 
   // Actions
   addTab: (tab: Tab) => void;
@@ -30,16 +33,21 @@ interface QueryState {
   setExecuting: (executing: boolean) => void;
   setError: (error: string | null) => void;
   renameTableInTabs: (connectionId: string, oldName: string, newName: string) => void;
+  addQueryToHistory: (entry: QueryHistoryEntry) => void;
+  clearHistoryForConnection: (connectionId: string) => void;
 }
 
-export const useQueryStore = create<QueryState>()((set) => ({
-  tabs: [],
-  activeTabId: null,
-  results: {},
-  tablesByConnection: {},
-  tableSchema: null,
-  isExecuting: false,
-  error: null,
+export const useQueryStore = create<QueryState>()(
+  persist(
+    (set) => ({
+      tabs: [],
+      activeTabId: null,
+      results: {},
+      tablesByConnection: {},
+      tableSchema: null,
+      isExecuting: false,
+      error: null,
+      queryHistory: {},
 
   addTab: (tab) =>
     set((state) => ({
@@ -119,8 +127,8 @@ export const useQueryStore = create<QueryState>()((set) => ({
           return {
             ...tab,
             tableName: updatedName,
-            title: tab.type === "properties" 
-              ? `${newName} Properties` 
+            title: tab.type === "properties"
+              ? `${newName} Properties`
               : tab.type === "diagram"
               ? `${newName} Diagram`
               : newName,
@@ -129,7 +137,35 @@ export const useQueryStore = create<QueryState>()((set) => ({
         return tab;
       }),
     })),
-}));
+
+  addQueryToHistory: (entry) =>
+    set((state) => {
+      const connectionHistory = state.queryHistory[entry.connectionId] || [];
+      // Add new entry to the beginning and limit to 50 entries
+      const updatedHistory = [entry, ...connectionHistory].slice(0, 50);
+      return {
+        queryHistory: {
+          ...state.queryHistory,
+          [entry.connectionId]: updatedHistory,
+        },
+      };
+    }),
+
+  clearHistoryForConnection: (connectionId) =>
+    set((state) => {
+      const newHistory = { ...state.queryHistory };
+      delete newHistory[connectionId];
+      return { queryHistory: newHistory };
+    }),
+    }),
+    {
+      name: "query-store",
+      partialize: (state) => ({
+        queryHistory: state.queryHistory,
+      }),
+    }
+  )
+);
 
 // Selectors
 export const selectActiveTab = (state: QueryState) =>

@@ -61,6 +61,17 @@ export interface ColumnInfo {
   isPrimaryKey: boolean;
 }
 
+export interface QueryHistoryEntry {
+  id: string;
+  connectionId: string;
+  sql: string;
+  executedAt: number;
+  executionTimeMs?: number;
+  rowCount?: number;
+  success: boolean;
+  error?: string;
+}
+
 export interface TableInfo {
   name: string;
   schema?: string;

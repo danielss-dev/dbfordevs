@@ -212,7 +212,7 @@ export function SidePanel() {
             </TabsTrigger>
             <TabsTrigger value="sql" className="text-xs gap-1.5">
               <Code className="h-3.5 w-3.5" />
-              SQL Preview
+              Changes Preview
             </TabsTrigger>
           </TabsList>
         </div>
@@ -288,23 +288,29 @@ export function SidePanel() {
           {/* View mode toggle */}
           {pendingChangesList.length > 0 && (
             <div className="px-4 py-2 border-b border-border bg-muted/20">
-              <div className="flex bg-muted rounded p-0.5 border border-border w-fit">
+              <div className="flex bg-muted rounded-md p-1 border border-border w-fit">
                 <Button
-                  variant={viewMode === "sql" ? "secondary" : "ghost"}
+                  variant={viewMode === "sql" ? "default" : "ghost"}
                   size="sm"
-                  className="h-6 px-3 text-[10px] gap-1.5"
+                  className={cn(
+                    "h-7 px-3 text-[11px] gap-1.5 font-medium transition-all",
+                    viewMode === "sql" && "shadow-sm"
+                  )}
                   onClick={() => setViewMode("sql")}
                 >
-                  <Code className="h-3 w-3" />
+                  <Code className="h-3.5 w-3.5" />
                   SQL
                 </Button>
                 <Button
-                  variant={viewMode === "diff" ? "secondary" : "ghost"}
+                  variant={viewMode === "diff" ? "default" : "ghost"}
                   size="sm"
-                  className="h-6 px-3 text-[10px] gap-1.5"
+                  className={cn(
+                    "h-7 px-3 text-[11px] gap-1.5 font-medium transition-all",
+                    viewMode === "diff" && "shadow-sm"
+                  )}
                   onClick={() => setViewMode("diff")}
                 >
-                  <GitCommit className="h-3 w-3" />
+                  <GitCommit className="h-3.5 w-3.5" />
                   Diff
                 </Button>
               </div>
@@ -329,8 +335,8 @@ export function SidePanel() {
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
-                        <div className="bg-muted/50 p-3 rounded border border-border overflow-x-auto">
-                          <pre className="text-foreground">
+                        <div className="bg-muted/50 p-3 rounded border border-border">
+                          <pre className="text-foreground whitespace-pre-wrap break-all">
                             {change.type === "update" && (
                               <>
                                 <span className="text-blue-500">UPDATE</span> {change.tableName} <br />

@@ -41,6 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
+import { TableSearch } from "@/components/sidebar/TableSearch";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo } from "@/types";
@@ -141,6 +142,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const [showProperties, setShowProperties] = useState(false);
   const [showDeleteConnectionDialog, setShowDeleteConnectionDialog] = useState(false);
   const [tableToDrop, setTableToDrop] = useState<string | null>(null);
+  const [tableSearchQuery, setTableSearchQuery] = useState("");
   const isActive = activeConnectionId === connection.id;
 
   useEffect(() => {
@@ -416,9 +418,16 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   };
 
   const connectionTables = tablesByConnection[connection.id] || [];
-  
+
+  // Filter tables based on search query
+  const filteredTables = tableSearchQuery.trim()
+    ? connectionTables.filter((table) =>
+        table.name.toLowerCase().includes(tableSearchQuery.toLowerCase())
+      )
+    : connectionTables;
+
   // Group tables by schema
-  const tablesBySchema = connectionTables.reduce((acc: Record<string, TableInfo[]>, table: TableInfo) => {
+  const tablesBySchema = filteredTables.reduce((acc: Record<string, TableInfo[]>, table: TableInfo) => {
     const schemaName = table.schema || "default";
     if (!acc[schemaName]) {
       acc[schemaName] = [];
@@ -452,6 +461,16 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                         onClick={handleTablesClick}
                         defaultOpen={true}
                       >
+                        {tablesOpen && connectionTables.length > 0 && (
+                          <div className="ml-6 mb-2">
+                            <TableSearch
+                              value={tableSearchQuery}
+                              onChange={setTableSearchQuery}
+                              onClear={() => setTableSearchQuery("")}
+                              matchCount={filteredTables.length}
+                            />
+                          </div>
+                        )}
                         {isLoadingTables ? (
                           <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
                             <Loader2 className="h-3 w-3 animate-spin" />

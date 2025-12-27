@@ -33,6 +33,7 @@ export function useKeyboardShortcuts() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
       const isShift = e.shiftKey;
+      const isAlt = e.altKey;
 
       // Close all modals on Escape
       if (e.key === "Escape") {
@@ -84,8 +85,16 @@ export function useKeyboardShortcuts() {
         toggleSidebar();
       }
 
-      // Mod + Alt + B or Mod + Shift + A: Toggle AI Assistant
-      if ((isMod && e.altKey && e.key.toLowerCase() === "b") || (isMod && isShift && e.key.toLowerCase() === "a")) {
+      // Mod + P: Toggle AI Assistant
+      if (isMod && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        if (isAIEnabled) {
+          toggleAIPanel();
+        }
+      }
+
+      // Mod + Alt + B or Mod + Shift + A: Toggle AI Assistant (legacy)
+      if ((isMod && isAlt && e.key.toLowerCase() === "b") || (isMod && isShift && e.key.toLowerCase() === "a")) {
         e.preventDefault();
         if (isAIEnabled) {
           toggleAIPanel();
@@ -99,7 +108,7 @@ export function useKeyboardShortcuts() {
       }
 
       // Mod + Alt + F: Focus Find and Replace in Editor
-      if (isMod && e.altKey && e.key.toLowerCase() === "f") {
+      if (isMod && isAlt && e.key.toLowerCase() === "f") {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (activeTab && activeTab.type === "query") {
           const monacoEditor = document.querySelector(".monaco-editor");
@@ -158,7 +167,7 @@ export function useKeyboardShortcuts() {
       }
 
       // Mod + F: Focus Find in Editor
-      if (isMod && !isShift && !e.altKey && e.key.toLowerCase() === "f") {
+      if (isMod && !isShift && !isAlt && e.key.toLowerCase() === "f") {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (activeTab && activeTab.type === "query") {
           const monacoEditor = document.querySelector(".monaco-editor");
@@ -234,7 +243,7 @@ export function useKeyboardShortcuts() {
       }
 
       // Alt + Up/Down: Navigate Results (Scroll)
-      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      if (isAlt && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
         const resultsArea = document.querySelector(".overflow-auto");
         if (resultsArea) {
           e.preventDefault();
