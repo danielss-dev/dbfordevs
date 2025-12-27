@@ -10,14 +10,15 @@ import { DataGrid } from "@/components/data-grid";
 import { SqlEditor } from "@/components/editor";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
-import type { Tab } from "@/types";
+import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
+import type { Tab, QueryHistoryEntry } from "@/types";
 
 interface QueryEditorTabProps {
   tab: Tab;
 }
 
 export function QueryEditorTab({ tab }: QueryEditorTabProps) {
-  const { updateTabContent, isExecuting, error, tablesByConnection } = useQueryStore();
+  const { updateTabContent, isExecuting, error, tablesByConnection, addQueryToHistory } = useQueryStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const connectionId = tab.connectionId || activeConnection?.id;
   const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
@@ -75,7 +76,8 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
   const handleExecute = async () => {
     if (!connectionId || !content.trim()) return;
 
-    await executeQuery(
+    const startTime = Date.now();
+    const result = await executeQuery(
       {
         connectionId: connectionId,
         sql: content,
@@ -84,6 +86,25 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
       },
       tab.id
     );
+
+    // Save query to history
+    const historyEntry: QueryHistoryEntry = {
+      id: `${connectionId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      connectionId,
+      sql: content,
+      executedAt: startTime,
+      executionTimeMs: result?.executionTimeMs,
+      rowCount: result?.rows?.length ?? result?.affectedRows,
+      success: result !== null,
+      error: result === null ? (error ?? undefined) : undefined,
+    };
+
+    addQueryToHistory(historyEntry);
+  };
+
+  const handleSelectExample = (sql: string) => {
+    setContent(sql);
+    updateTabContent(tab.id, sql);
   };
 
   return (
@@ -162,6 +183,11 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
             </div>
           ) : results ? (
             <DataGrid data={results} />
+          ) : !content.trim() ? (
+            <EmptyQueryState
+              onSelectExample={handleSelectExample}
+              databaseType={activeConnection?.databaseType}
+            />
           ) : (
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
               <Terminal className="h-8 w-8 mb-2 opacity-30" />

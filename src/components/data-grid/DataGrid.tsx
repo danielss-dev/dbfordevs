@@ -4,8 +4,10 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getPaginationRowModel,
+  getFilteredRowModel,
   flexRender,
   type ColumnDef,
+  type FilterFn,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { 
@@ -28,11 +30,13 @@ import {
   ToggleLeft,
   Database,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatTimestamp } from "@/lib/utils";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import type { QueryResult, ColumnInfo } from "@/types";
 import { useCRUDStore } from "@/stores";
 import { EditableCell } from "./EditableCell";
+import { ColumnFilterPopover } from "./ColumnFilterPopover";
+import { ExportMenu } from "./ExportMenu";
 
 // Shared utility to generate consistent row IDs
 export function generateRowId(row: Record<string, unknown>, columns: ColumnInfo[]): string {
@@ -75,9 +79,51 @@ const getTypeIcon = (dataType: string) => {
   return <Database className="h-3 w-3 text-muted-foreground/50" />;
 };
 
+// Custom filter function for TanStack Table
+const customColumnFilter: FilterFn<any> = (row, columnId, filterValue) => {
+  if (!filterValue || typeof filterValue !== "object") return true;
+
+  const { value, operator } = filterValue as { value: string; operator?: string };
+  const cellValue = row.getValue(columnId);
+
+  // Handle null/undefined
+  if (cellValue === null || cellValue === undefined) {
+    return value.toLowerCase() === "null" || value === "";
+  }
+
+  const cellStr = String(cellValue).toLowerCase();
+  const filterStr = value.toLowerCase();
+
+  // String operations
+  if (operator === "contains" || !operator) {
+    return cellStr.includes(filterStr);
+  }
+  if (operator === "equals") {
+    return cellStr === filterStr;
+  }
+  if (operator === "startsWith") {
+    return cellStr.startsWith(filterStr);
+  }
+  if (operator === "endsWith") {
+    return cellStr.endsWith(filterStr);
+  }
+
+  // Numeric operations
+  const cellNum = Number(cellValue);
+  const filterNum = Number(value);
+  if (!isNaN(cellNum) && !isNaN(filterNum)) {
+    if (operator === "gt") return cellNum > filterNum;
+    if (operator === "gte") return cellNum >= filterNum;
+    if (operator === "lt") return cellNum < filterNum;
+    if (operator === "lte") return cellNum <= filterNum;
+  }
+
+  return true;
+};
+
 export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
-  const { 
-    selectedRowIds, 
+  const {
+    selectedRowIds,
     addSelectedRow,
     toggleRowSelection,
     editingCell,
@@ -88,8 +134,11 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
     setPageSize,
     pageIndex: storePageIndex,
     setPageIndex,
+    columnFilters,
+    setColumnFilter,
+    clearColumnFilter,
   } = useCRUDStore();
-  
+
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
   // Helper to create a SelectedRow object with full context
@@ -166,30 +215,48 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
       accessorKey: col.name,
       header: ({ column }: { column: any }) => {
         const sorted = column.getIsSorted();
+        const currentFilter = columnFilters[col.name];
+
         return (
-          <button
-            className="flex items-center gap-2 hover:text-foreground transition-colors group w-full h-full"
-            onClick={() => column.toggleSorting(sorted === "asc")}
-          >
-            <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-              {getTypeIcon(col.dataType)}
-              <span className="font-bold text-foreground/80 tracking-tight text-xs uppercase">{col.name}</span>
-            </div>
-            <span className={cn(
-              "transition-opacity shrink-0 ml-auto",
-              sorted ? "opacity-100 text-primary" : "opacity-0 group-hover:opacity-50 text-muted-foreground"
-            )}>
-              {sorted === "asc" ? (
-                <ArrowUp className="h-3 w-3" />
-              ) : sorted === "desc" ? (
-                <ArrowDown className="h-3 w-3" />
-              ) : (
-                <ArrowUpDown className="h-3.5 w-3.5" />
-              )}
-            </span>
-          </button>
+          <div className="flex items-center gap-1 w-full h-full">
+            <button
+              className="flex items-center gap-2 hover:text-foreground transition-colors group flex-1"
+              onClick={() => column.toggleSorting(sorted === "asc")}
+            >
+              <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                {getTypeIcon(col.dataType)}
+                <span className="font-bold text-foreground/80 tracking-tight text-xs uppercase">{col.name}</span>
+              </div>
+              <span className={cn(
+                "transition-opacity shrink-0 ml-auto",
+                sorted ? "opacity-100 text-primary" : "opacity-0 group-hover:opacity-50 text-muted-foreground"
+              )}>
+                {sorted === "asc" ? (
+                  <ArrowUp className="h-3 w-3" />
+                ) : sorted === "desc" ? (
+                  <ArrowDown className="h-3 w-3" />
+                ) : (
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                )}
+              </span>
+            </button>
+            <ColumnFilterPopover
+              columnId={col.name}
+              columnName={col.name}
+              dataType={col.dataType}
+              currentFilter={currentFilter}
+              onFilterChange={(filter) => {
+                if (filter) {
+                  setColumnFilter(filter);
+                } else {
+                  clearColumnFilter(col.name);
+                }
+              }}
+            />
+          </div>
         );
       },
+      filterFn: customColumnFilter,
       cell: ({ getValue, row, column }: { getValue: any, row: any, column: any }) => {
         const value = getValue();
         const rowId = row.id;
@@ -212,7 +279,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
                   // Build primaryKey with sorted keys to match generateRowId
                   const pkColumns = data.columns.filter(c => c.isPrimaryKey).sort((a, b) => a.name.localeCompare(b.name));
                   const primaryKey: Record<string, unknown> = {};
-                  
+
                   if (pkColumns.length > 0) {
                     // Use primary key columns
                     pkColumns.forEach(c => {
@@ -225,7 +292,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
                       primaryKey[k] = row.original[k];
                     });
                   }
-                  
+
                   addPendingChange({
                     id: crypto.randomUUID(),
                     tableName: tableName || "unknown",
@@ -258,25 +325,27 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
 
         let content: React.ReactNode;
         if (typeof displayValue === "string") {
-          const isTimestamp = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}/.test(displayValue);
-          if (isTimestamp) {
-            const parts = displayValue.split(/([T\s])/);
-            const date = parts[0];
-            const separator = parts[1];
-            const time = parts.slice(2).join("");
-            
+          // Try to format as timestamp
+          const timestampData = formatTimestamp(displayValue);
+          if (timestampData) {
+            // Display formatted timestamp without milliseconds, keep them in tooltip
+            const tooltipText = timestampData.milliseconds
+              ? `${timestampData.formatted}.${timestampData.milliseconds}${timestampData.timezone || ""}`
+              : `${timestampData.formatted}${timestampData.timezone || ""}`;
+
             content = (
-              <span className="font-mono text-[11px] whitespace-nowrap">
-                <span className="text-[hsl(var(--text-primary))]">{date}</span>
-                <span className="text-[hsl(var(--text-dim))]">{separator}</span>
-                <span className="text-[hsl(var(--text-secondary))]">
-                  {time.includes(".") ? (
-                    <>
-                      {time.split(".")[0]}
-                      <span className="text-[hsl(var(--text-dim))] opacity-70">.{time.split(".")[1]}</span>
-                    </>
-                  ) : time}
-                </span>
+              <span
+                className="font-mono text-[11px] whitespace-nowrap cursor-help"
+                title={timestampData.milliseconds ? tooltipText : undefined}
+              >
+                <span className="text-[hsl(var(--text-primary))]">{timestampData.date}</span>
+                <span className="text-[hsl(var(--text-dim))]"> </span>
+                <span className="text-[hsl(var(--text-secondary))]">{timestampData.time}</span>
+                {timestampData.timezone && (
+                  <span className="text-[hsl(var(--text-dim))] text-[10px] ml-0.5">
+                    {timestampData.timezone}
+                  </span>
+                )}
               </span>
             );
           } else if (displayValue.length > 20 && /^[a-fA-F0-0x:-]+$/.test(displayValue)) {
@@ -323,7 +392,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
       },
     })));
     return tableColumns;
-  }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection]);
+  }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter]);
 
   const tableData = useMemo(() => {
     return data.rows.map((row) => {
@@ -339,12 +408,21 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
     return generateRowId(row, data.columns);
   }, [data.columns]);
 
+  // Convert our store filters to TanStack Table format
+  const tanstackFilters = useMemo(() => {
+    return Object.values(columnFilters).map(filter => ({
+      id: filter.columnId,
+      value: { value: filter.value, operator: filter.operator },
+    }));
+  }, [columnFilters]);
+
   const table = useReactTable({
     data: tableData,
     columns,
     getRowId,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     // Row selection is handled by our custom click handlers with full context
     // This just keeps TanStack Table's internal state in sync
@@ -353,10 +431,10 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
         pageIndex: storePageIndex,
         pageSize: storePageSize,
       };
-      const nextPagination = typeof updater === 'function' 
-        ? updater(currentPagination) 
+      const nextPagination = typeof updater === 'function'
+        ? updater(currentPagination)
         : updater;
-      
+
       setPageIndex(nextPagination.pageIndex);
       setPageSize(nextPagination.pageSize);
     },
@@ -366,6 +444,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
         pageIndex: storePageIndex,
         pageSize: storePageSize,
       },
+      columnFilters: tanstackFilters,
     },
   });
 
@@ -408,20 +487,21 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="bg-[hsl(var(--table-header-bg))] border-b border-border shadow-sm">
+              <tr key={headerGroup.id} className="bg-muted/50 border-b-2 border-border shadow-md">
                 {headerGroup.headers.map((header) => {
-                  const isNumeric = header.column.id.toLowerCase().includes("id") || 
+                  const isNumeric = header.column.id.toLowerCase().includes("id") ||
                                   header.column.id.toLowerCase().includes("count") ||
                                   header.column.id.toLowerCase().includes("amount");
-                  
+
                   return (
                     <th
                       key={header.id}
                       className={cn(
-                        "px-3 py-2 text-foreground/70 transition-colors relative",
+                        "px-3 py-2.5 text-foreground/90 font-bold transition-all relative",
+                        "hover:bg-muted/70",
                         isNumeric ? "text-right" : "text-left",
-                        header.column.id === "rowNumber" ? "p-0 w-10 text-center bg-muted/20" : "min-w-[120px]",
-                        "border-r border-border/30 last:border-r-0"
+                        header.column.id === "rowNumber" ? "p-0 w-10 text-center bg-muted/30" : "min-w-[120px]",
+                        "border-r border-border/40 last:border-r-0"
                       )}
                       style={{ width: header.getSize() }}
                     >
@@ -449,7 +529,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
                     "transition-colors cursor-pointer group h-9",
                     idx % 2 === 0 ? "bg-[hsl(var(--table-row-odd))]" : "bg-[hsl(var(--table-row-even))]",
                     "hover:bg-[hsl(var(--table-row-hover))]",
-                    row.getIsSelected() && "bg-primary/10 hover:bg-primary/15",
+                    row.getIsSelected() && "bg-primary/30 hover:bg-primary/35",
                     pendingChanges[row.id]?.type === "delete" && "opacity-50 grayscale line-through decoration-destructive"
                   )}
                   onClick={() => {
@@ -490,6 +570,9 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-border bg-muted/40 px-6 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-6 text-xs text-muted-foreground">
+          {/* Export Menu */}
+          <ExportMenu tableName={tableName} />
+
           {/* Status Text */}
           <div className="flex items-center gap-1">
             <span>Showing</span>
