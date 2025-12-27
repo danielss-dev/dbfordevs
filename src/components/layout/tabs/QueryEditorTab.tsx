@@ -100,7 +100,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
       executionTimeMs: result?.executionTimeMs,
       rowCount: result?.rows?.length ?? result?.affectedRows,
       success: result !== null,
-      error: result === null ? (error ?? undefined) : undefined,
+      error: result === null ? useQueryStore.getState().error ?? undefined : undefined,
     };
 
     addQueryToHistory(historyEntry);
