@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { History } from "lucide-react";
 import {
   DropdownMenu,
@@ -16,20 +16,26 @@ import { QueryHistoryDropdownItem } from "./QueryHistoryDropdownItem";
 interface QueryHistoryDropdownProps {
   connectionId: string;
   onLoadQuery: (sql: string) => void;
+  activeTooltip: string | null;
+  onSetActiveTooltip: (tooltip: string | null) => void;
 }
 
-export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistoryDropdownProps) {
+export function QueryHistoryDropdown({ connectionId, onLoadQuery, activeTooltip, onSetActiveTooltip }: QueryHistoryDropdownProps) {
   const { queryHistory } = useQueryStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
 
   const connectionHistory = queryHistory[connectionId] || [];
   const hasHistory = connectionHistory.length > 0;
 
+  // Clear active tooltip when dropdown opens or closes
+  useEffect(() => {
+    onSetActiveTooltip(null);
+  }, [isDropdownOpen, onSetActiveTooltip]);
+
   return (
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-      <Tooltip open={isHovering && !isDropdownOpen}>
+      <Tooltip open={activeTooltip === "history" && !isDropdownOpen}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <Button
@@ -37,8 +43,8 @@ export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistory
               size="sm"
               disabled={!hasHistory}
               className="gap-2 ml-auto"
-              onMouseEnter={() => setIsHovering(true)}
-              onMouseLeave={() => setIsHovering(false)}
+              onMouseEnter={() => onSetActiveTooltip("history")}
+              onMouseLeave={() => onSetActiveTooltip(null)}
             >
               <History className="h-3.5 w-3.5" />
               History

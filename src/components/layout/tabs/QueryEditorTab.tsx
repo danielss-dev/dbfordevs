@@ -33,6 +33,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
   const { executeQuery, fetchAllSchemas, refreshSchemas } = useDatabase();
   const [content, setContent] = useState(tab.content || "");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   // Get theme variant for extension themes
   const themeVariant = theme.startsWith("ext:")
@@ -134,13 +135,15 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
     <div className="flex h-full flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-2">
-        <Tooltip>
+        <Tooltip open={activeTooltip === "run"}>
           <TooltipTrigger asChild>
             <Button
               size="sm"
               onClick={() => handleExecute()}
               disabled={isExecuting || !connectionId || !content.trim()}
               className="gap-2"
+              onMouseEnter={() => setActiveTooltip("run")}
+              onMouseLeave={() => setActiveTooltip(null)}
             >
               {isExecuting ? (
                 <>
@@ -169,11 +172,13 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
           <QueryHistoryDropdown
             connectionId={connectionId}
             onLoadQuery={handleSelectExample}
+            activeTooltip={activeTooltip}
+            onSetActiveTooltip={setActiveTooltip}
           />
         )}
 
         {connectionId && (
-          <Tooltip>
+          <Tooltip open={activeTooltip === "refresh"}>
             <TooltipTrigger asChild>
               <Button
                 size="sm"
@@ -181,6 +186,8 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
                 onClick={handleRefreshSchemas}
                 disabled={isRefreshing}
                 className="gap-2"
+                onMouseEnter={() => setActiveTooltip("refresh")}
+                onMouseLeave={() => setActiveTooltip(null)}
               >
                 {isRefreshing ? (
                   <>
