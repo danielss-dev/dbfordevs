@@ -12,6 +12,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # MySQL - Port 3306
   mysql:
@@ -25,6 +30,11 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pmysql"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   # MariaDB - Port 3307
   mariadb:
@@ -38,6 +48,11 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./docker/mariadb-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   # Microsoft SQL Server - Port 1433
   mssql:
@@ -50,6 +65,31 @@ services:
       - "1433:1433"
     volumes:
       - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Password123 -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # MSSQL Init - runs sample data after MSSQL is ready
+  mssql-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: dbfordevs-mssql-init
+    depends_on:
+      mssql:
+        condition: service_healthy
+    volumes:
+      - ./docker/mssql-init:/init
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Waiting for MSSQL to be ready..."
+        sleep 5
+        echo "Running init script..."
+        /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P Password123 -C -i /init/01-sample-data.sql
+        echo "Init complete!"
+    restart: "no"
 
   # CockroachDB - Port 26257 (SQL), 8080 (Admin UI)
   cockroachdb:
@@ -61,6 +101,30 @@ services:
       - "8080:8080"
     volumes:
       - cockroach_data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # CockroachDB Init - runs sample data after CockroachDB is ready
+  cockroachdb-init:
+    image: cockroachdb/cockroach:latest
+    container_name: dbfordevs-cockroachdb-init
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+    volumes:
+      - ./docker/cockroach-init:/init
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Waiting for CockroachDB to be ready..."
+        sleep 5
+        echo "Running init script..."
+        /cockroach/cockroach sql --insecure --host=cockroachdb < /init/01-sample-data.sql
+        echo "Init complete!"
+    restart: "no"
 
 volumes:
   postgres_data:
