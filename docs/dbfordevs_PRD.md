@@ -341,9 +341,9 @@ The application follows a three-panel layout:
 
 ### Phase 2: Core Features (Months 4-6)
 
-- [ ] Microsoft SQL Server support
-- [ ] Side panel editor implementation
-- [ ] Change diff preview system
+- [x] Microsoft SQL Server support
+- [x] Side panel editor implementation
+- [x] Change diff preview system
 - [x] Plugin Marketplace UI
 - [x] AI Query Assistant (Basic NL-to-SQL)
 - [ ] Connection string validator (C# plugin)

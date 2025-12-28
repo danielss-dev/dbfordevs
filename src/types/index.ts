@@ -11,6 +11,30 @@ export type DatabaseType =
   | "cockroachdb"
   | "cassandra";
 
+// SSL Configuration
+export type SslMode = 'disable' | 'require' | 'prefer' | 'verify-ca' | 'verify-full';
+
+export interface SslConfig {
+  mode: SslMode;
+  caCertPath?: string;
+  clientCertPath?: string;
+  clientKeyPath?: string;
+}
+
+// SSH Tunnel Configuration
+export type SshAuthMethod = 'password' | 'privateKey';
+
+export interface SshTunnelConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  authMethod: SshAuthMethod;
+  password?: string;
+  privateKeyPath?: string;
+  passphrase?: string;
+}
+
 export interface ConnectionConfig {
   id?: string;
   name: string;
@@ -22,6 +46,11 @@ export interface ConnectionConfig {
   password?: string;
   sslMode?: string;
   filePath?: string;
+  // Advanced connection options
+  connectionString?: string;
+  useConnectionString?: boolean;
+  ssl?: SslConfig;
+  sshTunnel?: SshTunnelConfig;
 }
 
 export interface ConnectionInfo {
