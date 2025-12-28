@@ -73,11 +73,19 @@ export function useDatabase() {
       setLoading(true);
       setConnectionError(null);
 
+      const isUpdate = !!config.id;
+
       try {
         const result = await invoke<ConnectionInfo>("save_connection", {
           config,
         });
-        addConnection(result);
+        if (isUpdate) {
+          // Update existing connection in store
+          updateConnection(result.id, result);
+        } else {
+          // Add new connection to store
+          addConnection(result);
+        }
         return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -87,7 +95,7 @@ export function useDatabase() {
         setLoading(false);
       }
     },
-    [setLoading, setConnectionError, addConnection]
+    [setLoading, setConnectionError, addConnection, updateConnection]
   );
 
   /**
