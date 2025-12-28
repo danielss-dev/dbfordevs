@@ -66,6 +66,18 @@
     --text-primary: 224 71% 4%;
     --text-secondary: 224 9% 30%;
     --text-dim: 224 9% 55%;
+
+    /* Database Icon Colors - Light Theme (original brand colors) */
+    --db-postgresql: #4169E1;
+    --db-mysql: #4479A1;
+    --db-mariadb: #003545;
+    --db-sqlite: #003B57;
+    --db-mssql: #CC2927;
+    --db-oracle: #F80000;
+    --db-mongodb: #47A248;
+    --db-redis: #FF4438;
+    --db-cockroachdb: #6933FF;
+    --db-cassandra: #1287B1;
   }
 
 .dark {
@@ -111,7 +123,7 @@
     --destructive: 0 84% 65%;      /* Brighter red for visibility against dark */
 
     /* Sidebar - Distinct from Main View */
-    --sidebar-background: 224 20% 4%; 
+    --sidebar-background: 224 20% 4%;
     --sidebar-foreground: 215 20% 75%;
     --sidebar-accent: 222 15% 12%;
     --sidebar-accent-foreground: 210 40% 98%; /* High contrast for selected items */
@@ -119,6 +131,18 @@
     --sidebar-primary: 212 90% 60%;
     --sidebar-primary-foreground: 224 20% 6%;
     --sidebar-ring: 212 90% 60%;
+
+    /* Database Icon Colors - Dark Theme (lighter variants for visibility) */
+    --db-postgresql: #5B7CE9;
+    --db-mysql: #6BA0C2;
+    --db-mariadb: #4DA6A0;
+    --db-sqlite: #5E9BC9;
+    --db-mssql: #E85450;
+    --db-oracle: #FF4444;
+    --db-mongodb: #5FBD68;
+    --db-redis: #FF6B60;
+    --db-cockroachdb: #8B5CF6;
+    --db-cassandra: #35B5D6;
   }
 
   /* Nordic Dark Theme - An arctic, north-bluish color palette */
@@ -186,6 +210,18 @@
     --sidebar-accent-foreground: 218 27% 92%;
     --sidebar-border: 220 16% 28%;
     --sidebar-ring: 193 43% 67%;
+
+    /* Database Icon Colors - Nordic Dark (lighter variants for visibility) */
+    --db-postgresql: #5B7CE9;
+    --db-mysql: #6BA0C2;
+    --db-mariadb: #4DA6A0;
+    --db-sqlite: #5E9BC9;
+    --db-mssql: #E85450;
+    --db-oracle: #FF4444;
+    --db-mongodb: #5FBD68;
+    --db-redis: #FF6B60;
+    --db-cockroachdb: #8B5CF6;
+    --db-cassandra: #35B5D6;
   }
 
   /* Nordic Light Theme - Snow Storm backgrounds with Polar Night text */
@@ -252,6 +288,18 @@
     --sidebar-accent-foreground: 220 16% 22%;
     --sidebar-border: 218 27% 82%;
     --sidebar-ring: 213 32% 52%;
+
+    /* Database Icon Colors - Nordic Light (original brand colors) */
+    --db-postgresql: #4169E1;
+    --db-mysql: #4479A1;
+    --db-mariadb: #003545;
+    --db-sqlite: #003B57;
+    --db-mssql: #CC2927;
+    --db-oracle: #F80000;
+    --db-mongodb: #47A248;
+    --db-redis: #FF4438;
+    --db-cockroachdb: #6933FF;
+    --db-cassandra: #1287B1;
   }
 
 }
