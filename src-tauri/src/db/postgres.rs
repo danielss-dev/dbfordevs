@@ -6,7 +6,7 @@ use crate::models::{
     TestConnectionResult, ColumnInfo
 };
 use async_trait::async_trait;
-use sqlx::{postgres::PgPool, Row, Column, ValueRef};
+use sqlx::{postgres::PgPool, Row, Column, ValueRef, TypeInfo};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -335,13 +335,13 @@ impl PostgresDriver {
                 });
             }
 
-            // Get column names from first row
+            // Get column names and types from first row
             let columns: Vec<ColumnInfo> = rows[0]
                 .columns()
                 .iter()
                 .map(|col| ColumnInfo {
                     name: col.name().to_string(),
-                    data_type: "unknown".to_string(), // Will be filled from schema if needed
+                    data_type: col.type_info().name().to_string(),
                     nullable: true,
                     is_primary_key: false,
                 })
@@ -473,13 +473,13 @@ impl DatabaseDriver for PostgresDriver {
                             execution_time_ms: stmt_start.elapsed().as_millis() as u64,
                         }
                     } else {
-                        // Get column names from first row
+                        // Get column names and types from first row
                         let columns: Vec<ColumnInfo> = rows[0]
                             .columns()
                             .iter()
                             .map(|col| ColumnInfo {
                                 name: col.name().to_string(),
-                                data_type: "unknown".to_string(),
+                                data_type: col.type_info().name().to_string(),
                                 nullable: true,
                                 is_primary_key: false,
                             })

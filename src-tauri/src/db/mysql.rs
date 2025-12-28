@@ -6,7 +6,7 @@ use crate::models::{
     TestConnectionResult, ColumnInfo
 };
 use async_trait::async_trait;
-use sqlx::{mysql::MySqlPool, Row, Column};
+use sqlx::{mysql::MySqlPool, Row, Column, TypeInfo};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -157,7 +157,7 @@ impl MySqlDriver {
                 .iter()
                 .map(|col| ColumnInfo {
                     name: col.name().to_string(),
-                    data_type: "unknown".to_string(),
+                    data_type: col.type_info().name().to_string(),
                     nullable: true,
                     is_primary_key: false,
                 })
@@ -261,7 +261,7 @@ impl MySqlDriver {
                 .iter()
                 .map(|col| ColumnInfo {
                     name: col.name().to_string(),
-                    data_type: "unknown".to_string(),
+                    data_type: col.type_info().name().to_string(),
                     nullable: true,
                     is_primary_key: false,
                 })
