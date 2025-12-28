@@ -32,6 +32,292 @@ fn decode_string_opt(row: &sqlx::mysql::MySqlRow, column: &str) -> Option<String
 
 pub struct MySqlDriver;
 
+impl MySqlDriver {
+    /// Safely split SQL into individual statements, handling quotes and comments
+    fn split_sql_statements(sql: &str) -> Vec<String> {
+        let mut statements = Vec::new();
+        let mut current = String::new();
+        let mut chars = sql.chars().peekable();
+        let mut in_single_quote = false;
+        let mut in_double_quote = false;
+        let mut in_backtick = false;
+        let mut in_line_comment = false;
+        let mut in_block_comment = false;
+
+        while let Some(c) = chars.next() {
+            match c {
+                '\'' if !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    if in_single_quote && chars.peek() == Some(&'\'') {
+                        current.push(c);
+                        current.push(chars.next().unwrap());
+                    } else {
+                        in_single_quote = !in_single_quote;
+                        current.push(c);
+                    }
+                }
+                '"' if !in_single_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    in_double_quote = !in_double_quote;
+                    current.push(c);
+                }
+                '`' if !in_single_quote && !in_double_quote && !in_line_comment && !in_block_comment => {
+                    in_backtick = !in_backtick;
+                    current.push(c);
+                }
+                '-' if !in_single_quote && !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    if let Some(&'-') = chars.peek() {
+                        chars.next();
+                        in_line_comment = true;
+                    } else {
+                        current.push(c);
+                    }
+                }
+                '#' if !in_single_quote && !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    in_line_comment = true;
+                }
+                '\n' if in_line_comment => {
+                    in_line_comment = false;
+                }
+                '/' if !in_single_quote && !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    if let Some(&'*') = chars.peek() {
+                        chars.next();
+                        in_block_comment = true;
+                    } else {
+                        current.push(c);
+                    }
+                }
+                '*' if in_block_comment => {
+                    if let Some(&'/') = chars.peek() {
+                        chars.next();
+                        in_block_comment = false;
+                    }
+                }
+                ';' if !in_single_quote && !in_double_quote && !in_backtick && !in_line_comment && !in_block_comment => {
+                    let trimmed = current.trim().to_string();
+                    if !trimmed.is_empty() {
+                        statements.push(trimmed);
+                    }
+                    current.clear();
+                }
+                _ if !in_line_comment && !in_block_comment => {
+                    current.push(c);
+                }
+                _ => {}
+            }
+        }
+
+        let trimmed = current.trim().to_string();
+        if !trimmed.is_empty() {
+            statements.push(trimmed);
+        }
+
+        statements
+    }
+
+    /// Execute a single SQL statement
+    async fn execute_single_query(pool: &MySqlPool, sql: &str, start: Instant) -> AppResult<QueryResult> {
+        let mut clean_sql = sql.trim();
+        while clean_sql.starts_with("--") || clean_sql.starts_with("/*") || clean_sql.starts_with('#') {
+            if clean_sql.starts_with("--") || clean_sql.starts_with('#') {
+                if let Some(newline_pos) = clean_sql.find('\n') {
+                    clean_sql = clean_sql[newline_pos..].trim();
+                } else {
+                    clean_sql = "";
+                    break;
+                }
+            } else if clean_sql.starts_with("/*") {
+                if let Some(end_pos) = clean_sql.find("*/") {
+                    clean_sql = clean_sql[end_pos + 2..].trim();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        let sql_upper = clean_sql.to_uppercase();
+        let is_select = sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH")
+            || sql_upper.starts_with("SHOW") || sql_upper.starts_with("DESCRIBE");
+
+        if is_select {
+            let rows = sqlx::query(sql)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
+
+            if rows.is_empty() {
+                return Ok(QueryResult {
+                    columns: vec![],
+                    rows: vec![],
+                    affected_rows: None,
+                    execution_time_ms: start.elapsed().as_millis() as u64,
+                });
+            }
+
+            let columns: Vec<ColumnInfo> = rows[0]
+                .columns()
+                .iter()
+                .map(|col| ColumnInfo {
+                    name: col.name().to_string(),
+                    data_type: "unknown".to_string(),
+                    nullable: true,
+                    is_primary_key: false,
+                })
+                .collect();
+
+            let json_rows: Vec<Vec<serde_json::Value>> = rows
+                .iter()
+                .map(|row| {
+                    (0..columns.len())
+                        .map(|i| {
+                            if let Ok(val) = row.try_get::<String, _>(i) {
+                                serde_json::Value::String(val)
+                            } else if let Ok(val) = row.try_get::<Vec<u8>, _>(i) {
+                                serde_json::Value::String(String::from_utf8_lossy(&val).into_owned())
+                            } else if let Ok(val) = row.try_get::<i64, _>(i) {
+                                serde_json::Value::Number(val.into())
+                            } else if let Ok(val) = row.try_get::<i32, _>(i) {
+                                serde_json::Value::Number(val.into())
+                            } else if let Ok(val) = row.try_get::<f64, _>(i) {
+                                serde_json::Value::Number(serde_json::Number::from_f64(val).unwrap_or(0.into()))
+                            } else if let Ok(val) = row.try_get::<bool, _>(i) {
+                                serde_json::Value::Bool(val)
+                            } else if let Ok(val) = row.try_get::<chrono::NaiveDateTime, _>(i) {
+                                serde_json::Value::String(val.to_string())
+                            } else if let Ok(val) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+                                serde_json::Value::String(val.to_rfc3339())
+                            } else {
+                                serde_json::Value::String("Unsupported type".to_string())
+                            }
+                        })
+                        .collect()
+                })
+                .collect();
+
+            Ok(QueryResult {
+                columns,
+                rows: json_rows,
+                affected_rows: None,
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        } else {
+            let result = sqlx::query(sql)
+                .execute(pool)
+                .await
+                .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(result.rows_affected()),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        }
+    }
+
+    /// Execute a single SQL statement within a transaction
+    async fn execute_single_query_tx<'c>(
+        tx: &mut sqlx::Transaction<'c, sqlx::MySql>,
+        sql: &str,
+        start: Instant,
+    ) -> AppResult<QueryResult> {
+        let mut clean_sql = sql.trim();
+        while clean_sql.starts_with("--") || clean_sql.starts_with("/*") || clean_sql.starts_with('#') {
+            if clean_sql.starts_with("--") || clean_sql.starts_with('#') {
+                if let Some(newline_pos) = clean_sql.find('\n') {
+                    clean_sql = clean_sql[newline_pos..].trim();
+                } else {
+                    clean_sql = "";
+                    break;
+                }
+            } else if clean_sql.starts_with("/*") {
+                if let Some(end_pos) = clean_sql.find("*/") {
+                    clean_sql = clean_sql[end_pos + 2..].trim();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        let sql_upper = clean_sql.to_uppercase();
+        let is_select = sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH")
+            || sql_upper.starts_with("SHOW") || sql_upper.starts_with("DESCRIBE");
+
+        if is_select {
+            let rows = sqlx::query(sql)
+                .fetch_all(&mut **tx)
+                .await
+                .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
+
+            if rows.is_empty() {
+                return Ok(QueryResult {
+                    columns: vec![],
+                    rows: vec![],
+                    affected_rows: None,
+                    execution_time_ms: start.elapsed().as_millis() as u64,
+                });
+            }
+
+            let columns: Vec<ColumnInfo> = rows[0]
+                .columns()
+                .iter()
+                .map(|col| ColumnInfo {
+                    name: col.name().to_string(),
+                    data_type: "unknown".to_string(),
+                    nullable: true,
+                    is_primary_key: false,
+                })
+                .collect();
+
+            let json_rows: Vec<Vec<serde_json::Value>> = rows
+                .iter()
+                .map(|row| {
+                    (0..columns.len())
+                        .map(|i| {
+                            if let Ok(val) = row.try_get::<String, _>(i) {
+                                serde_json::Value::String(val)
+                            } else if let Ok(val) = row.try_get::<Vec<u8>, _>(i) {
+                                serde_json::Value::String(String::from_utf8_lossy(&val).into_owned())
+                            } else if let Ok(val) = row.try_get::<i64, _>(i) {
+                                serde_json::Value::Number(val.into())
+                            } else if let Ok(val) = row.try_get::<i32, _>(i) {
+                                serde_json::Value::Number(val.into())
+                            } else if let Ok(val) = row.try_get::<f64, _>(i) {
+                                serde_json::Value::Number(serde_json::Number::from_f64(val).unwrap_or(0.into()))
+                            } else if let Ok(val) = row.try_get::<bool, _>(i) {
+                                serde_json::Value::Bool(val)
+                            } else if let Ok(val) = row.try_get::<chrono::NaiveDateTime, _>(i) {
+                                serde_json::Value::String(val.to_string())
+                            } else if let Ok(val) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+                                serde_json::Value::String(val.to_rfc3339())
+                            } else {
+                                serde_json::Value::String("Unsupported type".to_string())
+                            }
+                        })
+                        .collect()
+                })
+                .collect();
+
+            Ok(QueryResult {
+                columns,
+                rows: json_rows,
+                affected_rows: None,
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        } else {
+            let result = sqlx::query(sql)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(result.rows_affected()),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        }
+    }
+}
+
 #[async_trait]
 impl DatabaseDriver for MySqlDriver {
     async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult> {
@@ -62,103 +348,48 @@ impl DatabaseDriver for MySqlDriver {
         };
 
         let start = Instant::now();
-        
-        let mut clean_sql = sql.trim();
-        while clean_sql.starts_with("--") || clean_sql.starts_with("/*") {
-            if clean_sql.starts_with("--") {
-                if let Some(newline_pos) = clean_sql.find('\n') {
-                    clean_sql = clean_sql[newline_pos..].trim();
-                } else {
-                    clean_sql = "";
-                    break;
+
+        // Split SQL into individual statements
+        let statements = Self::split_sql_statements(sql);
+
+        // If there's only one statement, execute it directly
+        if statements.len() == 1 {
+            return Self::execute_single_query(pool, &statements[0], start).await;
+        }
+
+        // Execute multiple statements in a transaction
+        let mut tx = pool.begin().await
+            .map_err(|e| AppError::QueryError(format!("Failed to start transaction: {}", e)))?;
+
+        let mut final_result = QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: None,
+            execution_time_ms: 0,
+        };
+
+        for (i, stmt) in statements.iter().enumerate() {
+            match Self::execute_single_query_tx(&mut tx, stmt, start).await {
+                Ok(result) => {
+                    // Keep the last statement's result (or any with rows)
+                    if i == statements.len() - 1 || !result.rows.is_empty() {
+                        final_result = result;
+                    }
                 }
-            } else if clean_sql.starts_with("/*") {
-                if let Some(end_pos) = clean_sql.find("*/") {
-                    clean_sql = clean_sql[end_pos + 2..].trim();
-                } else {
-                    break;
+                Err(e) => {
+                    // Rollback on error
+                    let _ = tx.rollback().await;
+                    return Err(e);
                 }
             }
         }
 
-        let sql_upper = clean_sql.to_uppercase();
-        let is_select = sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH") || sql_upper.starts_with("SHOW") || sql_upper.starts_with("DESCRIBE");
-        
-        if is_select {
-            let rows = sqlx::query(sql)
-                .fetch_all(pool)
-                .await
-                .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
-            
-            if rows.is_empty() {
-                return Ok(QueryResult {
-                    columns: vec![],
-                    rows: vec![],
-                    affected_rows: None,
-                    execution_time_ms: start.elapsed().as_millis() as u64,
-                });
-            }
-            
-            let columns: Vec<ColumnInfo> = rows[0]
-                .columns()
-                .iter()
-                .map(|col| ColumnInfo {
-                    name: col.name().to_string(),
-                    data_type: "unknown".to_string(),
-                    nullable: true,
-                    is_primary_key: false,
-                })
-                .collect();
-            
-            let json_rows: Vec<Vec<serde_json::Value>> = rows
-                .iter()
-                .map(|row| {
-                    (0..columns.len())
-                        .map(|i| {
-                            if let Ok(val) = row.try_get::<String, _>(i) {
-                                serde_json::Value::String(val)
-                            } else if let Ok(val) = row.try_get::<Vec<u8>, _>(i) {
-                                serde_json::Value::String(String::from_utf8_lossy(&val).into_owned())
-                            } else if let Ok(val) = row.try_get::<i64, _>(i) {
-                                serde_json::Value::Number(val.into())
-                            } else if let Ok(val) = row.try_get::<i32, _>(i) {
-                                serde_json::Value::Number(val.into())
-                            } else if let Ok(val) = row.try_get::<f64, _>(i) {
-                                serde_json::Value::Number(serde_json::Number::from_f64(val).unwrap_or(0.into()))
-                            } else if let Ok(val) = row.try_get::<bool, _>(i) {
-                                serde_json::Value::Bool(val)
-                            } else if let Ok(val) = row.try_get::<chrono::NaiveDateTime, _>(i) {
-                                serde_json::Value::String(val.to_string())
-                            } else if let Ok(val) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
-                                serde_json::Value::String(val.to_rfc3339())
-                            } else {
-                                // Fallback for unsupported types
-                                serde_json::Value::String("Unsupported type".to_string())
-                            }
-                        })
-                        .collect()
-                })
-                .collect();
-            
-            Ok(QueryResult {
-                columns,
-                rows: json_rows,
-                affected_rows: None,
-                execution_time_ms: start.elapsed().as_millis() as u64,
-            })
-        } else {
-            let result = sqlx::query(sql)
-                .execute(pool)
-                .await
-                .map_err(|e| AppError::QueryError(format!("Query execution failed: {}", e)))?;
-            
-            Ok(QueryResult {
-                columns: vec![],
-                rows: vec![],
-                affected_rows: Some(result.rows_affected()),
-                execution_time_ms: start.elapsed().as_millis() as u64,
-            })
-        }
+        // Commit transaction
+        tx.commit().await
+            .map_err(|e| AppError::QueryError(format!("Failed to commit transaction: {}", e)))?;
+
+        final_result.execution_time_ms = start.elapsed().as_millis() as u64;
+        Ok(final_result)
     }
 
     async fn get_tables(&self, pool: PoolRef<'_>, config: &ConnectionConfig) -> AppResult<Vec<TableInfo>> {

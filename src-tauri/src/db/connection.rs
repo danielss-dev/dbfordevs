@@ -5,11 +5,13 @@ use crate::models::{
 };
 use async_trait::async_trait;
 use sqlx::{PgPool, MySqlPool, SqlitePool};
+use super::manager::MssqlPool;
 
 pub enum PoolRef<'a> {
     Postgres(&'a PgPool),
     MySql(&'a MySqlPool),
     Sqlite(&'a SqlitePool),
+    Mssql(&'a MssqlPool),
 }
 
 /// Trait defining the interface for database drivers
@@ -55,15 +57,16 @@ pub trait DatabaseDriver: Send + Sync {
 /// Factory function to get the appropriate driver for a database type
 pub fn get_driver(config: &ConnectionConfig) -> Box<dyn DatabaseDriver> {
     use crate::models::DatabaseType;
-    
+
     match config.database_type {
         DatabaseType::PostgreSQL => Box::new(super::PostgresDriver),
         DatabaseType::MySQL => Box::new(super::MySqlDriver),
         DatabaseType::SQLite => Box::new(super::SqliteDriver),
-        DatabaseType::MSSQL => {
-            // TODO: Implement MSSQL driver
-            Box::new(super::PostgresDriver) // Placeholder
-        }
+        DatabaseType::MSSQL => Box::new(super::MssqlDriver),
+        // MariaDB is MySQL-compatible, reuse MySQL driver
+        DatabaseType::MariaDB => Box::new(super::MySqlDriver),
+        // CockroachDB is PostgreSQL-compatible, reuse PostgreSQL driver
+        DatabaseType::CockroachDB => Box::new(super::PostgresDriver),
     }
 }
 
