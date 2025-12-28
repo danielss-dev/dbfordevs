@@ -4,5 +4,6 @@ export { useToast, toast } from "./useToast";
 export { useAsyncOperation } from "./useAsyncOperation";
 export { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 export { useCRUD } from "./useCRUD";
+export { useAnime, useAnimeOnMount } from "./useAnime";
 export type { UseAsyncOperationOptions, UseAsyncOperationResult } from "./useAsyncOperation";
 
