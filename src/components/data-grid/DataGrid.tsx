@@ -10,25 +10,28 @@ import {
   type FilterFn,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { 
+import { Input } from "@/components/ui/input";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   CheckCircle2,
   Hash,
   Type,
   Calendar,
   ToggleLeft,
   Database,
+  Search,
+  X,
 } from "lucide-react";
 import { cn, formatTimestamp } from "@/lib/utils";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
@@ -64,15 +67,44 @@ interface DataGridProps {
 
 const getTypeIcon = (dataType: string) => {
   const type = dataType.toLowerCase();
-  if (type.includes("int") || type.includes("decimal") || type.includes("numeric") || type.includes("float") || type.includes("real")) {
+  // Numeric types (integers, decimals, floats)
+  if (
+    type.includes("int") ||
+    type.includes("decimal") ||
+    type.includes("numeric") ||
+    type.includes("float") ||
+    type.includes("real") ||
+    type.includes("double") ||
+    type.includes("money") ||
+    type.includes("serial") ||
+    type === "number"
+  ) {
     return <Hash className="h-3 w-3 text-blue-500/70" />;
   }
-  if (type.includes("char") || type.includes("text") || type.includes("varchar")) {
+  // Text/string types
+  if (
+    type.includes("char") ||
+    type.includes("text") ||
+    type.includes("varchar") ||
+    type.includes("string") ||
+    type.includes("clob") ||
+    type.includes("name") ||
+    type.includes("uuid") ||
+    type.includes("enum") ||
+    type.includes("citext")
+  ) {
     return <Type className="h-3 w-3 text-amber-500/70" />;
   }
-  if (type.includes("date") || type.includes("time") || type.includes("timestamp")) {
+  // Date/time types
+  if (
+    type.includes("date") ||
+    type.includes("time") ||
+    type.includes("timestamp") ||
+    type.includes("interval")
+  ) {
     return <Calendar className="h-3 w-3 text-emerald-500/70" />;
   }
+  // Boolean types
   if (type.includes("bool") || type.includes("bit")) {
     return <ToggleLeft className="h-3 w-3 text-purple-500/70" />;
   }
@@ -140,6 +172,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
   } = useCRUDStore();
 
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  const [globalFilter, setGlobalFilter] = useState<string>("");
 
   // Helper to create a SelectedRow object with full context
   const createSelectedRow = useCallback((row: Record<string, unknown>) => ({
@@ -445,6 +478,16 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
         pageSize: storePageSize,
       },
       columnFilters: tanstackFilters,
+      globalFilter,
+    },
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = String(filterValue).toLowerCase();
+      return row.getAllCells().some((cell) => {
+        const value = cell.getValue();
+        if (value === null || value === undefined) return false;
+        return String(value).toLowerCase().includes(search);
+      });
     },
   });
 
@@ -570,6 +613,26 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-border bg-muted/40 px-6 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-6 text-xs text-muted-foreground">
+          {/* Global Search */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+            <Input
+              type="text"
+              placeholder="Search..."
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className="h-7 w-[180px] pl-8 pr-8 text-xs bg-background/50"
+            />
+            {globalFilter && (
+              <button
+                onClick={() => setGlobalFilter("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
           {/* Export Menu */}
           <ExportMenu tableName={tableName} />
 
@@ -577,15 +640,20 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
           <div className="flex items-center gap-1">
             <span>Showing</span>
             <span className="font-semibold text-foreground/80">
-              {pageIndex * pageSize + 1}
+              {table.getFilteredRowModel().rows.length > 0 ? pageIndex * pageSize + 1 : 0}
             </span>
             <span>-</span>
             <span className="font-semibold text-foreground/80">
-              {Math.min((pageIndex + 1) * pageSize, totalRows)}
+              {Math.min((pageIndex + 1) * pageSize, table.getFilteredRowModel().rows.length)}
             </span>
             <span>of</span>
-            <span className="font-semibold text-foreground/80">{totalRows.toLocaleString()}</span>
+            <span className="font-semibold text-foreground/80">{table.getFilteredRowModel().rows.length.toLocaleString()}</span>
             <span>rows</span>
+            {globalFilter && table.getFilteredRowModel().rows.length !== totalRows && (
+              <span className="text-muted-foreground/60 ml-1">
+                (filtered from {totalRows.toLocaleString()})
+              </span>
+            )}
           </div>
 
           {/* Execution Time */}

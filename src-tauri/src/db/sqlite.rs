@@ -6,7 +6,7 @@ use crate::models::{
     TestConnectionResult, ColumnInfo
 };
 use async_trait::async_trait;
-use sqlx::{sqlite::SqlitePool, Row, Column};
+use sqlx::{sqlite::SqlitePool, Row, Column, TypeInfo};
 use std::time::Instant;
 
 pub struct SqliteDriver;
@@ -136,7 +136,7 @@ impl SqliteDriver {
                 .iter()
                 .map(|col| ColumnInfo {
                     name: col.name().to_string(),
-                    data_type: "unknown".to_string(),
+                    data_type: col.type_info().name().to_string(),
                     nullable: true,
                     is_primary_key: false,
                 })
@@ -237,7 +237,7 @@ impl SqliteDriver {
                 .iter()
                 .map(|col| ColumnInfo {
                     name: col.name().to_string(),
-                    data_type: "unknown".to_string(),
+                    data_type: col.type_info().name().to_string(),
                     nullable: true,
                     is_primary_key: false,
                 })
