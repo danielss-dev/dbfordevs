@@ -37,6 +37,8 @@ sqlx = { version = "0.8", features = [
     "bit-vec"
 ] }
 tiberius = { version = "0.12", default-features = false, features = ["rustls", "chrono"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+deadpool = { version = "0.12", features = ["managed"] }
 
 # Utilities
 dirs = "5"

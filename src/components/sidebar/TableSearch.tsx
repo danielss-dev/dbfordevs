@@ -56,7 +56,7 @@ export function TableSearch({ value, onChange, onClear, matchCount }: TableSearc
         <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           id="table-search-input"
-          placeholder="Search tables (press /)"
+          placeholder="Search tables"
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
           onKeyDown={(e) => {

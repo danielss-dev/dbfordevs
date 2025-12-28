@@ -7,6 +7,8 @@ pub enum DatabaseType {
     MySQL,
     SQLite,
     MSSQL,
+    MariaDB,
+    CockroachDB,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

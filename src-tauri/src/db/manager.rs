@@ -6,11 +6,15 @@ use sqlx::{postgres::PgPool, mysql::MySqlPool, sqlite::SqlitePool};
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 
+// Re-export MSSQL pool type from mssql module
+pub use crate::db::mssql::MssqlPool;
+
 /// Enum to hold different database pool types
 pub enum ConnectionPool {
     Postgres(PgPool),
     MySql(MySqlPool),
     Sqlite(SqlitePool),
+    Mssql(MssqlPool),
 }
 
 /// Manages active database connections
@@ -54,7 +58,24 @@ impl ConnectionManager {
                 (ConnectionPool::Sqlite(pool), connection_string)
             }
             DatabaseType::MSSQL => {
-                return Err(AppError::ConnectionError("MSSQL not yet implemented".to_string()));
+                let connection_string = build_mssql_connection_string(config)?;
+                let pool = super::mssql::create_mssql_pool(&connection_string).await
+                    .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL: {}", e)))?;
+                (ConnectionPool::Mssql(pool), connection_string)
+            }
+            // MariaDB uses MySQL protocol
+            DatabaseType::MariaDB => {
+                let connection_string = build_mysql_connection_string(config)?;
+                let pool = MySqlPool::connect(&connection_string).await
+                    .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MariaDB: {}", e)))?;
+                (ConnectionPool::MySql(pool), connection_string)
+            }
+            // CockroachDB uses PostgreSQL protocol
+            DatabaseType::CockroachDB => {
+                let connection_string = build_cockroachdb_connection_string(config)?;
+                let pool = PgPool::connect(&connection_string).await
+                    .map_err(|e| AppError::ConnectionError(format!("Failed to connect to CockroachDB: {}", e)))?;
+                (ConnectionPool::Postgres(pool), connection_string)
             }
         };
 
@@ -70,6 +91,9 @@ impl ConnectionManager {
                 ConnectionPool::Postgres(p) => p.close().await,
                 ConnectionPool::MySql(p) => p.close().await,
                 ConnectionPool::Sqlite(p) => p.close().await,
+                ConnectionPool::Mssql(p) => {
+                    p.close();
+                }
             }
         }
         self.connection_strings.remove(connection_id);
@@ -86,11 +110,12 @@ impl ConnectionManager {
     pub fn get_pool_ref(&self, connection_id: &str) -> AppResult<PoolRef<'_>> {
         let pool = self.connections.get(connection_id)
             .ok_or_else(|| AppError::ConnectionError("Connection not found".to_string()))?;
-        
+
         match pool {
             ConnectionPool::Postgres(p) => Ok(PoolRef::Postgres(p)),
             ConnectionPool::MySql(p) => Ok(PoolRef::MySql(p)),
             ConnectionPool::Sqlite(p) => Ok(PoolRef::Sqlite(p)),
+            ConnectionPool::Mssql(p) => Ok(PoolRef::Mssql(p)),
         }
     }
 
@@ -151,14 +176,46 @@ fn build_sqlite_connection_string(config: &ConnectionConfig) -> AppResult<String
     let path = config.file_path.as_deref()
         .or_else(|| config.database.as_str().split('/').last())
         .ok_or_else(|| AppError::ConfigError("SQLite file path is required".to_string()))?;
-    
+
     // Ensure SQLite connection string format
     let url = if path.starts_with("sqlite://") || path.starts_with("sqlite:") {
         path.to_string()
     } else {
         format!("sqlite:{}", path)
     };
-    
+
+    Ok(url)
+}
+
+fn build_mssql_connection_string(config: &ConnectionConfig) -> AppResult<String> {
+    let host = config.host.as_deref().unwrap_or("localhost");
+    let port = config.port.unwrap_or(1433);
+    let username = config.username.as_deref().unwrap_or("sa");
+    let password = config.password.as_deref().unwrap_or("");
+
+    // Tiberius uses ADO.NET style connection strings
+    let url = format!(
+        "Server=tcp:{},{};Database={};User Id={};Password={};TrustServerCertificate=true",
+        host, port, config.database, username, password
+    );
+
+    Ok(url)
+}
+
+fn build_cockroachdb_connection_string(config: &ConnectionConfig) -> AppResult<String> {
+    let host = config.host.as_deref().unwrap_or("localhost");
+    let port = config.port.unwrap_or(26257);
+    let username = config.username.as_deref().unwrap_or("root");
+    let password = config.password.as_deref().unwrap_or("");
+
+    // CockroachDB uses PostgreSQL wire protocol
+    let mut url = format!("postgresql://{}:{}@{}:{}/{}",
+        username, password, host, port, config.database);
+
+    if let Some(ssl_mode) = &config.ssl_mode {
+        url.push_str(&format!("?sslmode={}", ssl_mode));
+    }
+
     Ok(url)
 }
 
