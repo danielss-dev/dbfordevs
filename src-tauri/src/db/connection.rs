@@ -14,6 +14,17 @@ pub enum PoolRef<'a> {
     Mssql(&'a MssqlPool),
 }
 
+impl Clone for PoolRef<'_> {
+    fn clone(&self) -> Self {
+        match self {
+            PoolRef::Postgres(p) => PoolRef::Postgres(*p),
+            PoolRef::MySql(p) => PoolRef::MySql(*p),
+            PoolRef::Sqlite(p) => PoolRef::Sqlite(*p),
+            PoolRef::Mssql(p) => PoolRef::Mssql(*p),
+        }
+    }
+}
+
 /// Trait defining the interface for database drivers
 #[async_trait]
 pub trait DatabaseDriver: Send + Sync {

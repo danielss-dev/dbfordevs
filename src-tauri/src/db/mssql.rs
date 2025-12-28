@@ -6,50 +6,93 @@ use crate::models::{
     TestConnectionResult,
 };
 use async_trait::async_trait;
+use deadpool::managed::{Manager, Pool, RecycleResult};
+use std::future::Future;
 use std::time::Instant;
 use tiberius::{AuthMethod, Client, Config, Query, Row};
 use tokio::net::TcpStream;
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
-/// MSSQL connection wrapper
-pub struct MssqlConnection {
-    client: Option<Client<Compat<TcpStream>>>,
+/// MSSQL connection manager for deadpool
+pub struct MssqlConnectionManager {
     connection_string: String,
 }
 
-impl MssqlConnection {
-    pub fn new(connection_string: String) -> Self {
-        Self {
-            client: None,
-            connection_string,
+impl MssqlConnectionManager {
+    fn new(connection_string: String) -> Self {
+        Self { connection_string }
+    }
+}
+
+impl Manager for MssqlConnectionManager {
+    type Type = Client<Compat<TcpStream>>;
+    type Error = AppError;
+
+    fn create(&self) -> impl Future<Output = Result<Self::Type, Self::Error>> + Send {
+        let connection_string = self.connection_string.clone();
+        async move {
+            let config = parse_connection_string(&connection_string)?;
+            let tcp = TcpStream::connect(config.get_addr())
+                .await
+                .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL server: {}", e)))?;
+            tcp.set_nodelay(true)
+                .map_err(|e| AppError::ConnectionError(format!("Failed to set nodelay: {}", e)))?;
+
+            let client = Client::connect(config, tcp.compat_write())
+                .await
+                .map_err(|e| AppError::ConnectionError(format!("MSSQL authentication failed: {}", e)))?;
+
+            Ok(client)
         }
     }
 
-    pub async fn connect(&mut self) -> AppResult<()> {
-        let config = parse_connection_string(&self.connection_string)?;
-        let tcp = TcpStream::connect(config.get_addr())
-            .await
-            .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL server: {}", e)))?;
-        tcp.set_nodelay(true)
-            .map_err(|e| AppError::ConnectionError(format!("Failed to set nodelay: {}", e)))?;
-
-        let client = Client::connect(config, tcp.compat_write())
-            .await
-            .map_err(|e| AppError::ConnectionError(format!("MSSQL authentication failed: {}", e)))?;
-
-        self.client = Some(client);
-        Ok(())
+    fn recycle(
+        &self,
+        client: &mut Self::Type,
+        _: &deadpool::managed::Metrics,
+    ) -> impl Future<Output = RecycleResult<Self::Error>> + Send {
+        async move {
+            // Check if the connection is still alive by executing a simple query
+            // We try to query a simple value; if it fails, the connection is stale
+            let query = Query::new("SELECT 1");
+            match query.query(client).await {
+                Ok(_) => Ok(()),
+                Err(_) => Err(deadpool::managed::RecycleError::Backend(
+                    AppError::ConnectionError("Connection is stale".to_string())
+                )),
+            }
+        }
     }
 
-    pub fn client(&mut self) -> AppResult<&mut Client<Compat<TcpStream>>> {
-        self.client
-            .as_mut()
-            .ok_or_else(|| AppError::ConnectionError("Not connected to MSSQL".to_string()))
+    fn detach(&self, _obj: &mut Self::Type) {
+        // Close the connection when it's removed from the pool
+        // Note: We can't call client.close() here as it takes ownership
+        // The connection will be properly closed when dropped
     }
+}
 
-    pub async fn close(&mut self) {
-        self.client = None;
-    }
+/// MSSQL pool type using deadpool
+pub type MssqlPool = Pool<MssqlConnectionManager>;
+
+/// Create a new MSSQL pool with deadpool
+pub async fn create_mssql_pool(connection_string: &str) -> AppResult<MssqlPool> {
+    let manager = MssqlConnectionManager::new(connection_string.to_string());
+    let pool = Pool::builder(manager)
+        .max_size(5)
+        .build()
+        .map_err(|e| AppError::ConnectionError(format!("Failed to create MSSQL pool: {}", e)))?;
+
+    // Validate the connection by getting a client from the pool
+    // This ensures the connection actually works before returning success
+    let mut client: deadpool::managed::Object<MssqlConnectionManager> = pool.get().await
+        .map_err(|e| AppError::ConnectionError(format!("Failed to establish MSSQL connection: {}", e)))?;
+
+    // Test the connection with a simple query
+    let query = Query::new("SELECT 1");
+    query.query(&mut *client).await
+        .map_err(|e| AppError::ConnectionError(format!("MSSQL connection test failed: {}", e)))?;
+
+    Ok(pool)
 }
 
 fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
@@ -118,13 +161,6 @@ fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
 }
 
 pub struct MssqlDriver;
-
-/// Create a new MSSQL pool (connection wrapper)
-pub async fn create_mssql_pool(connection_string: &str) -> AppResult<std::sync::Arc<tokio::sync::Mutex<MssqlConnection>>> {
-    let mut conn = MssqlConnection::new(connection_string.to_string());
-    conn.connect().await?;
-    Ok(std::sync::Arc::new(tokio::sync::Mutex::new(conn)))
-}
 
 impl MssqlDriver {
     /// Safely split SQL into individual statements, handling quotes and comments
@@ -285,42 +321,50 @@ impl MssqlDriver {
 
 /// Convert a tiberius column value to JSON
 fn mssql_value_to_json(row: &Row, idx: usize) -> serde_json::Value {
-    // Try various types in order
-    if let Some(val) = row.get::<&str, _>(idx) {
+    // Try various types in order using try_get to avoid panics on type mismatch
+    // Integer types first (most common for IDs)
+    if let Ok(Some(val)) = row.try_get::<i32, _>(idx) {
+        return serde_json::Value::Number(val.into());
+    }
+    if let Ok(Some(val)) = row.try_get::<i64, _>(idx) {
+        return serde_json::Value::Number(val.into());
+    }
+    if let Ok(Some(val)) = row.try_get::<i16, _>(idx) {
+        return serde_json::Value::Number(val.into());
+    }
+    // String types
+    if let Ok(Some(val)) = row.try_get::<&str, _>(idx) {
         return serde_json::Value::String(val.to_string());
     }
-    if let Some(val) = row.get::<i32, _>(idx) {
-        return serde_json::Value::Number(val.into());
-    }
-    if let Some(val) = row.get::<i64, _>(idx) {
-        return serde_json::Value::Number(val.into());
-    }
-    if let Some(val) = row.get::<i16, _>(idx) {
-        return serde_json::Value::Number(val.into());
-    }
-    if let Some(val) = row.get::<f32, _>(idx) {
+    // Float types
+    if let Ok(Some(val)) = row.try_get::<f32, _>(idx) {
         return serde_json::json!(val);
     }
-    if let Some(val) = row.get::<f64, _>(idx) {
+    if let Ok(Some(val)) = row.try_get::<f64, _>(idx) {
         return serde_json::json!(val);
     }
-    if let Some(val) = row.get::<bool, _>(idx) {
+    // Boolean
+    if let Ok(Some(val)) = row.try_get::<bool, _>(idx) {
         return serde_json::Value::Bool(val);
     }
-    if let Some(val) = row.get::<&[u8], _>(idx) {
+    // Binary data
+    if let Ok(Some(val)) = row.try_get::<&[u8], _>(idx) {
         use base64::{Engine as _, engine::general_purpose};
         return serde_json::Value::String(general_purpose::STANDARD.encode(val));
     }
-    if let Some(val) = row.get::<chrono::NaiveDateTime, _>(idx) {
+    // DateTime
+    if let Ok(Some(val)) = row.try_get::<chrono::NaiveDateTime, _>(idx) {
         return serde_json::Value::String(val.to_string());
     }
-    if let Some(val) = row.get::<tiberius::numeric::Numeric, _>(idx) {
+    // Numeric/Decimal
+    if let Ok(Some(val)) = row.try_get::<tiberius::numeric::Numeric, _>(idx) {
         return serde_json::Value::String(val.to_string());
     }
-    if let Some(val) = row.get::<uuid::Uuid, _>(idx) {
+    // UUID
+    if let Ok(Some(val)) = row.try_get::<uuid::Uuid, _>(idx) {
         return serde_json::Value::String(val.to_string());
     }
-    // Return null if no type matched
+    // Return null if no type matched or value is NULL
     serde_json::Value::Null
 }
 
@@ -328,32 +372,49 @@ fn mssql_value_to_json(row: &Row, idx: usize) -> serde_json::Value {
 impl DatabaseDriver for MssqlDriver {
     async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult> {
         let connection_string = self.build_connection_string(config);
-        let mut conn = MssqlConnection::new(connection_string);
+        let config_parsed = parse_connection_string(&connection_string)?;
 
-        match conn.connect().await {
-            Ok(_) => {
-                // Get server version
-                let version = {
-                    let client = conn.client()?;
-                    let query = Query::new("SELECT @@VERSION");
-                    match query.query(client).await {
-                        Ok(stream) => {
-                            match stream.into_row().await {
-                                Ok(Some(row)) => row.get::<&str, _>(0).map(|s| s.to_string()),
-                                _ => None,
+        match TcpStream::connect(config_parsed.get_addr())
+            .await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL server: {}", e)))
+        {
+            Ok(tcp) => {
+                tcp.set_nodelay(true)
+                    .map_err(|e| AppError::ConnectionError(format!("Failed to set nodelay: {}", e)))?;
+
+                match Client::connect(config_parsed, tcp.compat_write())
+                    .await
+                    .map_err(|e| AppError::ConnectionError(format!("MSSQL authentication failed: {}", e)))
+                {
+                    Ok(mut client) => {
+                        // Get server version
+                        let version = {
+                            let query = Query::new("SELECT @@VERSION");
+                            match query.query(&mut client).await {
+                                Ok(stream) => {
+                                    match stream.into_row().await {
+                                        Ok(Some(row)) => row.get::<&str, _>(0).map(|s| s.to_string()),
+                                        _ => None,
+                                    }
+                                }
+                                Err(_) => None,
                             }
-                        }
-                        Err(_) => None,
+                        };
+
+                        let _ = client.close().await;
+
+                        Ok(TestConnectionResult {
+                            success: true,
+                            message: "Connection successful".to_string(),
+                            server_version: version,
+                        })
                     }
-                };
-
-                conn.close().await;
-
-                Ok(TestConnectionResult {
-                    success: true,
-                    message: "Connection successful".to_string(),
-                    server_version: version,
-                })
+                    Err(e) => Ok(TestConnectionResult {
+                        success: false,
+                        message: format!("Connection failed: {}", e),
+                        server_version: None,
+                    }),
+                }
             }
             Err(e) => Ok(TestConnectionResult {
                 success: false,
@@ -376,18 +437,18 @@ impl DatabaseDriver for MssqlDriver {
 
         // If there's only one statement, execute it directly
         if statements.len() == 1 {
-            let mut conn = pool.lock().await;
-            let client = conn.client()?;
-            return Self::execute_single_query(client, &statements[0], start).await;
+            let mut client = pool.get().await
+                .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+            return Self::execute_single_query(&mut *client, &statements[0], start).await;
         }
 
         // Execute multiple statements in a transaction
-        let mut conn = pool.lock().await;
-        let client = conn.client()?;
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
         // Begin transaction
         let begin_query = Query::new("BEGIN TRANSACTION");
-        begin_query.execute(client).await
+        begin_query.execute(&mut *client).await
             .map_err(|e| AppError::QueryError(format!("Failed to start transaction: {}", e)))?;
 
         let mut final_result = QueryResult {
@@ -398,7 +459,7 @@ impl DatabaseDriver for MssqlDriver {
         };
 
         for (i, stmt) in statements.iter().enumerate() {
-            match Self::execute_single_query(client, stmt, start).await {
+            match Self::execute_single_query(&mut *client, stmt, start).await {
                 Ok(result) => {
                     // Keep the last statement's result (similar to PostgreSQL behavior)
                     if i == statements.len() - 1 || !result.rows.is_empty() {
@@ -408,7 +469,7 @@ impl DatabaseDriver for MssqlDriver {
                 Err(e) => {
                     // Rollback on error
                     let rollback_query = Query::new("ROLLBACK TRANSACTION");
-                    let _ = rollback_query.execute(client).await;
+                    let _ = rollback_query.execute(&mut *client).await;
                     return Err(e);
                 }
             }
@@ -416,7 +477,7 @@ impl DatabaseDriver for MssqlDriver {
 
         // Commit transaction
         let commit_query = Query::new("COMMIT TRANSACTION");
-        commit_query.execute(client).await
+        commit_query.execute(&mut *client).await
             .map_err(|e| AppError::QueryError(format!("Failed to commit transaction: {}", e)))?;
 
         final_result.execution_time_ms = start.elapsed().as_millis() as u64;
@@ -429,8 +490,8 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        let mut conn = pool.lock().await;
-        let client = conn.client()?;
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
         // Filter out system tables and system schemas for better UX
         let sql = r#"
@@ -457,7 +518,7 @@ impl DatabaseDriver for MssqlDriver {
         "#;
 
         let query = Query::new(sql);
-        let stream = query.query(client).await
+        let stream = query.query(&mut *client).await
             .map_err(|e| AppError::QueryError(format!("Failed to get tables: {}", e)))?;
 
         let results = stream.into_first_result().await
@@ -499,8 +560,8 @@ impl DatabaseDriver for MssqlDriver {
             ("dbo", table_name)
         };
 
-        let mut conn = pool.lock().await;
-        let client = conn.client()?;
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
         let sql = format!(
             r#"
@@ -529,7 +590,7 @@ impl DatabaseDriver for MssqlDriver {
         );
 
         let query = Query::new(&sql);
-        let stream = query.query(client).await
+        let stream = query.query(&mut *client).await
             .map_err(|e| AppError::QueryError(format!("Failed to get table schema: {}", e)))?;
 
         let results = stream.into_first_result().await
@@ -571,9 +632,8 @@ impl DatabaseDriver for MssqlDriver {
             .collect();
 
         // Get foreign keys
-        drop(conn);
-        let mut conn = pool.lock().await;
-        let client = conn.client()?;
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
         let fk_sql = format!(
             r#"
@@ -591,7 +651,7 @@ impl DatabaseDriver for MssqlDriver {
         );
 
         let query = Query::new(&fk_sql);
-        let fk_results = match query.query(client).await {
+        let fk_results = match query.query(&mut *client).await {
             Ok(stream) => stream.into_first_result().await.unwrap_or_default(),
             Err(_) => Vec::new(),
         };
@@ -708,8 +768,8 @@ impl DatabaseDriver for MssqlDriver {
             ("dbo", table_name)
         };
 
-        let mut conn = pool.lock().await;
-        let client = conn.client()?;
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
         let sql = format!(
             r#"
@@ -730,7 +790,7 @@ impl DatabaseDriver for MssqlDriver {
         );
 
         let query = Query::new(&sql);
-        let stream = query.query(client).await
+        let stream = query.query(&mut *client).await
             .map_err(|e| AppError::QueryError(format!("Failed to get indexes: {}", e)))?;
 
         let results = stream.into_first_result().await
@@ -773,8 +833,8 @@ impl DatabaseDriver for MssqlDriver {
             ("dbo", table_name)
         };
 
-        let mut conn = pool.lock().await;
-        let client = conn.client()?;
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
         let sql = format!(
             r#"
@@ -791,7 +851,7 @@ impl DatabaseDriver for MssqlDriver {
         );
 
         let query = Query::new(&sql);
-        let stream = query.query(client).await
+        let stream = query.query(&mut *client).await
             .map_err(|e| AppError::QueryError(format!("Failed to get constraints: {}", e)))?;
 
         let results = stream.into_first_result().await
@@ -867,9 +927,10 @@ impl DatabaseDriver for MssqlDriver {
             ("dbo", table_name)
         };
 
-        let mut relationships = Vec::new();
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
-        // Combined query for both outgoing and incoming relationships
+        let mut relationships = Vec::new();
         let sql = format!(
             r#"
             -- Outgoing relationships (this table references others)
@@ -901,11 +962,8 @@ impl DatabaseDriver for MssqlDriver {
             table, schema_name, table, schema_name
         );
 
-        let mut conn = pool.lock().await;
-        let client = conn.client()?;
-
         let query = Query::new(&sql);
-        let stream = query.query(client).await
+        let stream = query.query(&mut *client).await
             .map_err(|e| AppError::QueryError(format!("Failed to get relationships: {}", e)))?;
 
         let results = stream.into_first_result().await
@@ -979,17 +1037,5 @@ fn format_mssql_type(type_name: &str, max_length: Option<i16>, precision: Option
             }
         }
         _ => type_name.to_string(),
-    }
-}
-
-// Clone implementation for PoolRef to allow reuse
-impl Clone for PoolRef<'_> {
-    fn clone(&self) -> Self {
-        match self {
-            PoolRef::Postgres(p) => PoolRef::Postgres(*p),
-            PoolRef::MySql(p) => PoolRef::MySql(*p),
-            PoolRef::Sqlite(p) => PoolRef::Sqlite(*p),
-            PoolRef::Mssql(p) => PoolRef::Mssql(*p),
-        }
     }
 }

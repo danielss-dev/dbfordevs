@@ -223,12 +223,19 @@ export function useDatabase() {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setQueryError(message);
+
+        // If the error indicates connection is not found, sync the connection state
+        if (message.includes("Connection not found") || message.includes("not connected")) {
+          // Update the connection state to show it's disconnected
+          updateConnection(request.connectionId, { connected: false });
+        }
+
         return null;
       } finally {
         setExecuting(false);
       }
     },
-    [setExecuting, setQueryError, setResults]
+    [setExecuting, setQueryError, setResults, updateConnection]
   );
 
   /**
@@ -246,12 +253,18 @@ export function useDatabase() {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setQueryError(message);
+
+        // If the error indicates connection is not found, sync the connection state
+        if (message.includes("Connection not found") || message.includes("not connected")) {
+          updateConnection(connectionId, { connected: false });
+        }
+
         return [];
       } finally {
         setLoading(false);
       }
     },
-    [setLoading, setQueryError, setTablesForConnection]
+    [setLoading, setQueryError, setTablesForConnection, updateConnection]
   );
 
   /**

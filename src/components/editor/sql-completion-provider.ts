@@ -48,6 +48,11 @@ interface CompletionProviderContext {
 }
 
 /**
+ * Default schemas for different databases - these are omitted for cleaner SQL
+ */
+const DEFAULT_SCHEMAS = ["public", "dbo"]; // PostgreSQL and MSSQL defaults
+
+/**
  * Get the full qualified name for a table, avoiding duplicate schema prefix
  */
 function getTableDisplayName(table: TableInfo): string {
@@ -55,9 +60,9 @@ function getTableDisplayName(table: TableInfo): string {
   if (table.name.includes(".")) {
     return table.name;
   }
-  // If there's a schema and it's not 'public' (default), prepend it
-  // For public schema, just use the table name for cleaner SQL
-  if (table.schema && table.schema.toLowerCase() !== "public") {
+  // If there's a schema and it's not a default schema, prepend it
+  // For default schemas (public/dbo), just use the table name for cleaner SQL
+  if (table.schema && !DEFAULT_SCHEMAS.includes(table.schema.toLowerCase())) {
     return `${table.schema}.${table.name}`;
   }
   return table.name;

@@ -4,11 +4,10 @@ use crate::db::PoolRef;
 use once_cell::sync::OnceCell;
 use sqlx::{postgres::PgPool, mysql::MySqlPool, sqlite::SqlitePool};
 use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// MSSQL pool wrapper type (tiberius doesn't have a built-in pool)
-pub type MssqlPool = Arc<tokio::sync::Mutex<super::mssql::MssqlConnection>>;
+// Re-export MSSQL pool type from mssql module
+pub use crate::db::mssql::MssqlPool;
 
 /// Enum to hold different database pool types
 pub enum ConnectionPool {
@@ -93,8 +92,7 @@ impl ConnectionManager {
                 ConnectionPool::MySql(p) => p.close().await,
                 ConnectionPool::Sqlite(p) => p.close().await,
                 ConnectionPool::Mssql(p) => {
-                    let mut conn = p.lock().await;
-                    conn.close().await;
+                    p.close();
                 }
             }
         }
