@@ -8,7 +8,6 @@ export interface DatabaseDefaults {
 
 export interface DatabaseMetadata {
   name: string;
-  icon: string;
   brand: string;
   color: string;
 }
@@ -32,19 +31,20 @@ export const DATABASE_DEFAULTS: Record<DatabaseType, DatabaseDefaults> = {
 };
 
 /**
- * Database display metadata (name, icon, brand, color)
+ * Database display metadata (name, brand, color)
+ * Colors use CSS variables that automatically adjust based on theme (light/dark)
  */
 export const DATABASE_METADATA: Record<DatabaseType, DatabaseMetadata> = {
-  postgresql: { name: "PostgreSQL", icon: "🐘", brand: "postgresql", color: "text-[#4169E1]" },
-  mysql: { name: "MySQL", icon: "🐬", brand: "mysql", color: "text-[#4479A1]" },
-  mariadb: { name: "MariaDB", icon: "🐬", brand: "mariadb", color: "text-[#003545]" },
-  sqlite: { name: "SQLite", icon: "📁", brand: "sqlite", color: "text-[#003B57]" },
-  mssql: { name: "SQL Server", icon: "🗄️", brand: "microsoftsqlserver", color: "text-[#CC2927]" },
-  oracle: { name: "Oracle", icon: "🔴", brand: "oracle", color: "text-[#F80000]" },
-  mongodb: { name: "MongoDB", icon: "🍃", brand: "mongodb", color: "text-[#47A248]" },
-  redis: { name: "Redis", icon: "🔴", brand: "redis", color: "text-[#FF4438]" },
-  cockroachdb: { name: "CockroachDB", icon: "🪳", brand: "cockroachdb", color: "text-[#6933FF]" },
-  cassandra: { name: "Cassandra", icon: "🔵", brand: "apachecassandra", color: "text-[#1287B1]" },
+  postgresql: { name: "PostgreSQL", brand: "postgresql", color: "text-[var(--db-postgresql)]" },
+  mysql: { name: "MySQL", brand: "mysql", color: "text-[var(--db-mysql)]" },
+  mariadb: { name: "MariaDB", brand: "mariadb", color: "text-[var(--db-mariadb)]" },
+  sqlite: { name: "SQLite", brand: "sqlite", color: "text-[var(--db-sqlite)]" },
+  mssql: { name: "SQL Server", brand: "microsoftsqlserver", color: "text-[var(--db-mssql)]" },
+  oracle: { name: "Oracle", brand: "oracle", color: "text-[var(--db-oracle)]" },
+  mongodb: { name: "MongoDB", brand: "mongodb", color: "text-[var(--db-mongodb)]" },
+  redis: { name: "Redis", brand: "redis", color: "text-[var(--db-redis)]" },
+  cockroachdb: { name: "CockroachDB", brand: "cockroachdb", color: "text-[var(--db-cockroachdb)]" },
+  cassandra: { name: "Cassandra", brand: "apachecassandra", color: "text-[var(--db-cassandra)]" },
 };
 
 /**
