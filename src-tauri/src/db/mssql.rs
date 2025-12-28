@@ -432,13 +432,18 @@ impl DatabaseDriver for MssqlDriver {
         let mut conn = pool.lock().await;
         let client = conn.client()?;
 
+        // Filter out system tables and system schemas for better UX
         let sql = r#"
             SELECT
                 s.name AS schema_name,
                 t.name AS table_name,
-                CASE WHEN t.type = 'V' THEN 1 ELSE 0 END AS is_view
+                0 AS is_view
             FROM sys.tables t
             INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            WHERE t.is_ms_shipped = 0
+              AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest', 'db_owner', 'db_accessadmin', 'db_securityadmin', 'db_ddladmin', 'db_backupoperator', 'db_datareader', 'db_datawriter', 'db_denydatareader', 'db_denydatawriter')
+              AND t.name NOT LIKE 'spt_%'
+              AND t.name NOT LIKE 'MS%'
             UNION ALL
             SELECT
                 s.name AS schema_name,
@@ -446,6 +451,8 @@ impl DatabaseDriver for MssqlDriver {
                 1 AS is_view
             FROM sys.views v
             INNER JOIN sys.schemas s ON v.schema_id = s.schema_id
+            WHERE v.is_ms_shipped = 0
+              AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest')
             ORDER BY schema_name, table_name
         "#;
 
