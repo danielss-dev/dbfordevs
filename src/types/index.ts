@@ -44,11 +44,13 @@ export interface ConnectionConfig {
   database: string;
   username?: string;
   password?: string;
+  /** @deprecated Use `ssl.mode` instead */
   sslMode?: string;
   filePath?: string;
   // Advanced connection options
   connectionString?: string;
   useConnectionString?: boolean;
+  /** SSL configuration - preferred over legacy sslMode */
   ssl?: SslConfig;
   sshTunnel?: SshTunnelConfig;
 }
@@ -186,6 +188,7 @@ export interface ParsedConnection {
   database?: string;
   username?: string;
   password?: string;
+  /** Raw SSL mode from connection string - convert to SslConfig.mode for use */
   sslMode?: string;
   options: Record<string, string>;
   originalFormat?: string;
