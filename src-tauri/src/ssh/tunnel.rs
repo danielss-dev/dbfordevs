@@ -2,7 +2,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::SshTunnelConfig;
 use once_cell::sync::OnceCell;
 use russh::client::{self, Config, Handle, Handler};
-use russh_keys::load_secret_key;
+use russh_keys::{known_hosts, load_secret_key};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -10,8 +10,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{oneshot, Mutex, RwLock};
 
-/// SSH client handler
-struct SshHandler;
+/// SSH client handler with host key verification
+struct SshHandler {
+    host: String,
+    port: u16,
+}
 
 #[async_trait::async_trait]
 impl Handler for SshHandler {
@@ -19,11 +22,37 @@ impl Handler for SshHandler {
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &russh_keys::key::PublicKey,
+        server_public_key: &russh_keys::key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // Accept all server keys for now
-        // In production, you might want to verify against known_hosts
-        Ok(true)
+        // Get path to known_hosts file
+        let known_hosts_path = match dirs::home_dir() {
+            Some(home) => home.join(".ssh").join("known_hosts"),
+            None => return Ok(false),
+        };
+
+        // Check server key against known_hosts
+        match known_hosts::check_known_hosts_path(&self.host, self.port, server_public_key, &known_hosts_path) {
+            Ok(true) => Ok(true),
+            Ok(false) => {
+                // Host not in known_hosts - reject for security
+                eprintln!(
+                    "SSH host {}:{} not found in known_hosts. Add it with: ssh-keyscan -H {} >> ~/.ssh/known_hosts",
+                    self.host, self.port, self.host
+                );
+                Ok(false)
+            }
+            Err(russh_keys::Error::KeyChanged { line }) => {
+                eprintln!(
+                    "WARNING: SSH host key for {}:{} has changed! (known_hosts line {}). Possible MITM attack.",
+                    self.host, self.port, line
+                );
+                Ok(false)
+            }
+            Err(e) => {
+                eprintln!("Error checking known_hosts: {}", e);
+                Ok(false)
+            }
+        }
     }
 }
 
@@ -127,7 +156,11 @@ async fn create_ssh_session(config: &SshTunnelConfig) -> AppResult<Handle<SshHan
         .map_err(|e| AppError::ConnectionError(format!("Invalid SSH address: {}", e)))?;
 
     // Connect to SSH server
-    let mut session = client::connect(ssh_config, addr, SshHandler)
+    let handler = SshHandler {
+        host: config.host.clone(),
+        port: config.port,
+    };
+    let mut session = client::connect(ssh_config, addr, handler)
         .await
         .map_err(|e| AppError::ConnectionError(format!("Failed to connect to SSH server: {}", e)))?;
 
