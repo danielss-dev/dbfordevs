@@ -12,7 +12,6 @@ dbfordevs is a modern database client that allows developers to connect to multi
 - 💻 **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux
 - ⚡ **Developer-Focused**: Optimized for developers with modern UI/UX patterns
 - 🎨 **Customizable**: Multiple themes and appearance modes
-- 🔌 **Extensible**: Plugin system for adding custom functionality
 
 ## Documentation Structure
 
@@ -41,7 +40,6 @@ Guide for developers on using Graphite for stacked pull requests in this project
 ## Quick Links
 
 - **GitHub**: Source code and issue tracking
-- **Plugin Marketplace**: Discover and install plugins
 - **Validators**: Connection string validators for multiple languages
 
 ## Supported Databases
@@ -115,7 +113,6 @@ dbfordevs supports a wide range of database systems:
 3. **Multiple Connections**: Keep multiple database connections open simultaneously
 4. **Data Review**: Always review changes in the diff view before committing
 5. **Query History**: Use query tabs to organize your work
-6. **Plugins**: Extend functionality with plugins from the marketplace
 
 ## Features at a Glance
 
@@ -129,7 +126,6 @@ dbfordevs supports a wide range of database systems:
 | **Data Editing** | Insert, update, and delete records with validation |
 | **Diff View** | Review all pending changes before committing |
 | **Themes** | Light, dark, and system themes |
-| **Plugin System** | Extend with validators, themes, and custom tools |
 
 ## Keyboard Shortcuts
 
@@ -152,7 +148,7 @@ If you encounter issues or have suggestions:
 
 ## License
 
-dbfordevs is available under an open-source license with support for community plugins and commercially licensed extensions.
+dbfordevs is available under an open-source license.
 
 ---
 

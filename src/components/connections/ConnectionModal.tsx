@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, CheckCircle2, XCircle, Database, HelpCircle, Server, Key, FolderOpen } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Database, HelpCircle, Server, Key, FolderOpen, Link2, Shield, Terminal, FileText } from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   Dialog,
   DialogContent,
@@ -23,10 +24,11 @@ import {
   TooltipTrigger,
   BrandIcon,
 } from "@/components/ui";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUIStore } from "@/stores";
 import { useDatabase } from "@/hooks";
-import type { ConnectionConfig, DatabaseType } from "@/types";
+import type { ConnectionConfig, DatabaseType, SslMode, SslConfig, SshTunnelConfig } from "@/types";
+import { parseConnectionString } from "@/lib/connection-string-parser";
 import { cn } from "@/lib/utils";
 import { DATABASE_DEFAULTS, DATABASE_METADATA } from "@/lib/constants";
 
@@ -40,6 +42,36 @@ const INITIAL_FORM_DATA: ConnectionConfig = {
   password: "",
   sslMode: undefined,
   filePath: undefined,
+  connectionString: undefined,
+  useConnectionString: false,
+  ssl: undefined,
+  sshTunnel: undefined,
+};
+
+const SSL_MODES: { value: SslMode; label: string; description: string }[] = [
+  { value: "disable", label: "Disable", description: "No SSL encryption" },
+  { value: "prefer", label: "Prefer", description: "Use SSL if available" },
+  { value: "require", label: "Require", description: "Require SSL connection" },
+  { value: "verify-ca", label: "Verify CA", description: "Verify server certificate" },
+  { value: "verify-full", label: "Verify Full", description: "Verify certificate and hostname" },
+];
+
+const DEFAULT_SSL_CONFIG: SslConfig = {
+  mode: "disable",
+  caCertPath: undefined,
+  clientCertPath: undefined,
+  clientKeyPath: undefined,
+};
+
+const DEFAULT_SSH_CONFIG: SshTunnelConfig = {
+  enabled: false,
+  host: "",
+  port: 22,
+  username: "",
+  authMethod: "password",
+  password: undefined,
+  privateKeyPath: undefined,
+  passphrase: undefined,
 };
 
 interface FormFieldProps {
@@ -76,20 +108,41 @@ function FormField({ label, htmlFor, hint, required, children }: FormFieldProps)
   );
 }
 
-interface SectionProps {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
+interface FilePickerInputProps {
+  id: string;
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+  placeholder?: string;
+  filters?: { name: string; extensions: string[] }[];
 }
 
-function Section({ icon, title, children }: SectionProps) {
+function FilePickerInput({ id, value, onChange, placeholder, filters }: FilePickerInputProps) {
+  const handleBrowse = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: filters || [{ name: "All Files", extensions: ["*"] }],
+      });
+      if (selected) {
+        onChange(selected as string);
+      }
+    } catch (error) {
+      console.error("File picker error:", error);
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        {icon}
-        <span>{title}</span>
-      </div>
-      <div className="pl-6 space-y-4">{children}</div>
+    <div className="flex gap-2">
+      <Input
+        id={id}
+        placeholder={placeholder}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value || undefined)}
+        className="transition-colors font-mono text-sm flex-1"
+      />
+      <Button type="button" variant="outline" size="icon" onClick={handleBrowse}>
+        <FolderOpen className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
@@ -101,8 +154,10 @@ export function ConnectionModal() {
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; serverVersion?: string } | null>(null);
+  const [activeTab, setActiveTab] = useState("general");
 
   const [formData, setFormData] = useState<ConnectionConfig>(INITIAL_FORM_DATA);
+  const [parseError, setParseError] = useState<string | null>(null);
 
   const isEditMode = editingConnectionId !== null;
   const defaults = useMemo(() => DATABASE_DEFAULTS[formData.databaseType], [formData.databaseType]);
@@ -145,6 +200,8 @@ export function ConnectionModal() {
       setIsSaving(false);
       setIsTesting(false);
       setIsLoading(false);
+      setParseError(null);
+      setActiveTab("general");
     }
   }, [showConnectionModal]);
 
@@ -154,7 +211,54 @@ export function ConnectionModal() {
       setTestResult(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.host, formData.port, formData.username, formData.password, formData.database, formData.filePath, formData.databaseType]);
+  }, [formData.host, formData.port, formData.username, formData.password, formData.database, formData.filePath, formData.databaseType, formData.ssl, formData.sshTunnel]);
+
+  // Handle connection string parsing
+  const handleParseConnectionString = () => {
+    if (!formData.connectionString?.trim()) {
+      setParseError("Connection string is empty");
+      return;
+    }
+
+    try {
+      const parsed = parseConnectionString(formData.connectionString.trim());
+      setFormData({
+        ...formData,
+        databaseType: parsed.databaseType || formData.databaseType,
+        host: parsed.host || "",
+        port: parsed.port,
+        database: parsed.database || "",
+        username: parsed.username || "",
+        password: parsed.password || "",
+        sslMode: parsed.sslMode,
+      });
+      setParseError(null);
+    } catch (error) {
+      setParseError(error instanceof Error ? error.message : "Failed to parse connection string");
+    }
+  };
+
+  // Helper to update SSL config
+  const updateSslConfig = (updates: Partial<SslConfig>) => {
+    setFormData({
+      ...formData,
+      ssl: {
+        ...(formData.ssl || DEFAULT_SSL_CONFIG),
+        ...updates,
+      },
+    });
+  };
+
+  // Helper to update SSH config
+  const updateSshConfig = (updates: Partial<SshTunnelConfig>) => {
+    setFormData({
+      ...formData,
+      sshTunnel: {
+        ...(formData.sshTunnel || DEFAULT_SSH_CONFIG),
+        ...updates,
+      },
+    });
+  };
 
   const handleTest = async () => {
     setIsTesting(true);
@@ -194,11 +298,26 @@ export function ConnectionModal() {
   };
 
   const canTest = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : formData.database.trim());
-  const canSave = canTest && testResult?.success;
+  const canSave = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : formData.database.trim());
+
+  // Get status indicators for tabs
+  const getSslStatus = () => {
+    if (formData.ssl?.mode && formData.ssl.mode !== "disable") {
+      return formData.ssl.mode;
+    }
+    return null;
+  };
+
+  const getSshStatus = () => {
+    if (formData.sshTunnel?.enabled) {
+      return "enabled";
+    }
+    return null;
+  };
 
   return (
     <Dialog open={showConnectionModal} onOpenChange={setShowConnectionModal}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BrandIcon
@@ -209,8 +328,8 @@ export function ConnectionModal() {
           </DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? "Update your connection settings. Test the connection before saving changes."
-              : "Configure a new database connection. Test before saving to ensure connectivity."}
+              ? "Update your connection settings."
+              : "Configure a new database connection."}
           </DialogDescription>
         </DialogHeader>
 
@@ -219,186 +338,525 @@ export function ConnectionModal() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="space-y-6 py-4">
-            {/* Basic Info Section */}
-            <Section icon={<Database className="h-4 w-4" />} title="Basic Information">
-              <FormField
-                label="Connection Name"
-                htmlFor="name"
-                hint="A friendly name to identify this connection"
-                required
-              >
-                <Input
-                  id="name"
-                  placeholder="Production Database"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="transition-colors focus:ring-2"
-                />
-              </FormField>
-
-              <FormField
-                label="Database Type"
-                htmlFor="databaseType"
-                hint="Select the type of database you want to connect to"
-                required
-              >
-                <Select
-                  value={formData.databaseType}
-                  onValueChange={(value) => {
-                    const dbType = value as DatabaseType;
-                    setFormData({
-                      ...formData,
-                      databaseType: dbType,
-                      port: undefined, // Reset to use new defaults
-                      username: "", // Reset to use new defaults
-                    });
-                  }}
-                >
-                  <SelectTrigger id="databaseType" className="transition-colors">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(DATABASE_METADATA) as DatabaseType[]).map((type) => (
-                      <SelectItem key={type} value={type}>
-                        <span className="flex items-center gap-2">
-                          <BrandIcon name={DATABASE_METADATA[type].brand} className={cn("h-4 w-4", DATABASE_METADATA[type].color)} />
-                          <span>{DATABASE_METADATA[type].name}</span>
+          <div className="flex-1 overflow-hidden">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+              <TabsList className={cn("grid w-full", isSqlite ? "grid-cols-1" : "grid-cols-4")}>
+                <TabsTrigger value="general" className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  General
+                </TabsTrigger>
+                {!isSqlite && (
+                  <>
+                    <TabsTrigger value="connection" className="flex items-center gap-2">
+                      <Server className="h-4 w-4" />
+                      Connection
+                    </TabsTrigger>
+                    <TabsTrigger value="ssl" className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      SSL
+                      {getSslStatus() && (
+                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
+                          {getSslStatus()}
                         </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </Section>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="ssh" className="flex items-center gap-2">
+                      <Terminal className="h-4 w-4" />
+                      SSH
+                      {getSshStatus() && (
+                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+                          on
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  </>
+                )}
+              </TabsList>
 
-            <Separator />
-
-            {!isSqlite ? (
-              <>
-                {/* Server Section */}
-                <Section icon={<Server className="h-4 w-4" />} title="Server">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="col-span-2">
-                      <FormField
-                        label="Host"
-                        htmlFor="host"
-                        hint="Server hostname or IP address. Leave empty to use localhost."
-                      >
-                        <Input
-                          id="host"
-                          placeholder={defaults.host}
-                          value={formData.host || ""}
-                          onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-                          className="transition-colors"
-                        />
-                      </FormField>
-                    </div>
-                    <FormField
-                      label="Port"
-                      htmlFor="port"
-                      hint={`Default: ${defaults.port}`}
-                    >
-                      <Input
-                        id="port"
-                        type="number"
-                        placeholder={String(defaults.port)}
-                        value={formData.port || ""}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            port: e.target.value ? parseInt(e.target.value, 10) : undefined,
-                          })
-                        }
-                        className="transition-colors"
-                      />
-                    </FormField>
-                  </div>
-
+              <div className="flex-1 overflow-y-auto py-4">
+                {/* General Tab */}
+                <TabsContent value="general" className="mt-0 space-y-6">
                   <FormField
-                    label="Database Name"
-                    htmlFor="database"
-                    hint="The name of the database to connect to"
+                    label="Connection Name"
+                    htmlFor="name"
+                    hint="A friendly name to identify this connection"
                     required
                   >
                     <Input
-                      id="database"
-                      placeholder="mydb"
-                      value={formData.database}
-                      onChange={(e) => setFormData({ ...formData, database: e.target.value })}
-                      className="transition-colors"
+                      id="name"
+                      placeholder="Production Database"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="transition-colors focus:ring-2"
                     />
                   </FormField>
-                </Section>
 
-                <Separator />
+                  <FormField
+                    label="Database Type"
+                    htmlFor="databaseType"
+                    hint="Select the type of database you want to connect to"
+                    required
+                  >
+                    <Select
+                      value={formData.databaseType}
+                      onValueChange={(value) => {
+                        const dbType = value as DatabaseType;
+                        setFormData({
+                          ...formData,
+                          databaseType: dbType,
+                          port: undefined,
+                          username: "",
+                        });
+                      }}
+                    >
+                      <SelectTrigger id="databaseType" className="transition-colors">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(DATABASE_METADATA) as DatabaseType[]).map((type) => (
+                          <SelectItem key={type} value={type}>
+                            <span className="flex items-center gap-2">
+                              <BrandIcon name={DATABASE_METADATA[type].brand} className={cn("h-4 w-4", DATABASE_METADATA[type].color)} />
+                              <span>{DATABASE_METADATA[type].name}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
 
-                {/* Authentication Section */}
-                <Section icon={<Key className="h-4 w-4" />} title="Authentication">
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* SQLite File Path - shown in General tab for SQLite */}
+                  {isSqlite && (
                     <FormField
-                      label="Username"
-                      htmlFor="username"
-                      hint={`Leave empty to use default: ${defaults.username}`}
+                      label="File Path"
+                      htmlFor="filePath"
+                      hint="Full path to your SQLite database file"
+                      required
                     >
-                      <Input
-                        id="username"
-                        placeholder={defaults.username}
-                        value={formData.username || ""}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                        className="transition-colors"
+                      <FilePickerInput
+                        id="filePath"
+                        value={formData.filePath}
+                        onChange={(value) =>
+                          setFormData({
+                            ...formData,
+                            filePath: value,
+                            database: value?.split("/").pop()?.replace(/\.[^/.]+$/, "") || "",
+                          })
+                        }
+                        placeholder="/path/to/database.db"
+                        filters={[{ name: "SQLite Database", extensions: ["db", "sqlite", "sqlite3"] }]}
                       />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        If the file doesn't exist, it will be created when you first connect.
+                      </p>
                     </FormField>
+                  )}
+                </TabsContent>
+
+                {/* Connection Tab */}
+                {!isSqlite && (
+                  <TabsContent value="connection" className="mt-0 space-y-6">
+                    {/* Connection Method Toggle */}
+                    <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
+                      <Link2 className="h-4 w-4 text-muted-foreground" />
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="connectionMethod"
+                          checked={!formData.useConnectionString}
+                          onChange={() => setFormData({ ...formData, useConnectionString: false })}
+                          className="h-4 w-4"
+                        />
+                        <span className="text-sm">Individual Fields</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="connectionMethod"
+                          checked={formData.useConnectionString === true}
+                          onChange={() => setFormData({ ...formData, useConnectionString: true })}
+                          className="h-4 w-4"
+                        />
+                        <span className="text-sm">Connection String</span>
+                      </label>
+                    </div>
+
+                    {formData.useConnectionString ? (
+                      <div className="space-y-4">
+                        <FormField
+                          label="Connection String"
+                          htmlFor="connectionString"
+                          hint="Paste your database connection string"
+                        >
+                          <textarea
+                            id="connectionString"
+                            placeholder={formData.databaseType === "mssql"
+                              ? "Server=tcp:host,port;Database=db;User Id=user;Password=pass;"
+                              : `${formData.databaseType}://user:password@host:port/database`}
+                            value={formData.connectionString || ""}
+                            onChange={(e) => {
+                              setFormData({ ...formData, connectionString: e.target.value });
+                              setParseError(null);
+                            }}
+                            className="w-full min-h-[100px] px-3 py-2 text-sm font-mono rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                          />
+                        </FormField>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleParseConnectionString}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Parse & Fill Fields
+                          </Button>
+                          {parseError && (
+                            <span className="text-sm text-red-500">{parseError}</span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Server Settings */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <Server className="h-4 w-4" />
+                            <span>Server</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="col-span-2">
+                              <FormField
+                                label="Host"
+                                htmlFor="host"
+                                hint="Server hostname or IP address"
+                              >
+                                <Input
+                                  id="host"
+                                  placeholder={defaults.host}
+                                  value={formData.host || ""}
+                                  onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+                                  className="transition-colors"
+                                />
+                              </FormField>
+                            </div>
+                            <FormField
+                              label="Port"
+                              htmlFor="port"
+                              hint={`Default: ${defaults.port}`}
+                            >
+                              <Input
+                                id="port"
+                                type="number"
+                                placeholder={String(defaults.port)}
+                                value={formData.port || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    port: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                                  })
+                                }
+                                className="transition-colors"
+                              />
+                            </FormField>
+                          </div>
+                          <FormField
+                            label="Database Name"
+                            htmlFor="database"
+                            hint="The name of the database to connect to"
+                            required
+                          >
+                            <Input
+                              id="database"
+                              placeholder="mydb"
+                              value={formData.database}
+                              onChange={(e) => setFormData({ ...formData, database: e.target.value })}
+                              className="transition-colors"
+                            />
+                          </FormField>
+                        </div>
+
+                        {/* Authentication */}
+                        <div className="space-y-4 pt-4 border-t">
+                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <Key className="h-4 w-4" />
+                            <span>Authentication</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              label="Username"
+                              htmlFor="username"
+                              hint={`Default: ${defaults.username}`}
+                            >
+                              <Input
+                                id="username"
+                                placeholder={defaults.username}
+                                value={formData.username || ""}
+                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                className="transition-colors"
+                              />
+                            </FormField>
+                            <FormField
+                              label="Password"
+                              htmlFor="password"
+                              hint={isEditMode ? "Leave empty to keep existing" : "Your database password"}
+                            >
+                              <Input
+                                id="password"
+                                type="password"
+                                placeholder={isEditMode ? "••••••••" : "Password"}
+                                value={formData.password || ""}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                className="transition-colors"
+                              />
+                            </FormField>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </TabsContent>
+                )}
+
+                {/* SSL Tab */}
+                {!isSqlite && (
+                  <TabsContent value="ssl" className="mt-0 space-y-6">
                     <FormField
-                      label="Password"
-                      htmlFor="password"
-                      hint={isEditMode ? "Leave empty to keep existing password" : "Your database password"}
+                      label="SSL Mode"
+                      htmlFor="sslMode"
+                      hint="Choose the level of SSL/TLS encryption for your connection"
                     >
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder={isEditMode ? "••••••••" : "Password"}
-                        value={formData.password || ""}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="transition-colors"
-                      />
+                      <Select
+                        value={formData.ssl?.mode || "disable"}
+                        onValueChange={(value) => updateSslConfig({ mode: value as SslMode })}
+                      >
+                        <SelectTrigger id="sslMode" className="transition-colors">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SSL_MODES.map((mode) => (
+                            <SelectItem key={mode.value} value={mode.value}>
+                              <div className="flex flex-col">
+                                <span>{mode.label}</span>
+                                <span className="text-xs text-muted-foreground">{mode.description}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormField>
-                  </div>
-                </Section>
-              </>
-            ) : (
-              /* SQLite File Section */
-              <Section icon={<FolderOpen className="h-4 w-4" />} title="Database File">
-                <FormField
-                  label="File Path"
-                  htmlFor="filePath"
-                  hint="Full path to your SQLite database file"
-                  required
-                >
-                  <Input
-                    id="filePath"
-                    placeholder="/path/to/database.db"
-                    value={formData.filePath || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        filePath: e.target.value,
-                        database: e.target.value.split("/").pop()?.replace(/\.[^/.]+$/, "") || "",
-                      })
-                    }
-                    className="transition-colors font-mono text-sm"
-                  />
-                </FormField>
-                <p className="text-xs text-muted-foreground">
-                  If the file doesn't exist, it will be created when you first connect.
-                </p>
-              </Section>
-            )}
+
+                    {formData.ssl?.mode && formData.ssl.mode !== "disable" && (
+                      <>
+                        <FormField
+                          label="CA Certificate"
+                          htmlFor="caCert"
+                          hint="Path to the Certificate Authority (CA) certificate file"
+                        >
+                          <FilePickerInput
+                            id="caCert"
+                            value={formData.ssl?.caCertPath}
+                            onChange={(value) => updateSslConfig({ caCertPath: value })}
+                            placeholder="/path/to/ca-certificate.pem"
+                            filters={[{ name: "Certificates", extensions: ["pem", "crt", "cer"] }]}
+                          />
+                        </FormField>
+
+                        <FormField
+                          label="Client Certificate"
+                          htmlFor="clientCert"
+                          hint="Path to the client certificate file (optional, for mutual TLS)"
+                        >
+                          <FilePickerInput
+                            id="clientCert"
+                            value={formData.ssl?.clientCertPath}
+                            onChange={(value) => updateSslConfig({ clientCertPath: value })}
+                            placeholder="/path/to/client-certificate.pem"
+                            filters={[{ name: "Certificates", extensions: ["pem", "crt", "cer"] }]}
+                          />
+                        </FormField>
+
+                        <FormField
+                          label="Client Key"
+                          htmlFor="clientKey"
+                          hint="Path to the client private key file (optional, for mutual TLS)"
+                        >
+                          <FilePickerInput
+                            id="clientKey"
+                            value={formData.ssl?.clientKeyPath}
+                            onChange={(value) => updateSslConfig({ clientKeyPath: value })}
+                            placeholder="/path/to/client-key.pem"
+                            filters={[{ name: "Keys", extensions: ["pem", "key"] }]}
+                          />
+                        </FormField>
+                      </>
+                    )}
+
+                    {(!formData.ssl?.mode || formData.ssl.mode === "disable") && (
+                      <p className="text-sm text-muted-foreground">
+                        SSL is disabled. Select a different SSL mode to configure secure connections.
+                      </p>
+                    )}
+                  </TabsContent>
+                )}
+
+                {/* SSH Tab */}
+                {!isSqlite && (
+                  <TabsContent value="ssh" className="mt-0 space-y-6">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <input
+                        type="checkbox"
+                        id="sshEnabled"
+                        checked={formData.sshTunnel?.enabled || false}
+                        onChange={(e) => updateSshConfig({ enabled: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="sshEnabled" className="text-sm cursor-pointer">
+                        Connect through SSH tunnel
+                      </Label>
+                    </div>
+
+                    {formData.sshTunnel?.enabled ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="col-span-2">
+                            <FormField
+                              label="SSH Host"
+                              htmlFor="sshHost"
+                              hint="SSH server hostname or IP address"
+                              required
+                            >
+                              <Input
+                                id="sshHost"
+                                placeholder="ssh.example.com"
+                                value={formData.sshTunnel?.host || ""}
+                                onChange={(e) => updateSshConfig({ host: e.target.value })}
+                                className="transition-colors"
+                              />
+                            </FormField>
+                          </div>
+                          <FormField
+                            label="SSH Port"
+                            htmlFor="sshPort"
+                            hint="Default: 22"
+                          >
+                            <Input
+                              id="sshPort"
+                              type="number"
+                              placeholder="22"
+                              value={formData.sshTunnel?.port || ""}
+                              onChange={(e) =>
+                                updateSshConfig({
+                                  port: e.target.value ? parseInt(e.target.value, 10) : 22,
+                                })
+                              }
+                              className="transition-colors"
+                            />
+                          </FormField>
+                        </div>
+
+                        <FormField
+                          label="SSH Username"
+                          htmlFor="sshUsername"
+                          hint="Username for SSH authentication"
+                          required
+                        >
+                          <Input
+                            id="sshUsername"
+                            placeholder="ubuntu"
+                            value={formData.sshTunnel?.username || ""}
+                            onChange={(e) => updateSshConfig({ username: e.target.value })}
+                            className="transition-colors"
+                          />
+                        </FormField>
+
+                        <div className="space-y-4 pt-4 border-t">
+                          <div className="flex items-center gap-4">
+                            <span className="text-sm font-medium text-muted-foreground">Authentication Method</span>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="sshAuthMethod"
+                                checked={formData.sshTunnel?.authMethod === "password"}
+                                onChange={() => updateSshConfig({ authMethod: "password" })}
+                                className="h-4 w-4"
+                              />
+                              <span className="text-sm">Password</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="sshAuthMethod"
+                                checked={formData.sshTunnel?.authMethod === "privateKey"}
+                                onChange={() => updateSshConfig({ authMethod: "privateKey" })}
+                                className="h-4 w-4"
+                              />
+                              <span className="text-sm">Private Key</span>
+                            </label>
+                          </div>
+
+                          {formData.sshTunnel?.authMethod === "password" ? (
+                            <FormField
+                              label="SSH Password"
+                              htmlFor="sshPassword"
+                              hint="Password for SSH authentication"
+                            >
+                              <Input
+                                id="sshPassword"
+                                type="password"
+                                placeholder="SSH password"
+                                value={formData.sshTunnel?.password || ""}
+                                onChange={(e) => updateSshConfig({ password: e.target.value })}
+                                className="transition-colors"
+                              />
+                            </FormField>
+                          ) : (
+                            <>
+                              <FormField
+                                label="Private Key"
+                                htmlFor="sshPrivateKey"
+                                hint="Path to your SSH private key file"
+                              >
+                                <FilePickerInput
+                                  id="sshPrivateKey"
+                                  value={formData.sshTunnel?.privateKeyPath}
+                                  onChange={(value) => updateSshConfig({ privateKeyPath: value })}
+                                  placeholder="~/.ssh/id_rsa"
+                                  filters={[{ name: "SSH Keys", extensions: ["pem", "key", "*"] }]}
+                                />
+                              </FormField>
+
+                              <FormField
+                                label="Passphrase"
+                                htmlFor="sshPassphrase"
+                                hint="Passphrase for encrypted private keys (optional)"
+                              >
+                                <Input
+                                  id="sshPassphrase"
+                                  type="password"
+                                  placeholder="Key passphrase (optional)"
+                                  value={formData.sshTunnel?.passphrase || ""}
+                                  onChange={(e) => updateSshConfig({ passphrase: e.target.value })}
+                                  className="transition-colors"
+                                />
+                              </FormField>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        SSH tunnel is disabled. Enable it to connect through a secure SSH tunnel.
+                      </p>
+                    )}
+                  </TabsContent>
+                )}
+              </div>
+            </Tabs>
 
             {/* Test Result */}
             {testResult && (
               <div
-                className={`flex items-start gap-3 rounded-lg border p-4 transition-all ${
+                className={`flex items-start gap-3 rounded-lg border p-4 mt-4 transition-all ${
                   testResult.success
                     ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/50"
                     : "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/50"
@@ -435,10 +893,7 @@ export function ConnectionModal() {
           </div>
         )}
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => setShowConnectionModal(false)}>
-            Cancel
-          </Button>
+        <DialogFooter className="flex-row justify-between sm:justify-between border-t pt-4">
           <Button
             variant="outline"
             onClick={handleTest}
@@ -453,34 +908,21 @@ export function ConnectionModal() {
               "Test Connection"
             )}
           </Button>
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    onClick={handleSave}
-                    disabled={!canSave || isSaving || isLoading}
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : isEditMode ? (
-                      "Update Connection"
-                    ) : (
-                      "Save Connection"
-                    )}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {!canSave && (
-                <TooltipContent>
-                  <p>{!testResult ? "Test the connection first" : "Connection test must pass"}</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            onClick={handleSave}
+            disabled={!canSave || isSaving || isLoading}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : isEditMode ? (
+              "Update Connection"
+            ) : (
+              "Save Connection"
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

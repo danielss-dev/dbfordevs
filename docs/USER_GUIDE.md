@@ -66,7 +66,6 @@ The left sidebar contains:
 **Actions**
 - New Connection button (`Ctrl/Cmd+K`)
 - Settings gear icon (`Ctrl/Cmd+,`)
-- Plugin marketplace
 - Help menu
 
 ### Main Content Area
@@ -730,16 +729,6 @@ A: Theoretically unlimited, but practical limit is 10,000+ rows. Use pagination 
 **Q: Can I cache query results?**
 
 A: Results display instantly if query runs again. No explicit cache, but repeated queries are fast.
-
-### Plugin Questions
-
-**Q: How do I write a custom plugin?**
-
-A: Check plugin documentation on GitHub. Basic plugins can validate connection strings or provide themes.
-
-**Q: Are plugins safe?**
-
-A: Only install from trusted sources. Review plugin source code if possible.
 
 ### Troubleshooting Questions
 

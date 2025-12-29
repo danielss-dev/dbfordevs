@@ -13,7 +13,7 @@
 
 ## 1. Executive Summary
 
-dbfordevs is a modern, cross-platform database management application designed specifically for developers. The application provides a unified interface to manage multiple database systems including PostgreSQL, MySQL, Microsoft SQL Server, SQLite, and eventually NoSQL databases like MongoDB and Redis. Built with developer experience as the primary focus, dbfordevs aims to streamline database operations with features like inline editing, visual diff comparison for changes, and an extensible **Plugin Marketplace** for tools like connection string validators and AI-powered query assistance.
+dbfordevs is a modern, cross-platform database management application designed specifically for developers. The application provides a unified interface to manage multiple database systems including PostgreSQL, MySQL, Microsoft SQL Server, SQLite, and eventually NoSQL databases like MongoDB and Redis. Built with developer experience as the primary focus, dbfordevs aims to streamline database operations with features like inline editing, visual diff comparison for changes, and AI-powered query assistance.
 
 ---
 
@@ -37,7 +37,7 @@ Developers working with multiple database systems face several challenges:
 1. Provide a single, unified interface for managing multiple database types
 2. Support Windows, macOS, and Linux platforms with consistent experience
 3. Enable intuitive data editing with visual change tracking
-4. Create an extensible **Plugin Marketplace** for developer-centric tools
+4. Create an extensible AI Query Assistant for developer-centric tools
 5. Offer AI-driven query generation, analysis, and optimization
 6. Maintain a lightweight, fast, and responsive application
 
@@ -102,20 +102,9 @@ The project uses a **Cargo workspace** monorepo structure:
 dbfordevs/
 ├── src/                    # React frontend
 ├── src-tauri/              # Main Tauri application (Rust)
-├── crates/                 # Workspace crates (Plugins & Core)
-│   ├── plugin-core/        # Shared plugin architecture traits
-│   ├── validator-core/     # Shared validator traits
-│   ├── validator-csharp/   # C#/.NET connection string validator
-│   ├── ai-assistant/       # AI-powered query assistance
-│   └── ...                 # Other plugins
 ├── Cargo.toml              # Workspace root configuration
 └── package.json            # Frontend dependencies
 ```
-
-This structure allows:
-- Independent development and testing of each plugin/validator
-- Shared core types and traits via `plugin-core` and `validator-core`
-- Easy addition of new language validators or AI features as separate crates
 
 ---
 
@@ -144,57 +133,8 @@ Users can create, edit, and manage database connections. Connections are organiz
 
 ---
 
-### 6.2 Plugin Marketplace and Extensibility
 
-#### 6.2.1 Description
-
-dbfordevs features a robust, extensible plugin architecture and a built-in Marketplace. This allows the core application to remain lightweight while providing powerful, specialized tools that users can install based on their specific needs. Plugins can extend the UI, add new connection types, provide validation logic, or integrate with external services like AI models.
-
-#### 6.2.2 Plugin Categories
-
-1. **Connection String Validators:** Language-specific tools to parse, validate, and test database connection strings (C#, Node.js, Python, etc.).
-2. **AI Assistant:** Integration with LLMs (OpenAI, Anthropic, or local models via Ollama) to:
-    - Generate SQL queries from natural language.
-    - Analyze and optimize slow queries.
-    - Explain complex execution plans.
-    - Suggest schema improvements.
-3. **Data Exporters:** Support for specialized formats (Parquet, Avro, custom JSON schemas).
-4. **Custom Themes:** Community-contributed UI themes.
-
-#### 6.2.3 Marketplace Workflow
-
-1. User opens the **Marketplace** from the sidebar or tools menu.
-2. User browses or searches for available plugins.
-3. User clicks "Install" to add a plugin (handled via dynamic loading of Rust crates or WebAssembly).
-4. Installed plugins appear in relevant contexts (e.g., Connection String Validator in the connection modal, AI Assistant in the SQL Editor).
-5. User can manage, update, or disable plugins from the Marketplace dashboard.
-
-#### 6.2.4 Initial "Official" Plugins
-
-- **Connection String Validators:**
-  - **C# / .NET:** ADO.NET connection strings (SqlConnection, NpgsqlConnection, MySqlConnection)
-  - **Node.js:** Connection strings for pg, mysql2, mssql packages (URL format and JSON config)
-  - **Python:** SQLAlchemy connection URLs, psycopg2, PyMySQL
-- **AI Query Assistant:**
-  - Natural language to SQL translation.
-  - Query explanation and optimization suggestions.
-
-#### 6.2.5 Architecture
-
-Each plugin is developed as a modular component, typically as a Rust crate in the `crates/` directory:
-
-- **plugin-core:** Defines the `Plugin` trait and shared lifecycle types.
-- **validator-core:** Specialized trait for connection validators.
-- **ai-assistant:** Plugin for LLM integration.
-
-All validators implement a common interface:
-- `parse()` - Extract connection components from string
-- `validate()` - Check for errors and warnings
-- `to_connection_string()` - Convert parsed components back to string format
-
----
-
-### 6.3 Table View and Data Grid
+### 6.2 Table View and Data Grid
 
 #### 6.3.1 Description
 
@@ -332,26 +272,21 @@ The application follows a three-panel layout:
 - [x] Configure Cargo workspace with validator crates structure
 - [x] Set up TailwindCSS, shadcn/ui, and Zustand state management
 - [x] Implement three-panel layout (Sidebar, MainContent, SidePanel)
-- [x] Define validator-core traits and initial validator implementations
 - [x] Basic connection management (PostgreSQL, MySQL, SQLite)
 - [x] Table browsing and basic data grid
 - [x] Simple SQL query execution
 - [x] Basic CRUD operations
-- [x] Plugin system architecture (plugin-core)
 
 ### Phase 2: Core Features (Months 4-6)
 
-- [ ] Microsoft SQL Server support
-- [ ] Side panel editor implementation
-- [ ] Change diff preview system
-- [x] Plugin Marketplace UI
+- [x] Microsoft SQL Server support
+- [x] Side panel editor implementation
+- [x] Change diff preview system
 - [x] AI Query Assistant (Basic NL-to-SQL)
-- [ ] Connection string validator (C# plugin)
 - [ ] Query history and favorites
 
 ### Phase 3: Polish & Expand (Months 7-9)
 
-- [ ] Node.js and Python connection string validators
 - [ ] AI Query Assistant (Optimization & Analysis)
 - [ ] Advanced data grid features (export, bulk operations)
 - [ ] Query IntelliSense and autocomplete
@@ -372,7 +307,6 @@ The application follows a three-panel layout:
 | Feature               | dbfordevs | DBeaver   | DataGrip | DbGate |
 |-----------------------|-----------|-----------|----------|--------|
 | Lightweight           | ✅        | ❌        | ❌       | ✅     |
-| Plugin Marketplace    | ✅        | Partial   | Partial  | ❌     |
 | AI Query Assistant    | ✅        | ❌        | Partial  | ❌     |
 | Visual Diff Preview   | ✅        | Partial   | ✅       | ❌     |
 | Side Panel Editor     | ✅        | ❌        | ❌       | ❌     |
@@ -382,8 +316,7 @@ The application follows a three-panel layout:
 
 ### Key Differentiators
 
-1. **Plugin Marketplace** - Specialized ecosystem for developer tools (validators, exporters, themes)
-2. **AI Query Assistant** - Built-in intelligence for query generation and optimization
+1. **AI Query Assistant** - Built-in intelligence for query generation and optimization
 3. **Lightweight footprint** - Tauri-based architecture vs Java (DBeaver) or JetBrains platform (DataGrip)
 4. **Side Panel Editor** - Better UX for editing complex records
 5. **Visual Diff Preview** - Review all changes before committing
@@ -408,7 +341,6 @@ The application follows a three-panel layout:
 - ER diagram visualization
 - Database migration tools integration
 - AI-powered query suggestions
-- Plugin marketplace for community extensions
 - SSH tunnel support
 - Database schema comparison and synchronization
 
