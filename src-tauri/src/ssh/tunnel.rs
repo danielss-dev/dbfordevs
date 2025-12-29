@@ -181,8 +181,8 @@ async fn create_ssh_session(config: &SshTunnelConfig) -> AppResult<Handle<SshHan
                 .as_ref()
                 .ok_or_else(|| AppError::ConnectionError("Private key path not provided".to_string()))?;
 
-            // Expand ~ to home directory
-            let key_path = if key_path.starts_with("~") {
+            // Expand ~/ to home directory (not ~username format)
+            let key_path = if key_path.starts_with("~/") {
                 let home = dirs::home_dir()
                     .ok_or_else(|| AppError::ConnectionError("Could not determine home directory".to_string()))?;
                 home.join(&key_path[2..])

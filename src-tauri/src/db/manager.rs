@@ -340,8 +340,9 @@ fn build_mssql_connection_string(config: &ConnectionConfig) -> AppResult<String>
             }
         }
     } else {
-        // Default: enable encryption but trust server certificate
-        parts.push("TrustServerCertificate=true".to_string());
+        // Default to secure settings - require encryption and verify certificates
+        parts.push("Encrypt=true".to_string());
+        parts.push("TrustServerCertificate=false".to_string());
     }
 
     Ok(parts.join(";"))
