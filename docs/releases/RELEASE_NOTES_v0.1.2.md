@@ -108,7 +108,6 @@ New documentation guides help users get the most from dbfordevs:
 - Technical architecture overview
 - Technology stack details
 - Codebase structure
-- Extension development guide
 
 ---
 
@@ -262,7 +261,6 @@ All user data is automatically preserved:
 ## Known Issues
 
 - **Large Schemas**: Diagrams with 100+ tables may consume more memory. Consider filtering schemas for better performance.
-- **Plugin System**: Foundation is in place but not yet exposed to end users for custom plugin creation
 - **Advanced Features**: Some advanced database-specific features may require additional configuration
 
 ---
@@ -287,7 +285,6 @@ All user data is automatically preserved:
 
 Planned features for upcoming releases:
 
-- 🔲 User plugin installation and management
 - 🔲 Advanced query history with templates
 - 🔲 Database comparison tools
 - 🔲 Batch operations for data management
@@ -400,7 +397,7 @@ dbfordevs is a lightweight, cross-platform database management application built
 
 ## License
 
-dbfordevs is available under the MIT License with support for community plugins and commercially licensed extensions.
+dbfordevs is available under the MIT License.
 
 ---
 

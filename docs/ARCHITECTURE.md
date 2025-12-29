@@ -10,10 +10,9 @@ Technical documentation for developers wanting to understand or contribute to db
 4. [Frontend Architecture](#frontend-architecture)
 5. [Backend Architecture](#backend-architecture)
 6. [Database Abstraction Layer](#database-abstraction-layer)
-7. [Plugin System](#plugin-system)
-8. [State Management](#state-management)
-9. [Communication Protocol](#communication-protocol)
-10. [Key Design Decisions](#key-design-decisions)
+7. [State Management](#state-management)
+8. [Communication Protocol](#communication-protocol)
+9. [Key Design Decisions](#key-design-decisions)
 
 ## Overview
 
@@ -71,15 +70,6 @@ dbfordevs is built using a **Tauri-based desktop application** architecture that
 | **UUID** | uuid | Latest | Unique identifiers |
 | **Clipboard** | Arboard | Latest | Clipboard access |
 
-### Plugin System
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Core Traits** | Rust traits | Plugin interface definitions |
-| **Validators** | Rust crates | Connection string validation |
-| **Themes** | JSON + CSS | Theme definitions |
-| **Exporters** | Rust crates | Data export functionality |
-
 ## Project Structure
 
 ```
@@ -113,8 +103,6 @@ dbfordevs/
 │   │   │   ├── SettingsPanel.tsx    # Settings UI
 │   │   │   ├── ThemeSettings.tsx    # Theme customization
 │   │   │   └── KeyboardSettings.tsx # Shortcut editor
-│   │   ├── marketplace/
-│   │   │   └── PluginMarketplace.tsx # Plugin browser/installer
 │   │   └── ui/
 │   │       ├── Button.tsx
 │   │       ├── Dialog.tsx
@@ -190,30 +178,6 @@ dbfordevs/
 │   │       ├── clipboard.rs         # Clipboard operations
 │   │       └── converters.rs        # Type conversions
 │   └── tauri.conf.json             # Tauri configuration
-│
-├── crates/                          # Rust workspace crates
-│   ├── plugin-core/
-│   │   ├── src/
-│   │   │   ├── lib.rs               # Plugin trait definitions
-│   │   │   ├── metadata.rs          # Plugin metadata
-│   │   │   └── types.rs             # Shared plugin types
-│   │   └── Cargo.toml
-│   ├── validator-core/
-│   │   ├── src/
-│   │   │   └── lib.rs               # Validator trait
-│   │   └── Cargo.toml
-│   ├── validator-csharp/
-│   │   ├── src/
-│   │   │   └── lib.rs               # C# connection string parser
-│   │   └── Cargo.toml
-│   ├── validator-nodejs/
-│   │   ├── src/
-│   │   │   └── lib.rs               # Node.js connection string parser
-│   │   └── Cargo.toml
-│   └── validator-python/
-│       ├── src/
-│       │   └── lib.rs               # Python connection string parser
-│       └── Cargo.toml
 │
 ├── docs/                            # Documentation
 │   ├── README.md                    # Overview
@@ -472,72 +436,6 @@ pub fn convert_value(db_type: DbType, value: &dyn Any) -> serde_json::Value {
 
 Ensures frontend receives consistent JSON representations.
 
-## Plugin System
-
-### Plugin Core Traits
-
-**File: `crates/plugin-core/src/lib.rs`**
-
-```rust
-pub trait Plugin: Send + Sync {
-    fn metadata(&self) -> PluginMetadata;
-    fn version(&self) -> &str;
-    fn author(&self) -> &str;
-}
-
-pub enum PluginType {
-    Validator,
-    Theme,
-    Exporter,
-    Tool,
-    AIAssistant,
-}
-```
-
-### Validator Plugin Example
-
-**File: `crates/validator-csharp/src/lib.rs`**
-
-```rust
-pub struct CSharpValidator;
-
-impl Plugin for CSharpValidator {
-    fn metadata(&self) -> PluginMetadata {
-        PluginMetadata {
-            name: "C# Connection String Validator".to_string(),
-            plugin_type: PluginType::Validator,
-        }
-    }
-}
-
-impl Validator for CSharpValidator {
-    fn validate(&self, connection_string: &str) -> ValidatorResult {
-        // Parse C# connection string format
-        // Return validation result
-    }
-}
-```
-
-### Plugin Loading
-
-Plugins are loaded at startup from configured directories:
-
-```rust
-fn load_plugins() -> Result<Vec<Box<dyn Plugin>>> {
-    let plugin_dir = get_plugin_directory();
-    let mut plugins = Vec::new();
-
-    for entry in fs::read_dir(&plugin_dir)? {
-        let path = entry?.path();
-        if path.extension().map_or(false, |e| e == "so" || e == "dll" || e == "dylib") {
-            // Load dynamic library and register plugin
-        }
-    }
-
-    Ok(plugins)
-}
-```
-
 ## State Management
 
 ### Persistent State
@@ -650,97 +548,5 @@ Commands are serialized as JSON over Tauri's IPC:
 - Consistent error handling
 - Automatic serialization via Serde
 
-### 4. Separate Compilation for Validators
-
-**Decision**: Validators are separate Cargo crates
-
-**Rationale**:
-- Modular plugin system
-- Can be updated independently
-- Language-specific validators (C#, Python, Node.js)
-- Easy for community to contribute
-- Reduces main binary size
-
-### 5. Local Storage for Connections
-
-**Decision**: Store connections locally with optional encryption
-
-**Rationale**:
-- Works offline
-- User privacy (data stays on machine)
-- Faster startup
-- Can encrypt sensitive data
-- Portable configuration
-
-## Development Workflow
-
-### Frontend Development
-
-```bash
-# Install dependencies
-bun install
-
-# Start dev server with hot reload
-bun tauri dev
-
-# Build for production
-bun tauri build
-```
-
-### Backend Development
-
-```bash
-# Run tests
-cargo test
-
-# Build backend
-cargo build --release
-
-# Format code
-cargo fmt
-```
-
-### Adding a New Database Driver
-
-1. Create new module in `src-tauri/src/db/`
-2. Implement `DatabaseConnection` trait
-3. Add database type to `DbType` enum
-4. Update driver selection in `DatabaseManager`
-5. Add tests
-6. Update documentation
-
-### Adding a New Feature
-
-1. **Design**: Plan UI components and state changes
-2. **Frontend**: Create React components, update Zustand stores
-3. **Backend**: Add Tauri command handlers, implement business logic
-4. **Testing**: Test frontend and backend independently
-5. **Integration**: Test end-to-end workflow
-6. **Documentation**: Update docs and add examples
-
-## Performance Considerations
-
-### Frontend Optimization
-
-- **Code Splitting**: Lazy-load components
-- **Virtual Scrolling**: Only render visible grid rows
-- **Memoization**: Use React.memo for expensive components
-- **Bundle Size**: Tree-shake unused code
-
-### Backend Optimization
-
-- **Connection Pooling**: Reuse database connections
-- **Query Caching**: Cache frequently run queries
-- **Async/Await**: Non-blocking operations
-- **Batch Operations**: Group database operations
-
-### Database Optimization
-
-- **Indexes**: Create indexes on frequently queried columns
-- **LIMIT Clause**: Limit result set size
-- **Prepared Statements**: Use parameterized queries (prevent SQL injection)
-- **Connection Pool Size**: Configure based on workload
-
----
 
 **Contributing**: See CONTRIBUTING.md for guidelines on adding features, fixing bugs, and submitting pull requests.

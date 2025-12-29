@@ -117,7 +117,6 @@ The inaugural release of dbfordevs - a lightweight, cross-platform database clie
 - High-performance data grid with virtualization
 - Light/dark theme support
 - Connection string validators for multiple languages
-- Plugin architecture foundation
 - Beautiful, modern UI
 
 **Downloads**: [v0.1.0 Releases](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.0)

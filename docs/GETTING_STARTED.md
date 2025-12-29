@@ -303,8 +303,7 @@ Click any tab to switch to that query.
 
 1. **Explore Features**: Check out the [Features Guide](./FEATURES.md) for advanced capabilities
 2. **Learn Shortcuts**: Use keyboard shortcuts to work faster
-3. **Install Plugins**: Extend functionality with plugins from the marketplace
-4. **Customize Theme**: Personalize the appearance in Settings
+3. **Customize Theme**: Personalize the appearance in Settings
 
 ## Need Help?
 

@@ -402,41 +402,6 @@ View and customize keyboard shortcuts:
 3. Hover over shortcuts to edit
 4. Click to modify keybindings
 
-## Plugin System
-
-### What are Plugins?
-
-Plugins extend dbfordevs functionality. Available plugin types:
-
-- **Validators**: Connection string validators
-- **Themes**: Custom color schemes
-- **Exporters**: Export data in different formats
-- **Tools**: Custom functionality for specific use cases
-- **AI Assistants**: AI-powered features
-
-### Installing Plugins
-
-1. Open **"Plugin Marketplace"** from settings
-2. Browse available plugins
-3. Click **"Install"** on desired plugin
-4. Restart dbfordevs for changes to take effect
-
-### Managing Plugins
-
-- **Enable/Disable**: Toggle plugins on/off
-- **Uninstall**: Remove plugins you don't use
-- **Settings**: Configure plugin-specific options
-- **Updates**: Check for and install plugin updates
-
-### Plugin Marketplace
-
-Discover community-created plugins:
-- Custom validators in your language
-- Theme packs
-- Data export formats
-- Analysis tools
-- Database-specific utilities
-
 ## Advanced Features
 
 ### Connection Pooling
