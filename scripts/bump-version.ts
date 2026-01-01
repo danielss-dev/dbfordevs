@@ -101,6 +101,9 @@ async function bumpVersion() {
     const unreleasedHeader = "## [Unreleased]";
     const newVersionHeader = `## [${newVersion}] - ${today}`;
 
+    // We insert the new version header immediately after the [Unreleased] header.
+    // This moves any content currently under [Unreleased] into the new version section,
+    // which is the standard behavior for releasing those changes as per Keep a Changelog.
     let newChangelog = "";
     if (changelog.includes(unreleasedHeader)) {
       newChangelog = changelog.replace(unreleasedHeader, `${unreleasedHeader}\n\n${newVersionHeader}`);
@@ -139,7 +142,7 @@ async function bumpVersion() {
     }
   }
 
-  console.log("✨ Successfully process completed!");
+  console.log("✨ Version bump process completed successfully!");
   rl.close();
 }
 
