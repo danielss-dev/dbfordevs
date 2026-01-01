@@ -1,10 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table, Code, GitCommit } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { 
-  Button, 
-  Input, 
-  ScrollArea, 
+import {
+  Button,
+  Input,
   Label,
   Tabs,
   TabsList,
@@ -217,178 +216,182 @@ export function SidePanel() {
           </TabsList>
         </div>
 
-        <TabsContent value="fields" className="flex-1 m-0 overflow-hidden">
-          {selectedRowId && rowData ? (
-            <div className="flex flex-col h-full">
-              {/* Table name indicator */}
-              {rowTableName && (
-                <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30">
-                  <Table className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs font-mono text-muted-foreground">{rowTableName}</span>
-                </div>
-              )}
-              
-              {/* Navigation for multiple selection */}
-              {selectedRows.length > 1 && (
-                <div className="flex items-center justify-between border-b border-border px-4 py-2 bg-muted/10">
-                  <div className="flex items-center gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7"
-                      onClick={() => setCurrentRowIndex(prev => Math.max(0, prev - 1))}
-                      disabled={currentRowIndex === 0}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-xs font-medium px-2">{currentRowIndex + 1} of {selectedRows.length}</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7"
-                      onClick={() => setCurrentRowIndex(prev => Math.min(selectedRows.length - 1, prev + 1))}
-                      disabled={currentRowIndex === selectedRows.length - 1}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+        <TabsContent value="fields" className="relative flex-1 m-0 overflow-hidden">
+          <div className="absolute inset-0 flex flex-col">
+            {selectedRowId && rowData ? (
+              <>
+                {/* Table name indicator */}
+                {rowTableName && (
+                  <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30 shrink-0">
+                    <Table className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-mono text-muted-foreground">{rowTableName}</span>
+                  </div>
+                )}
+
+                {/* Navigation for multiple selection */}
+                {selectedRows.length > 1 && (
+                  <div className="flex items-center justify-between border-b border-border px-4 py-2 bg-muted/10 shrink-0">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setCurrentRowIndex(prev => Math.max(0, prev - 1))}
+                        disabled={currentRowIndex === 0}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-xs font-medium px-2">{currentRowIndex + 1} of {selectedRows.length}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setCurrentRowIndex(prev => Math.min(selectedRows.length - 1, prev + 1))}
+                        disabled={currentRowIndex === selectedRows.length - 1}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex-1 overflow-auto">
+                  <div className="p-3 space-y-1">
+                    {fields.map((field) => (
+                      <FieldEditor
+                        key={field.name}
+                        name={field.name}
+                        value={field.value}
+                        type={field.type}
+                        nullable={field.nullable}
+                        onChange={(newValue) => handleFieldChange(field.name, newValue)}
+                      />
+                    ))}
                   </div>
                 </div>
-              )}
-              
-              <ScrollArea className="flex-1">
-                <div className="p-3 space-y-1">
-                  {fields.map((field) => (
-                    <FieldEditor
-                      key={field.name}
-                      name={field.name}
-                      value={field.value}
-                      type={field.type}
-                      nullable={field.nullable}
-                      onChange={(newValue) => handleFieldChange(field.name, newValue)}
-                    />
-                  ))}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
+                <div className="bg-muted p-4 rounded-full mb-4">
+                  <Table className="h-8 w-8 opacity-20" />
                 </div>
-              </ScrollArea>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
-              <div className="bg-muted p-4 rounded-full mb-4">
-                <Table className="h-8 w-8 opacity-20" />
+                <p className="text-sm">
+                  {selectedRowId
+                    ? "Row not found in current table. Select a row from the active table."
+                    : "Select a row in the table to edit its fields"}
+                </p>
               </div>
-              <p className="text-sm">
-                {selectedRowId 
-                  ? "Row not found in current table. Select a row from the active table."
-                  : "Select a row in the table to edit its fields"}
-              </p>
-            </div>
-          )}
+            )}
+          </div>
         </TabsContent>
 
-        <TabsContent value="sql" className="flex-1 m-0 overflow-hidden flex flex-col">
-          {/* View mode toggle */}
-          {pendingChangesList.length > 0 && (
-            <div className="px-4 py-2 border-b border-border bg-muted/20">
-              <div className="flex bg-muted rounded-md p-1 border border-border w-fit">
-                <Button
-                  variant={viewMode === "sql" ? "default" : "ghost"}
-                  size="sm"
-                  className={cn(
-                    "h-7 px-3 text-[11px] gap-1.5 font-medium transition-all",
-                    viewMode === "sql" && "shadow-sm"
-                  )}
-                  onClick={() => setViewMode("sql")}
-                >
-                  <Code className="h-3.5 w-3.5" />
-                  SQL
-                </Button>
-                <Button
-                  variant={viewMode === "diff" ? "default" : "ghost"}
-                  size="sm"
-                  className={cn(
-                    "h-7 px-3 text-[11px] gap-1.5 font-medium transition-all",
-                    viewMode === "diff" && "shadow-sm"
-                  )}
-                  onClick={() => setViewMode("diff")}
-                >
-                  <GitCommit className="h-3.5 w-3.5" />
-                  Diff
-                </Button>
+        <TabsContent value="sql" className="relative flex-1 m-0 overflow-hidden">
+          <div className="absolute inset-0 flex flex-col">
+            {/* View mode toggle */}
+            {pendingChangesList.length > 0 && (
+              <div className="px-4 py-2 border-b border-border bg-muted/20 shrink-0">
+                <div className="flex bg-muted rounded-md p-1 border border-border w-fit">
+                  <Button
+                    variant={viewMode === "sql" ? "default" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "h-7 px-3 text-[11px] gap-1.5 font-medium transition-all",
+                      viewMode === "sql" && "shadow-sm"
+                    )}
+                    onClick={() => setViewMode("sql")}
+                  >
+                    <Code className="h-3.5 w-3.5" />
+                    SQL
+                  </Button>
+                  <Button
+                    variant={viewMode === "diff" ? "default" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "h-7 px-3 text-[11px] gap-1.5 font-medium transition-all",
+                      viewMode === "diff" && "shadow-sm"
+                    )}
+                    onClick={() => setViewMode("diff")}
+                  >
+                    <GitCommit className="h-3.5 w-3.5" />
+                    Diff
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-auto">
+              <div className="p-4">
+                {viewMode === "sql" ? (
+                  <div className="font-mono text-xs space-y-4">
+                    {pendingChangesList.length > 0 ? (
+                      pendingChangesList.map((change, idx) => (
+                        <div key={change.id} className="space-y-2 pb-4 border-b border-border last:border-0">
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">
+                            <span>Change #{idx + 1}: {change.type}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-4 w-4 hover:text-destructive"
+                              onClick={() => removePendingChange(JSON.stringify(change.primaryKey))}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className="bg-muted/50 p-3 rounded border border-border">
+                            <pre className="text-foreground whitespace-pre-wrap break-all">
+                              {change.type === "update" && (
+                                <>
+                                  <span className="text-blue-500">UPDATE</span> {change.tableName} <br />
+                                  <span className="text-blue-500">SET</span> {
+                                    Object.entries(change.newData || {}).map(([key, val], i, arr) => (
+                                      <span key={key}>
+                                        {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
+                                        {i < arr.length - 1 ? ", " : ""}
+                                      </span>
+                                    ))
+                                  } <br />
+                                  <span className="text-blue-500">WHERE</span> {
+                                    Object.entries(change.primaryKey).map(([key, val], i, arr) => (
+                                      <span key={key}>
+                                        {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
+                                        {i < arr.length - 1 ? " AND " : ""}
+                                      </span>
+                                    ))
+                                  };
+                                </>
+                              )}
+                              {change.type === "delete" && (
+                                <>
+                                  <span className="text-destructive">DELETE FROM</span> {change.tableName} <br />
+                                  <span className="text-blue-500">WHERE</span> {
+                                    Object.entries(change.primaryKey).map(([key, val], i, arr) => (
+                                      <span key={key}>
+                                        {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
+                                        {i < arr.length - 1 ? " AND " : ""}
+                                      </span>
+                                    ))
+                                  };
+                                </>
+                              )}
+                            </pre>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-muted-foreground p-8 text-center mt-20">
+                        <div className="bg-muted p-4 rounded-full mb-4">
+                          <Code className="h-8 w-8 opacity-20" />
+                        </div>
+                        <p className="text-sm">No pending changes to display</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <DiffViewer changes={pendingChangesList} onRemoveChange={removePendingChange} />
+                )}
               </div>
             </div>
-          )}
-
-          <ScrollArea className="h-full">
-            <div className="p-4">
-              {viewMode === "sql" ? (
-                <div className="font-mono text-xs space-y-4">
-                  {pendingChangesList.length > 0 ? (
-                    pendingChangesList.map((change, idx) => (
-                      <div key={change.id} className="space-y-2 pb-4 border-b border-border last:border-0">
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">
-                          <span>Change #{idx + 1}: {change.type}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-4 hover:text-destructive"
-                            onClick={() => removePendingChange(JSON.stringify(change.primaryKey))}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="bg-muted/50 p-3 rounded border border-border">
-                          <pre className="text-foreground whitespace-pre-wrap break-all">
-                            {change.type === "update" && (
-                              <>
-                                <span className="text-blue-500">UPDATE</span> {change.tableName} <br />
-                                <span className="text-blue-500">SET</span> {
-                                  Object.entries(change.newData || {}).map(([key, val], i, arr) => (
-                                    <span key={key}>
-                                      {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                      {i < arr.length - 1 ? ", " : ""}
-                                    </span>
-                                  ))
-                                } <br />
-                                <span className="text-blue-500">WHERE</span> {
-                                  Object.entries(change.primaryKey).map(([key, val], i, arr) => (
-                                    <span key={key}>
-                                      {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                      {i < arr.length - 1 ? " AND " : ""}
-                                    </span>
-                                  ))
-                                };
-                              </>
-                            )}
-                            {change.type === "delete" && (
-                              <>
-                                <span className="text-destructive">DELETE FROM</span> {change.tableName} <br />
-                                <span className="text-blue-500">WHERE</span> {
-                                  Object.entries(change.primaryKey).map(([key, val], i, arr) => (
-                                    <span key={key}>
-                                      {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                      {i < arr.length - 1 ? " AND " : ""}
-                                    </span>
-                                  ))
-                                };
-                              </>
-                            )}
-                          </pre>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center mt-20">
-                      <div className="bg-muted p-4 rounded-full mb-4">
-                        <Code className="h-8 w-8 opacity-20" />
-                      </div>
-                      <p className="text-sm">No pending changes to display</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <DiffViewer changes={pendingChangesList} onRemoveChange={removePendingChange} />
-              )}
-            </div>
-          </ScrollArea>
+          </div>
         </TabsContent>
       </Tabs>
 

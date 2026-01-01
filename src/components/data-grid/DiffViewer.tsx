@@ -98,14 +98,14 @@ function DiffItem({ change, idx, onRemove }: { change: PendingChange; idx: numbe
             diffFields.map((field, fieldIdx) => (
               <div
                 key={`${field.name}-${fieldIdx}`}
-                className={`flex gap-2 px-2 py-0.5 rounded ${
+                className={`flex gap-2 px-2 py-1 rounded ${
                   field.status === "added" ? "bg-success/10" :
                   field.status === "removed" ? "bg-destructive/10" :
                   "bg-transparent"
                 }`}
               >
                 <span className={`
-                  w-6 flex items-center justify-center font-bold shrink-0
+                  w-6 flex items-start justify-center font-bold shrink-0 pt-0.5
                   ${field.status === "added" ? "text-success" :
                     field.status === "removed" ? "text-destructive" :
                     "text-muted-foreground/40"}
@@ -115,11 +115,11 @@ function DiffItem({ change, idx, onRemove }: { change: PendingChange; idx: numbe
                    field.status === "changed" ? "~" :
                    " "}
                 </span>
-                <span className="shrink-0 text-muted-foreground/60 min-w-0 truncate">
+                <span className="shrink-0 text-muted-foreground/60">
                   {field.name}:
                 </span>
                 <span className={`
-                  truncate flex-1
+                  flex-1 break-all
                   ${field.status === "added" ? "text-success font-medium" :
                     field.status === "removed" ? "text-destructive line-through" :
                     field.status === "changed" ? "text-amber-500" :
