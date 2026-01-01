@@ -58,7 +58,6 @@ impl Handler for SshHandler {
 
 /// Represents an active SSH tunnel
 pub struct SshTunnel {
-    pub local_port: u16,
     shutdown_tx: Option<oneshot::Sender<()>>,
 }
 
@@ -123,7 +122,6 @@ impl SshTunnelManager {
         self.tunnels.insert(
             connection_id.to_string(),
             SshTunnel {
-                local_port,
                 shutdown_tx: Some(shutdown_tx),
             },
         );
