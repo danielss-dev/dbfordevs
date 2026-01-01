@@ -2,6 +2,8 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.3] - 2026-01-01
+
 ## [0.2.1] - 2025-12-26
 
 ### Added
