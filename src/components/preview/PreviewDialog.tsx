@@ -9,7 +9,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePreviewStore } from "@/stores/preview";
 import { DdlPreviewView } from "./DdlPreviewView";
 import { DmlPreviewView } from "./DmlPreviewView";
@@ -41,16 +40,16 @@ export function PreviewDialog({ onApply }: PreviewDialogProps) {
 
   return (
     <Dialog open={isPreviewOpen} onOpenChange={(open) => !open && closePreview()}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Preview Changes</DialogTitle>
           <DialogDescription>
             Review the changes before applying them to your database.
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
-          <div className="py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="py-4 pr-4">
             {isPreviewLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -89,9 +88,9 @@ export function PreviewDialog({ onApply }: PreviewDialogProps) {
               </div>
             ) : null}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="flex-shrink-0 gap-2 sm:gap-0">
           <Button variant="outline" onClick={closePreview}>
             <X className="h-4 w-4 mr-2" />
             Cancel

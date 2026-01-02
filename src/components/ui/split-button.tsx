@@ -33,7 +33,6 @@ const SplitButton = React.forwardRef<HTMLDivElement, SplitButtonProps>(
       className,
       variant,
       size,
-      ...props
     },
     ref
   ) => {
@@ -46,7 +45,6 @@ const SplitButton = React.forwardRef<HTMLDivElement, SplitButtonProps>(
           disabled={disabled}
           onClick={onPrimaryClick}
           className="rounded-r-none border-r-0"
-          {...props}
         >
           {children}
         </Button>
