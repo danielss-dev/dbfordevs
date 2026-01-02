@@ -2,8 +2,8 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     ColumnInfo, ConnectionConfig, ConstraintInfo, ExtendedColumnInfo, ForeignKeyInfo,
-    IndexInfo, QueryResult, TableInfo, TableProperties, TableRelationship, TableSchema,
-    TestConnectionResult,
+    IndexInfo, PreviewResult, QueryResult, StatementPreview, StatementType, TableInfo,
+    TableProperties, TableRelationship, TableSchema, TestConnectionResult,
 };
 use async_trait::async_trait;
 use deadpool::managed::{Manager, Pool, RecycleResult};
@@ -242,6 +242,140 @@ impl MssqlDriver {
         }
 
         statements
+    }
+
+    /// Detect the type of SQL statement
+    fn detect_statement_type(sql: &str) -> StatementType {
+        let mut clean_sql = sql.trim().to_uppercase();
+
+        // Skip comments
+        while clean_sql.starts_with("--") || clean_sql.starts_with("/*") {
+            if clean_sql.starts_with("--") {
+                if let Some(newline_pos) = clean_sql.find('\n') {
+                    clean_sql = clean_sql[newline_pos..].trim().to_string();
+                } else {
+                    return StatementType::Other;
+                }
+            } else if clean_sql.starts_with("/*") {
+                if let Some(end_pos) = clean_sql.find("*/") {
+                    clean_sql = clean_sql[end_pos + 2..].trim().to_string();
+                } else {
+                    return StatementType::Other;
+                }
+            }
+        }
+
+        if clean_sql.starts_with("CREATE") || clean_sql.starts_with("ALTER") || clean_sql.starts_with("DROP") {
+            StatementType::Ddl
+        } else if clean_sql.starts_with("INSERT") || clean_sql.starts_with("UPDATE") || clean_sql.starts_with("DELETE") {
+            StatementType::Dml
+        } else if clean_sql.starts_with("SELECT") || clean_sql.starts_with("WITH") {
+            StatementType::Select
+        } else {
+            StatementType::Other
+        }
+    }
+
+    /// Extract table name from SQL statement
+    fn extract_table_name(sql: &str) -> Option<String> {
+        let sql_upper = sql.trim().to_uppercase();
+        let sql_trimmed = sql.trim();
+
+        // Handle CREATE TABLE
+        if sql_upper.starts_with("CREATE TABLE") {
+            let rest = &sql_trimmed[12..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle ALTER TABLE
+        if sql_upper.starts_with("ALTER TABLE") {
+            let rest = &sql_trimmed[11..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle DROP TABLE
+        if sql_upper.starts_with("DROP TABLE") {
+            let rest = &sql_trimmed[10..].trim_start();
+            let rest = if rest.to_uppercase().starts_with("IF EXISTS") {
+                &rest[9..].trim_start()
+            } else {
+                rest
+            };
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle INSERT INTO
+        if sql_upper.starts_with("INSERT INTO") {
+            let rest = &sql_trimmed[11..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle UPDATE
+        if sql_upper.starts_with("UPDATE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle DELETE FROM
+        if sql_upper.starts_with("DELETE FROM") {
+            let rest = &sql_trimmed[11..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        None
+    }
+
+    /// Extract identifier (table name) from the start of a string
+    fn extract_identifier(s: &str) -> Option<String> {
+        let s = s.trim();
+        if s.is_empty() {
+            return None;
+        }
+
+        // Handle bracket quoted identifier (MSSQL style)
+        if s.starts_with('[') {
+            let rest = &s[1..];
+            if let Some(end) = rest.find(']') {
+                let identifier = &rest[..end];
+
+                // Check for schema.table
+                let after = &rest[end + 1..];
+                if after.starts_with('.') {
+                    if let Some(table) = Self::extract_identifier(&after[1..]) {
+                        return Some(format!("{}.{}", identifier, table));
+                    }
+                }
+                return Some(identifier.to_string());
+            }
+            return None;
+        }
+
+        // Handle unquoted identifier
+        let mut end = 0;
+        let chars: Vec<char> = s.chars().collect();
+        while end < chars.len() {
+            let c = chars[end];
+            if c.is_alphanumeric() || c == '_' || c == '#' || c == '@' {
+                end += 1;
+            } else {
+                break;
+            }
+        }
+
+        if end == 0 {
+            return None;
+        }
+
+        let identifier: String = chars[..end].iter().collect();
+
+        // Check for schema.table
+        if end < chars.len() && chars[end] == '.' {
+            if let Some(table) = Self::extract_identifier(&s[end + 1..]) {
+                return Some(format!("{}.{}", identifier, table));
+            }
+        }
+
+        Some(identifier)
     }
 
     /// Execute a single SQL statement
@@ -988,6 +1122,97 @@ impl DatabaseDriver for MssqlDriver {
         }
 
         Ok(relationships)
+    }
+
+    async fn preview_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<PreviewResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+        let statements = Self::split_sql_statements(sql);
+
+        if statements.is_empty() {
+            return Ok(PreviewResult {
+                statements: vec![],
+                execution_time_ms: 0,
+                success: true,
+                error: None,
+            });
+        }
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Begin transaction
+        let begin_query = Query::new("BEGIN TRANSACTION");
+        begin_query.execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to start preview transaction: {}", e)))?;
+
+        let mut previews: Vec<StatementPreview> = Vec::new();
+
+        for stmt in &statements {
+            let stmt_type = Self::detect_statement_type(stmt);
+            let table_name = Self::extract_table_name(stmt);
+
+            match stmt_type {
+                StatementType::Ddl | StatementType::Dml | StatementType::Other => {
+                    let query = Query::new(stmt);
+                    match query.execute(&mut *client).await {
+                        Ok(result) => {
+                            let row_count = result.total();
+
+                            previews.push(StatementPreview {
+                                statement_type: stmt_type,
+                                sql: stmt.clone(),
+                                schema_before: None,
+                                schema_after: None,
+                                affected_rows: None,
+                                affected_columns: None,
+                                row_count: row_count as u64,
+                                table_name,
+                            });
+                        }
+                        Err(e) => {
+                            // Rollback on error
+                            let rollback_query = Query::new("ROLLBACK TRANSACTION");
+                            let _ = rollback_query.execute(&mut *client).await;
+                            return Ok(PreviewResult {
+                                statements: previews,
+                                execution_time_ms: start.elapsed().as_millis() as u64,
+                                success: false,
+                                error: Some(format!("Statement execution failed: {}", e)),
+                            });
+                        }
+                    }
+                }
+                StatementType::Select => {
+                    previews.push(StatementPreview {
+                        statement_type: StatementType::Select,
+                        sql: stmt.clone(),
+                        schema_before: None,
+                        schema_after: None,
+                        affected_rows: None,
+                        affected_columns: None,
+                        row_count: 0,
+                        table_name,
+                    });
+                }
+            }
+        }
+
+        // Always rollback - this is just a preview
+        let rollback_query = Query::new("ROLLBACK TRANSACTION");
+        rollback_query.execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to rollback preview transaction: {}", e)))?;
+
+        Ok(PreviewResult {
+            statements: previews,
+            execution_time_ms: start.elapsed().as_millis() as u64,
+            success: true,
+            error: None,
+        })
     }
 }
 

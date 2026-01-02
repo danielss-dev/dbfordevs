@@ -220,3 +220,29 @@ export interface PendingChange {
   primaryKey: Record<string, unknown>;
 }
 
+// Preview query types
+export type StatementType = "ddl" | "dml" | "select" | "other";
+
+export interface StatementPreview {
+  statementType: StatementType;
+  sql: string;
+  schemaBefore?: string;
+  schemaAfter?: string;
+  affectedRows?: unknown[][];
+  affectedColumns?: ColumnInfo[];
+  rowCount: number;
+  tableName?: string;
+}
+
+export interface PreviewResult {
+  statements: StatementPreview[];
+  executionTimeMs: number;
+  success: boolean;
+  error?: string;
+}
+
+export interface PreviewRequest {
+  connectionId: string;
+  sql: string;
+}
+

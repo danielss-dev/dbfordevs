@@ -1,6 +1,6 @@
 use crate::db::{get_connection_manager, get_driver};
 use crate::error::{AppError, AppResult};
-use crate::models::{QueryRequest, QueryResult, TableInfo, TableSchema};
+use crate::models::{PreviewRequest, PreviewResult, QueryRequest, QueryResult, TableInfo, TableSchema};
 use crate::storage;
 
 /// Execute a SQL query against a connected database
@@ -32,6 +32,26 @@ pub async fn execute_query(request: QueryRequest) -> Result<QueryResult, AppErro
     }
     
     driver.execute_query(pool_ref, &sql).await
+}
+
+/// Preview a SQL query - executes in transaction, collects changes, then rolls back
+#[tauri::command]
+pub async fn preview_query(request: PreviewRequest) -> Result<PreviewResult, AppError> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&request.connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    // Get config to determine driver type
+    let config = storage::get_connection(&request.connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    let driver = get_driver(&config);
+    let pool_ref = manager.get_pool_ref(&request.connection_id)?;
+
+    driver.preview_query(pool_ref, &request.sql).await
 }
 
 /// Get list of tables in the connected database
