@@ -9,6 +9,8 @@ import {
   History,
   Plus,
   Coins,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import {
   Button,
@@ -50,6 +52,8 @@ export function AIPanel() {
     toggleHistoryPanel,
     getActiveSession,
     createNewChatSession,
+    panelExpanded,
+    togglePanelExpanded,
   } = useAIStore();
 
   const activeSession = getActiveSession();
@@ -101,8 +105,9 @@ export function AIPanel() {
       <div
         className={cn(
           "fixed right-0 top-0 bottom-0 z-50 flex flex-col",
-          "w-[420px] border-l border-border bg-background shadow-2xl",
-          "animate-in slide-in-from-right duration-300"
+          "border-l border-border bg-background shadow-2xl",
+          "animate-in slide-in-from-right duration-300 transition-all",
+          panelExpanded ? "w-[720px] max-w-[50vw]" : "w-[420px]"
         )}
       >
         {/* Header */}
@@ -146,6 +151,19 @@ export function AIPanel() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={togglePanelExpanded}
+              title={panelExpanded ? "Collapse Panel" : "Expand Panel"}
+            >
+              {panelExpanded ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="icon"

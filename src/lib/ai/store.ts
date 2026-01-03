@@ -126,6 +126,7 @@ interface AIState {
 
   // AI Panel state
   panelOpen: boolean;
+  panelExpanded: boolean;
   isLoading: boolean;
   isStreaming: boolean;
   streamingMessageId: string | null;
@@ -160,6 +161,7 @@ interface AIState {
   // Actions
   setPanelOpen: (open: boolean) => void;
   togglePanel: () => void;
+  togglePanelExpanded: () => void;
   sendMessage: (message: string, useStreaming?: boolean) => Promise<void>;
   setContext: (context: Partial<AIState["context"]>) => void;
   updateSettings: (settings: Partial<AISettings>) => Promise<void>;
@@ -202,6 +204,7 @@ export const useAIStore = create<AIState>()(
       availableModels: null,
       modelsLoading: false,
       panelOpen: false,
+      panelExpanded: false,
       isLoading: false,
       isStreaming: false,
       streamingMessageId: null,
@@ -227,6 +230,8 @@ export const useAIStore = create<AIState>()(
       setPanelOpen: (open: boolean) => set({ panelOpen: open }),
 
       togglePanel: () => set((state) => ({ panelOpen: !state.panelOpen })),
+
+      togglePanelExpanded: () => set((state) => ({ panelExpanded: !state.panelExpanded })),
 
       // Chat actions
       sendMessage: async (message: string, useStreaming: boolean = true) => {
@@ -688,6 +693,7 @@ export const useAIStore = create<AIState>()(
         historySettings: state.historySettings,
         storageMetadata: state.storageMetadata,
         activeChatSessionId: state.activeChatSessionId,
+        panelExpanded: state.panelExpanded,
         // Limit stored sessions and messages per session
         chatSessions: state.chatSessions.slice(0, 100).map(session => ({
           ...session,
