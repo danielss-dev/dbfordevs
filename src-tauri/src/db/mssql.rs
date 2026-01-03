@@ -1165,6 +1165,7 @@ impl DatabaseDriver for MssqlDriver {
                 execution_time_ms: 0,
                 success: true,
                 error: None,
+                warning: None,
             });
         }
 
@@ -1209,6 +1210,7 @@ impl DatabaseDriver for MssqlDriver {
                                 execution_time_ms: start.elapsed().as_millis() as u64,
                                 success: false,
                                 error: Some(format!("Statement execution failed: {}", e)),
+                                warning: None,
                             });
                         }
                     }
@@ -1238,6 +1240,7 @@ impl DatabaseDriver for MssqlDriver {
             execution_time_ms: start.elapsed().as_millis() as u64,
             success: true,
             error: None,
+            warning: None,
         })
     }
 }

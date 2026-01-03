@@ -126,11 +126,13 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
         setPreviewResult(result);
       } else {
         // If previewQuery returned null, there was an error
+        // Ensure we capture the most recent error from the store
+        const storeError = useQueryStore.getState().error;
         setPreviewResult({
           statements: [],
           executionTimeMs: 0,
           success: false,
-          error: useQueryStore.getState().error ?? "Failed to preview query",
+          error: storeError || "Failed to preview query",
         });
       }
     } catch (error) {

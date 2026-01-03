@@ -149,6 +149,8 @@ pub struct PreviewResult {
     pub success: bool,
     /// Error message if preview failed
     pub error: Option<String>,
+    /// Warning message if preview was successful but has limitations
+    pub warning: Option<String>,
 }
 
 /// Request for preview query

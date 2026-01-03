@@ -1171,6 +1171,7 @@ impl DatabaseDriver for MySqlDriver {
                 execution_time_ms: 0,
                 success: true,
                 error: None,
+                warning: None,
             });
         }
 
@@ -1193,8 +1194,9 @@ impl DatabaseDriver for MySqlDriver {
                     return Ok(PreviewResult {
                         statements: previews,
                         execution_time_ms: start.elapsed().as_millis() as u64,
-                        success: false,
-                        error: Some("MySQL does not support transactional DDL. Previewing CREATE, ALTER, DROP, RENAME, or TRUNCATE statements would permanently apply them to the database. Preview cancelled for safety.".to_string()),
+                        success: true,
+                        error: None,
+                        warning: Some("MySQL does not support transactional DDL. Previewing CREATE, ALTER, DROP, RENAME, or TRUNCATE statements would permanently apply them to the database. Preview cancelled for safety.".to_string()),
                     });
                 }
                 StatementType::Dml => {
@@ -1222,6 +1224,7 @@ impl DatabaseDriver for MySqlDriver {
                                 execution_time_ms: start.elapsed().as_millis() as u64,
                                 success: false,
                                 error: Some(format!("DML execution failed: {}", e)),
+                                warning: None,
                             });
                         }
                     }
@@ -1259,6 +1262,7 @@ impl DatabaseDriver for MySqlDriver {
                                 execution_time_ms: start.elapsed().as_millis() as u64,
                                 success: false,
                                 error: Some(format!("Statement execution failed: {}", e)),
+                                warning: None,
                             });
                         }
                     }
@@ -1275,6 +1279,7 @@ impl DatabaseDriver for MySqlDriver {
             execution_time_ms: start.elapsed().as_millis() as u64,
             success: true,
             error: None,
+            warning: None,
         })
     }
 }

@@ -64,7 +64,15 @@ export function PreviewDialog({ onApply }: PreviewDialogProps) {
               </div>
             ) : previewResult ? (
               <div className="space-y-6">
-                {previewResult.success && previewResult.statements.length === 0 && (
+                {previewResult.warning && (
+                  <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                    <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                    <span className="text-sm text-amber-600 dark:text-amber-400">
+                      {previewResult.warning}
+                    </span>
+                  </div>
+                )}
+                {previewResult.success && previewResult.statements.length === 0 && !previewResult.warning && (
                   <div className="text-center py-8 text-muted-foreground">
                     No changes to preview.
                   </div>

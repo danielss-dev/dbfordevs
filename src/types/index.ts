@@ -239,6 +239,7 @@ export interface PreviewResult {
   executionTimeMs: number;
   success: boolean;
   error?: string;
+  warning?: string;
 }
 
 export interface PreviewRequest {

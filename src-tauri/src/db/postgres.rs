@@ -443,8 +443,8 @@ impl PostgresDriver {
                         }
                     }
                     // This is the closing quote
-                    end_byte = pos + 1;
                     found_closing = true;
+                    end_byte = pos + c.len_utf8();
                     break;
                 }
                 identifier.push(c);
@@ -1870,6 +1870,7 @@ impl DatabaseDriver for PostgresDriver {
                 execution_time_ms: 0,
                 success: true,
                 error: None,
+                warning: None,
             });
         }
 
@@ -1925,6 +1926,7 @@ impl DatabaseDriver for PostgresDriver {
                                 execution_time_ms: start.elapsed().as_millis() as u64,
                                 success: false,
                                 error: Some(format!("DDL execution failed: {}", e)),
+                                warning: None,
                             });
                         }
                     }
@@ -1942,6 +1944,7 @@ impl DatabaseDriver for PostgresDriver {
                                 execution_time_ms: start.elapsed().as_millis() as u64,
                                 success: false,
                                 error: Some(format!("DML preview failed: {}", e)),
+                                warning: None,
                             });
                         }
                     }
@@ -1981,6 +1984,7 @@ impl DatabaseDriver for PostgresDriver {
                                 execution_time_ms: start.elapsed().as_millis() as u64,
                                 success: false,
                                 error: Some(format!("Statement execution failed: {}", e)),
+                                warning: None,
                             });
                         }
                     }
@@ -1997,6 +2001,7 @@ impl DatabaseDriver for PostgresDriver {
             execution_time_ms: start.elapsed().as_millis() as u64,
             success: true,
             error: None,
+            warning: None,
         })
     }
 }
