@@ -179,6 +179,7 @@ interface AIState {
   updateChatSessionTitle: (sessionId: string, title: string) => void;
   toggleSessionFavorite: (sessionId: string) => void;
   updateHistorySettings: (settings: Partial<AIChatHistorySettings>) => void;
+  setHistoryPanelOpen: (open: boolean) => void;
   toggleHistoryPanel: () => void;
 
   // Table reference actions
@@ -628,6 +629,8 @@ export const useAIStore = create<AIState>()(
           historySettings: { ...state.historySettings, ...newSettings },
         }));
       },
+
+      setHistoryPanelOpen: (open: boolean) => set({ historyPanelOpen: open }),
 
       toggleHistoryPanel: () =>
         set((state) => ({ historyPanelOpen: !state.historyPanelOpen })),

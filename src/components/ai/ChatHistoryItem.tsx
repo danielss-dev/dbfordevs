@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { Edit2, Trash2, Star } from "lucide-react";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui";
 import { useAIStore } from "@/lib/ai/store";
 import type { AIChatSession } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
@@ -87,7 +87,16 @@ export function ChatHistoryItem({ session, isActive, onSelect }: ChatHistoryItem
             {session.isFavorite && (
               <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
             )}
-            <span className="text-sm truncate flex-1">{session.title}</span>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-sm truncate flex-1">{session.title}</span>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p className="text-xs">{session.title}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {/* Hover actions */}
