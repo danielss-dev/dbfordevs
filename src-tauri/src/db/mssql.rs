@@ -334,43 +334,58 @@ impl MssqlDriver {
 
         // Handle bracket quoted identifier (MSSQL style)
         if s.starts_with('[') {
-            let rest = &s[1..];
-            if let Some(end) = rest.find(']') {
-                let identifier = &rest[..end];
+            let mut identifier = String::new();
+            let mut end_byte = 1;
+            let mut chars = s.char_indices().skip(1).peekable();
+            let mut found_closing = false;
 
-                // Check for schema.table
-                let after = &rest[end + 1..];
+            while let Some((pos, c)) = chars.next() {
+                if c == ']' {
+                    if let Some((_, next_c)) = chars.peek() {
+                        if *next_c == ']' {
+                            identifier.push(']');
+                            chars.next(); // consume second bracket
+                            continue;
+                        }
+                    }
+                    // This is the closing bracket
+                    end_byte = pos + 1;
+                    found_closing = true;
+                    break;
+                }
+                identifier.push(c);
+            }
+
+            if found_closing {
+                let after = &s[end_byte..];
                 if after.starts_with('.') {
                     if let Some(table) = Self::extract_identifier(&after[1..]) {
                         return Some(format!("{}.{}", identifier, table));
                     }
                 }
-                return Some(identifier.to_string());
             }
-            return None;
+            
+            return if identifier.is_empty() && !found_closing { None } else { Some(identifier) };
         }
 
         // Handle unquoted identifier
-        let mut end = 0;
-        let chars: Vec<char> = s.chars().collect();
-        while end < chars.len() {
-            let c = chars[end];
+        let mut end_byte = 0;
+        for (pos, c) in s.char_indices() {
             if c.is_alphanumeric() || c == '_' || c == '#' || c == '@' {
-                end += 1;
+                end_byte = pos + c.len_utf8();
             } else {
                 break;
             }
         }
 
-        if end == 0 {
+        if end_byte == 0 {
             return None;
         }
 
-        let identifier: String = chars[..end].iter().collect();
-
-        // Check for schema.table
-        if end < chars.len() && chars[end] == '.' {
-            if let Some(table) = Self::extract_identifier(&s[end + 1..]) {
+        let identifier = s[..end_byte].to_string();
+        let after = &s[end_byte..];
+        if after.starts_with('.') {
+            if let Some(table) = Self::extract_identifier(&after[1..]) {
                 return Some(format!("{}.{}", identifier, table));
             }
         }

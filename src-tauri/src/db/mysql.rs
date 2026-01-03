@@ -134,11 +134,25 @@ impl MySqlDriver {
             }
         }
 
-        if clean_sql.starts_with("CREATE") || clean_sql.starts_with("ALTER") || clean_sql.starts_with("DROP") {
+        if clean_sql.starts_with("CREATE") 
+            || clean_sql.starts_with("ALTER") 
+            || clean_sql.starts_with("DROP") 
+            || clean_sql.starts_with("TRUNCATE")
+            || clean_sql.starts_with("RENAME")
+        {
             StatementType::Ddl
-        } else if clean_sql.starts_with("INSERT") || clean_sql.starts_with("UPDATE") || clean_sql.starts_with("DELETE") {
+        } else if clean_sql.starts_with("INSERT") 
+            || clean_sql.starts_with("UPDATE") 
+            || clean_sql.starts_with("DELETE")
+            || clean_sql.starts_with("REPLACE")
+        {
             StatementType::Dml
-        } else if clean_sql.starts_with("SELECT") || clean_sql.starts_with("WITH") || clean_sql.starts_with("SHOW") || clean_sql.starts_with("DESCRIBE") {
+        } else if clean_sql.starts_with("SELECT") 
+            || clean_sql.starts_with("WITH") 
+            || clean_sql.starts_with("SHOW") 
+            || clean_sql.starts_with("DESCRIBE") 
+            || clean_sql.starts_with("EXPLAIN")
+        {
             StatementType::Select
         } else {
             StatementType::Other
@@ -216,73 +230,63 @@ impl MySqlDriver {
 
         // Handle backtick quoted identifier (MySQL style)
         if s.starts_with('`') {
-            let rest = &s[1..];
-            if let Some(end) = rest.find('`') {
-                let identifier = &rest[..end];
+            let mut identifier = String::new();
+            let mut end_byte = 1;
+            let mut chars = s.char_indices().skip(1).peekable();
+            let mut found_closing = false;
 
-                // Check for schema.table
-                let after = &rest[end + 1..];
+            while let Some((pos, c)) = chars.next() {
+                if c == '`' {
+                    if let Some((_, next_c)) = chars.peek() {
+                        if *next_c == '`' {
+                            identifier.push('`');
+                            chars.next(); // consume second backtick
+                            continue;
+                        }
+                    }
+                    // This is the closing backtick
+                    end_byte = pos + 1;
+                    found_closing = true;
+                    break;
+                }
+                identifier.push(c);
+            }
+
+            if found_closing {
+                let after = &s[end_byte..];
                 if after.starts_with('.') {
                     if let Some(table) = Self::extract_identifier(&after[1..]) {
                         return Some(format!("{}.{}", identifier, table));
                     }
                 }
-                return Some(identifier.to_string());
             }
-            return None;
+            
+            return if identifier.is_empty() && !found_closing { None } else { Some(identifier) };
         }
 
         // Handle unquoted identifier
-        let mut end = 0;
-        let chars: Vec<char> = s.chars().collect();
-        while end < chars.len() {
-            let c = chars[end];
+        let mut end_byte = 0;
+        for (pos, c) in s.char_indices() {
             if c.is_alphanumeric() || c == '_' {
-                end += 1;
+                end_byte = pos + c.len_utf8();
             } else {
                 break;
             }
         }
 
-        if end == 0 {
+        if end_byte == 0 {
             return None;
         }
 
-        let identifier: String = chars[..end].iter().collect();
-
-        // Check for schema.table
-        if end < chars.len() && chars[end] == '.' {
-            if let Some(table) = Self::extract_identifier(&s[end + 1..]) {
+        let identifier = s[..end_byte].to_string();
+        let after = &s[end_byte..];
+        if after.starts_with('.') {
+            if let Some(table) = Self::extract_identifier(&after[1..]) {
                 return Some(format!("{}.{}", identifier, table));
             }
         }
 
         Some(identifier)
-    }
-
-    /// Get CREATE TABLE statement within a transaction
-    async fn get_create_table_in_tx(
-        tx: &mut sqlx::Transaction<'_, sqlx::MySql>,
-        table_name: &str,
-    ) -> AppResult<String> {
-        let query = format!("SHOW CREATE TABLE {}", table_name);
-
-        let row = sqlx::query(&query)
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(|e| AppError::QueryError(format!("Failed to get CREATE TABLE: {}", e)))?;
-
-        if let Some(row) = row {
-            // SHOW CREATE TABLE returns 2 columns: Table, Create Table
-            if let Ok(ddl) = row.try_get::<String, _>(1) {
-                return Ok(ddl);
-            }
-            if let Ok(ddl) = row.try_get::<Vec<u8>, _>(1) {
-                return Ok(String::from_utf8_lossy(&ddl).to_string());
-            }
-        }
-
-        Err(AppError::QueryError(format!("Table {} does not exist", table_name)))
     }
 
     /// Execute a single SQL statement
@@ -1170,43 +1174,16 @@ impl DatabaseDriver for MySqlDriver {
 
             match stmt_type {
                 StatementType::Ddl => {
-                    // For DDL, capture SHOW CREATE TABLE before and after
-                    let schema_before = if let Some(ref name) = table_name {
-                        Self::get_create_table_in_tx(&mut tx, name).await.ok()
-                    } else {
-                        None
-                    };
-
-                    // Execute DDL
-                    match sqlx::query(stmt).execute(&mut *tx).await {
-                        Ok(_) => {
-                            let schema_after = if let Some(ref name) = table_name {
-                                Self::get_create_table_in_tx(&mut tx, name).await.ok()
-                            } else {
-                                None
-                            };
-
-                            previews.push(StatementPreview {
-                                statement_type: StatementType::Ddl,
-                                sql: stmt.clone(),
-                                schema_before,
-                                schema_after,
-                                affected_rows: None,
-                                affected_columns: None,
-                                row_count: 0,
-                                table_name,
-                            });
-                        }
-                        Err(e) => {
-                            let _ = tx.rollback().await;
-                            return Ok(PreviewResult {
-                                statements: previews,
-                                execution_time_ms: start.elapsed().as_millis() as u64,
-                                success: false,
-                                error: Some(format!("DDL execution failed: {}", e)),
-                            });
-                        }
-                    }
+                    // MySQL DDL statements (CREATE, ALTER, DROP, RENAME, TRUNCATE) cause an implicit 
+                    // commit in MySQL, which means they cannot be rolled back.
+                    // To prevent permanent changes during a preview, we must refuse to execute them.
+                    let _ = tx.rollback().await;
+                    return Ok(PreviewResult {
+                        statements: previews,
+                        execution_time_ms: start.elapsed().as_millis() as u64,
+                        success: false,
+                        error: Some("MySQL does not support transactional DDL. Previewing CREATE, ALTER, DROP, RENAME, or TRUNCATE statements would permanently apply them to the database. Preview cancelled for safety.".to_string()),
+                    });
                 }
                 StatementType::Dml => {
                     // For DML, execute and count affected rows

@@ -413,56 +413,58 @@ impl PostgresDriver {
 
         // Handle quoted identifier
         if s.starts_with('"') {
-            // Find matching end quote (handle escaped quotes)
-            let rest = &s[1..];
-            let mut end = 0;
-            let chars: Vec<char> = rest.chars().collect();
-            while end < chars.len() {
-                if chars[end] == '"' {
-                    if end + 1 < chars.len() && chars[end + 1] == '"' {
-                        end += 2; // Skip escaped quote
-                    } else {
-                        break;
-                    }
-                } else {
-                    end += 1;
-                }
-            }
-            let identifier: String = chars[..end].iter().collect();
+            let mut identifier = String::new();
+            let mut end_byte = 1;
+            let mut chars = s.char_indices().skip(1).peekable();
+            let mut found_closing = false;
 
-            // Check for schema.table
-            let after = if end + 2 < s.len() { &s[end + 2..] } else { "" };
-            if after.starts_with('.') {
-                let table_part = Self::extract_identifier(&after[1..]);
-                if let Some(table) = table_part {
-                    return Some(format!("{}.{}", identifier, table));
+            while let Some((pos, c)) = chars.next() {
+                if c == '"' {
+                    if let Some((_, next_c)) = chars.peek() {
+                        if *next_c == '"' {
+                            identifier.push('"');
+                            chars.next(); // consume second quote
+                            continue;
+                        }
+                    }
+                    // This is the closing quote
+                    end_byte = pos + 1;
+                    found_closing = true;
+                    break;
+                }
+                identifier.push(c);
+            }
+
+            if found_closing {
+                let after = &s[end_byte..];
+                if after.starts_with('.') {
+                    if let Some(table) = Self::extract_identifier(&after[1..]) {
+                        return Some(format!("{}.{}", identifier, table));
+                    }
                 }
             }
-            return Some(identifier);
+            
+            return if identifier.is_empty() && !found_closing { None } else { Some(identifier) };
         }
 
         // Handle unquoted identifier
-        let mut end = 0;
-        let chars: Vec<char> = s.chars().collect();
-        while end < chars.len() {
-            let c = chars[end];
+        let mut end_byte = 0;
+        for (pos, c) in s.char_indices() {
             if c.is_alphanumeric() || c == '_' {
-                end += 1;
+                end_byte = pos + c.len_utf8();
             } else {
                 break;
             }
         }
 
-        if end == 0 {
+        if end_byte == 0 {
             return None;
         }
 
-        let identifier: String = chars[..end].iter().collect();
-
-        // Check for schema.table
-        if end < chars.len() && chars[end] == '.' {
-            let table_part = Self::extract_identifier(&s[end + 1..]);
-            if let Some(table) = table_part {
+        let identifier = s[..end_byte].to_string();
+        let after = &s[end_byte..];
+        if after.starts_with('.') {
+            if let Some(table) = Self::extract_identifier(&after[1..]) {
                 return Some(format!("{}.{}", identifier, table));
             }
         }
