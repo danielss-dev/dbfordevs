@@ -122,7 +122,7 @@ async function bumpVersion() {
     const newVersionHeader = `## [${newVersion}] - ${today}`;
 
     // 3.1 Get git commits since last version
-    let commitLogs = "";
+    let changelogEntry = "";
     try {
       // Priority 1: Use the tag corresponding to the current version
       // Priority 2: Use the latest tag found by git describe
@@ -146,31 +146,78 @@ async function bumpVersion() {
         }
       }
       
+      let commitLines: string[] = [];
       if (lastReference) {
         console.log(`Fetching commits since ${lastReference}...`);
-        commitLogs = runCommand(`git log ${lastReference}..HEAD --oneline --pretty=format:"- %s"`);
+        const logs = runCommand(`git log ${lastReference}..HEAD --oneline --pretty=format:"%s"`);
+        commitLines = logs ? logs.split("\n") : [];
       } else {
         console.log("No previous tag found. Fetching last 10 commits...");
-        commitLogs = runCommand(`git log -n 10 --oneline --pretty=format:"- %s"`);
+        const logs = runCommand(`git log -n 10 --oneline --pretty=format:"%s"`);
+        commitLines = logs ? logs.split("\n") : [];
       }
       
-      if (commitLogs) {
-        // Filter out version bump commits to avoid noise
-        commitLogs = commitLogs
-          .split("\n")
-          .filter(line => {
-            const l = line.toLowerCase();
-            return !l.includes("bump version") && !l.includes("chore: release");
-          })
-          .join("\n");
+      if (commitLines.length > 0) {
+        // Categories mapping: prefix -> Standard Header
+        const categoryMap: Record<string, string> = {
+          feat: "Added",
+          new: "Added",
+          fix: "Fixed",
+          bugfix: "Fixed",
+          perf: "Changed",
+          refactor: "Changed",
+          style: "Changed",
+          docs: "Other",
+          chore: "Other",
+          test: "Other",
+          ci: "Other",
+          build: "Other"
+        };
+
+        const groupedCommits: Record<string, string[]> = {
+          Added: [],
+          Changed: [],
+          Fixed: [],
+          Other: []
+        };
+
+        commitLines.forEach(line => {
+          const lowerLine = line.toLowerCase();
+          // Filter out version bump commits
+          if (lowerLine.includes("bump version") || lowerLine.includes("chore: release")) return;
+
+          // Match conventional commit format: "type(scope): description" or "type: description"
+          const conventionalMatch = line.match(/^(\w+)(?:\(.*\))?:\s*(.*)/);
+          
+          if (conventionalMatch) {
+            const type = conventionalMatch[1].toLowerCase();
+            const description = conventionalMatch[2];
+            const category = categoryMap[type] || "Changed";
+            groupedCommits[category].push(`- **${type}**: ${description}`);
+          } else {
+            // Fallback: Detect by starting keywords
+            let category = "Changed";
+            if (lowerLine.startsWith("add") || lowerLine.startsWith("new") || lowerLine.startsWith("feat")) {
+              category = "Added";
+            } else if (lowerLine.startsWith("fix") || lowerLine.startsWith("bug")) {
+              category = "Fixed";
+            } else if (lowerLine.startsWith("chore") || lowerLine.startsWith("docs") || lowerLine.startsWith("test")) {
+              category = "Other";
+            }
+            groupedCommits[category].push(`- ${line}`);
+          }
+        });
+
+        // Build the changelog entry string
+        for (const [category, commits] of Object.entries(groupedCommits)) {
+          if (commits.length > 0) {
+            changelogEntry += `\n\n### ${category}\n${commits.join("\n")}`;
+          }
+        }
       }
     } catch (e) {
       console.warn("⚠️ Could not fetch git logs for changelog. Using empty section.");
     }
-
-    const changelogEntry = commitLogs 
-      ? `\n\n### Changed\n${commitLogs}`
-      : "";
 
     let newChangelog = "";
     if (changelog.includes(unreleasedHeader)) {
