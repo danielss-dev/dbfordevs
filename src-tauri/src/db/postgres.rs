@@ -431,7 +431,7 @@ impl PostgresDriver {
             let identifier: String = chars[..end].iter().collect();
 
             // Check for schema.table
-            let after = &s[end + 2..];
+            let after = if end + 2 < s.len() { &s[end + 2..] } else { "" };
             if after.starts_with('.') {
                 let table_part = Self::extract_identifier(&after[1..]);
                 if let Some(table) = table_part {
@@ -528,7 +528,7 @@ impl PostgresDriver {
             .map_err(|e| AppError::QueryError(format!("Failed to get columns for DDL: {}", e)))?;
 
         if columns.is_empty() {
-            return Err(AppError::QueryError(format!("No columns found for table {}", table_name)));
+            return Ok(String::new()); // Table doesn't exist yet (e.g., CREATE TABLE preview)
         }
 
         // Get primary key
