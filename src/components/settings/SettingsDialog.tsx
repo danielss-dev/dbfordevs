@@ -119,7 +119,6 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Show Invisibles", description: "Display spaces, tabs, and line endings.", keywords: ["invisible", "spaces", "tabs", "endings", "whitespace"], tabValue: "editor" },
   // Appearance
   { label: "Theme", description: "Switch between light, dark, or system theme.", keywords: ["theme", "light", "dark", "system", "color"], tabValue: "appearance" },
-  { label: "App Style", description: "Choose between a developer-focused IDE style or a modern web look.", keywords: ["style", "app", "developer", "web", "ide"], tabValue: "appearance" },
   { label: "Enable Animations", description: "Enable smooth animations throughout the interface.", keywords: ["animation", "animations", "smooth", "motion", "transition", "effects"], tabValue: "appearance" },
   // Keybindings
   { label: "Keyboard Shortcuts", description: "Master dbfordevs with these handy keys.", keywords: ["keyboard", "shortcut", "key", "binding", "find", "replace", "search", "shortcuts"], tabValue: "keybindings" },
@@ -136,8 +135,6 @@ export function SettingsDialog() {
     setShowSettingsDialog,
     theme,
     setTheme,
-    appStyle,
-    setAppStyle,
     editorSettings,
     updateEditorSettings,
     generalSettings,
@@ -193,14 +190,6 @@ export function SettingsDialog() {
     toast({
       title: "Theme updated",
       description: `Interface theme set to ${label}.`,
-    });
-  };
-
-  const handleAppStyleChange = (newStyle: "developer" | "web") => {
-    setAppStyle(newStyle);
-    toast({
-      title: "App style updated",
-      description: `Application style set to ${newStyle}.`,
     });
   };
 
@@ -659,31 +648,6 @@ export function SettingsDialog() {
                                 <div className="flex items-center gap-2">
                                   <Sun className="h-4 w-4 text-primary" />
                                   <span>Nordic Light</span>
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </SettingRow>
-                        <Separator />
-                        <SettingRow
-                          label="App Style"
-                          description="Choose between a developer-focused IDE style or a modern web look."
-                        >
-                          <Select value={appStyle} onValueChange={handleAppStyleChange}>
-                            <SelectTrigger className="w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="developer">
-                                <div className="flex items-center gap-2">
-                                  <Code className="h-4 w-4" />
-                                  <span>Developer</span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="web">
-                                <div className="flex items-center gap-2">
-                                  <Database className="h-4 w-4" />
-                                  <span>Web</span>
                                 </div>
                               </SelectItem>
                             </SelectContent>
