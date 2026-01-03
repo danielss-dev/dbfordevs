@@ -2,6 +2,17 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.5] - 2026-01-03
+
+
+### Added
+- Add SQL query preview functionality with transaction-based change detection (#32)
+- Add CONTRIBUTING.md to outline contribution guidelines and best practices
+
+### Changed
+- Refactor bump-version script to enhance changelog generation and commit filtering
+- Enhance bump-version script with improved command logging and changelog automation
+- Enhance bump-version script with improved logging and lock file updates
 ## [0.2.4] - 2026-01-01
 
 ## [0.2.3] - 2026-01-01
