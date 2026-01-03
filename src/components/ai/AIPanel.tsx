@@ -65,7 +65,7 @@ export function AIPanel() {
   const currentQuery = activeTab?.type === "query" ? activeTab.content : undefined;
 
   const [showSettings, setShowSettings] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentProvider = getCurrentProvider();
   const providerDisplayName = PROVIDER_INFO[currentProvider]?.displayName || "AI";
@@ -90,10 +90,8 @@ export function AIPanel() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading, isStreaming]);
 
   // Don't show if not open or if extension is disabled
   if (!isOpen || !isEnabled) return null;
@@ -203,7 +201,7 @@ export function AIPanel() {
         )}
 
         {/* Messages area */}
-        <ScrollArea className="flex-1 overflow-hidden" ref={scrollRef}>
+        <ScrollArea className="flex-1 overflow-hidden">
           <div className="flex flex-col gap-6 p-4 pb-6 overflow-hidden">
             {!isConfigured && (
               <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
@@ -277,6 +275,9 @@ export function AIPanel() {
                 </span>
               </div>
             )}
+
+            {/* Auto-scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 
