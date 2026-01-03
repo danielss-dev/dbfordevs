@@ -133,13 +133,25 @@ impl SqliteDriver {
         let sql_upper = sql.trim().to_uppercase();
         let sql_trimmed = sql.trim();
 
-        // Handle CREATE TABLE
-        if sql_upper.starts_with("CREATE TABLE") {
-            let rest = &sql_trimmed[12..].trim_start();
-            let rest = if rest.to_uppercase().starts_with("IF NOT EXISTS") {
-                &rest[13..].trim_start()
+        // Handle CREATE [TEMPORARY|TEMP] TABLE
+        if sql_upper.starts_with("CREATE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            let rest_upper = rest.to_uppercase();
+            
+            let after_create = if rest_upper.starts_with("TEMPORARY TABLE") {
+                &rest[15..].trim_start()
+            } else if rest_upper.starts_with("TEMP TABLE") {
+                &rest[10..].trim_start()
+            } else if rest_upper.starts_with("TABLE") {
+                &rest[5..].trim_start()
             } else {
-                rest
+                return None;
+            };
+
+            let rest = if after_create.to_uppercase().starts_with("IF NOT EXISTS") {
+                &after_create[13..].trim_start()
+            } else {
+                after_create
             };
             return Self::extract_identifier(rest);
         }
@@ -221,9 +233,9 @@ impl SqliteDriver {
             }
 
             if found_closing {
-                let after = &s[end_byte..];
+                let after = s[end_byte..].trim_start();
                 if after.starts_with('.') {
-                    if let Some(table) = Self::extract_identifier(&after[1..]) {
+                    if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
                         return Some(format!("{}.{}", identifier, table));
                     }
                 }
@@ -255,9 +267,9 @@ impl SqliteDriver {
             }
 
             if found_closing {
-                let after = &s[end_byte..];
+                let after = s[end_byte..].trim_start();
                 if after.starts_with('.') {
-                    if let Some(table) = Self::extract_identifier(&after[1..]) {
+                    if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
                         return Some(format!("{}.{}", identifier, table));
                     }
                 }
@@ -281,9 +293,9 @@ impl SqliteDriver {
         }
 
         let identifier = s[..end_byte].to_string();
-        let after = &s[end_byte..];
+        let after = s[end_byte..].trim_start();
         if after.starts_with('.') {
-            if let Some(table) = Self::extract_identifier(&after[1..]) {
+            if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
                 return Some(format!("{}.{}", identifier, table));
             }
         }

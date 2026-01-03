@@ -72,14 +72,15 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
     setContent(tab.content || "");
   }, [tab.content]);
 
-  const handleExecute = async (sql?: string) => {
+  const handleExecute = async (sql?: string, overrideConnectionId?: string) => {
     const queryToExecute = sql || content;
-    if (!connectionId || !queryToExecute.trim()) return;
+    const targetConnectionId = overrideConnectionId || connectionId;
+    if (!targetConnectionId || !queryToExecute.trim()) return;
 
     const startTime = Date.now();
     const result = await executeQuery(
       {
-        connectionId: connectionId,
+        connectionId: targetConnectionId,
         sql: queryToExecute,
         limit: undefined,
         offset: undefined,
@@ -89,8 +90,8 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
 
     // Save query to history
     const historyEntry: QueryHistoryEntry = {
-      id: `${connectionId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      connectionId,
+      id: `${targetConnectionId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      connectionId: targetConnectionId,
       sql: queryToExecute,
       executedAt: startTime,
       executionTimeMs: result?.executionTimeMs,
@@ -105,22 +106,44 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
   const handlePreview = useCallback(async () => {
     if (!connectionId || !content.trim()) return;
 
-    openPreview(content, connectionId);
-    const result = await previewQuery({
-      connectionId,
-      sql: content,
-    });
-
-    if (result) {
-      setPreviewResult(result);
-    } else {
-      // If previewQuery returned null, there was an error
-      setPreviewResult({
-        statements: [],
-        executionTimeMs: 0,
-        success: false,
-        error: useQueryStore.getState().error ?? "Failed to preview query",
+    const currentSql = content;
+    openPreview(currentSql, connectionId);
+    
+    try {
+      const result = await previewQuery({
+        connectionId,
+        sql: currentSql,
       });
+
+      // Verify that this preview result is still relevant
+      // The user might have started a new preview request in the meantime
+      const { previewSql, isPreviewOpen } = usePreviewStore.getState();
+      if (!isPreviewOpen || previewSql !== currentSql) {
+        return;
+      }
+
+      if (result) {
+        setPreviewResult(result);
+      } else {
+        // If previewQuery returned null, there was an error
+        setPreviewResult({
+          statements: [],
+          executionTimeMs: 0,
+          success: false,
+          error: useQueryStore.getState().error ?? "Failed to preview query",
+        });
+      }
+    } catch (error) {
+      // In case of unexpected errors, ensure we don't leave the preview in loading state
+      const { previewSql, isPreviewOpen } = usePreviewStore.getState();
+      if (isPreviewOpen && previewSql === currentSql) {
+        setPreviewResult({
+          statements: [],
+          executionTimeMs: 0,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }, [connectionId, content, openPreview, previewQuery, setPreviewResult]);
 

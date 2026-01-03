@@ -14,7 +14,7 @@ import { DdlPreviewView } from "./DdlPreviewView";
 import { DmlPreviewView } from "./DmlPreviewView";
 
 interface PreviewDialogProps {
-  onApply: (sql?: string) => void;
+  onApply: (sql?: string, connectionId?: string) => void;
 }
 
 export function PreviewDialog({ onApply }: PreviewDialogProps) {
@@ -23,6 +23,7 @@ export function PreviewDialog({ onApply }: PreviewDialogProps) {
     isPreviewLoading,
     previewResult,
     previewSql,
+    previewConnectionId,
     closePreview,
   } = usePreviewStore();
 
@@ -35,7 +36,7 @@ export function PreviewDialog({ onApply }: PreviewDialogProps) {
   }, [previewResult]);
 
   const handleApply = () => {
-    onApply(previewSql || undefined);
+    onApply(previewSql || undefined, previewConnectionId || undefined);
     closePreview();
   };
 

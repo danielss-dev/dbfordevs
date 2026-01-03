@@ -285,9 +285,17 @@ impl MssqlDriver {
         let sql_trimmed = sql.trim();
 
         // Handle CREATE TABLE
-        if sql_upper.starts_with("CREATE TABLE") {
-            let rest = &sql_trimmed[12..].trim_start();
-            return Self::extract_identifier(rest);
+        if sql_upper.starts_with("CREATE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            let rest_upper = rest.to_uppercase();
+            
+            let after_create = if rest_upper.starts_with("TABLE") {
+                &rest[5..].trim_start()
+            } else {
+                return None;
+            };
+
+            return Self::extract_identifier(after_create);
         }
 
         // Handle ALTER TABLE
@@ -360,9 +368,9 @@ impl MssqlDriver {
             }
 
             if found_closing {
-                let after = &s[end_byte..];
+                let after = s[end_byte..].trim_start();
                 if after.starts_with('.') {
-                    if let Some(table) = Self::extract_identifier(&after[1..]) {
+                    if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
                         return Some(format!("{}.{}", identifier, table));
                     }
                 }
@@ -386,9 +394,9 @@ impl MssqlDriver {
         }
 
         let identifier = s[..end_byte].to_string();
-        let after = &s[end_byte..];
+        let after = s[end_byte..].trim_start();
         if after.starts_with('.') {
-            if let Some(table) = Self::extract_identifier(&after[1..]) {
+            if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
                 return Some(format!("{}.{}", identifier, table));
             }
         }
