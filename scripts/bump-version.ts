@@ -11,12 +11,12 @@ const rl = createInterface({
 const question = (query: string): Promise<string> =>
   new Promise((resolve) => rl.question(query, resolve));
 
-function runCommand(command: string): string {
+function runCommand(command: string, silent: boolean = false): string {
   try {
-    console.log(`Executing: ${command}`);
-    return execSync(command, { encoding: "utf-8" }).trim();
+    if (!silent) console.log(`Executing: ${command}`);
+    return execSync(command, { encoding: "utf-8", stdio: "pipe" }).trim();
   } catch (error) {
-    console.error(`Error executing command: ${command}`);
+    if (!silent) console.error(`Error executing command: ${command}`);
     throw error;
   }
 }
@@ -29,7 +29,7 @@ async function bumpVersion() {
 
   // 1. Safety Check: Git Cleanliness
   try {
-    const status = runCommand("git status --porcelain");
+    const status = runCommand("git status --porcelain", true);
     if (status && !isDryRun) {
       console.error("❌ Error: Git working directory is not clean. Please commit or stash changes first.");
       process.exit(1);
@@ -48,8 +48,17 @@ async function bumpVersion() {
   const currentVersion = packageJson.version;
 
   console.log(`Current version: ${currentVersion}`);
-  const type = await question("Bump type (major, minor, patch) [patch]: ");
-  const bumpType = (type.toLowerCase() || "patch") as "major" | "minor" | "patch";
+  
+  // Get bump type from args or prompt
+  let bumpType: "major" | "minor" | "patch" = "patch";
+  const typeArg = process.argv.find(arg => ["major", "minor", "patch"].includes(arg.toLowerCase()));
+  
+  if (typeArg) {
+    bumpType = typeArg.toLowerCase() as any;
+  } else {
+    const type = await question("Bump type (major, minor, patch) [patch]: ");
+    bumpType = (type.toLowerCase() || "patch") as any;
+  }
 
   const [major, minor, patch] = currentVersion.split(".").map(Number);
   let newVersion = "";
@@ -112,22 +121,74 @@ async function bumpVersion() {
     const unreleasedHeader = "## [Unreleased]";
     const newVersionHeader = `## [${newVersion}] - ${today}`;
 
+    // 3.1 Get git commits since last version
+    let commitLogs = "";
+    try {
+      // Priority 1: Use the tag corresponding to the current version
+      // Priority 2: Use the latest tag found by git describe
+      let lastReference = "";
+      const currentTag = `v${currentVersion}`;
+      
+      try {
+        // Check if currentTag exists
+        runCommand(`git rev-parse --verify ${currentTag}`, true);
+        lastReference = currentTag;
+      } catch (e) {
+        try {
+          // Try to get the latest tag by version sorting
+          lastReference = runCommand(`git tag --sort=-v:refname`, true).split("\n")[0];
+        } catch (e2) {
+          try {
+            lastReference = runCommand(`git describe --tags --abbrev=0`, true);
+          } catch (e3) {
+            lastReference = "";
+          }
+        }
+      }
+      
+      if (lastReference) {
+        console.log(`Fetching commits since ${lastReference}...`);
+        commitLogs = runCommand(`git log ${lastReference}..HEAD --oneline --pretty=format:"- %s"`);
+      } else {
+        console.log("No previous tag found. Fetching last 10 commits...");
+        commitLogs = runCommand(`git log -n 10 --oneline --pretty=format:"- %s"`);
+      }
+      
+      if (commitLogs) {
+        // Filter out version bump commits to avoid noise
+        commitLogs = commitLogs
+          .split("\n")
+          .filter(line => {
+            const l = line.toLowerCase();
+            return !l.includes("bump version") && !l.includes("chore: release");
+          })
+          .join("\n");
+      }
+    } catch (e) {
+      console.warn("⚠️ Could not fetch git logs for changelog. Using empty section.");
+    }
+
+    const changelogEntry = commitLogs 
+      ? `\n\n### Changed\n${commitLogs}`
+      : "";
+
     let newChangelog = "";
     if (changelog.includes(unreleasedHeader)) {
       // Content under [Unreleased] moves to the new version section
-      newChangelog = changelog.replace(unreleasedHeader, `${unreleasedHeader}\n\n${newVersionHeader}`);
+      newChangelog = changelog.replace(unreleasedHeader, `${unreleasedHeader}\n\n${newVersionHeader}${changelogEntry}`);
     } else {
       // Insert new version header after the initial description/link
       const lines = changelog.split("\n");
       let insertIndex = lines.findIndex(l => l.startsWith("## "));
       if (insertIndex === -1) insertIndex = 3;
 
-      lines.splice(insertIndex, 0, newVersionHeader, "");
+      const newContent = [newVersionHeader, changelogEntry, ""].filter(Boolean);
+      lines.splice(insertIndex, 0, ...newContent);
       newChangelog = lines.join("\n");
     }
 
     if (isDryRun) {
-      console.log(`[DRY RUN] Would update CHANGELOG.md with header: ${newVersionHeader}`);
+      console.log(`[DRY RUN] Would update CHANGELOG.md with header: ${newVersionHeader}${changelogEntry}`);
     } else {
       writeFileSync(changelogPath, newChangelog);
     }
