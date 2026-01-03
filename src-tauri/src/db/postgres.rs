@@ -634,7 +634,9 @@ impl PostgresDriver {
         let sql_with_returning = if has_returning {
             stmt.to_string()
         } else {
-            format!("{} RETURNING *", stmt.trim().trim_end_matches(';'))
+            // Append RETURNING * on a new line to ensure it doesn't get commented out
+            // by a trailing line comment in the original statement.
+            format!("{}\nRETURNING *", stmt.trim().trim_end_matches(';'))
         };
 
         // Execute and fetch results

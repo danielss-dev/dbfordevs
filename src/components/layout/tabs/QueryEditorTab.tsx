@@ -285,7 +285,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
         </div>
       </div>
 
-      <PreviewDialog onApply={() => handleExecute()} />
+      <PreviewDialog onApply={handleExecute} />
     </div>
   );
 }
