@@ -27,6 +27,7 @@ pub fn run() {
             connections::get_connection,
             // Query commands
             queries::execute_query,
+            queries::preview_query,
             queries::get_tables,
             queries::get_table_schema,
             queries::get_all_table_schemas,

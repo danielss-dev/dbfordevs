@@ -1,9 +1,10 @@
+use crate::db::common::{escape_sqlite_identifier, parse_cte_statement_type, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     ConnectionConfig, ConstraintInfo, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    QueryResult, TableInfo, TableProperties, TableRelationship, TableSchema,
-    TestConnectionResult, ColumnInfo
+    PreviewResult, QueryResult, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo
 };
 use async_trait::async_trait;
 use sqlx::{sqlite::SqlitePool, Row, Column, TypeInfo};
@@ -91,6 +92,246 @@ impl SqliteDriver {
         }
 
         statements
+    }
+
+    /// Detect the type of SQL statement
+    fn detect_statement_type(sql: &str) -> StatementType {
+        let mut clean_sql = sql.trim().to_uppercase();
+
+        // Skip comments
+        while clean_sql.starts_with("--") || clean_sql.starts_with("/*") {
+            if clean_sql.starts_with("--") {
+                if let Some(newline_pos) = clean_sql.find('\n') {
+                    clean_sql = clean_sql[newline_pos..].trim().to_string();
+                } else {
+                    return StatementType::Other;
+                }
+            } else if clean_sql.starts_with("/*") {
+                if let Some(end_pos) = clean_sql.find("*/") {
+                    clean_sql = clean_sql[end_pos + 2..].trim().to_string();
+                } else {
+                    return StatementType::Other;
+                }
+            }
+        }
+
+        if clean_sql.starts_with("CREATE") || clean_sql.starts_with("ALTER") || clean_sql.starts_with("DROP") {
+            StatementType::Ddl
+        } else if clean_sql.starts_with("INSERT") || clean_sql.starts_with("UPDATE") || clean_sql.starts_with("DELETE") {
+            StatementType::Dml
+        } else if clean_sql.starts_with("WITH") {
+            parse_cte_statement_type(&clean_sql, &CteParserConfig::sqlite())
+        } else if clean_sql.starts_with("SELECT") || clean_sql.starts_with("PRAGMA") {
+            StatementType::Select
+        } else {
+            StatementType::Other
+        }
+    }
+
+    /// Extract table name from SQL statement
+    fn extract_table_name(sql: &str) -> Option<String> {
+        let sql_upper = sql.trim().to_uppercase();
+        let sql_trimmed = sql.trim();
+
+        // Handle CREATE [TEMPORARY|TEMP] TABLE
+        if sql_upper.starts_with("CREATE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            let rest_upper = rest.to_uppercase();
+            
+            let after_create = if rest_upper.starts_with("TEMPORARY TABLE") {
+                &rest[15..].trim_start()
+            } else if rest_upper.starts_with("TEMP TABLE") {
+                &rest[10..].trim_start()
+            } else if rest_upper.starts_with("TABLE") {
+                &rest[5..].trim_start()
+            } else {
+                return None;
+            };
+
+            let rest = if after_create.to_uppercase().starts_with("IF NOT EXISTS") {
+                &after_create[13..].trim_start()
+            } else {
+                after_create
+            };
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle ALTER TABLE
+        if sql_upper.starts_with("ALTER TABLE") {
+            let rest = &sql_trimmed[11..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle DROP TABLE
+        if sql_upper.starts_with("DROP TABLE") {
+            let rest = &sql_trimmed[10..].trim_start();
+            let rest = if rest.to_uppercase().starts_with("IF EXISTS") {
+                &rest[9..].trim_start()
+            } else {
+                rest
+            };
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle INSERT INTO
+        if sql_upper.starts_with("INSERT INTO") {
+            let rest = &sql_trimmed[11..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+        if sql_upper.starts_with("INSERT") {
+            let rest = &sql_trimmed[6..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle UPDATE
+        if sql_upper.starts_with("UPDATE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle DELETE FROM
+        if sql_upper.starts_with("DELETE FROM") {
+            let rest = &sql_trimmed[11..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+        if sql_upper.starts_with("DELETE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        None
+    }
+
+    /// Extract identifier (table name) from the start of a string
+    fn extract_identifier(s: &str) -> Option<String> {
+        let s = s.trim();
+        if s.is_empty() {
+            return None;
+        }
+
+        // Handle quoted identifier (SQLite uses double quotes or square brackets)
+        if s.starts_with('"') {
+            let mut identifier = String::new();
+            let mut end_byte = 1;
+            let mut chars = s.char_indices().skip(1).peekable();
+            let mut found_closing = false;
+
+            while let Some((pos, c)) = chars.next() {
+                if c == '"' {
+                    if let Some((_, next_c)) = chars.peek() {
+                        if *next_c == '"' {
+                            identifier.push('"');
+                            chars.next(); // consume second quote
+                            continue;
+                        }
+                    }
+                    found_closing = true;
+                    end_byte = pos + 1;
+                    break;
+                }
+                identifier.push(c);
+            }
+
+            if found_closing {
+                let after = s[end_byte..].trim_start();
+                if after.starts_with('.') {
+                    if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
+                        return Some(format!("{}.{}", identifier, table));
+                    }
+                }
+            }
+            
+            return if identifier.is_empty() && !found_closing { None } else { Some(identifier) };
+        }
+
+        if s.starts_with('[') {
+            let mut identifier = String::new();
+            let mut end_byte = 1;
+            let mut chars = s.char_indices().skip(1).peekable();
+            let mut found_closing = false;
+
+            while let Some((pos, c)) = chars.next() {
+                if c == ']' {
+                    if let Some((_, next_c)) = chars.peek() {
+                        if *next_c == ']' {
+                            identifier.push(']');
+                            chars.next();
+                            continue;
+                        }
+                    }
+                    found_closing = true;
+                    end_byte = pos + 1;
+                    break;
+                }
+                identifier.push(c);
+            }
+
+            if found_closing {
+                let after = s[end_byte..].trim_start();
+                if after.starts_with('.') {
+                    if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
+                        return Some(format!("{}.{}", identifier, table));
+                    }
+                }
+            }
+            
+            return if identifier.is_empty() && !found_closing { None } else { Some(identifier) };
+        }
+
+        // Handle unquoted identifier
+        let mut end_byte = 0;
+        for (pos, c) in s.char_indices() {
+            if c.is_alphanumeric() || c == '_' {
+                end_byte = pos + c.len_utf8();
+            } else {
+                break;
+            }
+        }
+
+        if end_byte == 0 {
+            return None;
+        }
+
+        let identifier = s[..end_byte].to_string();
+        let after = s[end_byte..].trim_start();
+        if after.starts_with('.') {
+            if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
+                return Some(format!("{}.{}", identifier, table));
+            }
+        }
+
+        Some(identifier)
+    }
+
+    /// Get table schema (CREATE TABLE statement) within a transaction
+    async fn get_table_schema_in_tx(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        table_name: &str,
+    ) -> AppResult<String> {
+        // Handle database-qualified names (e.g., main.users)
+        let (db_prefix, actual_table_name) = if let Some(dot_pos) = table_name.rfind('.') {
+            let (db, table) = table_name.split_at(dot_pos);
+            (Some(db.to_string()), table.trim_start_matches('.').to_string())
+        } else {
+            (None, table_name.to_string())
+        };
+
+        let query = if let Some(db) = db_prefix {
+            format!(
+                "SELECT sql FROM \"{}\".sqlite_master WHERE type = 'table' AND name = ?",
+                escape_sqlite_identifier(&db)
+            )
+        } else {
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?".to_string()
+        };
+
+        let ddl: Option<String> = sqlx::query_scalar(&query)
+            .bind(actual_table_name)
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get table schema: {}", e)))?;
+
+        ddl.ok_or_else(|| AppError::QueryError(format!("Table {} does not exist", table_name)))
     }
 
     /// Execute a single SQL statement
@@ -513,11 +754,25 @@ impl DatabaseDriver for SqliteDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
         };
 
-        // SQLite stores the original DDL in sqlite_master
-        let query = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?";
+        // Handle database-qualified names
+        let (db_prefix, actual_table_name) = if let Some(dot_pos) = table_name.rfind('.') {
+            let (db, table) = table_name.split_at(dot_pos);
+            (Some(db.to_string()), table.trim_start_matches('.').to_string())
+        } else {
+            (None, table_name.to_string())
+        };
 
-        let ddl: Option<String> = sqlx::query_scalar(query)
-            .bind(table_name)
+        let query = if let Some(db) = db_prefix {
+            format!(
+                "SELECT sql FROM \"{}\".sqlite_master WHERE type = 'table' AND name = ?",
+                escape_sqlite_identifier(&db)
+            )
+        } else {
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?".to_string()
+        };
+
+        let ddl: Option<String> = sqlx::query_scalar(&query)
+            .bind(actual_table_name)
             .fetch_optional(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get DDL: {}", e)))?;
@@ -597,11 +852,26 @@ impl DatabaseDriver for SqliteDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
         };
 
-        // SQLite doesn't have a direct way to query constraints, but we can parse them from the DDL
-        let query = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?";
+        // Handle database-qualified names
+        let (db_prefix, actual_table_name) = if let Some(dot_pos) = table_name.rfind('.') {
+            let (db, table) = table_name.split_at(dot_pos);
+            (Some(db.to_string()), table.trim_start_matches('.').to_string())
+        } else {
+            (None, table_name.to_string())
+        };
 
-        let ddl: Option<String> = sqlx::query_scalar(query)
-            .bind(table_name)
+        // SQLite doesn't have a direct way to query constraints, but we can parse them from the DDL
+        let query = if let Some(db) = db_prefix {
+            format!(
+                "SELECT sql FROM \"{}\".sqlite_master WHERE type = 'table' AND name = ?",
+                escape_sqlite_identifier(&db)
+            )
+        } else {
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?".to_string()
+        };
+
+        let ddl: Option<String> = sqlx::query_scalar(&query)
+            .bind(actual_table_name)
             .fetch_optional(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get DDL for constraints: {}", e)))?;
@@ -815,6 +1085,160 @@ impl DatabaseDriver for SqliteDriver {
         }
 
         Ok(relationships)
+    }
+
+    async fn preview_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<PreviewResult> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let start = Instant::now();
+        let statements = Self::split_sql_statements(sql);
+
+        if statements.is_empty() {
+            return Ok(PreviewResult {
+                statements: vec![],
+                execution_time_ms: 0,
+                success: true,
+                error: None,
+                warning: None,
+            });
+        }
+
+        // Start transaction for preview
+        let mut tx = pool.begin().await
+            .map_err(|e| AppError::QueryError(format!("Failed to start preview transaction: {}", e)))?;
+
+        let mut previews: Vec<StatementPreview> = Vec::new();
+
+        for stmt in &statements {
+            let stmt_type = Self::detect_statement_type(stmt);
+            let table_name = Self::extract_table_name(stmt);
+
+            match stmt_type {
+                StatementType::Ddl => {
+                    // For DDL, capture schema before and after
+                    let schema_before = if let Some(ref name) = table_name {
+                        Self::get_table_schema_in_tx(&mut tx, name).await.ok()
+                    } else {
+                        None
+                    };
+
+                    // Execute DDL
+                    match sqlx::query(stmt).execute(&mut *tx).await {
+                        Ok(_) => {
+                            let schema_after = if let Some(ref name) = table_name {
+                                Self::get_table_schema_in_tx(&mut tx, name).await.ok()
+                            } else {
+                                None
+                            };
+
+                            previews.push(StatementPreview {
+                                statement_type: StatementType::Ddl,
+                                sql: stmt.clone(),
+                                schema_before,
+                                schema_after,
+                                affected_rows: None,
+                                affected_columns: None,
+                                row_count: 0,
+                                table_name,
+                            });
+                        }
+                        Err(e) => {
+                            let _ = tx.rollback().await;
+                            return Ok(PreviewResult {
+                                statements: previews,
+                                execution_time_ms: start.elapsed().as_millis() as u64,
+                                success: false,
+                                error: Some(format!("DDL execution failed: {}", e)),
+                                warning: None,
+                            });
+                        }
+                    }
+                }
+                StatementType::Dml => {
+                    // For DML, execute and count affected rows
+                    // SQLite 3.35+ supports RETURNING but we'll keep it simple
+                    match sqlx::query(stmt).execute(&mut *tx).await {
+                        Ok(result) => {
+                            let row_count = result.rows_affected();
+
+                            previews.push(StatementPreview {
+                                statement_type: StatementType::Dml,
+                                sql: stmt.clone(),
+                                schema_before: None,
+                                schema_after: None,
+                                affected_rows: None,
+                                affected_columns: None,
+                                row_count,
+                                table_name,
+                            });
+                        }
+                        Err(e) => {
+                            let _ = tx.rollback().await;
+                            return Ok(PreviewResult {
+                                statements: previews,
+                                execution_time_ms: start.elapsed().as_millis() as u64,
+                                success: false,
+                                error: Some(format!("DML execution failed: {}", e)),
+                                warning: None,
+                            });
+                        }
+                    }
+                }
+                StatementType::Select => {
+                    previews.push(StatementPreview {
+                        statement_type: StatementType::Select,
+                        sql: stmt.clone(),
+                        schema_before: None,
+                        schema_after: None,
+                        affected_rows: None,
+                        affected_columns: None,
+                        row_count: 0,
+                        table_name,
+                    });
+                }
+                StatementType::Other => {
+                    match sqlx::query(stmt).execute(&mut *tx).await {
+                        Ok(_) => {
+                            previews.push(StatementPreview {
+                                statement_type: StatementType::Other,
+                                sql: stmt.clone(),
+                                schema_before: None,
+                                schema_after: None,
+                                affected_rows: None,
+                                affected_columns: None,
+                                row_count: 0,
+                                table_name,
+                            });
+                        }
+                        Err(e) => {
+                            let _ = tx.rollback().await;
+                            return Ok(PreviewResult {
+                                statements: previews,
+                                execution_time_ms: start.elapsed().as_millis() as u64,
+                                success: false,
+                                error: Some(format!("Statement execution failed: {}", e)),
+                                warning: None,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Always rollback - this is just a preview
+        tx.rollback().await
+            .map_err(|e| AppError::QueryError(format!("Failed to rollback preview transaction: {}", e)))?;
+
+        Ok(PreviewResult {
+            statements: previews,
+            execution_time_ms: start.elapsed().as_millis() as u64,
+            success: true,
+            error: None,
+            warning: None,
+        })
     }
 }
 

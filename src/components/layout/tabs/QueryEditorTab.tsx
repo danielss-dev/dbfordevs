@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw } from "lucide-react";
-import { Button, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
-import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore } from "@/stores";
+import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye } from "lucide-react";
+import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
+import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore, usePreviewStore } from "@/stores";
 import { useUIStore } from "@/stores/ui";
 import { useAIStore } from "@/lib/ai/store";
 import { useDatabase } from "@/hooks";
@@ -11,6 +11,7 @@ import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
 import { QueryHistoryDropdown } from "@/components/query-history/QueryHistoryDropdown";
+import { PreviewDialog } from "@/components/preview";
 import type { Tab, QueryHistoryEntry } from "@/types";
 
 interface QueryEditorTabProps {
@@ -28,7 +29,8 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
   const { theme } = useUIStore();
   const { setPanelOpen, sendMessage, settings } = useAIStore();
   const isAIEnabled = settings.aiEnabled ?? true;
-  const { executeQuery, fetchAllSchemas, refreshSchemas } = useDatabase();
+  const { executeQuery, fetchAllSchemas, refreshSchemas, previewQuery } = useDatabase();
+  const { openPreview, setPreviewResult } = usePreviewStore();
   const [content, setContent] = useState(tab.content || "");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -70,14 +72,15 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
     setContent(tab.content || "");
   }, [tab.content]);
 
-  const handleExecute = async (sql?: string) => {
+  const handleExecute = async (sql?: string, overrideConnectionId?: string) => {
     const queryToExecute = sql || content;
-    if (!connectionId || !queryToExecute.trim()) return;
+    const targetConnectionId = overrideConnectionId || connectionId;
+    if (!targetConnectionId || !queryToExecute.trim()) return;
 
     const startTime = Date.now();
     const result = await executeQuery(
       {
-        connectionId: connectionId,
+        connectionId: targetConnectionId,
         sql: queryToExecute,
         limit: undefined,
         offset: undefined,
@@ -87,8 +90,8 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
 
     // Save query to history
     const historyEntry: QueryHistoryEntry = {
-      id: `${connectionId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      connectionId,
+      id: `${targetConnectionId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      connectionId: targetConnectionId,
       sql: queryToExecute,
       executedAt: startTime,
       executionTimeMs: result?.executionTimeMs,
@@ -99,6 +102,52 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
 
     addQueryToHistory(historyEntry);
   };
+
+  const handlePreview = useCallback(async () => {
+    if (!connectionId || !content.trim()) return;
+
+    const currentSql = content;
+    openPreview(currentSql, connectionId);
+    
+    try {
+      const result = await previewQuery({
+        connectionId,
+        sql: currentSql,
+      });
+
+      // Verify that this preview result is still relevant
+      // The user might have started a new preview request in the meantime
+      const { previewSql, isPreviewOpen } = usePreviewStore.getState();
+      if (!isPreviewOpen || previewSql !== currentSql) {
+        return;
+      }
+
+      if (result) {
+        setPreviewResult(result);
+      } else {
+        // If previewQuery returned null, there was an error
+        // Ensure we capture the most recent error from the store
+        const storeError = useQueryStore.getState().error;
+        setPreviewResult({
+          statements: [],
+          executionTimeMs: 0,
+          success: false,
+          error: storeError || "Failed to preview query",
+        });
+      }
+    } catch (error) {
+      // In case of unexpected errors, ensure we don't leave the preview in loading state
+      const { previewSql, isPreviewOpen } = usePreviewStore.getState();
+      if (isPreviewOpen && previewSql === currentSql) {
+        setPreviewResult({
+          statements: [],
+          executionTimeMs: 0,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }, [connectionId, content, openPreview, previewQuery, setPreviewResult]);
 
   // Keep handleExecute in a ref for use in event listeners
   const handleExecuteRef = useRef(handleExecute);
@@ -130,13 +179,21 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
       <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-2">
         <Tooltip open={activeTooltip === "run"}>
           <TooltipTrigger asChild>
-            <Button
+            <SplitButton
               size="sm"
-              onClick={() => handleExecute()}
+              onPrimaryClick={() => handleExecute()}
               disabled={isExecuting || !connectionId || !content.trim()}
               className="gap-2"
               onMouseEnter={() => setActiveTooltip("run")}
               onMouseLeave={() => setActiveTooltip(null)}
+              dropdownItems={[
+                {
+                  label: "Preview Changes",
+                  icon: <Eye className="h-3.5 w-3.5" />,
+                  onClick: handlePreview,
+                  disabled: isExecuting || !connectionId || !content.trim(),
+                },
+              ]}
             >
               {isExecuting ? (
                 <>
@@ -149,7 +206,7 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
                   Run Query
                 </>
               )}
-            </Button>
+            </SplitButton>
           </TooltipTrigger>
           <TooltipContent>Execute Query (Cmd+Enter)</TooltipContent>
         </Tooltip>
@@ -252,6 +309,8 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
           )}
         </div>
       </div>
+
+      <PreviewDialog onApply={handleExecute} />
     </div>
   );
 }

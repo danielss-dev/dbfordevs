@@ -4,6 +4,7 @@ mod postgres;
 mod mysql;
 mod sqlite;
 pub mod mssql;
+pub mod common;
 
 pub use connection::*;
 pub use manager::*;

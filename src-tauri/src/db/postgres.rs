@@ -1,9 +1,10 @@
 use crate::db::{DatabaseDriver, PoolRef};
+use crate::db::common::{parse_cte_statement_type, CteParserConfig};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     ConnectionConfig, ConstraintInfo, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    QueryResult, TableInfo, TableProperties, TableRelationship, TableSchema,
-    TestConnectionResult, ColumnInfo
+    PreviewResult, QueryResult, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo
 };
 use async_trait::async_trait;
 use sqlx::{postgres::PgPool, Row, Column, ValueRef, TypeInfo};
@@ -288,6 +289,426 @@ impl PostgresDriver {
         }
 
         statements
+    }
+
+    /// Detect the type of SQL statement
+    fn detect_statement_type(sql: &str) -> StatementType {
+        let mut clean_sql = sql.trim().to_uppercase();
+
+        // Skip comments to find actual statement
+        while clean_sql.starts_with("--") || clean_sql.starts_with("/*") {
+            if clean_sql.starts_with("--") {
+                if let Some(newline_pos) = clean_sql.find('\n') {
+                    clean_sql = clean_sql[newline_pos..].trim().to_string();
+                } else {
+                    return StatementType::Other;
+                }
+            } else if clean_sql.starts_with("/*") {
+                if let Some(end_pos) = clean_sql.find("*/") {
+                    clean_sql = clean_sql[end_pos + 2..].trim().to_string();
+                } else {
+                    return StatementType::Other;
+                }
+            }
+        }
+
+        if clean_sql.starts_with("CREATE") || clean_sql.starts_with("ALTER") || clean_sql.starts_with("DROP") {
+            StatementType::Ddl
+        } else if clean_sql.starts_with("INSERT") || clean_sql.starts_with("UPDATE") || clean_sql.starts_with("DELETE") {
+            StatementType::Dml
+        } else if clean_sql.starts_with("WITH") {
+            parse_cte_statement_type(&clean_sql, &CteParserConfig::postgres())
+        } else if clean_sql.starts_with("SELECT") {
+            StatementType::Select
+        } else {
+            StatementType::Other
+        }
+    }
+
+    /// Extract table name from SQL statement
+    fn extract_table_name(sql: &str) -> Option<String> {
+        let sql_upper = sql.trim().to_uppercase();
+        let sql_trimmed = sql.trim();
+
+        // Handle CREATE [TEMPORARY|TEMP] TABLE
+        if sql_upper.starts_with("CREATE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            let rest_upper = rest.to_uppercase();
+            
+            let after_create = if rest_upper.starts_with("TEMPORARY TABLE") {
+                &rest[15..].trim_start()
+            } else if rest_upper.starts_with("TEMP TABLE") {
+                &rest[10..].trim_start()
+            } else if rest_upper.starts_with("TABLE") {
+                &rest[5..].trim_start()
+            } else {
+                return None;
+            };
+
+            let rest = if after_create.to_uppercase().starts_with("IF NOT EXISTS") {
+                &after_create[13..].trim_start()
+            } else {
+                after_create
+            };
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle ALTER TABLE
+        if sql_upper.starts_with("ALTER TABLE") {
+            let rest = &sql_trimmed[11..].trim_start();
+            let rest = if rest.to_uppercase().starts_with("IF EXISTS") {
+                &rest[9..].trim_start()
+            } else {
+                rest
+            };
+            let rest = if rest.to_uppercase().starts_with("ONLY") {
+                &rest[4..].trim_start()
+            } else {
+                rest
+            };
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle DROP TABLE
+        if sql_upper.starts_with("DROP TABLE") {
+            let rest = &sql_trimmed[10..].trim_start();
+            let rest = if rest.to_uppercase().starts_with("IF EXISTS") {
+                &rest[9..].trim_start()
+            } else {
+                rest
+            };
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle INSERT INTO
+        if sql_upper.starts_with("INSERT INTO") {
+            let rest = &sql_trimmed[11..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+        if sql_upper.starts_with("INSERT") {
+            let rest = &sql_trimmed[6..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle UPDATE
+        if sql_upper.starts_with("UPDATE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            let rest = if rest.to_uppercase().starts_with("ONLY") {
+                &rest[4..].trim_start()
+            } else {
+                rest
+            };
+            return Self::extract_identifier(rest);
+        }
+
+        // Handle DELETE FROM
+        if sql_upper.starts_with("DELETE FROM") {
+            let rest = &sql_trimmed[11..].trim_start();
+            let rest = if rest.to_uppercase().starts_with("ONLY") {
+                &rest[4..].trim_start()
+            } else {
+                rest
+            };
+            return Self::extract_identifier(rest);
+        }
+        if sql_upper.starts_with("DELETE") {
+            let rest = &sql_trimmed[6..].trim_start();
+            return Self::extract_identifier(rest);
+        }
+
+        None
+    }
+
+    /// Extract identifier (table name) from the start of a string
+    fn extract_identifier(s: &str) -> Option<String> {
+        let s = s.trim();
+        if s.is_empty() {
+            return None;
+        }
+
+        // Handle quoted identifier
+        if s.starts_with('"') {
+            let mut identifier = String::new();
+            let mut end_byte = 1;
+            let mut chars = s.char_indices().skip(1).peekable();
+            let mut found_closing = false;
+
+            while let Some((pos, c)) = chars.next() {
+                if c == '"' {
+                    if let Some((_, next_c)) = chars.peek() {
+                        if *next_c == '"' {
+                            identifier.push('"');
+                            chars.next(); // consume second quote
+                            continue;
+                        }
+                    }
+                    // This is the closing quote
+                    found_closing = true;
+                    end_byte = pos + c.len_utf8();
+                    break;
+                }
+                identifier.push(c);
+            }
+
+            if found_closing {
+                let after = s[end_byte..].trim_start();
+                if after.starts_with('.') {
+                    if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
+                        return Some(format!("{}.{}", identifier, table));
+                    }
+                }
+            }
+            
+            return if identifier.is_empty() && !found_closing { None } else { Some(identifier) };
+        }
+
+        // Handle unquoted identifier
+        let mut end_byte = 0;
+        for (pos, c) in s.char_indices() {
+            if c.is_alphanumeric() || c == '_' {
+                end_byte = pos + c.len_utf8();
+            } else {
+                break;
+            }
+        }
+
+        if end_byte == 0 {
+            return None;
+        }
+
+        let identifier = s[..end_byte].to_string();
+        let after = s[end_byte..].trim_start();
+        if after.starts_with('.') {
+            if let Some(table) = Self::extract_identifier(after[1..].trim_start()) {
+                return Some(format!("{}.{}", identifier, table));
+            }
+        }
+
+        Some(identifier)
+    }
+
+    /// Generate table DDL within a transaction
+    async fn generate_table_ddl_in_tx(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        table_name: &str,
+    ) -> AppResult<String> {
+        // Parse schema.table format
+        let (schema, table) = if let Some(dot_pos) = table_name.find('.') {
+            let (s, t) = table_name.split_at(dot_pos);
+            (Some(s.to_string()), t.trim_start_matches('.').to_string())
+        } else {
+            (None, table_name.to_string())
+        };
+
+        // Check if table exists
+        let exists_query = r#"
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = COALESCE($1, current_schema())
+                AND table_name = $2
+            ) as exists
+        "#;
+
+        let exists: bool = sqlx::query_scalar(exists_query)
+            .bind(&schema)
+            .bind(&table)
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to check table existence: {}", e)))?;
+
+        if !exists {
+            return Err(AppError::QueryError(format!("Table {} does not exist", table_name)));
+        }
+
+        // Get columns
+        let columns_query = r#"
+            SELECT
+                column_name::text as column_name,
+                data_type::text as data_type,
+                character_maximum_length::int as max_length,
+                numeric_precision::int as numeric_precision,
+                numeric_scale::int as numeric_scale,
+                is_nullable::text as is_nullable,
+                column_default::text as column_default,
+                udt_name::text as udt_name
+            FROM information_schema.columns
+            WHERE table_schema = COALESCE($1, current_schema())
+            AND table_name = $2
+            ORDER BY ordinal_position
+        "#;
+
+        let columns = sqlx::query(columns_query)
+            .bind(&schema)
+            .bind(&table)
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get columns for DDL: {}", e)))?;
+
+        if columns.is_empty() {
+            return Ok(String::new()); // Table doesn't exist yet (e.g., CREATE TABLE preview)
+        }
+
+        // Get primary key
+        let pk_query = r#"
+            SELECT
+                array_agg(kcu.column_name::text ORDER BY kcu.ordinal_position)::text[] as columns
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            WHERE tc.constraint_type = 'PRIMARY KEY'
+            AND tc.table_schema = COALESCE($1, current_schema())
+            AND tc.table_name = $2
+            GROUP BY tc.constraint_name
+        "#;
+
+        let pk_rows = sqlx::query(pk_query)
+            .bind(&schema)
+            .bind(&table)
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get PK for DDL: {}", e)))?;
+
+        // Build DDL
+        let schema_prefix = schema.as_ref().map(|s| format!("\"{}\".", s)).unwrap_or_default();
+        let mut ddl = format!("CREATE TABLE {}\"{}\" (\n", schema_prefix, table);
+
+        let column_defs: Vec<String> = columns.iter().map(|row| {
+            let col_name: String = row.get("column_name");
+            let data_type: String = row.get("data_type");
+            let udt_name: String = row.get("udt_name");
+            let max_length: Option<i32> = row.try_get("max_length").ok();
+            let numeric_precision: Option<i32> = row.try_get("numeric_precision").ok();
+            let numeric_scale: Option<i32> = row.try_get("numeric_scale").ok();
+            let is_nullable: String = row.get("is_nullable");
+            let column_default: Option<String> = row.try_get("column_default").ok();
+
+            let type_str = match data_type.as_str() {
+                "character varying" => {
+                    if let Some(len) = max_length {
+                        format!("VARCHAR({})", len)
+                    } else {
+                        "VARCHAR".to_string()
+                    }
+                }
+                "character" => {
+                    if let Some(len) = max_length {
+                        format!("CHAR({})", len)
+                    } else {
+                        "CHAR".to_string()
+                    }
+                }
+                "numeric" => {
+                    match (numeric_precision, numeric_scale) {
+                        (Some(p), Some(s)) if s > 0 => format!("NUMERIC({},{})", p, s),
+                        (Some(p), _) => format!("NUMERIC({})", p),
+                        _ => "NUMERIC".to_string()
+                    }
+                }
+                "ARRAY" => format!("{}[]", udt_name.trim_start_matches('_')),
+                _ => data_type.to_uppercase()
+            };
+
+            let mut col_def = format!("    \"{}\" {}", col_name, type_str);
+
+            if is_nullable == "NO" {
+                col_def.push_str(" NOT NULL");
+            }
+
+            if let Some(default) = column_default {
+                col_def.push_str(&format!(" DEFAULT {}", default));
+            }
+
+            col_def
+        }).collect();
+
+        ddl.push_str(&column_defs.join(",\n"));
+
+        // Add primary key
+        if let Some(pk_row) = pk_rows.first() {
+            let pk_columns: Vec<String> = pk_row.get("columns");
+            let pk_cols_quoted: Vec<String> = pk_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+            ddl.push_str(&format!(",\n    PRIMARY KEY ({})", pk_cols_quoted.join(", ")));
+        }
+
+        ddl.push_str("\n);");
+
+        Ok(ddl)
+    }
+
+    /// Preview a DML statement by executing with RETURNING
+    async fn preview_dml_statement(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        stmt: &str,
+        table_name: &Option<String>,
+    ) -> AppResult<StatementPreview> {
+        let sql_upper = stmt.trim().to_uppercase();
+
+        // Add RETURNING * if not already present
+        let has_returning = sql_upper.contains(" RETURNING ");
+        let sql_with_returning = if has_returning {
+            stmt.to_string()
+        } else {
+            // Append RETURNING * on a new line to ensure it doesn't get commented out
+            // by a trailing line comment in the original statement.
+            format!("{}\nRETURNING *", stmt.trim().trim_end_matches(';'))
+        };
+
+        // Execute and fetch results
+        let rows = sqlx::query(&sql_with_returning)
+            .fetch_all(&mut **tx)
+            .await
+            .map_err(|e| AppError::QueryError(format!("DML execution failed: {}", e)))?;
+
+        let row_count = rows.len() as u64;
+
+        if rows.is_empty() {
+            return Ok(StatementPreview {
+                statement_type: StatementType::Dml,
+                sql: stmt.to_string(),
+                schema_before: None,
+                schema_after: None,
+                affected_rows: Some(vec![]),
+                affected_columns: Some(vec![]),
+                row_count: 0,
+                table_name: table_name.clone(),
+            });
+        }
+
+        // Get column info from first row
+        let columns: Vec<ColumnInfo> = rows[0]
+            .columns()
+            .iter()
+            .map(|col| ColumnInfo {
+                name: col.name().to_string(),
+                data_type: col.type_info().name().to_string(),
+                nullable: true,
+                is_primary_key: false,
+            })
+            .collect();
+
+        // Convert rows to JSON, limiting to 100 rows for preview
+        let max_preview_rows = 100;
+        let json_rows: Vec<Vec<serde_json::Value>> = rows
+            .iter()
+            .take(max_preview_rows)
+            .map(|row| {
+                (0..columns.len())
+                    .map(|i| Self::pg_value_to_json(row, i))
+                    .collect()
+            })
+            .collect();
+
+        Ok(StatementPreview {
+            statement_type: StatementType::Dml,
+            sql: stmt.to_string(),
+            schema_before: None,
+            schema_after: None,
+            affected_rows: Some(json_rows),
+            affected_columns: Some(columns),
+            row_count,
+            table_name: table_name.clone(),
+        })
     }
 
     /// Execute a single SQL statement
@@ -1432,6 +1853,156 @@ impl DatabaseDriver for PostgresDriver {
         }
 
         Ok(relationships)
+    }
+
+    async fn preview_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<PreviewResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+        let statements = Self::split_sql_statements(sql);
+
+        if statements.is_empty() {
+            return Ok(PreviewResult {
+                statements: vec![],
+                execution_time_ms: 0,
+                success: true,
+                error: None,
+                warning: None,
+            });
+        }
+
+        // Start transaction for preview
+        let mut tx = pool.begin().await
+            .map_err(|e| AppError::QueryError(format!("Failed to start preview transaction: {}", e)))?;
+
+        let mut previews: Vec<StatementPreview> = Vec::new();
+
+        for stmt in &statements {
+            let stmt_type = Self::detect_statement_type(stmt);
+            let table_name = Self::extract_table_name(stmt);
+
+            match stmt_type {
+                StatementType::Ddl => {
+                    // Capture schema before
+                    let schema_before = if let Some(ref name) = table_name {
+                        Self::generate_table_ddl_in_tx(&mut tx, name).await.ok()
+                    } else {
+                        None
+                    };
+
+                    // Execute DDL
+                    let result = sqlx::query(stmt)
+                        .execute(&mut *tx)
+                        .await;
+
+                    match result {
+                        Ok(_) => {
+                            // Capture schema after
+                            let schema_after = if let Some(ref name) = table_name {
+                                Self::generate_table_ddl_in_tx(&mut tx, name).await.ok()
+                            } else {
+                                None
+                            };
+
+                            previews.push(StatementPreview {
+                                statement_type: StatementType::Ddl,
+                                sql: stmt.clone(),
+                                schema_before,
+                                schema_after,
+                                affected_rows: None,
+                                affected_columns: None,
+                                row_count: 0,
+                                table_name,
+                            });
+                        }
+                        Err(e) => {
+                            // Rollback and return error
+                            let _ = tx.rollback().await;
+                            return Ok(PreviewResult {
+                                statements: previews,
+                                execution_time_ms: start.elapsed().as_millis() as u64,
+                                success: false,
+                                error: Some(format!("DDL execution failed: {}", e)),
+                                warning: None,
+                            });
+                        }
+                    }
+                }
+                StatementType::Dml => {
+                    // For DML, try to get affected rows using RETURNING
+                    let preview = Self::preview_dml_statement(&mut tx, stmt, &table_name).await;
+
+                    match preview {
+                        Ok(p) => previews.push(p),
+                        Err(e) => {
+                            let _ = tx.rollback().await;
+                            return Ok(PreviewResult {
+                                statements: previews,
+                                execution_time_ms: start.elapsed().as_millis() as u64,
+                                success: false,
+                                error: Some(format!("DML preview failed: {}", e)),
+                                warning: None,
+                            });
+                        }
+                    }
+                }
+                StatementType::Select => {
+                    // SELECT queries don't need preview - skip them
+                    previews.push(StatementPreview {
+                        statement_type: StatementType::Select,
+                        sql: stmt.clone(),
+                        schema_before: None,
+                        schema_after: None,
+                        affected_rows: None,
+                        affected_columns: None,
+                        row_count: 0,
+                        table_name,
+                    });
+                }
+                StatementType::Other => {
+                    // Execute other statements (GRANT, etc.)
+                    match sqlx::query(stmt).execute(&mut *tx).await {
+                        Ok(_) => {
+                            previews.push(StatementPreview {
+                                statement_type: StatementType::Other,
+                                sql: stmt.clone(),
+                                schema_before: None,
+                                schema_after: None,
+                                affected_rows: None,
+                                affected_columns: None,
+                                row_count: 0,
+                                table_name,
+                            });
+                        }
+                        Err(e) => {
+                            let _ = tx.rollback().await;
+                            return Ok(PreviewResult {
+                                statements: previews,
+                                execution_time_ms: start.elapsed().as_millis() as u64,
+                                success: false,
+                                error: Some(format!("Statement execution failed: {}", e)),
+                                warning: None,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Always rollback - this is just a preview
+        tx.rollback().await
+            .map_err(|e| AppError::QueryError(format!("Failed to rollback preview transaction: {}", e)))?;
+
+        Ok(PreviewResult {
+            statements: previews,
+            execution_time_ms: start.elapsed().as_millis() as u64,
+            success: true,
+            error: None,
+            warning: None,
+        })
     }
 }
 

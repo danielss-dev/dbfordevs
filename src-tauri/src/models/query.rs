@@ -107,3 +107,57 @@ pub struct TableRelationship {
     pub constraint_name: Option<String>,
 }
 
+// Preview query types
+
+/// Type of SQL statement for preview purposes
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StatementType {
+    Ddl,
+    Dml,
+    Select,
+    Other,
+}
+
+/// Preview result for a single statement
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatementPreview {
+    pub statement_type: StatementType,
+    pub sql: String,
+    /// For DDL: schema before the change
+    pub schema_before: Option<String>,
+    /// For DDL: schema after the change (within transaction)
+    pub schema_after: Option<String>,
+    /// For DML: affected rows data
+    pub affected_rows: Option<Vec<Vec<serde_json::Value>>>,
+    /// Column info for affected rows
+    pub affected_columns: Option<Vec<ColumnInfo>>,
+    /// Number of rows that would be affected
+    pub row_count: u64,
+    /// Table name affected (for context)
+    pub table_name: Option<String>,
+}
+
+/// Complete preview result for a query
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewResult {
+    pub statements: Vec<StatementPreview>,
+    pub execution_time_ms: u64,
+    /// Whether preview was successful
+    pub success: bool,
+    /// Error message if preview failed
+    pub error: Option<String>,
+    /// Warning message if preview was successful but has limitations
+    pub warning: Option<String>,
+}
+
+/// Request for preview query
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewRequest {
+    pub connection_id: String,
+    pub sql: String,
+}
+
