@@ -1,3 +1,4 @@
+use crate::db::common::{escape_sqlite_identifier, parse_cte_statement_type, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
@@ -118,7 +119,9 @@ impl SqliteDriver {
             StatementType::Ddl
         } else if clean_sql.starts_with("INSERT") || clean_sql.starts_with("UPDATE") || clean_sql.starts_with("DELETE") {
             StatementType::Dml
-        } else if clean_sql.starts_with("SELECT") || clean_sql.starts_with("WITH") || clean_sql.starts_with("PRAGMA") {
+        } else if clean_sql.starts_with("WITH") {
+            parse_cte_statement_type(&clean_sql, &CteParserConfig::sqlite())
+        } else if clean_sql.starts_with("SELECT") || clean_sql.starts_with("PRAGMA") {
             StatementType::Select
         } else {
             StatementType::Other
@@ -197,10 +200,11 @@ impl SqliteDriver {
         // Handle quoted identifier (SQLite uses double quotes or square brackets)
         if s.starts_with('"') {
             let mut identifier = String::new();
+            let mut end_byte = 1;
             let mut chars = s.char_indices().skip(1).peekable();
             let mut found_closing = false;
 
-            while let Some((_, c)) = chars.next() {
+            while let Some((pos, c)) = chars.next() {
                 if c == '"' {
                     if let Some((_, next_c)) = chars.peek() {
                         if *next_c == '"' {
@@ -210,19 +214,31 @@ impl SqliteDriver {
                         }
                     }
                     found_closing = true;
+                    end_byte = pos + 1;
                     break;
                 }
                 identifier.push(c);
             }
+
+            if found_closing {
+                let after = &s[end_byte..];
+                if after.starts_with('.') {
+                    if let Some(table) = Self::extract_identifier(&after[1..]) {
+                        return Some(format!("{}.{}", identifier, table));
+                    }
+                }
+            }
+            
             return if identifier.is_empty() && !found_closing { None } else { Some(identifier) };
         }
 
         if s.starts_with('[') {
             let mut identifier = String::new();
+            let mut end_byte = 1;
             let mut chars = s.char_indices().skip(1).peekable();
             let mut found_closing = false;
 
-            while let Some((_, c)) = chars.next() {
+            while let Some((pos, c)) = chars.next() {
                 if c == ']' {
                     if let Some((_, next_c)) = chars.peek() {
                         if *next_c == ']' {
@@ -232,10 +248,21 @@ impl SqliteDriver {
                         }
                     }
                     found_closing = true;
+                    end_byte = pos + 1;
                     break;
                 }
                 identifier.push(c);
             }
+
+            if found_closing {
+                let after = &s[end_byte..];
+                if after.starts_with('.') {
+                    if let Some(table) = Self::extract_identifier(&after[1..]) {
+                        return Some(format!("{}.{}", identifier, table));
+                    }
+                }
+            }
+            
             return if identifier.is_empty() && !found_closing { None } else { Some(identifier) };
         }
 
@@ -253,7 +280,15 @@ impl SqliteDriver {
             return None;
         }
 
-        Some(s[..end_byte].to_string())
+        let identifier = s[..end_byte].to_string();
+        let after = &s[end_byte..];
+        if after.starts_with('.') {
+            if let Some(table) = Self::extract_identifier(&after[1..]) {
+                return Some(format!("{}.{}", identifier, table));
+            }
+        }
+
+        Some(identifier)
     }
 
     /// Get table schema (CREATE TABLE statement) within a transaction
@@ -261,10 +296,25 @@ impl SqliteDriver {
         tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         table_name: &str,
     ) -> AppResult<String> {
-        let query = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?";
+        // Handle database-qualified names (e.g., main.users)
+        let (db_prefix, actual_table_name) = if let Some(dot_pos) = table_name.rfind('.') {
+            let (db, table) = table_name.split_at(dot_pos);
+            (Some(db.to_string()), table.trim_start_matches('.').to_string())
+        } else {
+            (None, table_name.to_string())
+        };
 
-        let ddl: Option<String> = sqlx::query_scalar(query)
-            .bind(table_name)
+        let query = if let Some(db) = db_prefix {
+            format!(
+                "SELECT sql FROM \"{}\".sqlite_master WHERE type = 'table' AND name = ?",
+                escape_sqlite_identifier(&db)
+            )
+        } else {
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?".to_string()
+        };
+
+        let ddl: Option<String> = sqlx::query_scalar(&query)
+            .bind(actual_table_name)
             .fetch_optional(&mut **tx)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get table schema: {}", e)))?;
@@ -692,11 +742,25 @@ impl DatabaseDriver for SqliteDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
         };
 
-        // SQLite stores the original DDL in sqlite_master
-        let query = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?";
+        // Handle database-qualified names
+        let (db_prefix, actual_table_name) = if let Some(dot_pos) = table_name.rfind('.') {
+            let (db, table) = table_name.split_at(dot_pos);
+            (Some(db.to_string()), table.trim_start_matches('.').to_string())
+        } else {
+            (None, table_name.to_string())
+        };
 
-        let ddl: Option<String> = sqlx::query_scalar(query)
-            .bind(table_name)
+        let query = if let Some(db) = db_prefix {
+            format!(
+                "SELECT sql FROM \"{}\".sqlite_master WHERE type = 'table' AND name = ?",
+                escape_sqlite_identifier(&db)
+            )
+        } else {
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?".to_string()
+        };
+
+        let ddl: Option<String> = sqlx::query_scalar(&query)
+            .bind(actual_table_name)
             .fetch_optional(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get DDL: {}", e)))?;
@@ -776,11 +840,26 @@ impl DatabaseDriver for SqliteDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
         };
 
-        // SQLite doesn't have a direct way to query constraints, but we can parse them from the DDL
-        let query = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?";
+        // Handle database-qualified names
+        let (db_prefix, actual_table_name) = if let Some(dot_pos) = table_name.rfind('.') {
+            let (db, table) = table_name.split_at(dot_pos);
+            (Some(db.to_string()), table.trim_start_matches('.').to_string())
+        } else {
+            (None, table_name.to_string())
+        };
 
-        let ddl: Option<String> = sqlx::query_scalar(query)
-            .bind(table_name)
+        // SQLite doesn't have a direct way to query constraints, but we can parse them from the DDL
+        let query = if let Some(db) = db_prefix {
+            format!(
+                "SELECT sql FROM \"{}\".sqlite_master WHERE type = 'table' AND name = ?",
+                escape_sqlite_identifier(&db)
+            )
+        } else {
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?".to_string()
+        };
+
+        let ddl: Option<String> = sqlx::query_scalar(&query)
+            .bind(actual_table_name)
             .fetch_optional(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get DDL for constraints: {}", e)))?;

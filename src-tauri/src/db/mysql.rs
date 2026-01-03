@@ -1,3 +1,4 @@
+use crate::db::common::{parse_cte_statement_type, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
@@ -147,8 +148,9 @@ impl MySqlDriver {
             || clean_sql.starts_with("REPLACE")
         {
             StatementType::Dml
+        } else if clean_sql.starts_with("WITH") {
+            parse_cte_statement_type(&clean_sql, &CteParserConfig::mysql())
         } else if clean_sql.starts_with("SELECT") 
-            || clean_sql.starts_with("WITH") 
             || clean_sql.starts_with("SHOW") 
             || clean_sql.starts_with("DESCRIBE") 
             || clean_sql.starts_with("EXPLAIN")

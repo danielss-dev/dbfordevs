@@ -110,7 +110,7 @@ pub struct TableRelationship {
 // Preview query types
 
 /// Type of SQL statement for preview purposes
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StatementType {
     Ddl,

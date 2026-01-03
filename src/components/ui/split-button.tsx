@@ -6,7 +6,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 export interface SplitButtonItem {
@@ -16,10 +17,13 @@ export interface SplitButtonItem {
   disabled?: boolean;
 }
 
-export interface SplitButtonProps extends Omit<ButtonProps, "onClick"> {
+export interface SplitButtonProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof buttonVariants> {
   onPrimaryClick: () => void;
   dropdownItems: SplitButtonItem[];
   dropdownDisabled?: boolean;
+  disabled?: boolean;
 }
 
 const SplitButton = React.forwardRef<HTMLDivElement, SplitButtonProps>(
@@ -33,11 +37,16 @@ const SplitButton = React.forwardRef<HTMLDivElement, SplitButtonProps>(
       className,
       variant,
       size,
+      ...props
     },
     ref
   ) => {
     return (
-      <div ref={ref} className={cn("inline-flex items-center", className)}>
+      <div
+        ref={ref}
+        className={cn("inline-flex items-center", className)}
+        {...props}
+      >
         {/* Primary action button */}
         <Button
           variant={variant}

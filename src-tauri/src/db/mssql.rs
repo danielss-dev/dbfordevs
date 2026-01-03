@@ -1,3 +1,4 @@
+use crate::db::common::{parse_cte_statement_type, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
@@ -269,7 +270,9 @@ impl MssqlDriver {
             StatementType::Ddl
         } else if clean_sql.starts_with("INSERT") || clean_sql.starts_with("UPDATE") || clean_sql.starts_with("DELETE") {
             StatementType::Dml
-        } else if clean_sql.starts_with("SELECT") || clean_sql.starts_with("WITH") {
+        } else if clean_sql.starts_with("WITH") {
+            parse_cte_statement_type(&clean_sql, &CteParserConfig::mssql())
+        } else if clean_sql.starts_with("SELECT") {
             StatementType::Select
         } else {
             StatementType::Other
