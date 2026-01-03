@@ -13,6 +13,7 @@ const question = (query: string): Promise<string> =>
 
 function runCommand(command: string): string {
   try {
+    console.log(`Executing: ${command}`);
     return execSync(command, { encoding: "utf-8" }).trim();
   } catch (error) {
     console.error(`Error executing command: ${command}`);
@@ -75,43 +76,51 @@ async function bumpVersion() {
     tauriConf.version = newVersion;
     writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + "\n");
 
-    // Update root Cargo.toml
+    // Update root Cargo.toml ([workspace.package] section)
     let rootCargo = readFileSync(rootCargoPath, "utf-8");
     rootCargo = rootCargo.replace(
-      /(\[workspace\.package\][\s\S]*?version\s*=\s*)"[^"]+"/,
+      /^(\[workspace\.package\][\s\S]*?^version\s*=\s*)"[^"]+"/m,
       `$1"${newVersion}"`
     );
     writeFileSync(rootCargoPath, rootCargo);
 
-    // Update src-tauri Cargo.toml
+    // Update src-tauri Cargo.toml ([package] section)
     let tauriCargo = readFileSync(tauriCargoPath, "utf-8");
     tauriCargo = tauriCargo.replace(
-      /(\[package\][\s\S]*?name\s*=\s*"dbfordevs"[\s\S]*?version\s*=\s*)"[^"]+"/,
+      /^(\[package\][\s\S]*?^version\s*=\s*)"[^"]+"/m,
       `$1"${newVersion}"`
     );
     writeFileSync(tauriCargoPath, tauriCargo);
+
+    // 2. Update lock files
+    console.log("📦 Updating lock files...");
+    try {
+      runCommand("bun install");
+      // Use cargo update -p to specifically update our project version in the lock file
+      // If that doesn't work, a simple cargo update might be needed
+      runCommand("cargo update -p dbfordevs");
+    } catch (e) {
+      console.warn("⚠️ Failed to update lock files automatically. You may need to run 'bun install' or 'cargo build' manually.");
+    }
   }
 
-  // 2. Update CHANGELOG.md
+  // 3. Update CHANGELOG.md
   if (existsSync(changelogPath)) {
     const today = new Date().toISOString().split("T")[0];
     const changelog = readFileSync(changelogPath, "utf-8");
 
-    // Look for ## [Unreleased] or insert at top
     const unreleasedHeader = "## [Unreleased]";
     const newVersionHeader = `## [${newVersion}] - ${today}`;
 
-    // We insert the new version header immediately after the [Unreleased] header.
-    // This moves any content currently under [Unreleased] into the new version section,
-    // which is the standard behavior for releasing those changes as per Keep a Changelog.
     let newChangelog = "";
     if (changelog.includes(unreleasedHeader)) {
+      // Content under [Unreleased] moves to the new version section
       newChangelog = changelog.replace(unreleasedHeader, `${unreleasedHeader}\n\n${newVersionHeader}`);
     } else {
-      // Insert after # Changelog and its description
+      // Insert new version header after the initial description/link
       const lines = changelog.split("\n");
       let insertIndex = lines.findIndex(l => l.startsWith("## "));
-      if (insertIndex === -1) insertIndex = 3; // Fallback
+      if (insertIndex === -1) insertIndex = 3;
 
       lines.splice(insertIndex, 0, newVersionHeader, "");
       newChangelog = lines.join("\n");
@@ -124,16 +133,16 @@ async function bumpVersion() {
     }
   }
 
-  // 3. Git Integration
+  // 4. Git Integration (Commit ONLY, no Tag)
   if (!isDryRun) {
     try {
-      const commitOrTag = await question("Stage, commit and tag these changes? (y/N): ");
-      if (commitOrTag.toLowerCase() === "y") {
-        console.log("📝 Staging changes...");
-        runCommand(`git add "${packageJsonPath}" "${tauriConfPath}" "${rootCargoPath}" "${tauriCargoPath}" "${changelogPath}"`);
+      const commitChanges = await question("Stage and commit these changes? (y/N): ");
+      if (commitChanges.toLowerCase() === "y") {
+        console.log("📝 Staging and committing changes...");
+        // Add all changed files including lock files
+        runCommand("git add package.json src-tauri/tauri.conf.json Cargo.toml src-tauri/Cargo.toml CHANGELOG.md bun.lock Cargo.lock");
         runCommand(`git commit -m "chore: bump version to ${newVersion}"`);
-        runCommand(`git tag -a v${newVersion} -m "Release v${newVersion}"`);
-        console.log(`✅ Committed and tagged as v${newVersion}`);
+        console.log(`✅ Committed changes for v${newVersion}`);
       } else {
         console.log("📝 Changes modified on disk but NOT staged/committed.");
       }
