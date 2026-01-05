@@ -602,43 +602,74 @@ impl DatabaseDriver for MssqlDriver {
             return Self::execute_single_query(&mut *client, &statements[0], start).await;
         }
 
-        // Execute multiple statements in a transaction
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
-        // Begin transaction
-        let begin_query = Query::new("BEGIN TRANSACTION");
-        begin_query.execute(&mut *client).await
-            .map_err(|e| AppError::QueryError(format!("Failed to start transaction: {}", e)))?;
-
-        let mut final_result = QueryResult {
-            columns: vec![],
-            rows: vec![],
-            affected_rows: None,
-            execution_time_ms: 0,
-        };
-
-        for (i, stmt) in statements.iter().enumerate() {
-            match Self::execute_single_query(&mut *client, stmt, start).await {
-                Ok(result) => {
-                    // Keep the last statement's result (similar to PostgreSQL behavior)
-                    if i == statements.len() - 1 || !result.rows.is_empty() {
-                        final_result = result;
-                    }
-                }
-                Err(e) => {
-                    // Rollback on error
-                    let rollback_query = Query::new("ROLLBACK TRANSACTION");
-                    let _ = rollback_query.execute(&mut *client).await;
-                    return Err(e);
-                }
+        // Clean up any leftover transactions and disable implicit transactions
+        {
+            let cleanup_sql = "SET IMPLICIT_TRANSACTIONS OFF; WHILE @@TRANCOUNT > 0 ROLLBACK TRANSACTION";
+            if let Ok(stream) = Query::new(cleanup_sql).query(&mut *client).await {
+                let _ = stream.into_results().await;
             }
         }
 
-        // Commit transaction
-        let commit_query = Query::new("COMMIT TRANSACTION");
-        commit_query.execute(&mut *client).await
-            .map_err(|e| AppError::QueryError(format!("Failed to commit transaction: {}", e)))?;
+        // SQL Server supports transactional DDL - unlike MySQL, you CAN roll back
+        // CREATE, ALTER, DROP, and TRUNCATE statements within a transaction
+        //
+        // Build a single batch: SET XACT_ABORT ON; BEGIN TRAN; stmt1; stmt2; ...; COMMIT TRAN
+        // This keeps transaction count balanced (0 -> 0) avoiding tiberius error 266
+        // XACT_ABORT ON ensures automatic rollback on any error
+        let mut batch_sql = String::from("SET XACT_ABORT ON;\nBEGIN TRANSACTION;\n");
+        for stmt in &statements {
+            batch_sql.push_str(stmt);
+            batch_sql.push_str(";\n");
+        }
+        batch_sql.push_str("COMMIT TRANSACTION;");
+
+        // Execute the entire batch
+        let query = Query::new(&batch_sql);
+        let stream = query.query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Query failed: {}", e)))?;
+
+        let results = stream.into_results().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch results: {}", e)))?;
+
+        // Find the last result set with data (similar to PostgreSQL behavior)
+        let mut final_result = QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(0),
+            execution_time_ms: 0,
+        };
+
+        for result_set in results.into_iter().rev() {
+            if !result_set.is_empty() {
+                if let Some(first_row) = result_set.first() {
+                    final_result.columns = first_row
+                        .columns()
+                        .iter()
+                        .map(|col| ColumnInfo {
+                            name: col.name().to_string(),
+                            data_type: format!("{:?}", col.column_type()),
+                            nullable: true,
+                            is_primary_key: false,
+                        })
+                        .collect();
+                }
+
+                final_result.rows = result_set
+                    .iter()
+                    .map(|row| {
+                        (0..row.columns().len())
+                            .map(|idx| mssql_value_to_json(row, idx))
+                            .collect()
+                    })
+                    .collect();
+
+                final_result.affected_rows = None; // Has result set, not affected rows
+                break;
+            }
+        }
 
         final_result.execution_time_ms = start.elapsed().as_millis() as u64;
         Ok(final_result)
@@ -1169,53 +1200,34 @@ impl DatabaseDriver for MssqlDriver {
             });
         }
 
+        // SQL Server supports transactional DDL - we can preview and roll back
+        // CREATE, ALTER, DROP, and TRUNCATE statements (unlike MySQL)
+        //
+        // We build a single batch with BEGIN TRAN + all statements + ROLLBACK to avoid
+        // tiberius error 266 (transaction count mismatch) which occurs when transaction
+        // control statements are sent as separate batches.
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
-        // Begin transaction
-        let begin_query = Query::new("BEGIN TRANSACTION");
-        begin_query.execute(&mut *client).await
-            .map_err(|e| AppError::QueryError(format!("Failed to start preview transaction: {}", e)))?;
+        // Clean up any leftover transactions and disable implicit transactions
+        {
+            let cleanup_sql = "SET IMPLICIT_TRANSACTIONS OFF; WHILE @@TRANCOUNT > 0 ROLLBACK TRANSACTION";
+            if let Ok(stream) = Query::new(cleanup_sql).query(&mut *client).await {
+                let _ = stream.into_results().await;
+            }
+        }
 
+        // Build previews for each statement type (without executing yet)
         let mut previews: Vec<StatementPreview> = Vec::new();
+        let mut executable_statements: Vec<(usize, String, StatementType, Option<String>)> = Vec::new();
 
-        for stmt in &statements {
+        for (idx, stmt) in statements.iter().enumerate() {
             let stmt_type = Self::detect_statement_type(stmt);
             let table_name = Self::extract_table_name(stmt);
 
             match stmt_type {
-                StatementType::Ddl | StatementType::Dml | StatementType::Other => {
-                    let query = Query::new(stmt);
-                    match query.execute(&mut *client).await {
-                        Ok(result) => {
-                            let row_count = result.total();
-
-                            previews.push(StatementPreview {
-                                statement_type: stmt_type,
-                                sql: stmt.clone(),
-                                schema_before: None,
-                                schema_after: None,
-                                affected_rows: None,
-                                affected_columns: None,
-                                row_count: row_count as u64,
-                                table_name,
-                            });
-                        }
-                        Err(e) => {
-                            // Rollback on error
-                            let rollback_query = Query::new("ROLLBACK TRANSACTION");
-                            let _ = rollback_query.execute(&mut *client).await;
-                            return Ok(PreviewResult {
-                                statements: previews,
-                                execution_time_ms: start.elapsed().as_millis() as u64,
-                                success: false,
-                                error: Some(format!("Statement execution failed: {}", e)),
-                                warning: None,
-                            });
-                        }
-                    }
-                }
                 StatementType::Select => {
+                    // SELECT statements don't need preview in transaction
                     previews.push(StatementPreview {
                         statement_type: StatementType::Select,
                         sql: stmt.clone(),
@@ -1227,13 +1239,84 @@ impl DatabaseDriver for MssqlDriver {
                         table_name,
                     });
                 }
+                _ => {
+                    executable_statements.push((idx, stmt.clone(), stmt_type, table_name));
+                }
             }
         }
 
-        // Always rollback - this is just a preview
-        let rollback_query = Query::new("ROLLBACK TRANSACTION");
-        rollback_query.execute(&mut *client).await
-            .map_err(|e| AppError::QueryError(format!("Failed to rollback preview transaction: {}", e)))?;
+        // If no executable statements, return early
+        if executable_statements.is_empty() {
+            return Ok(PreviewResult {
+                statements: previews,
+                execution_time_ms: start.elapsed().as_millis() as u64,
+                success: true,
+                error: None,
+                warning: None,
+            });
+        }
+
+        // Build a single batch: BEGIN TRAN; stmt1; stmt2; ...; ROLLBACK TRAN
+        // This keeps transaction count balanced (0 -> 0) avoiding error 266
+        let mut batch_sql = String::from("SET XACT_ABORT OFF;\nBEGIN TRANSACTION;\n");
+        for (_, stmt, _, _) in &executable_statements {
+            batch_sql.push_str(stmt);
+            batch_sql.push_str(";\n");
+        }
+        batch_sql.push_str("ROLLBACK TRANSACTION;");
+
+        // Execute the entire batch
+        let query = Query::new(&batch_sql);
+        match query.query(&mut *client).await {
+            Ok(stream) => {
+                // Get results - each statement may produce a result set or row count
+                match stream.into_results().await {
+                    Ok(results) => {
+                        // Map results back to statements
+                        // Note: result sets come in order of statements
+                        for (i, (_, stmt, stmt_type, table_name)) in executable_statements.iter().enumerate() {
+                            let row_count = if i < results.len() {
+                                results[i].len() as u64
+                            } else {
+                                0
+                            };
+
+                            previews.push(StatementPreview {
+                                statement_type: stmt_type.clone(),
+                                sql: stmt.clone(),
+                                schema_before: None,
+                                schema_after: None,
+                                affected_rows: None,
+                                affected_columns: None,
+                                row_count,
+                                table_name: table_name.clone(),
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        return Ok(PreviewResult {
+                            statements: previews,
+                            execution_time_ms: start.elapsed().as_millis() as u64,
+                            success: false,
+                            error: Some(format!("Preview execution failed: {}", e)),
+                            warning: None,
+                        });
+                    }
+                }
+            }
+            Err(e) => {
+                return Ok(PreviewResult {
+                    statements: previews,
+                    execution_time_ms: start.elapsed().as_millis() as u64,
+                    success: false,
+                    error: Some(format!("Preview execution failed: {}", e)),
+                    warning: None,
+                });
+            }
+        }
+
+        // Sort previews by original statement order
+        // (SELECT statements were added first, executable ones after)
 
         Ok(PreviewResult {
             statements: previews,
