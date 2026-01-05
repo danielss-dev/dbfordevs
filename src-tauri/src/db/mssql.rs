@@ -557,11 +557,11 @@ impl MssqlDriver {
         }
     }
 
-    /// Build DDL string from query results
+    /// Build DDL string from query results with __type__ marker column
     /// Uses column indices for reliability with tiberius:
-    /// cols_result: [0]=col_name, [1]=data_type, [2]=max_length, [3]=precision, [4]=scale, [5]=is_nullable, [6]=is_identity, [7]=column_default
-    /// pk_result: [0]=pk_column_name
-    fn build_ddl_from_results(table_name: &str, cols_result: &[Row], pk_result: &[Row]) -> String {
+    /// cols_result: [0]=__type__, [1]=col_name, [2]=type_name, [3]=max_length, [4]=precision, [5]=scale, [6]=is_nullable, [7]=is_identity, [8]=col_default
+    /// pk_result: [0]=__type__, [1]=pk_column_name
+    fn build_ddl_from_results_with_marker(table_name: &str, cols_result: &[Row], pk_result: &[Row]) -> String {
         if cols_result.is_empty() {
             return String::new();
         }
@@ -572,22 +572,22 @@ impl MssqlDriver {
         let mut pk_columns: Vec<String> = Vec::new();
 
         for row in cols_result {
-            // Check that row has enough columns (schema query returns 8 columns)
+            // Check that row has enough columns (schema query with marker returns 9 columns)
             let col_count = row.columns().len();
-            if col_count < 2 {
+            if col_count < 3 {
                 // Not a valid schema row, skip
                 continue;
             }
 
-            // Use column indices for more reliable access
-            let col_name: String = row.try_get::<&str, _>(0).ok().flatten().unwrap_or("").to_string();
-            let data_type: String = row.try_get::<&str, _>(1).ok().flatten().unwrap_or("").to_string();
-            let max_length: Option<i16> = if col_count > 2 { row.try_get::<i16, _>(2).ok().flatten() } else { None };
-            let precision: Option<u8> = if col_count > 3 { row.try_get::<u8, _>(3).ok().flatten() } else { None };
-            let scale: Option<u8> = if col_count > 4 { row.try_get::<u8, _>(4).ok().flatten() } else { None };
-            let is_nullable: bool = if col_count > 5 { row.try_get::<bool, _>(5).ok().flatten().unwrap_or(true) } else { true };
-            let is_identity: bool = if col_count > 6 { row.try_get::<bool, _>(6).ok().flatten().unwrap_or(false) } else { false };
-            let column_default: Option<String> = if col_count > 7 { row.try_get::<&str, _>(7).ok().flatten().map(|s| s.to_string()) } else { None };
+            // Column indices shifted by 1 due to __type__ marker at position 0
+            let col_name: String = row.try_get::<&str, _>(1).ok().flatten().unwrap_or("").to_string();
+            let data_type: String = row.try_get::<&str, _>(2).ok().flatten().unwrap_or("").to_string();
+            let max_length: Option<i16> = if col_count > 3 { row.try_get::<i16, _>(3).ok().flatten() } else { None };
+            let precision: Option<u8> = if col_count > 4 { row.try_get::<u8, _>(4).ok().flatten() } else { None };
+            let scale: Option<u8> = if col_count > 5 { row.try_get::<u8, _>(5).ok().flatten() } else { None };
+            let is_nullable: bool = if col_count > 6 { row.try_get::<bool, _>(6).ok().flatten().unwrap_or(true) } else { true };
+            let is_identity: bool = if col_count > 7 { row.try_get::<bool, _>(7).ok().flatten().unwrap_or(false) } else { false };
+            let column_default: Option<String> = if col_count > 8 { row.try_get::<&str, _>(8).ok().flatten().map(|s| s.to_string()) } else { None };
 
             // Skip rows where we couldn't get essential data
             if col_name.is_empty() {
@@ -607,11 +607,12 @@ impl MssqlDriver {
         }
 
         for row in pk_result {
-            // Check that row has at least 1 column
-            if row.columns().is_empty() {
+            // Check that row has at least 2 columns (__type__ + pk_column)
+            if row.columns().len() < 2 {
                 continue;
             }
-            if let Some(col_name) = row.try_get::<&str, _>(0).ok().flatten() {
+            // pk_column is at index 1 due to __type__ marker at index 0
+            if let Some(col_name) = row.try_get::<&str, _>(1).ok().flatten() {
                 pk_columns.push(col_name.to_string());
             }
         }
@@ -1413,19 +1414,13 @@ impl DatabaseDriver for MssqlDriver {
         }
 
         // Build ONE unified batch with all statements
+        // Each schema result set includes a __type__ marker column for reliable identification
         // Structure:
         // - BEGIN TRANSACTION
-        // - For each DDL: schema_before queries (cols+pk), execute DDL, schema_after queries (cols+pk)
+        // - For each DDL: schema_before queries, execute DDL, schema_after queries
         // - For each DML: execute with OUTPUT
         // - ROLLBACK TRANSACTION
-        //
-        // Each schema check produces 2 result sets: columns and primary keys
         let mut batch_sql = String::from("SET XACT_ABORT OFF;\nBEGIN TRANSACTION;\n");
-        
-        // Track which result sets correspond to what
-        // Each entry: (statement_index, result_type, table_name)
-        // "schema_before" and "schema_after" each consume 2 results (cols + pk)
-        let mut result_map: Vec<(usize, &str, Option<String>)> = Vec::new();
 
         for (idx, (stmt, stmt_type, table_name)) in statement_info.iter().enumerate() {
             match stmt_type {
@@ -1433,16 +1428,27 @@ impl DatabaseDriver for MssqlDriver {
                     // Query schema before (returns empty if table doesn't exist)
                     if let Some(ref name) = table_name {
                         let (schema, table) = Self::parse_table_name(name);
-                        // Columns query + PK query (2 result sets)
+                        let marker_before = format!("SCHEMA_BEFORE_{}", idx);
+                        let marker_before_pk = format!("SCHEMA_BEFORE_PK_{}", idx);
+                        
+                        // Columns query with marker
                         batch_sql.push_str(&format!(
-                            r#"SELECT c.name, t.name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, OBJECT_DEFINITION(c.default_object_id)
+                            r#"SELECT '{}' AS __type__, c.name, t.name AS type_name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, OBJECT_DEFINITION(c.default_object_id) AS col_default
 FROM sys.columns c
 INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
 INNER JOIN sys.tables tbl ON c.object_id = tbl.object_id
 INNER JOIN sys.schemas s ON tbl.schema_id = s.schema_id
 WHERE s.name = '{}' AND tbl.name = '{}'
 ORDER BY c.column_id;
-SELECT c.name
+"#,
+                            marker_before,
+                            schema.replace("'", "''"),
+                            table.replace("'", "''")
+                        ));
+                        
+                        // PK query with marker
+                        batch_sql.push_str(&format!(
+                            r#"SELECT '{}' AS __type__, c.name AS pk_column
 FROM sys.indexes i
 INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
 INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
@@ -1451,13 +1457,10 @@ INNER JOIN sys.schemas s ON tbl.schema_id = s.schema_id
 WHERE i.is_primary_key = 1 AND s.name = '{}' AND tbl.name = '{}'
 ORDER BY ic.key_ordinal;
 "#,
-                            schema.replace("'", "''"),
-                            table.replace("'", "''"),
+                            marker_before_pk,
                             schema.replace("'", "''"),
                             table.replace("'", "''")
                         ));
-                        // Single entry that will consume 2 result sets
-                        result_map.push((idx, "schema_before", Some(name.clone())));
                     }
 
                     // Execute DDL
@@ -1466,16 +1469,27 @@ ORDER BY ic.key_ordinal;
                     // Query schema after
                     if let Some(ref name) = table_name {
                         let (schema, table) = Self::parse_table_name(name);
-                        // Columns query + PK query (2 result sets)
+                        let marker_after = format!("SCHEMA_AFTER_{}", idx);
+                        let marker_after_pk = format!("SCHEMA_AFTER_PK_{}", idx);
+                        
+                        // Columns query with marker
                         batch_sql.push_str(&format!(
-                            r#"SELECT c.name, t.name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, OBJECT_DEFINITION(c.default_object_id)
+                            r#"SELECT '{}' AS __type__, c.name, t.name AS type_name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, OBJECT_DEFINITION(c.default_object_id) AS col_default
 FROM sys.columns c
 INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
 INNER JOIN sys.tables tbl ON c.object_id = tbl.object_id
 INNER JOIN sys.schemas s ON tbl.schema_id = s.schema_id
 WHERE s.name = '{}' AND tbl.name = '{}'
 ORDER BY c.column_id;
-SELECT c.name
+"#,
+                            marker_after,
+                            schema.replace("'", "''"),
+                            table.replace("'", "''")
+                        ));
+                        
+                        // PK query with marker
+                        batch_sql.push_str(&format!(
+                            r#"SELECT '{}' AS __type__, c.name AS pk_column
 FROM sys.indexes i
 INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
 INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
@@ -1484,13 +1498,10 @@ INNER JOIN sys.schemas s ON tbl.schema_id = s.schema_id
 WHERE i.is_primary_key = 1 AND s.name = '{}' AND tbl.name = '{}'
 ORDER BY ic.key_ordinal;
 "#,
-                            schema.replace("'", "''"),
-                            table.replace("'", "''"),
+                            marker_after_pk,
                             schema.replace("'", "''"),
                             table.replace("'", "''")
                         ));
-                        // Single entry that will consume 2 result sets
-                        result_map.push((idx, "schema_after", Some(name.clone())));
                     }
                 }
                 StatementType::Dml => {
@@ -1501,7 +1512,6 @@ ORDER BY ic.key_ordinal;
                         Self::add_output_clause(stmt)
                     };
                     batch_sql.push_str(&format!("{};\n", sql_with_output));
-                    result_map.push((idx, "dml_output", table_name.clone()));
                 }
                 StatementType::Select | StatementType::Other => {
                     // Just execute without capturing results
@@ -1566,72 +1576,78 @@ ORDER BY ic.key_ordinal;
             };
         }
 
-        // Parse result sets according to result_map
-        // Each "schema_before" or "schema_after" consumes 2 results (cols + pk)
-        // Each "dml_output" consumes 1 result
-        let mut result_idx = 0;
+        // Parse result sets using marker-based identification
+        // Schema results have __type__ column, DML results don't
+        // Store indices into results array for later lookup
+        let mut schema_cols_idx: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut schema_pks_idx: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut dml_result_indices: Vec<usize> = Vec::new();
 
-        for (stmt_idx, result_type, table_name) in &result_map {
-            match *result_type {
-                "schema_before" => {
-                    // Consume 2 results: columns and pk
-                    let cols_result = if result_idx < results.len() {
-                        let r = &results[result_idx];
-                        result_idx += 1;
-                        r
-                    } else {
-                        continue;
-                    };
+        for (result_idx, result) in results.iter().enumerate() {
+            // Check if this result has __type__ column (schema result)
+            let has_type_col = result.first()
+                .map(|row| row.columns().first().map(|c| c.name() == "__type__").unwrap_or(false))
+                .unwrap_or(false);
 
-                    let pk_result = if result_idx < results.len() {
-                        let r = &results[result_idx];
-                        result_idx += 1;
-                        r
-                    } else {
-                        &vec![]
-                    };
-
-                    if let Some(ref name) = table_name {
-                        let ddl = Self::build_ddl_from_results(name, cols_result, pk_result);
-                        if !ddl.is_empty() {
-                            previews[*stmt_idx].schema_before = Some(ddl);
+            if has_type_col && !result.is_empty() {
+                // Get the marker from the first row's __type__ column
+                if let Some(first_row) = result.first() {
+                    if let Ok(Some(marker)) = first_row.try_get::<&str, _>(0) {
+                        if marker.starts_with("SCHEMA_BEFORE_PK_") || marker.starts_with("SCHEMA_AFTER_PK_") {
+                            schema_pks_idx.insert(marker.to_string(), result_idx);
+                        } else if marker.starts_with("SCHEMA_BEFORE_") || marker.starts_with("SCHEMA_AFTER_") {
+                            schema_cols_idx.insert(marker.to_string(), result_idx);
                         }
                     }
                 }
-                "schema_after" => {
-                    // Consume 2 results: columns and pk
-                    let cols_result = if result_idx < results.len() {
-                        let r = &results[result_idx];
-                        result_idx += 1;
-                        r
-                    } else {
-                        continue;
-                    };
+            } else if !has_type_col && !result.is_empty() {
+                // DML result (no __type__ column and has data)
+                dml_result_indices.push(result_idx);
+            }
+        }
 
-                    let pk_result = if result_idx < results.len() {
-                        let r = &results[result_idx];
-                        result_idx += 1;
-                        r
-                    } else {
-                        &vec![]
-                    };
+        // Build schema DDL from collected results
+        for (idx, (_, stmt_type, table_name)) in statement_info.iter().enumerate() {
+            if *stmt_type == StatementType::Ddl {
+                if let Some(ref name) = table_name {
+                    // Schema before
+                    let before_marker = format!("SCHEMA_BEFORE_{}", idx);
+                    let before_pk_marker = format!("SCHEMA_BEFORE_PK_{}", idx);
+                    let cols_before = schema_cols_idx.get(&before_marker)
+                        .map(|&i| results[i].as_slice())
+                        .unwrap_or(&[]);
+                    let pk_before = schema_pks_idx.get(&before_pk_marker)
+                        .map(|&i| results[i].as_slice())
+                        .unwrap_or(&[]);
+                    let ddl_before = Self::build_ddl_from_results_with_marker(name, cols_before, pk_before);
+                    if !ddl_before.is_empty() {
+                        previews[idx].schema_before = Some(ddl_before);
+                    }
 
-                    if let Some(ref name) = table_name {
-                        let ddl = Self::build_ddl_from_results(name, cols_result, pk_result);
-                        if !ddl.is_empty() {
-                            previews[*stmt_idx].schema_after = Some(ddl);
-                        }
+                    // Schema after
+                    let after_marker = format!("SCHEMA_AFTER_{}", idx);
+                    let after_pk_marker = format!("SCHEMA_AFTER_PK_{}", idx);
+                    let cols_after = schema_cols_idx.get(&after_marker)
+                        .map(|&i| results[i].as_slice())
+                        .unwrap_or(&[]);
+                    let pk_after = schema_pks_idx.get(&after_pk_marker)
+                        .map(|&i| results[i].as_slice())
+                        .unwrap_or(&[]);
+                    let ddl_after = Self::build_ddl_from_results_with_marker(name, cols_after, pk_after);
+                    if !ddl_after.is_empty() {
+                        previews[idx].schema_after = Some(ddl_after);
                     }
                 }
-                "dml_output" => {
-                    // Consume 1 result
-                    let dml_result = if result_idx < results.len() {
-                        let r = &results[result_idx];
-                        result_idx += 1;
-                        r
-                    } else {
-                        continue;
-                    };
+            }
+        }
+
+        // Assign DML results to DML statements in order
+        let mut dml_idx = 0;
+        for (idx, (_, stmt_type, _)) in statement_info.iter().enumerate() {
+            if *stmt_type == StatementType::Dml {
+                if dml_idx < dml_result_indices.len() {
+                    let dml_result = &results[dml_result_indices[dml_idx]];
+                    dml_idx += 1;
 
                     let mut columns: Vec<ColumnInfo> = Vec::new();
                     let mut rows_data: Vec<Vec<serde_json::Value>> = Vec::new();
@@ -1660,13 +1676,9 @@ ORDER BY ic.key_ordinal;
                     }
 
                     let row_count = rows_data.len() as u64;
-                    previews[*stmt_idx].affected_rows = Some(rows_data);
-                    previews[*stmt_idx].affected_columns = Some(columns);
-                    previews[*stmt_idx].row_count = row_count;
-                }
-                _ => {
-                    // Unknown type, skip
-                    result_idx += 1;
+                    previews[idx].affected_rows = Some(rows_data);
+                    previews[idx].affected_columns = Some(columns);
+                    previews[idx].row_count = row_count;
                 }
             }
         }
