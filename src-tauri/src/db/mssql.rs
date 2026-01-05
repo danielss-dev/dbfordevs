@@ -477,6 +477,193 @@ impl MssqlDriver {
             execution_time_ms: duration.as_millis() as u64,
         })
     }
+
+    /// Add OUTPUT clause to a DML statement
+    fn add_output_clause(stmt: &str) -> String {
+        let stmt_trimmed = stmt.trim().trim_end_matches(';');
+        let sql_upper = stmt_trimmed.to_uppercase();
+
+        if sql_upper.starts_with("INSERT") {
+            // INSERT INTO [table] (...) OUTPUT INSERTED.* VALUES (...)
+            // Find VALUES keyword (with any whitespace before it)
+            if let Some(pos) = Self::find_keyword_with_whitespace(&sql_upper, "VALUES") {
+                let before = stmt_trimmed[..pos].trim_end();
+                let after = &stmt_trimmed[pos..];
+                return format!("{} OUTPUT INSERTED.* {}", before, after.trim_start());
+            }
+            // INSERT INTO ... SELECT ...
+            if let Some(pos) = Self::find_keyword_with_whitespace(&sql_upper, "SELECT") {
+                let before = stmt_trimmed[..pos].trim_end();
+                let after = &stmt_trimmed[pos..];
+                return format!("{} OUTPUT INSERTED.* {}", before, after.trim_start());
+            }
+            // INSERT INTO table DEFAULT VALUES
+            if let Some(pos) = Self::find_keyword_with_whitespace(&sql_upper, "DEFAULT") {
+                let before = stmt_trimmed[..pos].trim_end();
+                let after = &stmt_trimmed[pos..];
+                return format!("{} OUTPUT INSERTED.* {}", before, after.trim_start());
+            }
+        } else if sql_upper.starts_with("UPDATE") {
+            // UPDATE [table] SET ... OUTPUT INSERTED.* WHERE ...
+            if let Some(pos) = Self::find_keyword_with_whitespace(&sql_upper, "WHERE") {
+                let before = stmt_trimmed[..pos].trim_end();
+                let after = &stmt_trimmed[pos..];
+                return format!("{} OUTPUT INSERTED.* {}", before, after.trim_start());
+            }
+            // No WHERE clause, append at end
+            return format!("{} OUTPUT INSERTED.*", stmt_trimmed);
+        } else if sql_upper.starts_with("DELETE") {
+            // DELETE FROM [table] OUTPUT DELETED.* WHERE ...
+            if let Some(pos) = Self::find_keyword_with_whitespace(&sql_upper, "WHERE") {
+                let before = stmt_trimmed[..pos].trim_end();
+                let after = &stmt_trimmed[pos..];
+                return format!("{} OUTPUT DELETED.* {}", before, after.trim_start());
+            }
+            // No WHERE clause, append OUTPUT before end
+            return format!("{} OUTPUT DELETED.*", stmt_trimmed);
+        }
+
+        // Fallback: return original statement
+        stmt.to_string()
+    }
+
+    /// Find a SQL keyword that has whitespace before it (not part of another word)
+    fn find_keyword_with_whitespace(sql_upper: &str, keyword: &str) -> Option<usize> {
+        let mut search_start = 0;
+        while let Some(pos) = sql_upper[search_start..].find(keyword) {
+            let absolute_pos = search_start + pos;
+            // Check that this is a standalone keyword (whitespace before, not alphanumeric after)
+            let has_whitespace_before = absolute_pos == 0 
+                || sql_upper.chars().nth(absolute_pos - 1).map(|c| c.is_whitespace()).unwrap_or(false);
+            let keyword_end = absolute_pos + keyword.len();
+            let has_word_boundary_after = keyword_end >= sql_upper.len()
+                || !sql_upper.chars().nth(keyword_end).map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
+            
+            if has_whitespace_before && has_word_boundary_after {
+                return Some(absolute_pos);
+            }
+            search_start = absolute_pos + 1;
+        }
+        None
+    }
+
+    /// Parse table name into schema and table parts
+    fn parse_table_name(table_name: &str) -> (String, String) {
+        if let Some(dot_pos) = table_name.find('.') {
+            let (s, t) = table_name.split_at(dot_pos);
+            (s.to_string(), t.trim_start_matches('.').to_string())
+        } else {
+            ("dbo".to_string(), table_name.to_string())
+        }
+    }
+
+    /// Build DDL string from query results with __type__ marker column
+    /// Uses column indices for reliability with tiberius:
+    /// cols_result: [0]=__type__, [1]=col_name, [2]=type_name, [3]=max_length, [4]=precision, [5]=scale, [6]=is_nullable, [7]=is_identity, [8]=col_default
+    /// pk_result: [0]=__type__, [1]=pk_column_name
+    fn build_ddl_from_results_with_marker(table_name: &str, cols_result: &[Row], pk_result: &[Row]) -> String {
+        if cols_result.is_empty() {
+            return String::new();
+        }
+
+        let (schema, table) = Self::parse_table_name(table_name);
+
+        let mut columns: Vec<(String, String, Option<i16>, Option<u8>, Option<u8>, bool, bool, Option<String>)> = Vec::new();
+        let mut pk_columns: Vec<String> = Vec::new();
+
+        for row in cols_result {
+            // Check that row has enough columns (schema query with marker returns 9 columns)
+            let col_count = row.columns().len();
+            if col_count < 3 {
+                // Not a valid schema row, skip
+                continue;
+            }
+
+            // Column indices shifted by 1 due to __type__ marker at position 0
+            let col_name: String = row.try_get::<&str, _>(1).ok().flatten().unwrap_or("").to_string();
+            let data_type: String = row.try_get::<&str, _>(2).ok().flatten().unwrap_or("").to_string();
+            let max_length: Option<i16> = if col_count > 3 { row.try_get::<i16, _>(3).ok().flatten() } else { None };
+            let precision: Option<u8> = if col_count > 4 { row.try_get::<u8, _>(4).ok().flatten() } else { None };
+            let scale: Option<u8> = if col_count > 5 { row.try_get::<u8, _>(5).ok().flatten() } else { None };
+            let is_nullable: bool = if col_count > 6 { row.try_get::<bool, _>(6).ok().flatten().unwrap_or(true) } else { true };
+            let is_identity: bool = if col_count > 7 { row.try_get::<bool, _>(7).ok().flatten().unwrap_or(false) } else { false };
+            let column_default: Option<String> = if col_count > 8 { row.try_get::<&str, _>(8).ok().flatten().map(|s| s.to_string()) } else { None };
+
+            // Skip rows where we couldn't get essential data
+            if col_name.is_empty() {
+                continue;
+            }
+
+            columns.push((
+                col_name,
+                data_type,
+                max_length,
+                precision,
+                scale,
+                is_nullable,
+                is_identity,
+                column_default,
+            ));
+        }
+
+        for row in pk_result {
+            // Check that row has at least 2 columns (__type__ + pk_column)
+            if row.columns().len() < 2 {
+                continue;
+            }
+            // pk_column is at index 1 due to __type__ marker at index 0
+            if let Some(col_name) = row.try_get::<&str, _>(1).ok().flatten() {
+                pk_columns.push(col_name.to_string());
+            }
+        }
+
+        // If no valid columns, return empty
+        if columns.is_empty() {
+            return String::new();
+        }
+
+        // Build DDL string
+        let quoted_table = if schema != "dbo" {
+            format!("[{}].[{}]", schema, table)
+        } else {
+            format!("[{}]", table)
+        };
+
+        let mut ddl = format!("CREATE TABLE {} (\n", quoted_table);
+
+        for (i, (col_name, data_type, max_length, precision, scale, is_nullable, is_identity, column_default)) in columns.iter().enumerate() {
+            let type_str = format_mssql_type(data_type, *max_length, *precision, *scale);
+
+            ddl.push_str(&format!("    [{}] {}", col_name, type_str));
+
+            if *is_identity {
+                ddl.push_str(" IDENTITY(1,1)");
+            }
+
+            if !is_nullable {
+                ddl.push_str(" NOT NULL");
+            }
+
+            if let Some(default) = column_default {
+                ddl.push_str(&format!(" DEFAULT {}", default));
+            }
+
+            if i < columns.len() - 1 || !pk_columns.is_empty() {
+                ddl.push(',');
+            }
+            ddl.push('\n');
+        }
+
+        // Add primary key constraint
+        if !pk_columns.is_empty() {
+            let pk_cols_quoted: Vec<String> = pk_columns.iter().map(|c| format!("[{}]", c)).collect();
+            ddl.push_str(&format!("    PRIMARY KEY ({})\n", pk_cols_quoted.join(", ")));
+        }
+
+        ddl.push_str(");");
+
+        ddl
+    }
 }
 
 /// Convert a tiberius column value to JSON
@@ -602,43 +789,74 @@ impl DatabaseDriver for MssqlDriver {
             return Self::execute_single_query(&mut *client, &statements[0], start).await;
         }
 
-        // Execute multiple statements in a transaction
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
-        // Begin transaction
-        let begin_query = Query::new("BEGIN TRANSACTION");
-        begin_query.execute(&mut *client).await
-            .map_err(|e| AppError::QueryError(format!("Failed to start transaction: {}", e)))?;
-
-        let mut final_result = QueryResult {
-            columns: vec![],
-            rows: vec![],
-            affected_rows: None,
-            execution_time_ms: 0,
-        };
-
-        for (i, stmt) in statements.iter().enumerate() {
-            match Self::execute_single_query(&mut *client, stmt, start).await {
-                Ok(result) => {
-                    // Keep the last statement's result (similar to PostgreSQL behavior)
-                    if i == statements.len() - 1 || !result.rows.is_empty() {
-                        final_result = result;
-                    }
-                }
-                Err(e) => {
-                    // Rollback on error
-                    let rollback_query = Query::new("ROLLBACK TRANSACTION");
-                    let _ = rollback_query.execute(&mut *client).await;
-                    return Err(e);
-                }
+        // Clean up any leftover transactions and disable implicit transactions
+        {
+            let cleanup_sql = "SET IMPLICIT_TRANSACTIONS OFF; WHILE @@TRANCOUNT > 0 ROLLBACK TRANSACTION";
+            if let Ok(stream) = Query::new(cleanup_sql).query(&mut *client).await {
+                let _ = stream.into_results().await;
             }
         }
 
-        // Commit transaction
-        let commit_query = Query::new("COMMIT TRANSACTION");
-        commit_query.execute(&mut *client).await
-            .map_err(|e| AppError::QueryError(format!("Failed to commit transaction: {}", e)))?;
+        // SQL Server supports transactional DDL - unlike MySQL, you CAN roll back
+        // CREATE, ALTER, DROP, and TRUNCATE statements within a transaction
+        //
+        // Build a single batch: SET XACT_ABORT ON; BEGIN TRAN; stmt1; stmt2; ...; COMMIT TRAN
+        // This keeps transaction count balanced (0 -> 0) avoiding tiberius error 266
+        // XACT_ABORT ON ensures automatic rollback on any error
+        let mut batch_sql = String::from("SET XACT_ABORT ON;\nBEGIN TRANSACTION;\n");
+        for stmt in &statements {
+            batch_sql.push_str(stmt);
+            batch_sql.push_str(";\n");
+        }
+        batch_sql.push_str("COMMIT TRANSACTION;");
+
+        // Execute the entire batch
+        let query = Query::new(&batch_sql);
+        let stream = query.query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Query failed: {}", e)))?;
+
+        let results = stream.into_results().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch results: {}", e)))?;
+
+        // Find the last result set with data (similar to PostgreSQL behavior)
+        let mut final_result = QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(0),
+            execution_time_ms: 0,
+        };
+
+        for result_set in results.into_iter().rev() {
+            if !result_set.is_empty() {
+                if let Some(first_row) = result_set.first() {
+                    final_result.columns = first_row
+                        .columns()
+                        .iter()
+                        .map(|col| ColumnInfo {
+                            name: col.name().to_string(),
+                            data_type: format!("{:?}", col.column_type()),
+                            nullable: true,
+                            is_primary_key: false,
+                        })
+                        .collect();
+                }
+
+                final_result.rows = result_set
+                    .iter()
+                    .map(|row| {
+                        (0..row.columns().len())
+                            .map(|idx| mssql_value_to_json(row, idx))
+                            .collect()
+                    })
+                    .collect();
+
+                final_result.affected_rows = None; // Has result set, not affected rows
+                break;
+            }
+        }
 
         final_result.execution_time_ms = start.elapsed().as_millis() as u64;
         Ok(final_result)
@@ -1169,71 +1387,301 @@ impl DatabaseDriver for MssqlDriver {
             });
         }
 
+        // SQL Server supports transactional DDL - we can preview and roll back
+        // CREATE, ALTER, DROP, and TRUNCATE statements (unlike MySQL)
+        //
+        // IMPORTANT: With tiberius, transaction control statements must be in the same batch.
+        // We build ONE unified batch containing all statements with schema capture queries
+        // interspersed for DDL statements. This ensures dependent statements work correctly
+        // (e.g., ALTER TABLE after CREATE TABLE).
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
 
-        // Begin transaction
-        let begin_query = Query::new("BEGIN TRANSACTION");
-        begin_query.execute(&mut *client).await
-            .map_err(|e| AppError::QueryError(format!("Failed to start preview transaction: {}", e)))?;
+        // Clean up any leftover transactions and disable implicit transactions
+        {
+            let cleanup_sql = "SET IMPLICIT_TRANSACTIONS OFF; WHILE @@TRANCOUNT > 0 ROLLBACK TRANSACTION";
+            if let Ok(stream) = Query::new(cleanup_sql).query(&mut *client).await {
+                let _ = stream.into_results().await;
+            }
+        }
 
-        let mut previews: Vec<StatementPreview> = Vec::new();
-
+        // Analyze statements and build the unified batch
+        let mut statement_info: Vec<(String, StatementType, Option<String>)> = Vec::new();
         for stmt in &statements {
             let stmt_type = Self::detect_statement_type(stmt);
             let table_name = Self::extract_table_name(stmt);
+            statement_info.push((stmt.clone(), stmt_type, table_name));
+        }
 
+        // Build ONE unified batch with all statements
+        // Each schema result set includes a __type__ marker column for reliable identification
+        // Structure:
+        // - BEGIN TRANSACTION
+        // - For each DDL: schema_before queries, execute DDL, schema_after queries
+        // - For each DML: execute with OUTPUT
+        // - ROLLBACK TRANSACTION
+        let mut batch_sql = String::from("SET XACT_ABORT OFF;\nBEGIN TRANSACTION;\n");
+
+        for (idx, (stmt, stmt_type, table_name)) in statement_info.iter().enumerate() {
             match stmt_type {
-                StatementType::Ddl | StatementType::Dml | StatementType::Other => {
-                    let query = Query::new(stmt);
-                    match query.execute(&mut *client).await {
-                        Ok(result) => {
-                            let row_count = result.total();
+                StatementType::Ddl => {
+                    // Query schema before (returns empty if table doesn't exist)
+                    if let Some(ref name) = table_name {
+                        let (schema, table) = Self::parse_table_name(name);
+                        let marker_before = format!("SCHEMA_BEFORE_{}", idx);
+                        let marker_before_pk = format!("SCHEMA_BEFORE_PK_{}", idx);
+                        
+                        // Columns query with marker
+                        batch_sql.push_str(&format!(
+                            r#"SELECT '{}' AS __type__, c.name, t.name AS type_name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, OBJECT_DEFINITION(c.default_object_id) AS col_default
+FROM sys.columns c
+INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
+INNER JOIN sys.tables tbl ON c.object_id = tbl.object_id
+INNER JOIN sys.schemas s ON tbl.schema_id = s.schema_id
+WHERE s.name = '{}' AND tbl.name = '{}'
+ORDER BY c.column_id;
+"#,
+                            marker_before,
+                            schema.replace("'", "''"),
+                            table.replace("'", "''")
+                        ));
+                        
+                        // PK query with marker
+                        batch_sql.push_str(&format!(
+                            r#"SELECT '{}' AS __type__, c.name AS pk_column
+FROM sys.indexes i
+INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+INNER JOIN sys.tables tbl ON i.object_id = tbl.object_id
+INNER JOIN sys.schemas s ON tbl.schema_id = s.schema_id
+WHERE i.is_primary_key = 1 AND s.name = '{}' AND tbl.name = '{}'
+ORDER BY ic.key_ordinal;
+"#,
+                            marker_before_pk,
+                            schema.replace("'", "''"),
+                            table.replace("'", "''")
+                        ));
+                    }
 
-                            previews.push(StatementPreview {
-                                statement_type: stmt_type,
-                                sql: stmt.clone(),
-                                schema_before: None,
-                                schema_after: None,
-                                affected_rows: None,
-                                affected_columns: None,
-                                row_count: row_count as u64,
-                                table_name,
-                            });
-                        }
-                        Err(e) => {
-                            // Rollback on error
-                            let rollback_query = Query::new("ROLLBACK TRANSACTION");
-                            let _ = rollback_query.execute(&mut *client).await;
-                            return Ok(PreviewResult {
-                                statements: previews,
-                                execution_time_ms: start.elapsed().as_millis() as u64,
-                                success: false,
-                                error: Some(format!("Statement execution failed: {}", e)),
-                                warning: None,
-                            });
-                        }
+                    // Execute DDL
+                    batch_sql.push_str(&format!("{};\n", stmt.trim().trim_end_matches(';')));
+
+                    // Query schema after
+                    if let Some(ref name) = table_name {
+                        let (schema, table) = Self::parse_table_name(name);
+                        let marker_after = format!("SCHEMA_AFTER_{}", idx);
+                        let marker_after_pk = format!("SCHEMA_AFTER_PK_{}", idx);
+                        
+                        // Columns query with marker
+                        batch_sql.push_str(&format!(
+                            r#"SELECT '{}' AS __type__, c.name, t.name AS type_name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, OBJECT_DEFINITION(c.default_object_id) AS col_default
+FROM sys.columns c
+INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
+INNER JOIN sys.tables tbl ON c.object_id = tbl.object_id
+INNER JOIN sys.schemas s ON tbl.schema_id = s.schema_id
+WHERE s.name = '{}' AND tbl.name = '{}'
+ORDER BY c.column_id;
+"#,
+                            marker_after,
+                            schema.replace("'", "''"),
+                            table.replace("'", "''")
+                        ));
+                        
+                        // PK query with marker
+                        batch_sql.push_str(&format!(
+                            r#"SELECT '{}' AS __type__, c.name AS pk_column
+FROM sys.indexes i
+INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+INNER JOIN sys.tables tbl ON i.object_id = tbl.object_id
+INNER JOIN sys.schemas s ON tbl.schema_id = s.schema_id
+WHERE i.is_primary_key = 1 AND s.name = '{}' AND tbl.name = '{}'
+ORDER BY ic.key_ordinal;
+"#,
+                            marker_after_pk,
+                            schema.replace("'", "''"),
+                            table.replace("'", "''")
+                        ));
                     }
                 }
-                StatementType::Select => {
-                    previews.push(StatementPreview {
-                        statement_type: StatementType::Select,
-                        sql: stmt.clone(),
-                        schema_before: None,
-                        schema_after: None,
-                        affected_rows: None,
-                        affected_columns: None,
-                        row_count: 0,
-                        table_name,
-                    });
+                StatementType::Dml => {
+                    // Execute DML with OUTPUT clause
+                    let sql_with_output = if stmt.to_uppercase().contains(" OUTPUT ") {
+                        stmt.trim().trim_end_matches(';').to_string()
+                    } else {
+                        Self::add_output_clause(stmt)
+                    };
+                    batch_sql.push_str(&format!("{};\n", sql_with_output));
+                }
+                StatementType::Select | StatementType::Other => {
+                    // Just execute without capturing results
+                    batch_sql.push_str(&format!("{};\n", stmt.trim().trim_end_matches(';')));
                 }
             }
         }
 
-        // Always rollback - this is just a preview
-        let rollback_query = Query::new("ROLLBACK TRANSACTION");
-        rollback_query.execute(&mut *client).await
-            .map_err(|e| AppError::QueryError(format!("Failed to rollback preview transaction: {}", e)))?;
+        batch_sql.push_str("ROLLBACK TRANSACTION;");
+
+        // Execute the unified batch
+        let query = Query::new(&batch_sql);
+        let stream = match query.query(&mut *client).await {
+            Ok(s) => s,
+            Err(e) => {
+                return Ok(PreviewResult {
+                    statements: vec![],
+                    execution_time_ms: start.elapsed().as_millis() as u64,
+                    success: false,
+                    error: Some(format!("Preview execution failed: {}", e)),
+                    warning: None,
+                });
+            }
+        };
+
+        let results = match stream.into_results().await {
+            Ok(r) => r,
+            Err(e) => {
+                return Ok(PreviewResult {
+                    statements: vec![],
+                    execution_time_ms: start.elapsed().as_millis() as u64,
+                    success: false,
+                    error: Some(format!("Failed to fetch preview results: {}", e)),
+                    warning: None,
+                });
+            }
+        };
+
+        // Parse results and build previews
+        let mut previews: Vec<StatementPreview> = vec![StatementPreview {
+            statement_type: StatementType::Other,
+            sql: String::new(),
+            schema_before: None,
+            schema_after: None,
+            affected_rows: None,
+            affected_columns: None,
+            row_count: 0,
+            table_name: None,
+        }; statement_info.len()];
+
+        // Initialize previews with basic info
+        for (idx, (stmt, stmt_type, table_name)) in statement_info.iter().enumerate() {
+            previews[idx] = StatementPreview {
+                statement_type: stmt_type.clone(),
+                sql: stmt.clone(),
+                schema_before: None,
+                schema_after: None,
+                affected_rows: None,
+                affected_columns: None,
+                row_count: 0,
+                table_name: table_name.clone(),
+            };
+        }
+
+        // Parse result sets using marker-based identification
+        // Schema results have __type__ column, DML results don't
+        // Store indices into results array for later lookup
+        let mut schema_cols_idx: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut schema_pks_idx: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut dml_result_indices: Vec<usize> = Vec::new();
+
+        for (result_idx, result) in results.iter().enumerate() {
+            // Check if this result has __type__ column (schema result)
+            let has_type_col = result.first()
+                .map(|row| row.columns().first().map(|c| c.name() == "__type__").unwrap_or(false))
+                .unwrap_or(false);
+
+            if has_type_col && !result.is_empty() {
+                // Get the marker from the first row's __type__ column
+                if let Some(first_row) = result.first() {
+                    if let Ok(Some(marker)) = first_row.try_get::<&str, _>(0) {
+                        if marker.starts_with("SCHEMA_BEFORE_PK_") || marker.starts_with("SCHEMA_AFTER_PK_") {
+                            schema_pks_idx.insert(marker.to_string(), result_idx);
+                        } else if marker.starts_with("SCHEMA_BEFORE_") || marker.starts_with("SCHEMA_AFTER_") {
+                            schema_cols_idx.insert(marker.to_string(), result_idx);
+                        }
+                    }
+                }
+            } else if !has_type_col && !result.is_empty() {
+                // DML result (no __type__ column and has data)
+                dml_result_indices.push(result_idx);
+            }
+        }
+
+        // Build schema DDL from collected results
+        for (idx, (_, stmt_type, table_name)) in statement_info.iter().enumerate() {
+            if *stmt_type == StatementType::Ddl {
+                if let Some(ref name) = table_name {
+                    // Schema before
+                    let before_marker = format!("SCHEMA_BEFORE_{}", idx);
+                    let before_pk_marker = format!("SCHEMA_BEFORE_PK_{}", idx);
+                    let cols_before = schema_cols_idx.get(&before_marker)
+                        .map(|&i| results[i].as_slice())
+                        .unwrap_or(&[]);
+                    let pk_before = schema_pks_idx.get(&before_pk_marker)
+                        .map(|&i| results[i].as_slice())
+                        .unwrap_or(&[]);
+                    let ddl_before = Self::build_ddl_from_results_with_marker(name, cols_before, pk_before);
+                    if !ddl_before.is_empty() {
+                        previews[idx].schema_before = Some(ddl_before);
+                    }
+
+                    // Schema after
+                    let after_marker = format!("SCHEMA_AFTER_{}", idx);
+                    let after_pk_marker = format!("SCHEMA_AFTER_PK_{}", idx);
+                    let cols_after = schema_cols_idx.get(&after_marker)
+                        .map(|&i| results[i].as_slice())
+                        .unwrap_or(&[]);
+                    let pk_after = schema_pks_idx.get(&after_pk_marker)
+                        .map(|&i| results[i].as_slice())
+                        .unwrap_or(&[]);
+                    let ddl_after = Self::build_ddl_from_results_with_marker(name, cols_after, pk_after);
+                    if !ddl_after.is_empty() {
+                        previews[idx].schema_after = Some(ddl_after);
+                    }
+                }
+            }
+        }
+
+        // Assign DML results to DML statements in order
+        let mut dml_idx = 0;
+        for (idx, (_, stmt_type, _)) in statement_info.iter().enumerate() {
+            if *stmt_type == StatementType::Dml {
+                if dml_idx < dml_result_indices.len() {
+                    let dml_result = &results[dml_result_indices[dml_idx]];
+                    dml_idx += 1;
+
+                    let mut columns: Vec<ColumnInfo> = Vec::new();
+                    let mut rows_data: Vec<Vec<serde_json::Value>> = Vec::new();
+
+                    if !dml_result.is_empty() {
+                        if let Some(first_row) = dml_result.first() {
+                            columns = first_row
+                                .columns()
+                                .iter()
+                                .map(|col| ColumnInfo {
+                                    name: col.name().to_string(),
+                                    data_type: format!("{:?}", col.column_type()),
+                                    nullable: true,
+                                    is_primary_key: false,
+                                })
+                                .collect();
+                        }
+
+                        for row in dml_result {
+                            let mut row_values = Vec::new();
+                            for col_idx in 0..row.columns().len() {
+                                row_values.push(mssql_value_to_json(row, col_idx));
+                            }
+                            rows_data.push(row_values);
+                        }
+                    }
+
+                    let row_count = rows_data.len() as u64;
+                    previews[idx].affected_rows = Some(rows_data);
+                    previews[idx].affected_columns = Some(columns);
+                    previews[idx].row_count = row_count;
+                }
+            }
+        }
 
         Ok(PreviewResult {
             statements: previews,

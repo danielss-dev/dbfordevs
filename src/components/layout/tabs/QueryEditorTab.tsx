@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye } from "lucide-react";
-import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
+import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, Database } from "lucide-react";
+import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore, usePreviewStore } from "@/stores";
 import { useUIStore } from "@/stores/ui";
 import { useAIStore } from "@/lib/ai/store";
@@ -12,16 +12,22 @@ import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
 import { QueryHistoryDropdown } from "@/components/query-history/QueryHistoryDropdown";
 import { PreviewDialog } from "@/components/preview";
+import { BrandIcon } from "@/components/ui";
+import { getDatabaseBrand } from "@/lib/constants";
 import type { Tab, QueryHistoryEntry } from "@/types";
 
 interface QueryEditorTabProps {
   tab: Tab;
 }
 
-export function QueryEditorTab({ tab }: QueryEditorTabProps) {
-  const { updateTabContent, isExecuting, error, tablesByConnection, addQueryToHistory } = useQueryStore();
+export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
+  const { tabs, updateTabContent, isExecuting, error, tablesByConnection, addQueryToHistory, updateTab } = useQueryStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
+  const { connections } = useConnectionsStore();
   const { getSchemas } = useSchemaStore();
+
+  // Get the latest tab from store to ensure we have the most up-to-date connectionId
+  const tab = tabs.find(t => t.id === tabProp.id) || tabProp;
   const connectionId = tab.connectionId || activeConnection?.id;
   const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
   const schemas = connectionId ? getSchemas(connectionId) : {};
@@ -173,6 +179,15 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
     updateTabContent(tab.id, sql);
   };
 
+  const handleConnectionChange = (newConnectionId: string) => {
+    updateTab(tab.id, { connectionId: newConnectionId });
+    // Clear results when switching connections to avoid showing stale data
+    const { clearResults } = useQueryStore.getState();
+    clearResults(tab.id);
+    // Fetch schemas for the new connection
+    fetchAllSchemas(newConnectionId);
+  };
+
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
@@ -210,6 +225,37 @@ export function QueryEditorTab({ tab }: QueryEditorTabProps) {
           </TooltipTrigger>
           <TooltipContent>Execute Query (Cmd+Enter)</TooltipContent>
         </Tooltip>
+
+        {/* Connection Selector */}
+        <Select value={connectionId || ""} onValueChange={handleConnectionChange}>
+          <SelectTrigger className="h-8 w-[200px] text-xs">
+            <div className="flex items-center gap-2">
+              {connectionId && connections.find(c => c.id === connectionId) && (
+                <BrandIcon
+                  name={getDatabaseBrand(connections.find(c => c.id === connectionId)!.databaseType)}
+                  className="h-3.5 w-3.5"
+                />
+              )}
+              <SelectValue placeholder="Select connection" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {connections.map((connection) => (
+              <SelectItem key={connection.id} value={connection.id}>
+                <div className="flex items-center gap-2">
+                  <BrandIcon
+                    name={getDatabaseBrand(connection.databaseType)}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span>{connection.name}</span>
+                  {connection.connected && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-[hsl(var(--success))]" />
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {results && (
           <div className="flex items-center gap-2 text-sm">

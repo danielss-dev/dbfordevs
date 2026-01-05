@@ -24,6 +24,7 @@ interface QueryState {
   addTab: (tab: Tab) => void;
   removeTab: (id: string) => void;
   setActiveTab: (id: string | null) => void;
+  updateTab: (id: string, updates: Partial<Tab>) => void;
   updateTabContent: (id: string, content: string) => void;
   setResults: (tabId: string, results: QueryResult) => void;
   clearResults: (tabId: string) => void;
@@ -75,6 +76,11 @@ export const useQueryStore = create<QueryState>()(
     }),
 
   setActiveTab: (id) => set({ activeTabId: id }),
+
+  updateTab: (id, updates) =>
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+    })),
 
   updateTabContent: (id, content) =>
     set((state) => ({

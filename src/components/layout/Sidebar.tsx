@@ -221,7 +221,10 @@ function ConnectionItem({ connection, tableSearchQuery }: { connection: Connecti
   const loadTables = async () => {
     if (!connection.connected) {
       const connected = await connect(connection.id);
-      if (!connected) return;
+      if (!connected) {
+        showErrorToast("Connection failed", `Failed to connect to "${connection.name}". Please check your connection settings.`);
+        return;
+      }
     }
 
     setIsLoadingTables(true);
@@ -229,6 +232,7 @@ function ConnectionItem({ connection, tableSearchQuery }: { connection: Connecti
       await getTables(connection.id);
     } catch (error) {
       console.error("Failed to load tables:", error);
+      showErrorToast("Failed to load tables", error instanceof Error ? error.message : String(error));
     } finally {
       setIsLoadingTables(false);
     }
@@ -237,7 +241,10 @@ function ConnectionItem({ connection, tableSearchQuery }: { connection: Connecti
   const handleConnectionClick = async () => {
     setActiveConnection(connection.id);
     if (!connection.connected) {
-      await connect(connection.id);
+      const connected = await connect(connection.id);
+      if (!connected) {
+        showErrorToast("Connection failed", `Failed to connect to "${connection.name}". Please check your connection settings.`);
+      }
     }
   };
 

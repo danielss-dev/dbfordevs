@@ -1,11 +1,11 @@
 /**
  * ChatHistoryPanel
  *
- * Panel showing chat history with time grouping (like Cursor)
+ * Floating panel showing chat history with time grouping (like Cursor)
  */
 
-import { useState } from "react";
-import { X, Search, Plus } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, Plus, X } from "lucide-react";
 import {
   Button,
   Input,
@@ -17,12 +17,49 @@ import { ChatHistoryItem } from "./ChatHistoryItem";
 import { cn } from "@/lib/utils";
 
 interface ChatHistoryPanelProps {
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function ChatHistoryPanel({ onClose }: ChatHistoryPanelProps) {
+export function ChatHistoryPanel({ open, onOpenChange }: ChatHistoryPanelProps) {
   const { chatSessions, activeChatSessionId, createNewChatSession, switchChatSession } = useAIStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        onOpenChange(false);
+      }
+    };
+
+    // Add slight delay to prevent immediate closure from the button click
+    const timeout = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open, onOpenChange]);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!open) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onOpenChange(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open, onOpenChange]);
 
   // Filter sessions by search query
   const filteredSessions = chatSessions.filter((session) => {
@@ -48,12 +85,16 @@ export function ChatHistoryPanel({ onClose }: ChatHistoryPanelProps) {
     switchChatSession(sessionId);
   };
 
+  if (!open) return null;
+
   return (
     <div
+      ref={panelRef}
       className={cn(
-        "fixed right-[420px] top-0 bottom-0 z-40 flex flex-col",
-        "w-[360px] border-l border-border bg-background shadow-xl",
-        "animate-in slide-in-from-right duration-200"
+        "absolute left-4 top-16 z-[60] flex flex-col",
+        "w-[340px] h-[500px] max-h-[calc(100vh-8rem)]",
+        "border border-border rounded-xl bg-background shadow-2xl",
+        "animate-in fade-in-0 zoom-in-95 duration-200"
       )}
     >
       {/* Header */}
@@ -69,7 +110,12 @@ export function ChatHistoryPanel({ onClose }: ChatHistoryPanelProps) {
             <Plus className="h-3.5 w-3.5" />
             New Chat
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onOpenChange(false)}
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
