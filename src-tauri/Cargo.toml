@@ -51,6 +51,12 @@ base64 = "0.22"
 russh = "0.46"
 russh-keys = "0.46"
 
+[dev-dependencies]
+testcontainers = "0.23"
+testcontainers-modules = { version = "0.11", features = ["postgres", "mysql"] }
+tokio-test = "0.4"
+tempfile = "3"
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
