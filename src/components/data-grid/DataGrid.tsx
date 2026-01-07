@@ -188,19 +188,23 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
     // Row Number Column (Gutter) - Standardized as the selection trigger
     tableColumns.push({
       id: "rowNumber",
-      header: () => null,
+      header: () => (
+        <div className="flex items-center justify-center w-full h-full text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">
+          #
+        </div>
+      ),
       cell: ({ row, table }) => {
         const pageIndex = table.getState().pagination.pageIndex;
         const pageSize = table.getState().pagination.pageSize;
         const isSelected = row.getIsSelected();
-        
+
         return (
-          <div 
+          <div
             className={cn(
-              "flex items-center justify-center w-full h-full text-[10px] font-medium transition-colors cursor-pointer select-none border-r border-border/50",
-              isSelected 
-                ? "bg-primary/20 text-primary-foreground font-bold border-r-primary/40" 
-                : "text-muted-foreground/40 bg-muted/5 hover:bg-muted/10 hover:text-muted-foreground/60"
+              "flex items-center justify-center w-full h-full text-[10px] font-medium transition-all cursor-pointer select-none",
+              isSelected
+                ? "bg-primary/20 text-primary font-bold"
+                : "text-muted-foreground/50 hover:bg-primary/10 hover:text-primary/70"
             )}
             onClick={(e) => {
               e.stopPropagation();
@@ -208,17 +212,17 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
                 const rows = table.getRowModel().rows;
                 const currentIndex = rows.findIndex(r => r.id === row.id);
                 const lastIndex = rows.findIndex(r => r.id === lastSelectedId);
-                
+
                 if (currentIndex !== -1 && lastIndex !== -1) {
                   const start = Math.min(currentIndex, lastIndex);
                   const end = Math.max(currentIndex, lastIndex);
-                  
+
                   // Add all rows in range with full context
                   for (let i = start; i <= end; i++) {
                     const selectedRow = createSelectedRow(rows[i].original);
                     addSelectedRow(selectedRow);
                   }
-                  
+
                   // Update table selection state
                   const selectionUpdate: Record<string, boolean> = { ...table.getState().rowSelection };
                   for (let i = start; i <= end; i++) {
@@ -239,7 +243,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
           </div>
         );
       },
-      size: 40,
+      size: 48,
       enableSorting: false,
     });
 
@@ -251,25 +255,38 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
         const currentFilter = columnFilters[col.name];
 
         return (
-          <div className="flex items-center gap-1 w-full h-full">
+          <div className="flex items-center gap-1.5 w-full h-full">
             <button
-              className="flex items-center gap-2 hover:text-foreground transition-colors group flex-1"
+              className="flex items-center gap-2 hover:text-foreground transition-all group flex-1 py-0.5"
               onClick={() => column.toggleSorting(sorted === "asc")}
             >
-              <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                {getTypeIcon(col.dataType)}
-                <span className="font-bold text-foreground/80 tracking-tight text-xs uppercase">{col.name}</span>
+              <div className={cn(
+                "flex items-center gap-1.5 transition-all",
+                sorted ? "opacity-100" : "opacity-70 group-hover:opacity-100"
+              )}>
+                <span className={cn(
+                  "transition-colors",
+                  sorted ? "text-primary" : "text-muted-foreground group-hover:text-foreground/70"
+                )}>
+                  {getTypeIcon(col.dataType)}
+                </span>
+                <span className={cn(
+                  "font-semibold tracking-tight text-xs uppercase transition-colors",
+                  sorted ? "text-primary" : "text-foreground/70 group-hover:text-foreground"
+                )}>
+                  {col.name}
+                </span>
               </div>
               <span className={cn(
-                "transition-opacity shrink-0 ml-auto",
-                sorted ? "opacity-100 text-primary" : "opacity-0 group-hover:opacity-50 text-muted-foreground"
+                "transition-all shrink-0 ml-auto",
+                sorted ? "opacity-100 text-primary" : "opacity-0 group-hover:opacity-40 text-muted-foreground"
               )}>
                 {sorted === "asc" ? (
                   <ArrowUp className="h-3 w-3" />
                 ) : sorted === "desc" ? (
                   <ArrowDown className="h-3 w-3" />
                 ) : (
-                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  <ArrowUpDown className="h-3 w-3" />
                 )}
               </span>
             </button>
@@ -530,7 +547,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="bg-muted/50 border-b-2 border-border shadow-md">
+              <tr key={headerGroup.id} className="bg-[hsl(var(--table-header-bg))] border-b border-border shadow-sm">
                 {headerGroup.headers.map((header) => {
                   const isNumeric = header.column.id.toLowerCase().includes("id") ||
                                   header.column.id.toLowerCase().includes("count") ||
@@ -540,11 +557,12 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
                     <th
                       key={header.id}
                       className={cn(
-                        "px-3 py-2.5 text-foreground/90 font-bold transition-all relative",
-                        "hover:bg-muted/70",
+                        "px-3 py-2 text-foreground/90 font-bold transition-all relative",
+                        "hover:bg-muted/50",
                         isNumeric ? "text-right" : "text-left",
-                        header.column.id === "rowNumber" ? "p-0 w-10 text-center bg-muted/30" : "min-w-[120px]",
-                        "border-r border-border/40 last:border-r-0"
+                        header.column.id === "rowNumber"
+                          ? "p-0 w-12 text-center bg-muted/20 border-r border-border/30"
+                          : "min-w-[120px] border-r border-border/20 last:border-r-0"
                       )}
                       style={{ width: header.getSize() }}
                     >
@@ -569,29 +587,31 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
                 <tr
                   key={row.id}
                   className={cn(
-                    "transition-colors cursor-pointer group h-9",
+                    "transition-all cursor-pointer group h-9",
                     idx % 2 === 0 ? "bg-[hsl(var(--table-row-odd))]" : "bg-[hsl(var(--table-row-even))]",
                     "hover:bg-[hsl(var(--table-row-hover))]",
-                    row.getIsSelected() && "bg-primary/30 hover:bg-primary/35",
-                    pendingChanges[row.id]?.type === "delete" && "opacity-50 grayscale line-through decoration-destructive"
+                    row.getIsSelected() && "bg-primary/15 hover:bg-primary/20 ring-1 ring-inset ring-primary/30",
+                    pendingChanges[row.id]?.type === "delete" && "opacity-40 grayscale line-through decoration-destructive/70 decoration-2"
                   )}
                   onClick={() => {
                     onRowClick?.(row.original);
                   }}
                 >
                   {row.getVisibleCells().map((cell) => {
-                    const isNumeric = cell.column.id.toLowerCase().includes("id") || 
+                    const isNumeric = cell.column.id.toLowerCase().includes("id") ||
                                     cell.column.id.toLowerCase().includes("count") ||
                                     cell.column.id.toLowerCase().includes("amount");
-                    
+
                     return (
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-3 py-1.5 transition-colors border-r border-[hsl(var(--border)/0.2)] last:border-r-0",
+                          "px-3 py-1.5 transition-colors",
                           isNumeric ? "text-right" : "text-left",
-                          cell.column.id === "rowNumber" && "p-0 w-10 text-center",
-                          editingCell?.rowId === row.id && editingCell?.columnId === cell.column.id && "p-0"
+                          cell.column.id === "rowNumber"
+                            ? "p-0 w-12 text-center border-r border-border/20"
+                            : "border-r border-[hsl(var(--border)/0.15)] last:border-r-0",
+                          editingCell?.rowId === row.id && editingCell?.columnId === cell.column.id && "p-0 bg-background ring-2 ring-primary/50"
                         )}
                         onDoubleClick={() => {
                           if (cell.column.id !== "rowNumber") {
@@ -611,8 +631,8 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-border bg-muted/40 px-6 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center gap-6 text-xs text-muted-foreground">
+      <div className="flex items-center justify-between border-t border-border bg-gradient-to-r from-muted/30 via-muted/50 to-muted/30 px-4 py-2">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
           {/* Global Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
@@ -621,12 +641,12 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
               placeholder="Search..."
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
-              className="h-7 w-[180px] pl-8 pr-8 text-xs bg-background/50"
+              className="h-7 w-[160px] pl-8 pr-8 text-xs bg-background/70 border-border/50"
             />
             {globalFilter && (
               <button
                 onClick={() => setGlobalFilter("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-destructive transition-colors"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -637,20 +657,20 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
           <ExportMenu tableName={tableName} />
 
           {/* Status Text */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 text-muted-foreground/80">
             <span>Showing</span>
-            <span className="font-semibold text-foreground/80">
+            <span className="font-semibold text-foreground/80 tabular-nums">
               {table.getFilteredRowModel().rows.length > 0 ? pageIndex * pageSize + 1 : 0}
             </span>
             <span>-</span>
-            <span className="font-semibold text-foreground/80">
+            <span className="font-semibold text-foreground/80 tabular-nums">
               {Math.min((pageIndex + 1) * pageSize, table.getFilteredRowModel().rows.length)}
             </span>
             <span>of</span>
-            <span className="font-semibold text-foreground/80">{table.getFilteredRowModel().rows.length.toLocaleString()}</span>
+            <span className="font-semibold text-foreground/80 tabular-nums">{table.getFilteredRowModel().rows.length.toLocaleString()}</span>
             <span>rows</span>
             {globalFilter && table.getFilteredRowModel().rows.length !== totalRows && (
-              <span className="text-muted-foreground/60 ml-1">
+              <span className="text-primary/70 ml-1 tabular-nums">
                 (filtered from {totalRows.toLocaleString()})
               </span>
             )}
@@ -663,9 +683,9 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 border-r border-border pr-4 mr-2">
-            <span className="text-[10px] font-bold uppercase text-muted-foreground/60 mr-2">Rows per page:</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 pr-3 border-r border-border/50">
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground/60 tracking-wide">Rows:</span>
             <Select
               value={String(storePageSize)}
               onValueChange={(value) => {
@@ -674,7 +694,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
                 table.setPageSize(newSize);
               }}
             >
-              <SelectTrigger className="h-7 w-[75px] text-[10px] uppercase font-bold bg-background/50">
+              <SelectTrigger className="h-7 w-[70px] text-xs font-medium bg-background/70 border-border/50">
                 <SelectValue placeholder={String(storePageSize)} />
               </SelectTrigger>
               <SelectContent>
@@ -691,21 +711,21 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 hover:bg-background"
+              className="h-7 w-7 hover:bg-primary/10 hover:text-primary disabled:opacity-30"
               onClick={() => setPageIndex(pageIndex - 1)}
               disabled={pageIndex === 0}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-1.5 px-3 text-xs font-medium min-w-[100px] justify-center bg-background/50 h-7 rounded-md border border-border/30">
-              <span className="text-primary">{pageIndex + 1}</span>
-              <span className="text-muted-foreground font-normal">/</span>
-              <span>{totalPages}</span>
+            <div className="flex items-center gap-1.5 px-3 text-xs font-medium min-w-[90px] justify-center bg-background/70 h-7 rounded-md border border-border/40">
+              <span className="text-primary font-semibold tabular-nums">{pageIndex + 1}</span>
+              <span className="text-muted-foreground/50">/</span>
+              <span className="tabular-nums">{totalPages}</span>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 hover:bg-background"
+              className="h-7 w-7 hover:bg-primary/10 hover:text-primary disabled:opacity-30"
               onClick={() => setPageIndex(pageIndex + 1)}
               disabled={pageIndex >= totalPages - 1}
             >

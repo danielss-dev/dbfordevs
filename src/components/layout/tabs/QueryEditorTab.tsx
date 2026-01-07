@@ -229,15 +229,7 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
         {/* Connection Selector */}
         <Select value={connectionId || ""} onValueChange={handleConnectionChange}>
           <SelectTrigger className="h-8 w-[200px] text-xs">
-            <div className="flex items-center gap-2">
-              {connectionId && connections.find(c => c.id === connectionId) && (
-                <BrandIcon
-                  name={getDatabaseBrand(connections.find(c => c.id === connectionId)!.databaseType)}
-                  className="h-3.5 w-3.5"
-                />
-              )}
-              <SelectValue placeholder="Select connection" />
-            </div>
+            <SelectValue placeholder="Select connection" />
           </SelectTrigger>
           <SelectContent>
             {connections.map((connection) => (

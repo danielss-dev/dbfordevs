@@ -58,10 +58,10 @@ function TabItem({ tab, isActive, onClose, onClick }: {
       role="button"
       tabIndex={0}
       className={cn(
-        "group relative flex items-center gap-2 px-4 py-2.5 text-sm transition-all duration-200 border-r border-border/50 cursor-pointer outline-none focus-visible:bg-muted/50",
+        "group relative flex items-center gap-2 px-4 py-2 text-sm transition-all duration-150 cursor-pointer outline-none",
         isActive
           ? "bg-background text-foreground"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+          : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
       )}
       onClick={onClick}
       onKeyDown={(e) => {
@@ -71,22 +71,31 @@ function TabItem({ tab, isActive, onClose, onClick }: {
         }
       }}
     >
-      {/* Active indicator */}
+      {/* Active indicator - top accent line */}
       {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary/80 rounded-full blur-[0.5px]" />
+        <div className="absolute top-0 left-2 right-2 h-[2px] bg-primary rounded-b-full" />
+      )}
+      {/* Bottom border for inactive tabs */}
+      {!isActive && (
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-border/50" />
       )}
       <span className={cn(
-        "transition-colors",
-        isActive ? "text-primary/90" : "text-muted-foreground group-hover:text-foreground"
+        "transition-colors shrink-0",
+        isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground/70"
       )}>
         {getIcon()}
       </span>
-      <span className="max-w-[120px] truncate font-medium">{tab.title}</span>
+      <span className={cn(
+        "max-w-[120px] truncate transition-colors",
+        isActive ? "font-semibold" : "font-medium"
+      )}>
+        {tab.title}
+      </span>
       <button
         className={cn(
-          "ml-1 rounded-md p-0.5 transition-all duration-200",
+          "ml-1 rounded-md p-0.5 transition-all duration-150 shrink-0",
           "opacity-0 group-hover:opacity-100",
-          "hover:bg-muted-foreground/20"
+          "hover:bg-destructive/10 hover:text-destructive"
         )}
         onClick={(e) => {
           e.stopPropagation();
@@ -217,7 +226,7 @@ export function MainContent() {
   return (
     <main className="flex h-full flex-1 flex-col bg-background overflow-hidden">
       {/* Tab Bar */}
-      <div className="flex h-11 items-center border-b border-border bg-card/50 relative group/tabbar">
+      <div className="flex h-10 items-center border-b border-border bg-muted/30 relative group/tabbar">
         <div className="flex-1 h-full relative overflow-hidden flex items-center">
           {showLeftArrow && (
             <div className="absolute left-0 z-20 flex h-full items-center bg-gradient-to-r from-background via-background to-transparent pr-8 pl-1">

@@ -39,10 +39,10 @@ function FieldEditor({ name, value, type, nullable, onChange }: FieldEditorProps
   };
 
   return (
-    <div className="space-y-2 p-3 rounded-lg hover:bg-muted/30 transition-colors">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">{name}</Label>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+    <div className="group space-y-2 p-3 rounded-lg hover:bg-muted/40 transition-all border border-transparent hover:border-border/50">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-sm font-medium text-foreground/90">{name}</Label>
+        <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono bg-muted/70 px-1.5 py-0.5 rounded border border-border/30">
           {type}
         </span>
       </div>
@@ -52,18 +52,20 @@ function FieldEditor({ name, value, type, nullable, onChange }: FieldEditorProps
           onChange={(e) => handleChange(e.target.value)}
           disabled={isNull}
           className={cn(
-            "font-mono text-sm",
-            isNull && "bg-muted/50 text-muted-foreground"
+            "font-mono text-sm h-9 transition-all",
+            isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background"
           )}
           placeholder={isNull ? "NULL" : `Enter ${name}`}
         />
         {nullable && (
           <Button
-            variant={isNull ? "default" : "outline"}
+            variant={isNull ? "secondary" : "outline"}
             size="sm"
             className={cn(
-              "shrink-0 text-xs font-mono h-10 px-3",
-              isNull && "bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30"
+              "shrink-0 text-[10px] font-mono h-9 px-3 uppercase tracking-wider transition-all",
+              isNull
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
+                : "hover:bg-muted/80"
             )}
             onClick={() => handleChange(isNull ? "" : null)}
           >
@@ -164,39 +166,40 @@ export function SidePanel() {
       style={{ width: sidePanelWidth }}
     >
       {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-border px-4">
+      <div className="flex h-12 items-center justify-between border-b border-border px-4 bg-gradient-to-r from-muted/30 to-transparent">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted">
+          <div className={cn(
+            "flex items-center justify-center w-8 h-8 rounded-lg transition-colors",
+            pendingChangesList.length > 0 ? "bg-primary/10" : "bg-muted/50"
+          )}>
             {pendingChangesList.length > 0 && activePanel === "sql" ? (
-              <Code className="h-4 w-4 text-muted-foreground" />
+              <Code className="h-4 w-4 text-primary" />
             ) : (
-              <Table className="h-4 w-4 text-muted-foreground" />
+              <Table className={cn("h-4 w-4", selectedRowId ? "text-primary" : "text-muted-foreground")} />
             )}
           </div>
-          <div>
-            <span className="text-sm font-medium">
-              {pendingChangesList.length > 0 && activePanel === "sql" 
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold leading-tight">
+              {pendingChangesList.length > 0 && activePanel === "sql"
                 ? "Pending Changes"
-                : selectedRows.length > 1 
+                : selectedRows.length > 1
                   ? `${selectedRows.length} Rows Selected`
                   : selectedRowId ? "Edit Row" : "No Row Selected"}
             </span>
             {selectedRowId && selectedRows.length === 1 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-                  {rowTableName}
-                </span>
-              </div>
+              <span className="text-[11px] text-muted-foreground truncate max-w-[150px] leading-tight">
+                {rowTableName}
+              </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {pendingChangesList.length > 0 && (
-            <div className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold mr-2">
-              {pendingChangesList.length}
+            <div className="px-2.5 py-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold tabular-nums shadow-sm">
+              {pendingChangesList.length} {pendingChangesList.length === 1 ? 'change' : 'changes'}
             </div>
           )}
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleSidePanel}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive" onClick={toggleSidePanel}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -272,13 +275,21 @@ export function SidePanel() {
               </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
-                <div className="bg-muted p-4 rounded-full mb-4">
-                  <Table className="h-8 w-8 opacity-20" />
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-primary/5 rounded-full blur-2xl scale-150" />
+                  <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-sm">
+                    <Table className="h-10 w-10 text-muted-foreground/30" />
+                  </div>
                 </div>
-                <p className="text-sm">
+                <p className="text-sm font-medium text-foreground/60 mb-2">
                   {selectedRowId
-                    ? "Row not found in current table. Select a row from the active table."
-                    : "Select a row in the table to edit its fields"}
+                    ? "Row not found"
+                    : "No row selected"}
+                </p>
+                <p className="text-xs text-muted-foreground/60 max-w-[200px]">
+                  {selectedRowId
+                    ? "Select a row from the active table to view and edit"
+                    : "Click on a row number or use shift-click to select multiple rows"}
                 </p>
               </div>
             )}
@@ -378,11 +389,17 @@ export function SidePanel() {
                         </div>
                       ))
                     ) : (
-                      <div className="flex flex-col items-center justify-center text-muted-foreground p-8 text-center mt-20">
-                        <div className="bg-muted p-4 rounded-full mb-4">
-                          <Code className="h-8 w-8 opacity-20" />
+                      <div className="flex flex-col items-center justify-center text-muted-foreground p-8 text-center mt-16">
+                        <div className="relative mb-6">
+                          <div className="absolute inset-0 bg-success/5 rounded-full blur-2xl scale-150" />
+                          <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-sm">
+                            <Code className="h-10 w-10 text-muted-foreground/30" />
+                          </div>
                         </div>
-                        <p className="text-sm">No pending changes to display</p>
+                        <p className="text-sm font-medium text-foreground/60 mb-2">No pending changes</p>
+                        <p className="text-xs text-muted-foreground/60 max-w-[200px]">
+                          Edit cell values or select rows to delete and preview changes here
+                        </p>
                       </div>
                     )}
                   </div>
@@ -396,43 +413,54 @@ export function SidePanel() {
       </Tabs>
 
       {/* Actions */}
-      <div className="border-t border-border p-3 bg-muted/30 space-y-3">
+      <div className="border-t border-border p-3 bg-gradient-to-t from-muted/40 to-muted/20 space-y-3">
         <div className="flex items-center justify-between px-1">
-          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Commit Mode</Label>
-          <div className="flex bg-muted rounded p-0.5 border border-border">
-            <Button 
-              variant={commitMode === "staged" ? "secondary" : "ghost"} 
-              size="sm" 
-              className="h-6 px-2 text-[10px]"
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground/80 font-semibold">Commit Mode</Label>
+          <div className="flex bg-background/50 rounded-md p-0.5 border border-border/50 shadow-sm">
+            <Button
+              variant={commitMode === "staged" ? "secondary" : "ghost"}
+              size="sm"
+              className={cn(
+                "h-6 px-3 text-[10px] font-medium transition-all",
+                commitMode === "staged" && "shadow-sm"
+              )}
               onClick={() => setCommitMode("staged")}
             >
               Staged
             </Button>
-            <Button 
-              variant={commitMode === "immediate" ? "secondary" : "ghost"} 
-              size="sm" 
-              className="h-6 px-2 text-[10px]"
+            <Button
+              variant={commitMode === "immediate" ? "secondary" : "ghost"}
+              size="sm"
+              className={cn(
+                "h-6 px-3 text-[10px] font-medium transition-all",
+                commitMode === "immediate" && "shadow-sm"
+              )}
               onClick={() => setCommitMode("immediate")}
             >
               Immediate
             </Button>
           </div>
         </div>
-        
+
         <div className="flex items-center justify-between gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 text-xs gap-1.5"
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-xs gap-1.5 h-9 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
             onClick={clearPendingChanges}
             disabled={pendingChangesList.length === 0}
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Clear All
           </Button>
-          <Button 
-            size="sm" 
-            className="flex-1 text-xs gap-1.5 bg-primary"
+          <Button
+            size="sm"
+            className={cn(
+              "flex-1 text-xs gap-1.5 h-9 font-medium shadow-sm transition-all",
+              pendingChangesList.length > 0
+                ? "bg-primary hover:bg-primary/90"
+                : "bg-muted text-muted-foreground"
+            )}
             disabled={pendingChangesList.length === 0}
             onClick={commitChanges}
           >

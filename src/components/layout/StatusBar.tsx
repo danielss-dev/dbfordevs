@@ -110,32 +110,32 @@ export function StatusBar() {
   const tabInfo = getTabTypeInfo();
 
   return (
-    <footer className="flex h-7 items-center justify-between border-t border-border bg-muted/30 px-3 text-xs">
+    <footer className="flex h-7 items-center justify-between border-t border-border bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 px-3 text-xs">
       {/* Left side */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Connection status */}
-        <div ref={statusRef} className={cn("flex items-center gap-2", status.textClass)}>
+        <div ref={statusRef} className={cn("flex items-center gap-2 pr-3 border-r border-border/50", status.textClass)}>
           {status.dotClass && <span className={cn("status-dot", status.dotClass)} />}
           {!status.dotClass && status.icon}
           <span className="font-medium">{status.text}</span>
           {activeConnection && (
             <>
-              <span className="text-border">|</span>
+              <span className="text-border/70">|</span>
               <BrandIcon name={activeConnection.databaseType} className="h-3 w-3" />
-              <span className="text-foreground font-medium">{activeConnection.name}</span>
+              <span className="text-foreground/90 font-medium">{activeConnection.name}</span>
             </>
           )}
         </div>
 
         {/* Tab context */}
         {tabInfo && (
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-muted-foreground/80 pr-3 border-r border-border/50">
             {tabInfo.icon}
-            <span>{tabInfo.text}</span>
+            <span className="font-medium">{tabInfo.text}</span>
             {activeTab?.tableName && (
               <>
-                <span className="text-border">·</span>
-                <span className="text-foreground font-medium">{activeTab.tableName}</span>
+                <span className="text-border/50 mx-0.5">·</span>
+                <span className="text-foreground/80 font-medium">{activeTab.tableName}</span>
               </>
             )}
           </div>
@@ -143,14 +143,14 @@ export function StatusBar() {
 
         {/* Results info */}
         {activeResults && (
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-muted-foreground/70">
             <Table className="h-3 w-3" />
-            <span>{activeResults.rows.length} rows</span>
+            <span className="tabular-nums font-medium">{activeResults.rows.length} rows</span>
             {activeResults.executionTimeMs !== undefined && (
               <>
-                <span className="text-border">·</span>
+                <span className="text-border/50 mx-0.5">·</span>
                 <Clock className="h-3 w-3" />
-                <span>{activeResults.executionTimeMs}ms</span>
+                <span className="tabular-nums">{activeResults.executionTimeMs}ms</span>
               </>
             )}
           </div>
@@ -158,7 +158,7 @@ export function StatusBar() {
 
         {/* Query status */}
         {isExecuting && (
-          <div className="flex items-center gap-2 text-[hsl(var(--warning))]">
+          <div className="flex items-center gap-1.5 text-[hsl(var(--warning))] bg-[hsl(var(--warning)/0.1)] px-2 py-0.5 rounded">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span className="font-medium">Executing...</span>
           </div>
@@ -166,22 +166,23 @@ export function StatusBar() {
 
         {/* Pending changes */}
         {pendingChanges.length > 0 && (
-          <div className="flex items-center gap-2 text-[hsl(var(--warning))]">
+          <div className="flex items-center gap-1.5 text-[hsl(var(--warning))] bg-[hsl(var(--warning)/0.1)] px-2 py-0.5 rounded">
             <Clock className="h-3 w-3" />
-            <span className="font-medium">{pendingChanges.length} pending</span>
+            <span className="font-medium tabular-nums">{pendingChanges.length} pending</span>
           </div>
         )}
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {isAIEnabled && (
           <button
             onClick={toggleAIPanel}
             className={cn(
-              "flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-all",
-              "hover:bg-violet-500/10 group",
-              aiPanelOpen && "bg-violet-500/10 text-violet-500"
+              "flex items-center gap-1.5 px-2.5 py-0.5 rounded-md transition-all border",
+              aiPanelOpen
+                ? "bg-violet-500/15 text-violet-500 border-violet-500/30"
+                : "border-transparent hover:bg-violet-500/10 hover:border-violet-500/20 group"
             )}
             title="Toggle AI Assistant (Cmd+Shift+A)"
           >
@@ -198,11 +199,14 @@ export function StatusBar() {
           </button>
         )}
 
+        {/* Separator */}
+        <div className="w-px h-4 bg-border/50" />
+
         {/* App info */}
-        <div className="flex items-center gap-1.5 text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-muted-foreground/60">
           <Database className="h-3 w-3" />
           <span className="font-medium">dbfordevs</span>
-          <span className="text-muted-foreground/50">v{version || "..."}</span>
+          <span className="text-muted-foreground/40 tabular-nums">v{version || "..."}</span>
         </div>
       </div>
     </footer>
