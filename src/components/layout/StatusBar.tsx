@@ -1,7 +1,6 @@
-import { Database, Clock, AlertCircle, CheckCircle, Loader2, Sparkles, Table, FileCode, Info, Network } from "lucide-react";
+import { Database, Clock, AlertCircle, CheckCircle, Loader2, Table, FileCode, Info, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionsStore, useQueryStore, useUIStore, selectActiveConnection, selectActiveTab, selectActiveResults } from "@/stores";
-import { useAIStore } from "@/lib/ai/store";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState, useRef } from "react";
 import { useAnime } from "@/hooks/useAnime";
@@ -14,9 +13,6 @@ export function StatusBar() {
   const activeTab = useQueryStore(selectActiveTab);
   const activeResults = useQueryStore(selectActiveResults);
   const { pendingChanges } = useUIStore();
-  const { togglePanel: toggleAIPanel, panelOpen: aiPanelOpen, settings: aiSettings } = useAIStore();
-  
-  const isAIEnabled = aiSettings.aiEnabled ?? true;
   const [version, setVersion] = useState<string>("");
   const { animate } = useAnime();
   const statusRef = useRef<HTMLDivElement>(null);
@@ -174,40 +170,10 @@ export function StatusBar() {
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-2">
-        {isAIEnabled && (
-          <button
-            onClick={toggleAIPanel}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-0.5 rounded-md transition-all border",
-              aiPanelOpen
-                ? "bg-violet-500/15 text-violet-500 border-violet-500/30"
-                : "border-transparent hover:bg-violet-500/10 hover:border-violet-500/20 group"
-            )}
-            title="Toggle AI Assistant (Cmd+Shift+A)"
-          >
-            <Sparkles className={cn(
-              "h-3 w-3 transition-colors",
-              aiPanelOpen ? "text-violet-500" : "text-muted-foreground group-hover:text-violet-500"
-            )} />
-            <span className={cn(
-              "font-medium transition-colors",
-              aiPanelOpen ? "text-violet-500" : "text-muted-foreground group-hover:text-violet-500"
-            )}>
-              AI
-            </span>
-          </button>
-        )}
-
-        {/* Separator */}
-        <div className="w-px h-4 bg-border/50" />
-
-        {/* App info */}
-        <div className="flex items-center gap-1.5 text-muted-foreground/60">
-          <Database className="h-3 w-3" />
-          <span className="font-medium">dbfordevs</span>
-          <span className="text-muted-foreground/40 tabular-nums">v{version || "..."}</span>
-        </div>
+      <div className="flex items-center gap-1.5 text-muted-foreground/60">
+        <Database className="h-3 w-3" />
+        <span className="font-medium">dbfordevs</span>
+        <span className="text-muted-foreground/40 tabular-nums">v{version || "..."}</span>
       </div>
     </footer>
   );

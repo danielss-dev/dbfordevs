@@ -1,6 +1,7 @@
-import { Table, Code, Eye } from "lucide-react";
+import { Table, Code, Eye, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore, useCRUDStore, usePreviewStore } from "@/stores";
+import { useAIStore } from "@/lib/ai/store";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
 import type { RightPanelTab } from "@/stores/ui";
 
@@ -46,9 +47,11 @@ export function RightActivityBar() {
   const { rightPanelTab, toggleRightPanelTab } = useUIStore();
   const { selectedRows, pendingChanges } = useCRUDStore();
   const { isPreviewOpen } = usePreviewStore();
+  const { settings: aiSettings } = useAIStore();
 
   const pendingCount = Object.keys(pendingChanges).length;
   const selectedCount = selectedRows.length;
+  const isAIEnabled = aiSettings.aiEnabled ?? true;
 
   return (
     <div className="flex flex-col items-center py-2 px-1 border-l border-border bg-muted/30 gap-1">
@@ -81,6 +84,21 @@ export function RightActivityBar() {
         badge={isPreviewOpen ? 1 : undefined}
         onClick={() => toggleRightPanelTab("preview")}
       />
+
+      {isAIEnabled && (
+        <>
+          <div className="flex-1" />
+
+          {/* AI Assistant */}
+          <ActivityBarItem
+            icon={<Sparkles className="h-4 w-4" />}
+            label="AI Assistant"
+            tab="ai"
+            isActive={rightPanelTab === "ai"}
+            onClick={() => toggleRightPanelTab("ai")}
+          />
+        </>
+      )}
     </div>
   );
 }
