@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -174,6 +174,21 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
 
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState<string>("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle Cmd+F / Ctrl+F to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Helper to create a SelectedRow object with full context
   const createSelectedRow = useCallback((row: Record<string, unknown>) => ({
@@ -645,6 +660,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
             <Input
+              ref={searchInputRef}
               type="text"
               placeholder="Search..."
               value={globalFilter}

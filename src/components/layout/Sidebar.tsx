@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Database,
   FolderTree,
@@ -40,70 +40,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
-import { TableSearch } from "@/components/sidebar/TableSearch";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
-import { useDatabase, useToast, useAnime } from "@/hooks";
+import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
 import { showSuccessToast, showErrorToast, showInfoToast } from "@/lib/toast-helpers";
-
-interface AnimatedTableSearchProps {
-  value: string;
-  onChange: (value: string) => void;
-  onClear: () => void;
-  matchCount?: number;
-  isVisible: boolean;
-  onExitComplete: () => void;
-}
-
-function AnimatedTableSearch({ value, onChange, onClear, matchCount, isVisible, onExitComplete }: AnimatedTableSearchProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { animate, enableAnimations } = useAnime();
-  const hasAnimatedIn = useRef(false);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    if (isVisible && !hasAnimatedIn.current) {
-      // Animate in
-      hasAnimatedIn.current = true;
-      animate({
-        targets: containerRef.current,
-        opacity: [0, 1],
-        translateY: [-8, 0],
-        duration: 200,
-        easing: "easeOutCubic",
-      });
-    } else if (!isVisible && hasAnimatedIn.current) {
-      // Animate out
-      if (enableAnimations) {
-        animate({
-          targets: containerRef.current,
-          opacity: [1, 0],
-          translateY: [0, -8],
-          duration: 150,
-          easing: "easeInCubic",
-          complete: onExitComplete,
-        });
-      } else {
-        onExitComplete();
-      }
-    }
-  }, [isVisible, animate, enableAnimations, onExitComplete]);
-
-  return (
-    <div ref={containerRef} style={{ opacity: 0 }}>
-      <TableSearch
-        value={value}
-        onChange={onChange}
-        onClear={onClear}
-        matchCount={matchCount}
-      />
-    </div>
-  );
-}
 
 interface TreeItemProps {
   label: string;
@@ -186,7 +129,7 @@ function TreeItem({
   );
 }
 
-function ConnectionItem({ connection, tableSearchQuery }: { connection: ConnectionInfo; tableSearchQuery: string }) {
+function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { activeConnectionId, setActiveConnection } = useConnectionsStore();
   const { openConnectionModal, openRenameTableDialog, openRenameConnectionDialog } = useUIStore();
   const { tablesByConnection, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
@@ -480,15 +423,8 @@ function ConnectionItem({ connection, tableSearchQuery }: { connection: Connecti
 
   const connectionTables = tablesByConnection[connection.id] || [];
 
-  // Filter tables based on search query
-  const filteredTables = tableSearchQuery.trim()
-    ? connectionTables.filter((table) =>
-        table.name.toLowerCase().includes(tableSearchQuery.toLowerCase())
-      )
-    : connectionTables;
-
   // Group tables by schema
-  const tablesBySchema = filteredTables.reduce((acc: Record<string, TableInfo[]>, table: TableInfo) => {
+  const tablesBySchema = connectionTables.reduce((acc: Record<string, TableInfo[]>, table: TableInfo) => {
     const schemaName = table.schema || "default";
     if (!acc[schemaName]) {
       acc[schemaName] = [];
@@ -727,67 +663,14 @@ export function Sidebar() {
   } = useUIStore();
   const { connections } = useConnectionsStore();
   const { loadConnections } = useDatabase();
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchMounted, setSearchMounted] = useState(false);
-  const [tableSearchQuery, setTableSearchQuery] = useState("");
-
-  // Mount search when showSearch becomes true
-  useEffect(() => {
-    if (showSearch && !searchMounted) {
-      setSearchMounted(true);
-    }
-  }, [showSearch, searchMounted]);
-
-  const handleSearchExitComplete = useCallback(() => {
-    setSearchMounted(false);
-  }, []);
 
   useEffect(() => {
     loadConnections();
   }, [loadConnections]);
 
-  // Cmd+F to toggle search
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
-        const sidebar = document.querySelector('[data-sidebar]');
-        const activeElement = document.activeElement;
-        // Only intercept if focus is in sidebar or no specific input is focused
-        if (sidebar?.contains(activeElement) || activeElement === document.body) {
-          e.preventDefault();
-          setShowSearch(prev => {
-            if (!prev) {
-              // Opening search - focus the input after render
-              setTimeout(() => document.getElementById("table-search-input")?.focus(), 0);
-            } else {
-              // Closing search - clear the query
-              setTableSearchQuery("");
-            }
-            return !prev;
-          });
-        }
-      }
-      // Escape to close search
-      if (e.key === "Escape" && showSearch) {
-        setShowSearch(false);
-        setTableSearchQuery("");
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showSearch]);
-
   if (!sidebarOpen) {
     return null;
   }
-
-  // Count total tables for search match count
-  const { tablesByConnection } = useQueryStore();
-  const allTables = connections.flatMap(conn => tablesByConnection[conn.id] || []);
-  const filteredTablesCount = tableSearchQuery.trim()
-    ? allTables.filter(t => t.name.toLowerCase().includes(tableSearchQuery.toLowerCase())).length
-    : allTables.length;
 
   return (
     <aside
@@ -822,18 +705,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Search */}
-      {searchMounted && (
-        <AnimatedTableSearch
-          value={tableSearchQuery}
-          onChange={setTableSearchQuery}
-          onClear={() => setTableSearchQuery("")}
-          matchCount={filteredTablesCount}
-          isVisible={showSearch}
-          onExitComplete={handleSearchExitComplete}
-        />
-      )}
-
       {/* Connections List */}
       <ScrollArea className="flex-1 px-2 py-3">
         <div className="space-y-1">
@@ -855,7 +726,7 @@ export function Sidebar() {
             </div>
           ) : (
             connections.map((conn) => (
-              <ConnectionItem key={conn.id} connection={conn} tableSearchQuery={tableSearchQuery} />
+              <ConnectionItem key={conn.id} connection={conn} />
             ))
           )}
         </div>
