@@ -20,3 +20,4 @@ export { BrandIcon } from "./BrandIcon";
 export { Checkbox } from "./checkbox";
 export { LoadingSpinner } from "./loading-spinner";
 export * from "./skeleton";
+export { ResizeHandle } from "./resize-handle";

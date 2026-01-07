@@ -13,6 +13,9 @@ export function useKeyboardShortcuts() {
     showDiffModal,
     pendingChanges,
     removePendingChange,
+    rightPanelTab,
+    setRightPanelTab,
+    toggleRightPanelTab,
   } = useUIStore();
 
   const {
@@ -24,7 +27,7 @@ export function useKeyboardShortcuts() {
 
   const activeConnection = useConnectionsStore(selectActiveConnection);
 
-  const { settings: aiSettings, panelOpen: aiPanelOpen, togglePanel: toggleAIPanel, setPanelOpen: setAIPanelOpen } = useAIStore();
+  const { settings: aiSettings } = useAIStore();
   const isAIEnabled = aiSettings.aiEnabled ?? true;
 
   useEffect(() => {
@@ -38,7 +41,7 @@ export function useKeyboardShortcuts() {
         if (showConnectionModal) setShowConnectionModal(false);
         if (showSettingsDialog) setShowSettingsDialog(false);
         if (showDiffModal) setShowDiffModal(false);
-        if (aiPanelOpen) setAIPanelOpen(false);
+        if (rightPanelTab) setRightPanelTab(null);
         return;
       }
 
@@ -82,19 +85,11 @@ export function useKeyboardShortcuts() {
         toggleSidebar();
       }
 
-      // Mod + P: Toggle AI Assistant
-      if (isMod && e.key.toLowerCase() === "p") {
+      // Mod + Shift + A: Toggle AI Assistant Panel
+      if (isMod && isShift && e.key.toLowerCase() === "a") {
         e.preventDefault();
         if (isAIEnabled) {
-          toggleAIPanel();
-        }
-      }
-
-      // Mod + Alt + B or Mod + Shift + A: Toggle AI Assistant (legacy)
-      if ((isMod && isAlt && e.key.toLowerCase() === "b") || (isMod && isShift && e.key.toLowerCase() === "a")) {
-        e.preventDefault();
-        if (isAIEnabled) {
-          toggleAIPanel();
+          toggleRightPanelTab("ai");
         }
       }
 
@@ -256,7 +251,7 @@ export function useKeyboardShortcuts() {
     showConnectionModal,
     showSettingsDialog,
     showDiffModal,
-    aiPanelOpen,
+    rightPanelTab,
     isAIEnabled,
     activeConnection,
     tabs.length,
@@ -265,8 +260,8 @@ export function useKeyboardShortcuts() {
     setShowConnectionModal,
     setShowSettingsDialog,
     setShowDiffModal,
-    setAIPanelOpen,
-    toggleAIPanel,
+    setRightPanelTab,
+    toggleRightPanelTab,
     addTab,
     removeTab,
     toggleSidebar,

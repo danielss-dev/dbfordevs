@@ -11,7 +11,6 @@ import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
 import { QueryHistoryDropdown } from "@/components/query-history/QueryHistoryDropdown";
-import { PreviewDialog } from "@/components/preview";
 import { BrandIcon } from "@/components/ui";
 import { getDatabaseBrand } from "@/lib/constants";
 import type { Tab, QueryHistoryEntry } from "@/types";
@@ -39,7 +38,6 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
   const { openPreview, setPreviewResult } = usePreviewStore();
   const [content, setContent] = useState(tab.content || "");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   // Fetch all schemas when connection changes
   useEffect(() => {
@@ -192,52 +190,37 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
     <div className="flex h-full flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-2">
-        <Tooltip open={activeTooltip === "run"}>
-          <TooltipTrigger asChild>
-            <SplitButton
-              size="sm"
-              onPrimaryClick={() => handleExecute()}
-              disabled={isExecuting || !connectionId || !content.trim()}
-              className="gap-2"
-              onMouseEnter={() => setActiveTooltip("run")}
-              onMouseLeave={() => setActiveTooltip(null)}
-              dropdownItems={[
-                {
-                  label: "Preview Changes",
-                  icon: <Eye className="h-3.5 w-3.5" />,
-                  onClick: handlePreview,
-                  disabled: isExecuting || !connectionId || !content.trim(),
-                },
-              ]}
-            >
-              {isExecuting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Play className="h-3.5 w-3.5" />
-                  Run Query
-                </>
-              )}
-            </SplitButton>
-          </TooltipTrigger>
-          <TooltipContent>Execute Query (Cmd+Enter)</TooltipContent>
-        </Tooltip>
+        <SplitButton
+          size="sm"
+          onPrimaryClick={() => handleExecute()}
+          disabled={isExecuting || !connectionId || !content.trim()}
+          className="gap-2"
+          dropdownItems={[
+            {
+              label: "Preview Changes",
+              icon: <Eye className="h-3.5 w-3.5" />,
+              onClick: handlePreview,
+              disabled: isExecuting || !connectionId || !content.trim(),
+            },
+          ]}
+        >
+          {isExecuting ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Running...
+            </>
+          ) : (
+            <>
+              <Play className="h-3.5 w-3.5" />
+              Run Query
+            </>
+          )}
+        </SplitButton>
 
         {/* Connection Selector */}
         <Select value={connectionId || ""} onValueChange={handleConnectionChange}>
           <SelectTrigger className="h-8 w-[200px] text-xs">
-            <div className="flex items-center gap-2">
-              {connectionId && connections.find(c => c.id === connectionId) && (
-                <BrandIcon
-                  name={getDatabaseBrand(connections.find(c => c.id === connectionId)!.databaseType)}
-                  className="h-3.5 w-3.5"
-                />
-              )}
-              <SelectValue placeholder="Select connection" />
-            </div>
+            <SelectValue placeholder="Select connection" />
           </SelectTrigger>
           <SelectContent>
             {connections.map((connection) => (
@@ -268,13 +251,11 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           <QueryHistoryDropdown
             connectionId={connectionId}
             onLoadQuery={handleSelectExample}
-            activeTooltip={activeTooltip}
-            onSetActiveTooltip={setActiveTooltip}
           />
         )}
 
         {connectionId && (
-          <Tooltip open={activeTooltip === "refresh"}>
+          <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 size="sm"
@@ -282,8 +263,6 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
                 onClick={handleRefreshSchemas}
                 disabled={isRefreshing}
                 className="gap-2"
-                onMouseEnter={() => setActiveTooltip("refresh")}
-                onMouseLeave={() => setActiveTooltip(null)}
               >
                 {isRefreshing ? (
                   <>
@@ -355,8 +334,6 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           )}
         </div>
       </div>
-
-      <PreviewDialog onApply={handleExecute} />
     </div>
   );
 }

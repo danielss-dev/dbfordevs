@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { PreviewResult } from "@/types";
+import { useUIStore } from "./ui";
 
 interface PreviewState {
   isPreviewOpen: boolean;
@@ -22,14 +23,17 @@ export const usePreviewStore = create<PreviewState>()((set) => ({
   previewSql: null,
   previewConnectionId: null,
 
-  openPreview: (sql, connectionId) =>
+  openPreview: (sql, connectionId) => {
+    // Open the Query Preview panel
+    useUIStore.getState().setRightPanelTab("preview");
     set({
       isPreviewOpen: true,
       previewSql: sql,
       previewConnectionId: connectionId,
       previewResult: null,
       isPreviewLoading: true,
-    }),
+    });
+  },
 
   setPreviewResult: (result) =>
     set({ previewResult: result, isPreviewLoading: false }),

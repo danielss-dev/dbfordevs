@@ -441,6 +441,52 @@
   @apply bg-primary/10 border-l-2 border-l-primary;
 }
 
+/* Interactive element enhancements */
+.interactive-hover {
+  @apply transition-all duration-150 ease-out;
+}
+
+.interactive-hover:hover {
+  @apply transform scale-[1.02];
+}
+
+.interactive-hover:active {
+  @apply transform scale-[0.98];
+}
+
+/* Subtle pulse animation for loading states */
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+/* Glow effect for active states */
+.glow-primary {
+  box-shadow: 0 0 12px hsl(var(--primary) / 0.3);
+}
+
+.glow-success {
+  box-shadow: 0 0 12px hsl(var(--success) / 0.3);
+}
+
+/* Card hover enhancement */
+.card-hover {
+  @apply transition-all duration-200;
+}
+
+.card-hover:hover {
+  @apply shadow-md border-border/80;
+  transform: translateY(-1px);
+}
+
 /* Animation utilities */
 @keyframes fade-in {
   from {

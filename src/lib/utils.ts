@@ -1,9 +1,43 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { invoke } from "@tauri-apps/api/core";
+import type { DatabaseType } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+/**
+ * Quotes a single SQL identifier part based on database type.
+ * Handles identifiers with spaces, special characters, or reserved words.
+ */
+function quoteSingleIdentifier(identifier: string, databaseType: DatabaseType): string {
+  switch (databaseType) {
+    case "mysql":
+    case "mariadb":
+      // MySQL uses backticks, escape any backticks in the identifier
+      return `\`${identifier.replace(/`/g, "``")}\``;
+    case "mssql":
+      // MSSQL uses brackets, escape closing brackets
+      return `[${identifier.replace(/]/g, "]]")}]`;
+    case "postgresql":
+    case "sqlite":
+    case "cockroachdb":
+    default:
+      // PostgreSQL, SQLite, and most others use double quotes
+      return `"${identifier.replace(/"/g, '""')}"`;
+  }
+}
+
+/**
+ * Quotes a SQL identifier (table name, column name, etc.) based on database type.
+ * Handles schema-qualified names like "public.table name" by quoting each part separately.
+ * Example: "public.comments 2" becomes "public"."comments 2" for PostgreSQL.
+ */
+export function quoteIdentifier(identifier: string, databaseType: DatabaseType): string {
+  // Split by dot to handle schema.table format
+  const parts = identifier.split(".");
+  return parts.map(part => quoteSingleIdentifier(part, databaseType)).join(".");
 }
 
 /**

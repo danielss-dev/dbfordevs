@@ -28,6 +28,8 @@ interface GeneralSettings {
   enableAnimations: boolean;
 }
 
+export type RightPanelTab = "fields" | "changes" | "preview" | "ai" | null;
+
 interface UIState {
   // Theme
   theme: Theme;
@@ -38,6 +40,8 @@ interface UIState {
   // Side panel (row editor)
   sidePanelOpen: boolean;
   sidePanelWidth: number;
+  // Right panel active tab
+  rightPanelTab: RightPanelTab;
   // Pending changes for diff view
   pendingChanges: PendingChange[];
   // Settings
@@ -69,7 +73,10 @@ interface UIState {
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   toggleSidePanel: () => void;
+  setSidePanelOpen: (open: boolean) => void;
   setSidePanelWidth: (width: number) => void;
+  setRightPanelTab: (tab: RightPanelTab) => void;
+  toggleRightPanelTab: (tab: RightPanelTab) => void;
   addPendingChange: (change: PendingChange) => void;
   removePendingChange: (id: string) => void;
   clearPendingChanges: () => void;
@@ -97,6 +104,7 @@ export const useUIStore = create<UIState>()(
       sidebarWidth: 260,
       sidePanelOpen: false,
       sidePanelWidth: 400,
+      rightPanelTab: null,
       pendingChanges: [],
       editorSettings: {
         fontFamily: "JetBrains Mono",
@@ -174,7 +182,21 @@ export const useUIStore = create<UIState>()(
       toggleSidePanel: () =>
         set((state) => ({ sidePanelOpen: !state.sidePanelOpen })),
 
+      setSidePanelOpen: (sidePanelOpen) => set({ sidePanelOpen }),
+
       setSidePanelWidth: (sidePanelWidth) => set({ sidePanelWidth }),
+
+      setRightPanelTab: (rightPanelTab) => set({
+        rightPanelTab,
+        sidePanelOpen: rightPanelTab !== null
+      }),
+
+      toggleRightPanelTab: (tab) => set((state) => {
+        if (state.rightPanelTab === tab) {
+          return { rightPanelTab: null, sidePanelOpen: false };
+        }
+        return { rightPanelTab: tab, sidePanelOpen: true };
+      }),
 
       addPendingChange: (change) =>
         set((state) => {

@@ -1,11 +1,10 @@
 import { useEffect } from "react";
 import { TooltipProvider, Toaster } from "@/components/ui";
-import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout";
+import { Sidebar, MainContent, SidePanel, StatusBar, RightActivityBar } from "@/components/layout";
 import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal, RenameConnectionDialog } from "@/components/connections";
 import { RenameTableDialog } from "@/components/table";
 import { CreateSchemaDialog } from "@/components/database";
-import { AIPanel } from "@/components/ai";
 import { useUIStore } from "@/stores";
 import { useKeyboardShortcuts } from "@/hooks";
 
@@ -29,6 +28,7 @@ function App() {
           <Sidebar />
           <MainContent />
           <SidePanel />
+          <RightActivityBar />
         </div>
 
         {/* Status Bar */}
@@ -40,7 +40,6 @@ function App() {
         <RenameTableDialog />
         <RenameConnectionDialog />
         <CreateSchemaDialog />
-        <AIPanel />
         <Toaster />
       </div>
     </TooltipProvider>

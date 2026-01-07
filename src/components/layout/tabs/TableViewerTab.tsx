@@ -1,11 +1,12 @@
 import { useEffect } from "react";
-import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw, PanelRightOpen, PanelRightClose } from "lucide-react";
-import { Button, Separator, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
-import { useQueryStore, useCRUDStore, useUIStore } from "@/stores";
+import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw } from "lucide-react";
+import { Button, Separator } from "@/components/ui";
+import { useQueryStore, useCRUDStore, useUIStore, useConnectionsStore } from "@/stores";
 import { useDatabase, useCRUD } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
+import { quoteIdentifier } from "@/lib/utils";
 import type { Tab } from "@/types";
 
 interface TableViewerTabProps {
@@ -15,23 +16,26 @@ interface TableViewerTabProps {
 export function TableViewerTab({ tab }: TableViewerTabProps) {
   const { isExecuting, error, results } = useQueryStore();
   const { pendingChanges, clearPendingChanges } = useCRUDStore();
-  const { toggleSidePanel, sidePanelOpen } = useUIStore();
+  const { setRightPanelTab } = useUIStore();
+  const { connections } = useConnectionsStore();
   const { executeQuery } = useDatabase();
   const { commitChanges } = useCRUD();
   const tabResults = results[tab.id];
   const connectionId = tab.connectionId;
+  const connection = connections.find((c) => c.id === connectionId);
 
   const pendingCount = Object.keys(pendingChanges).length;
 
   const loadData = async () => {
-    if (!connectionId) return;
+    if (!connectionId || !connection) return;
 
     const tableIdentifier = tab.tableName ?? tab.title;
+    const quotedTable = quoteIdentifier(tableIdentifier, connection.databaseType);
 
     await executeQuery(
       {
         connectionId: connectionId,
-        sql: `SELECT * FROM ${tableIdentifier}`,
+        sql: `SELECT * FROM ${quotedTable}`,
       },
       tab.id
     );
@@ -104,7 +108,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => !sidePanelOpen && toggleSidePanel()}
+                  onClick={() => setRightPanelTab("changes")}
                   className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-muted-foreground/30 px-1"
                 >
                   View changes
@@ -121,26 +125,6 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
           )}
         </div>
 
-        {/* Side Panel Toggle */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidePanel}
-              className="h-8 w-8"
-            >
-              {sidePanelOpen ? (
-                <PanelRightClose className="h-4 w-4" />
-              ) : (
-                <PanelRightOpen className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {sidePanelOpen ? "Hide side panel" : "Show side panel"}
-          </TooltipContent>
-        </Tooltip>
       </div>
 
       {/* Content Area */}
