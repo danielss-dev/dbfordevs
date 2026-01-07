@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { TooltipProvider, Toaster } from "@/components/ui";
-import { Sidebar, MainContent, SidePanel, StatusBar } from "@/components/layout";
+import { Sidebar, MainContent, SidePanel, StatusBar, RightActivityBar } from "@/components/layout";
 import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal, RenameConnectionDialog } from "@/components/connections";
 import { RenameTableDialog } from "@/components/table";
@@ -29,6 +29,7 @@ function App() {
           <Sidebar />
           <MainContent />
           <SidePanel />
+          <RightActivityBar />
         </div>
 
         {/* Status Bar */}

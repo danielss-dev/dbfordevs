@@ -11,7 +11,6 @@ import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
 import { QueryHistoryDropdown } from "@/components/query-history/QueryHistoryDropdown";
-import { PreviewDialog } from "@/components/preview";
 import { BrandIcon } from "@/components/ui";
 import { getDatabaseBrand } from "@/lib/constants";
 import type { Tab, QueryHistoryEntry } from "@/types";
@@ -347,8 +346,6 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           )}
         </div>
       </div>
-
-      <PreviewDialog onApply={handleExecute} />
     </div>
   );
 }

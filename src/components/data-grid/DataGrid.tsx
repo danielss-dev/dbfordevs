@@ -36,7 +36,7 @@ import {
 import { cn, formatTimestamp } from "@/lib/utils";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import type { QueryResult, ColumnInfo } from "@/types";
-import { useCRUDStore } from "@/stores";
+import { useCRUDStore, useUIStore } from "@/stores";
 import { EditableCell } from "./EditableCell";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
 import { ExportMenu } from "./ExportMenu";
@@ -170,6 +170,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
     setColumnFilter,
     clearColumnFilter,
   } = useCRUDStore();
+  const { setRightPanelTab } = useUIStore();
 
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState<string>("");
@@ -229,12 +230,19 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
                     selectionUpdate[rows[i].id] = true;
                   }
                   table.setRowSelection(selectionUpdate);
+                  // Open Fields panel to show selected rows
+                  setRightPanelTab("fields");
                 }
               } else {
                 // Toggle with full context
                 const selectedRow = createSelectedRow(row.original);
+                const isCurrentlySelected = row.getIsSelected();
                 toggleRowSelection(selectedRow);
-                row.toggleSelected(!row.getIsSelected());
+                row.toggleSelected(!isCurrentlySelected);
+                // Open Fields panel when selecting a row (not when deselecting)
+                if (!isCurrentlySelected) {
+                  setRightPanelTab("fields");
+                }
               }
               setLastSelectedId(row.id);
             }}

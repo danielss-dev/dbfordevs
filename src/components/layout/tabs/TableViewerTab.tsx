@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw, PanelRightOpen, PanelRightClose } from "lucide-react";
-import { Button, Separator, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
+import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw } from "lucide-react";
+import { Button, Separator } from "@/components/ui";
 import { useQueryStore, useCRUDStore, useUIStore } from "@/stores";
 import { useDatabase, useCRUD } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
@@ -15,7 +15,7 @@ interface TableViewerTabProps {
 export function TableViewerTab({ tab }: TableViewerTabProps) {
   const { isExecuting, error, results } = useQueryStore();
   const { pendingChanges, clearPendingChanges } = useCRUDStore();
-  const { toggleSidePanel, sidePanelOpen } = useUIStore();
+  const { setRightPanelTab } = useUIStore();
   const { executeQuery } = useDatabase();
   const { commitChanges } = useCRUD();
   const tabResults = results[tab.id];
@@ -104,7 +104,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => !sidePanelOpen && toggleSidePanel()}
+                  onClick={() => setRightPanelTab("changes")}
                   className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-muted-foreground/30 px-1"
                 >
                   View changes
@@ -121,26 +121,6 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
           )}
         </div>
 
-        {/* Side Panel Toggle */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidePanel}
-              className="h-8 w-8"
-            >
-              {sidePanelOpen ? (
-                <PanelRightClose className="h-4 w-4" />
-              ) : (
-                <PanelRightOpen className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {sidePanelOpen ? "Hide side panel" : "Show side panel"}
-          </TooltipContent>
-        </Tooltip>
       </div>
 
       {/* Content Area */}
