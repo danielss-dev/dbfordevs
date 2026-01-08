@@ -8,6 +8,8 @@
     "shell:default",
     "http:default",
     "dialog:default",
+    "updater:default",
+    "process:allow-restart",
     {
       "identifier": "http:allow-fetch",
       "allow": [
