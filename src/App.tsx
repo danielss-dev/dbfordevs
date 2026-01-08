@@ -5,6 +5,7 @@ import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal, RenameConnectionDialog } from "@/components/connections";
 import { RenameTableDialog } from "@/components/table";
 import { CreateSchemaDialog } from "@/components/database";
+import { UpdateNotification } from "@/components/updater/UpdateNotification";
 import { useUIStore } from "@/stores";
 import { useKeyboardShortcuts } from "@/hooks";
 
@@ -40,6 +41,7 @@ function App() {
         <RenameTableDialog />
         <RenameConnectionDialog />
         <CreateSchemaDialog />
+        <UpdateNotification />
         <Toaster />
       </div>
     </TooltipProvider>

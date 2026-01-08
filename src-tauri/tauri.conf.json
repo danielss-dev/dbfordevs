@@ -1,13 +1,21 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "dbfordevs",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "identifier": "com.dbfordevs.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/danielss-dev/dbfordevs/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1QkQwQTcxNDhERDNCQzEKUldUQk85MUljUXE5eGFzMCsxYlhGeWpjb244eFdrVlV0Z01jY3djNnBaNUZnR2d1RjlRMUw3TEgK"
+    }
   },
   "app": {
     "withGlobalTauri": false,
@@ -36,11 +44,17 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "createUpdaterArtifacts": true,
     "macOS": {
       "signingIdentity": "-",
       "entitlements": "entitlements.plist",
       "minimumSystemVersion": "10.13",
       "hardenedRuntime": true
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      }
     }
   }
 }
