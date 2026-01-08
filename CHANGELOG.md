@@ -2,6 +2,15 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.6] - 2026-01-08
+
+
+### Added
+- Add testing infrastructure with unit and integration tests for database drivers (#35)
+
+### Changed
+- UI Enhancements and AI Assistant Integration (#36)
+- Enhance MSSQL support with trusted certificates and improved transaction handling (#34)
 ## [0.2.5] - 2026-01-03
 
 
