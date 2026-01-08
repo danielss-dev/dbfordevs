@@ -5,5 +5,7 @@ export { useAsyncOperation } from "./useAsyncOperation";
 export { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 export { useCRUD } from "./useCRUD";
 export { useAnime, useAnimeOnMount } from "./useAnime";
+export { useUpdater } from "./useUpdater";
 export type { UseAsyncOperationOptions, UseAsyncOperationResult } from "./useAsyncOperation";
+export type { UpdateState } from "./useUpdater";
 
