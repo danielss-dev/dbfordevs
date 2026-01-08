@@ -13,7 +13,7 @@ import {
   Input,
   Checkbox,
 } from "@/components/ui";
-import { useUIStore } from "@/stores";
+import { useUIStore, useUpdaterStore } from "@/stores";
 import { useToast } from "@/hooks/useToast";
 import { open } from "@tauri-apps/plugin-shell";
 import { getVersion } from "@tauri-apps/api/app";
@@ -36,6 +36,8 @@ import {
   X,
   Sparkles,
   Bot,
+  Download,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAIStore } from "@/lib/ai/store";
@@ -76,6 +78,116 @@ function ShortcutItem({ label, keys }: ShortcutItemProps) {
             {idx < keys.length - 1 && <span className="text-muted-foreground mx-0.5">+</span>}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+interface GeneralTabProps {
+  generalSettings: {
+    checkUpdatesOnStartup: boolean;
+    sendAnalytics: boolean;
+    enableAnimations: boolean;
+  };
+  handleGeneralSettingChange: (key: "checkUpdatesOnStartup" | "sendAnalytics" | "enableAnimations", value: boolean) => void;
+}
+
+function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabProps) {
+  const {
+    available,
+    checking,
+    downloading,
+    progress,
+    newVersion,
+    checkForUpdates,
+    downloadAndInstall,
+  } = useUpdaterStore();
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h2 className="text-xl font-semibold mb-1">General</h2>
+        <p className="text-sm text-muted-foreground">Manage your application preferences.</p>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-1">
+        <SettingRow
+          label="Check for updates on startup"
+          description="Automatically check for new versions when the app launches."
+        >
+          <Checkbox
+            checked={generalSettings.checkUpdatesOnStartup}
+            onCheckedChange={(checked: boolean) =>
+              handleGeneralSettingChange("checkUpdatesOnStartup", checked)
+            }
+          />
+        </SettingRow>
+
+        {/* Update section */}
+        <Separator />
+        <div className="flex items-center justify-between py-4 px-3">
+          <div className="space-y-1">
+            <Label className="text-sm font-medium">Software Update</Label>
+            <p className="text-xs text-muted-foreground max-w-[280px]">
+              {available
+                ? `Version ${newVersion} is available.`
+                : "You're running the latest version."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {available ? (
+              <Button
+                size="sm"
+                onClick={() => downloadAndInstall()}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Installing {progress}%
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Update Now
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => checkForUpdates()}
+                disabled={checking}
+              >
+                {checking ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Check for Updates
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <Separator />
+        <SettingRow
+          label="Send analytics data"
+          description="Help us improve by sending anonymous usage data."
+        >
+          <Checkbox
+            checked={generalSettings.sendAnalytics}
+            onCheckedChange={(checked: boolean) =>
+              handleGeneralSettingChange("sendAnalytics", checked)
+            }
+          />
+        </SettingRow>
       </div>
     </div>
   );
@@ -328,38 +440,10 @@ export function SettingsDialog() {
                 <div className="p-8 max-w-2xl">
                   {/* General Tab */}
                   {activeTab === "general" && (
-                    <div className="space-y-6 animate-fade-in">
-                      <div>
-                        <h2 className="text-xl font-semibold mb-1">General</h2>
-                        <p className="text-sm text-muted-foreground">Manage your application preferences.</p>
-                      </div>
-
-                      <div className="rounded-xl border border-border bg-card p-1">
-                        <SettingRow
-                          label="Check for updates on startup"
-                          description="Automatically check for new versions when the app launches."
-                        >
-                          <Checkbox
-                            checked={generalSettings.checkUpdatesOnStartup}
-                            onCheckedChange={(checked: boolean) =>
-                              handleGeneralSettingChange("checkUpdatesOnStartup", checked)
-                            }
-                          />
-                        </SettingRow>
-                        <Separator />
-                        <SettingRow
-                          label="Send analytics data"
-                          description="Help us improve by sending anonymous usage data."
-                        >
-                          <Checkbox
-                            checked={generalSettings.sendAnalytics}
-                            onCheckedChange={(checked: boolean) =>
-                              handleGeneralSettingChange("sendAnalytics", checked)
-                            }
-                          />
-                        </SettingRow>
-                      </div>
-                    </div>
+                    <GeneralTab
+                      generalSettings={generalSettings}
+                      handleGeneralSettingChange={handleGeneralSettingChange}
+                    />
                   )}
 
                   {/* AI Assistant Tab */}

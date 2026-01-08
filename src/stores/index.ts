@@ -4,4 +4,5 @@ export * from "./ui";
 export * from "./crud";
 export * from "./schema";
 export * from "./preview";
+export * from "./updater";
 
