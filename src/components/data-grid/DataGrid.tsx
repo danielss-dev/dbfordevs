@@ -160,7 +160,9 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
   const {
     selectedRowIds,
     addSelectedRow,
+    setSelectedRows,
     toggleRowSelection,
+    clearSelection,
     editingCell,
     setEditingCell,
     pendingChanges,
@@ -207,11 +209,40 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     // Row Number Column (Gutter) - Standardized as the selection trigger
     tableColumns.push({
       id: "rowNumber",
-      header: () => (
-        <div className="flex items-center justify-center w-full h-full text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">
-          #
-        </div>
-      ),
+      header: ({ table }) => {
+        const allRows = table.getRowModel().rows;
+        const allRowIds = allRows.map(r => r.id);
+        const allSelected = allRowIds.length > 0 && allRowIds.every(id => selectedRowIds.includes(id));
+
+        const handleSelectAll = () => {
+          if (allSelected) {
+            // Deselect all
+            clearSelection();
+            table.toggleAllRowsSelected(false);
+          } else {
+            // Select all visible rows
+            const newSelectedRows = allRows.map(r => createSelectedRow(r.original));
+            setSelectedRows(newSelectedRows);
+            table.toggleAllRowsSelected(true);
+            setRightPanelTab("fields");
+          }
+        };
+
+        return (
+          <div
+            className={cn(
+              "flex items-center justify-center w-full h-full text-[9px] font-bold uppercase tracking-wider cursor-pointer select-none transition-colors",
+              allSelected
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground/50 hover:text-primary/70 hover:bg-primary/5"
+            )}
+            onClick={handleSelectAll}
+            title={allSelected ? "Deselect all rows" : "Select all rows"}
+          >
+            #
+          </div>
+        );
+      },
       cell: ({ row, table }) => {
         const pageIndex = table.getState().pagination.pageIndex;
         const pageSize = table.getState().pagination.pageSize;
@@ -468,7 +499,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       },
     })));
     return tableColumns;
-  }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter]);
+  }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter, selectedRowIds, clearSelection, setSelectedRows, setRightPanelTab]);
 
   const tableData = useMemo(() => {
     return data.rows.map((row) => {
