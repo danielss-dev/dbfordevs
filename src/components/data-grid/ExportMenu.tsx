@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 import { useCRUDStore } from "@/stores";
-import { rowsToInsertSQL, rowsToJSON, rowsToCSV, downloadFile } from "@/lib/export-utils";
+import { rowsToInsertSQL, rowsToJSON, rowsToCSV, saveFile } from "@/lib/export-utils";
 import { copyToClipboard } from "@/lib/utils";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers";
 
@@ -59,26 +59,36 @@ export function ExportMenu({ tableName }: ExportMenuProps) {
     }
   };
 
-  const handleDownloadJSON = () => {
+  const handleDownloadJSON = async () => {
     if (selectedRows.length === 0) return;
 
     const json = rowsToJSON(selectedRows);
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `${tableName || "export"}_${timestamp}.json`;
 
-    downloadFile(json, filename, "application/json");
-    showSuccessToast(`Downloaded ${selectedRows.length} row(s) as ${filename}`);
+    const saved = await saveFile(json, filename, [
+      { name: "JSON", extensions: ["json"] },
+    ]);
+
+    if (saved) {
+      showSuccessToast(`Saved ${selectedRows.length} row(s) as JSON`);
+    }
   };
 
-  const handleDownloadCSV = () => {
+  const handleDownloadCSV = async () => {
     if (selectedRows.length === 0) return;
 
     const csv = rowsToCSV(selectedRows);
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `${tableName || "export"}_${timestamp}.csv`;
 
-    downloadFile(csv, filename, "text/csv");
-    showSuccessToast(`Downloaded ${selectedRows.length} row(s) as ${filename}`);
+    const saved = await saveFile(csv, filename, [
+      { name: "CSV", extensions: ["csv"] },
+    ]);
+
+    if (saved) {
+      showSuccessToast(`Saved ${selectedRows.length} row(s) as CSV`);
+    }
   };
 
   const disabled = selectedRows.length === 0;

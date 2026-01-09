@@ -40,6 +40,7 @@ import { useCRUDStore, useUIStore } from "@/stores";
 import { EditableCell } from "./EditableCell";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
 import { ExportMenu } from "./ExportMenu";
+import { ImportButton } from "./ImportButton";
 
 // Shared utility to generate consistent row IDs
 export function generateRowId(row: Record<string, unknown>, columns: ColumnInfo[]): string {
@@ -63,6 +64,8 @@ interface DataGridProps {
   data: QueryResult;
   onRowClick?: (row: Record<string, unknown>) => void;
   tableName?: string;
+  connectionId?: string;
+  onDataChange?: () => void;
 }
 
 const getTypeIcon = (dataType: string) => {
@@ -153,7 +156,7 @@ const customColumnFilter: FilterFn<any> = (row, columnId, filterValue) => {
   return true;
 };
 
-export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
+export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChange }: DataGridProps) {
   const {
     selectedRowIds,
     addSelectedRow,
@@ -677,7 +680,14 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
             )}
           </div>
 
-          {/* Export Menu */}
+          {/* Import/Export */}
+          {connectionId && (
+            <ImportButton
+              connectionId={connectionId}
+              tableName={tableName}
+              onImportComplete={onDataChange}
+            />
+          )}
           <ExportMenu tableName={tableName} />
 
           {/* Status Text */}

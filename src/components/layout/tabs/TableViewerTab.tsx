@@ -137,9 +137,11 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
             </div>
           </div>
         ) : tabResults ? (
-          <DataGrid 
-            data={tabResults} 
+          <DataGrid
+            data={tabResults}
             tableName={tab.tableName || tab.title}
+            connectionId={connectionId}
+            onDataChange={loadData}
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
