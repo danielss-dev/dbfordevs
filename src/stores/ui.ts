@@ -50,7 +50,6 @@ interface UIState {
   // Modal states
   showConnectionModal: boolean;
   editingConnectionId: string | null; // ID of connection being edited, null for new
-  showMarketplace: boolean;
   showDiffModal: boolean;
   showSettingsDialog: boolean;
   settingsDialogTab: "general" | "editor" | "appearance" | "keybindings" | "advanced" | "about";
@@ -82,7 +81,6 @@ interface UIState {
   clearPendingChanges: () => void;
   setShowConnectionModal: (show: boolean) => void;
   openConnectionModal: (connectionId?: string) => void; // Open for new or edit
-  setShowMarketplace: (show: boolean) => void;
   setShowDiffModal: (show: boolean) => void;
   setShowSettingsDialog: (show: boolean) => void;
   openSettingsWithTab: (tab: "general" | "editor" | "appearance" | "keybindings" | "advanced" | "about") => void;
@@ -121,7 +119,6 @@ export const useUIStore = create<UIState>()(
       },
       showConnectionModal: false,
       editingConnectionId: null,
-      showMarketplace: false,
       showDiffModal: false,
       showSettingsDialog: false,
       settingsDialogTab: "general",
@@ -229,9 +226,6 @@ export const useUIStore = create<UIState>()(
 
       openConnectionModal: (connectionId) =>
         set({ showConnectionModal: true, editingConnectionId: connectionId ?? null }),
-
-      setShowMarketplace: (showMarketplace) =>
-        set({ showMarketplace }),
 
       setShowDiffModal: (showDiffModal) => set({ showDiffModal }),
 
