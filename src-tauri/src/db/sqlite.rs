@@ -2,15 +2,79 @@ use crate::db::common::{escape_sqlite_identifier, parse_cte_statement_type, CteP
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    PreviewResult, QueryResult, StatementPreview, StatementType, TableInfo, TableProperties,
-    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo
+    ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
+    ForeignKeyInfo, IndexInfo, PlanNode, PreviewResult, QueryResult, StatementPreview,
+    StatementType, TableInfo, TableProperties, TableRelationship, TableSchema,
+    TestConnectionResult, ColumnInfo, WarningSeverity
 };
+use std::collections::HashMap;
 use async_trait::async_trait;
 use sqlx::{sqlite::SqlitePool, Row, Column, TypeInfo};
 use std::time::Instant;
 
 pub struct SqliteDriver;
+
+/// Parse SQLite detail string to extract meaningful information (free function for use in nested functions)
+fn parse_sqlite_detail_inline(detail: &str) -> (String, Option<String>, Option<String>, Vec<String>) {
+    let node_type: String;
+    let mut relation_name = None;
+    let mut index_name = None;
+    let mut warnings = Vec::new();
+
+    let detail_upper = detail.to_uppercase();
+
+    if detail_upper.contains("SCAN") {
+        if detail_upper.contains("USING INDEX") {
+            node_type = "Index Scan".to_string();
+            // Extract index name
+            if let Some(idx) = detail.find("USING INDEX ") {
+                let rest = &detail[idx + 12..];
+                index_name = rest.split_whitespace().next().map(String::from);
+            }
+        } else if detail_upper.contains("USING COVERING INDEX") {
+            node_type = "Covering Index Scan".to_string();
+            if let Some(idx) = detail.find("USING COVERING INDEX ") {
+                let rest = &detail[idx + 21..];
+                index_name = rest.split_whitespace().next().map(String::from);
+            }
+        } else {
+            node_type = "Table Scan".to_string();
+            warnings.push("Full table scan detected".to_string());
+        }
+
+        // Extract table name
+        if let Some(idx) = detail.find("SCAN ") {
+            let rest = &detail[idx + 5..];
+            relation_name = rest.split_whitespace().next().map(String::from);
+        }
+    } else if detail_upper.contains("SEARCH") {
+        node_type = "Index Search".to_string();
+        if let Some(idx) = detail.find("SEARCH ") {
+            let rest = &detail[idx + 7..];
+            relation_name = rest.split_whitespace().next().map(String::from);
+        }
+        if detail_upper.contains("USING INDEX") {
+            if let Some(idx) = detail.find("USING INDEX ") {
+                let rest = &detail[idx + 12..];
+                let name = rest.split(|c: char| c == ' ' || c == '(').next();
+                index_name = name.map(String::from);
+            }
+        }
+    } else if detail_upper.contains("USE TEMP B-TREE") {
+        node_type = "Temp B-Tree Sort".to_string();
+        warnings.push("Using temporary B-tree for sorting".to_string());
+    } else if detail_upper.contains("COMPOUND SUBQUERIES") {
+        node_type = "Compound Query".to_string();
+    } else if detail_upper.contains("CO-ROUTINE") {
+        node_type = "Coroutine".to_string();
+    } else if detail_upper.contains("SUBQUERY") {
+        node_type = "Subquery".to_string();
+    } else {
+        node_type = detail.to_string();
+    }
+
+    (node_type, relation_name, index_name, warnings)
+}
 
 impl SqliteDriver {
     /// Safely split SQL into individual statements, handling quotes and comments
@@ -529,6 +593,167 @@ impl SqliteDriver {
                 affected_rows: Some(result.rows_affected()),
                 execution_time_ms: start.elapsed().as_millis() as u64,
             })
+        }
+    }
+
+    /// Parse SQLite EXPLAIN QUERY PLAN output into a PlanNode tree
+    /// SQLite returns flat rows with: id, parent, notused, detail
+    fn parse_sqlite_explain_rows(rows: &[(i32, i32, i32, String)]) -> AppResult<PlanNode> {
+        if rows.is_empty() {
+            return Ok(PlanNode {
+                node_type: "Empty Plan".to_string(),
+                relation_name: None,
+                alias: None,
+                startup_cost: None,
+                total_cost: None,
+                plan_rows: None,
+                plan_width: None,
+                actual_startup_time: None,
+                actual_total_time: None,
+                actual_rows: None,
+                actual_loops: None,
+                index_name: None,
+                index_cond: None,
+                filter: None,
+                rows_removed_by_filter: None,
+                sort_key: None,
+                sort_method: None,
+                join_type: None,
+                hash_cond: None,
+                buffers_shared_hit: None,
+                buffers_shared_read: None,
+                children: Vec::new(),
+                warnings: Vec::new(),
+                extra_info: HashMap::new(),
+            });
+        }
+
+        // Build a map of id -> node info
+        let mut nodes: HashMap<i32, (String, Vec<i32>)> = HashMap::new();
+        let mut children_map: HashMap<i32, Vec<i32>> = HashMap::new();
+
+        for (id, parent, _, detail) in rows {
+            nodes.insert(*id, (detail.clone(), Vec::new()));
+            children_map.entry(*parent).or_insert_with(Vec::new).push(*id);
+        }
+
+        // Find root nodes (parent = 0 or parent not in nodes)
+        let root_ids: Vec<i32> = rows
+            .iter()
+            .filter(|(_, parent, _, _)| *parent == 0 || !nodes.contains_key(parent))
+            .map(|(id, _, _, _)| *id)
+            .collect();
+
+        // Recursive helper to build node tree
+        fn build_node(id: i32, nodes: &HashMap<i32, (String, Vec<i32>)>, children_map: &HashMap<i32, Vec<i32>>) -> PlanNode {
+            let (detail, _) = nodes.get(&id).cloned().unwrap_or_default();
+            let child_ids = children_map.get(&id).cloned().unwrap_or_default();
+
+            let children: Vec<PlanNode> = child_ids
+                .iter()
+                .map(|cid| build_node(*cid, nodes, children_map))
+                .collect();
+
+            // Parse SQLite detail string to extract node type and table info (inline)
+            let (node_type, relation_name, index_name, warnings) = parse_sqlite_detail_inline(&detail);
+
+            PlanNode {
+                node_type,
+                relation_name,
+                alias: None,
+                startup_cost: None,
+                total_cost: None,
+                plan_rows: None,
+                plan_width: None,
+                actual_startup_time: None,
+                actual_total_time: None,
+                actual_rows: None,
+                actual_loops: None,
+                index_name,
+                index_cond: None,
+                filter: None,
+                rows_removed_by_filter: None,
+                sort_key: None,
+                sort_method: None,
+                join_type: None,
+                hash_cond: None,
+                buffers_shared_hit: None,
+                buffers_shared_read: None,
+                children,
+                warnings,
+                extra_info: HashMap::new(),
+            }
+        }
+
+        // If single root, return it; otherwise wrap in a parent node
+        if root_ids.len() == 1 {
+            Ok(build_node(root_ids[0], &nodes, &children_map))
+        } else {
+            let children: Vec<PlanNode> = root_ids
+                .iter()
+                .map(|id| build_node(*id, &nodes, &children_map))
+                .collect();
+
+            Ok(PlanNode {
+                node_type: "Query Plan".to_string(),
+                relation_name: None,
+                alias: None,
+                startup_cost: None,
+                total_cost: None,
+                plan_rows: None,
+                plan_width: None,
+                actual_startup_time: None,
+                actual_total_time: None,
+                actual_rows: None,
+                actual_loops: None,
+                index_name: None,
+                index_cond: None,
+                filter: None,
+                rows_removed_by_filter: None,
+                sort_key: None,
+                sort_method: None,
+                join_type: None,
+                hash_cond: None,
+                buffers_shared_hit: None,
+                buffers_shared_read: None,
+                children,
+                warnings: Vec::new(),
+                extra_info: HashMap::new(),
+            })
+        }
+    }
+
+    /// Analyze SQLite plan and collect warnings
+    fn analyze_sqlite_warnings(plan: &PlanNode) -> Vec<ExplainWarning> {
+        let mut warnings = Vec::new();
+        Self::collect_sqlite_warnings_recursive(plan, &mut warnings);
+        warnings
+    }
+
+    fn collect_sqlite_warnings_recursive(node: &PlanNode, warnings: &mut Vec<ExplainWarning>) {
+        if node.node_type == "Table Scan" {
+            warnings.push(ExplainWarning {
+                severity: WarningSeverity::Warning,
+                message: format!(
+                    "Full table scan on '{}'",
+                    node.relation_name.as_deref().unwrap_or("unknown")
+                ),
+                node_type: Some(node.node_type.clone()),
+                suggestion: Some("Consider adding an index on frequently queried columns".to_string()),
+            });
+        }
+
+        if node.node_type == "Temp B-Tree Sort" {
+            warnings.push(ExplainWarning {
+                severity: WarningSeverity::Info,
+                message: "Using temporary B-tree for sorting".to_string(),
+                node_type: Some(node.node_type.clone()),
+                suggestion: Some("Consider adding an index to avoid sorting".to_string()),
+            });
+        }
+
+        for child in &node.children {
+            Self::collect_sqlite_warnings_recursive(child, warnings);
         }
     }
 }
@@ -1238,6 +1463,55 @@ impl DatabaseDriver for SqliteDriver {
             success: true,
             error: None,
             warning: None,
+        })
+    }
+
+    async fn explain_query(&self, pool: PoolRef<'_>, sql: &str, _analyze: bool) -> AppResult<ExplainResult> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        // SQLite uses EXPLAIN QUERY PLAN (no ANALYZE mode like PostgreSQL)
+        let explain_sql = format!("EXPLAIN QUERY PLAN {}", sql);
+
+        // Execute EXPLAIN QUERY PLAN
+        let rows = sqlx::query(&explain_sql)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("EXPLAIN QUERY PLAN failed: {}", e)))?;
+
+        // SQLite returns: id, parent, notused, detail
+        let parsed_rows: Vec<(i32, i32, i32, String)> = rows
+            .iter()
+            .map(|row| {
+                let id: i32 = row.try_get(0).unwrap_or(0);
+                let parent: i32 = row.try_get(1).unwrap_or(0);
+                let notused: i32 = row.try_get(2).unwrap_or(0);
+                let detail: String = row.try_get(3).unwrap_or_default();
+                (id, parent, notused, detail)
+            })
+            .collect();
+
+        // Build raw output for display
+        let raw_output = parsed_rows
+            .iter()
+            .map(|(id, parent, _, detail)| format!("{} | {} | {}", id, parent, detail))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        // Parse into tree structure
+        let plan_node = Self::parse_sqlite_explain_rows(&parsed_rows)?;
+        let warnings = Self::analyze_sqlite_warnings(&plan_node);
+
+        Ok(ExplainResult {
+            plan: plan_node,
+            planning_time: None,   // SQLite doesn't provide timing
+            execution_time: None,
+            total_cost: 0.0,       // SQLite doesn't provide cost estimates
+            warnings,
+            raw_output,
+            database_type: "sqlite".to_string(),
         })
     }
 }

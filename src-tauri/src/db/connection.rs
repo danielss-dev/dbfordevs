@@ -1,6 +1,6 @@
 use crate::error::AppResult;
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, IndexInfo, PreviewResult, QueryResult, TableInfo,
+    ConnectionConfig, ConstraintInfo, ExplainResult, IndexInfo, PreviewResult, QueryResult, TableInfo,
     TableProperties, TableRelationship, TableSchema, TestConnectionResult
 };
 use async_trait::async_trait;
@@ -66,6 +66,9 @@ pub trait DatabaseDriver: Send + Sync {
 
     /// Preview a query - execute in transaction, collect changes, rollback
     async fn preview_query(&self, pool: PoolRef<'_>, sql: &str) -> AppResult<PreviewResult>;
+
+    /// Get execution plan for a SQL query
+    async fn explain_query(&self, pool: PoolRef<'_>, sql: &str, analyze: bool) -> AppResult<ExplainResult>;
 }
 
 /// Factory function to get the appropriate driver for a database type

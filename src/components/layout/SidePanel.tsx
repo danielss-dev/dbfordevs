@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table, Code, GitCommit, Eye, AlertCircle, Loader2, Check, Sparkles, Settings, Bot, History, Plus, Coins } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table, Code, GitCommit, Eye, AlertCircle, Loader2, Check, Sparkles, Settings, Bot, History, Plus, Coins, TreeDeciduous } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Button,
@@ -24,6 +24,7 @@ import { ChatMessage } from "@/components/ai/ChatMessage";
 import { AIInput } from "@/components/ai/AIInput";
 import { AISettingsDialog } from "@/components/ai/AISettingsDialog";
 import { ChatHistoryPanel } from "@/components/ai/ChatHistoryPanel";
+import { ExplainPanel } from "@/components/explain";
 
 interface FieldEditorProps {
   name: string;
@@ -760,6 +761,8 @@ export function SidePanel() {
           : "Changes Preview";
       case "preview":
         return "Query Preview";
+      case "explain":
+        return "Execution Plan";
       case "ai":
         return "AI Assistant";
       default:
@@ -776,6 +779,8 @@ export function SidePanel() {
         return <Code className="h-4 w-4" />;
       case "preview":
         return <Eye className="h-4 w-4" />;
+      case "explain":
+        return <TreeDeciduous className="h-4 w-4" />;
       case "ai":
         return <Sparkles className="h-4 w-4" />;
       default:
@@ -827,6 +832,7 @@ export function SidePanel() {
         {rightPanelTab === "fields" && <FieldsPanel />}
         {rightPanelTab === "changes" && <ChangesPreviewPanel />}
         {rightPanelTab === "preview" && <QueryPreviewPanel />}
+        {rightPanelTab === "explain" && <ExplainPanel />}
         {rightPanelTab === "ai" && <AIAssistantPanel />}
       </div>
     </aside>

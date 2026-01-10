@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye } from "lucide-react";
+import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, TreeDeciduous } from "lucide-react";
 import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
-import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore, usePreviewStore } from "@/stores";
+import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore, usePreviewStore, useExplainStore } from "@/stores";
 import { useUIStore } from "@/stores/ui";
 import { useAIStore } from "@/lib/ai/store";
 import { useDatabase } from "@/hooks";
@@ -34,8 +34,9 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
   const { theme } = useUIStore();
   const { setPanelOpen, sendMessage, settings } = useAIStore();
   const isAIEnabled = settings.aiEnabled ?? true;
-  const { executeQuery, fetchAllSchemas, refreshSchemas, previewQuery } = useDatabase();
+  const { executeQuery, fetchAllSchemas, refreshSchemas, previewQuery, explainQuery } = useDatabase();
   const { openPreview, setPreviewResult } = usePreviewStore();
+  const { openExplain, setExplainResult, setExplainError } = useExplainStore();
   const [content, setContent] = useState(tab.content || "");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -153,6 +154,38 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
     }
   }, [connectionId, content, openPreview, previewQuery, setPreviewResult]);
 
+  const handleExplain = useCallback(async (analyze = false) => {
+    if (!connectionId || !content.trim()) return;
+
+    const currentSql = content;
+    openExplain(currentSql, connectionId, analyze);
+
+    try {
+      const result = await explainQuery({
+        connectionId,
+        sql: currentSql,
+        analyze,
+      });
+
+      // Verify that this explain result is still relevant
+      const { explainSql, isExplainOpen } = useExplainStore.getState();
+      if (!isExplainOpen || explainSql !== currentSql) {
+        return;
+      }
+
+      if (result) {
+        setExplainResult(result);
+      } else {
+        setExplainError("Failed to get execution plan");
+      }
+    } catch (error) {
+      const { explainSql, isExplainOpen } = useExplainStore.getState();
+      if (isExplainOpen && explainSql === currentSql) {
+        setExplainError(error instanceof Error ? error.message : String(error));
+      }
+    }
+  }, [connectionId, content, openExplain, explainQuery, setExplainResult, setExplainError]);
+
   // Keep handleExecute in a ref for use in event listeners
   const handleExecuteRef = useRef(handleExecute);
   useEffect(() => {
@@ -200,6 +233,18 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
               label: "Preview Changes",
               icon: <Eye className="h-3.5 w-3.5" />,
               onClick: handlePreview,
+              disabled: isExecuting || !connectionId || !content.trim(),
+            },
+            {
+              label: "Explain Plan",
+              icon: <TreeDeciduous className="h-3.5 w-3.5" />,
+              onClick: () => handleExplain(false),
+              disabled: isExecuting || !connectionId || !content.trim(),
+            },
+            {
+              label: "Explain Analyze",
+              icon: <TreeDeciduous className="h-3.5 w-3.5" />,
+              onClick: () => handleExplain(true),
               disabled: isExecuting || !connectionId || !content.trim(),
             },
           ]}

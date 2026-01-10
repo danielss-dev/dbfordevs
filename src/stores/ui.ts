@@ -28,7 +28,7 @@ interface GeneralSettings {
   enableAnimations: boolean;
 }
 
-export type RightPanelTab = "fields" | "changes" | "preview" | "ai" | null;
+export type RightPanelTab = "fields" | "changes" | "preview" | "explain" | "ai" | null;
 
 interface UIState {
   // Theme

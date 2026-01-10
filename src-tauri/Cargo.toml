@@ -38,7 +38,8 @@ sqlx = { version = "0.8", features = [
     "rust_decimal",
     "mac_address",
     "ipnetwork",
-    "bit-vec"
+    "bit-vec",
+    "json"
 ] }
 tiberius = { version = "0.12", default-features = false, features = ["rustls", "chrono"] }
 tokio-util = { version = "0.7", features = ["compat"] }

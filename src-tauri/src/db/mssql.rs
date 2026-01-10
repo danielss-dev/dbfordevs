@@ -2,10 +2,12 @@ use crate::db::common::{parse_cte_statement_type, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ColumnInfo, ConnectionConfig, ConstraintInfo, ExtendedColumnInfo, ForeignKeyInfo,
-    IndexInfo, PreviewResult, QueryResult, StatementPreview, StatementType, TableInfo,
-    TableProperties, TableRelationship, TableSchema, TestConnectionResult,
+    ColumnInfo, ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
+    ForeignKeyInfo, IndexInfo, PlanNode, PreviewResult, QueryResult, StatementPreview,
+    StatementType, TableInfo, TableProperties, TableRelationship, TableSchema,
+    TestConnectionResult, WarningSeverity,
 };
+use std::collections::HashMap;
 use async_trait::async_trait;
 use deadpool::managed::{Manager, Pool, RecycleResult};
 use std::future::Future;
@@ -1690,6 +1692,344 @@ ORDER BY ic.key_ordinal;
             error: None,
             warning: None,
         })
+    }
+
+    async fn explain_query(&self, pool: PoolRef<'_>, sql: &str, _analyze: bool) -> AppResult<ExplainResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL driver".to_string())),
+        };
+
+        // Get a connection from the pool
+        let mut conn = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get MSSQL connection: {}", e)))?;
+
+        // Use SET STATISTICS XML ON which executes the query AND returns the execution plan
+        // This is more reliable than SHOWPLAN_XML with connection pooling
+        // The plan is returned as an additional result set after query results
+        let combined_sql = format!(
+            "SET STATISTICS XML ON; {} SET STATISTICS XML OFF;",
+            sql.trim().trim_end_matches(';')
+        );
+
+        let stream = Query::new(&combined_sql)
+            .query(&mut *conn)
+            .await
+            .map_err(|e| AppError::QueryError(format!("EXPLAIN failed: {}", e)))?;
+
+        let results = stream.into_results().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get plan results: {}", e)))?;
+
+        // STATISTICS XML returns: 1) query results, 2) XML plan for each statement
+        // Find the XML plan in the result sets (it's the one that looks like XML)
+        let mut raw_output = String::new();
+        for result_set in &results {
+            for row in result_set {
+                if let Ok(Some(text)) = row.try_get::<&str, _>(0) {
+                    // Check if this looks like XML (the execution plan)
+                    let trimmed = text.trim();
+                    if trimmed.starts_with('<') && trimmed.contains("ShowPlanXML") {
+                        raw_output = text.to_string();
+                        break;
+                    }
+                }
+            }
+            if !raw_output.is_empty() {
+                break;
+            }
+        }
+
+        // Parse the XML plan into a tree structure
+        let (plan_node, total_cost, warnings) = Self::parse_mssql_plan_xml(&raw_output);
+
+        Ok(ExplainResult {
+            plan: plan_node,
+            planning_time: None,
+            execution_time: None,
+            total_cost,
+            warnings,
+            raw_output,
+            database_type: "mssql".to_string(),
+        })
+    }
+}
+
+impl MssqlDriver {
+    /// Parse MSSQL SHOWPLAN_XML output into a PlanNode structure
+    fn parse_mssql_plan_xml(xml: &str) -> (PlanNode, f64, Vec<ExplainWarning>) {
+        let mut warnings = Vec::new();
+        let mut total_cost = 0.0;
+
+        // Extract total cost from StmtSimple
+        if let Some(cost) = Self::extract_xml_attr(xml, "StatementSubTreeCost") {
+            total_cost = cost.parse().unwrap_or(0.0);
+        }
+
+        // Find the root RelOp element - handle both with and without namespace prefix
+        // MSSQL SHOWPLAN_XML may have namespace like xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan"
+        let relop_start = xml.find("<RelOp ")
+            .or_else(|| xml.find(":RelOp ").map(|p| p.saturating_sub(2))); // Handle namespace prefix like <p:RelOp
+
+        let plan = if let Some(start) = relop_start {
+            Self::parse_relop_element(xml, start, &mut warnings)
+        } else {
+            // Try to extract info from the XML even without RelOp elements
+            // This handles simpler plans or different MSSQL versions
+            let node_type = if xml.contains("Clustered Index") {
+                "Clustered Index Operation"
+            } else if xml.contains("Index Scan") || xml.contains("IndexScan") {
+                "Index Scan"
+            } else if xml.contains("Table Scan") || xml.contains("TableScan") {
+                "Table Scan"
+            } else if xml.contains("Hash Match") || xml.contains("HashMatch") {
+                "Hash Join"
+            } else if xml.contains("Nested Loops") || xml.contains("NestedLoops") {
+                "Nested Loop"
+            } else {
+                "Query Plan"
+            }.to_string();
+
+            // Try to extract row estimates
+            let estimate_rows = Self::extract_xml_attr(xml, "StatementEstRows")
+                .or_else(|| Self::extract_xml_attr(xml, "EstimateRows"))
+                .and_then(|s| s.parse::<f64>().ok())
+                .map(|f| f as u64);
+
+            PlanNode {
+                node_type,
+                relation_name: None,
+                alias: None,
+                startup_cost: None,
+                total_cost: if total_cost > 0.0 { Some(total_cost) } else { None },
+                plan_rows: estimate_rows,
+                plan_width: None,
+                actual_startup_time: None,
+                actual_total_time: None,
+                actual_rows: None,
+                actual_loops: None,
+                index_name: None,
+                index_cond: None,
+                filter: None,
+                rows_removed_by_filter: None,
+                sort_key: None,
+                sort_method: None,
+                join_type: None,
+                hash_cond: None,
+                buffers_shared_hit: None,
+                buffers_shared_read: None,
+                children: Vec::new(),
+                warnings: Vec::new(),
+                extra_info: HashMap::new(),
+            }
+        };
+
+        (plan, total_cost, warnings)
+    }
+
+    /// Parse a RelOp element from XML starting at the given position
+    fn parse_relop_element(xml: &str, start_pos: usize, warnings: &mut Vec<ExplainWarning>) -> PlanNode {
+        let xml_from_start = &xml[start_pos..];
+
+        // Find the end of the opening tag to get attributes
+        let tag_end = xml_from_start.find('>').unwrap_or(0);
+        let opening_tag = &xml_from_start[..tag_end];
+
+        // Extract attributes from the RelOp element
+        let physical_op = Self::extract_attr_from_tag(opening_tag, "PhysicalOp")
+            .unwrap_or_else(|| "Unknown".to_string());
+        let logical_op = Self::extract_attr_from_tag(opening_tag, "LogicalOp");
+        let estimate_rows = Self::extract_attr_from_tag(opening_tag, "EstimateRows")
+            .and_then(|s| s.parse::<f64>().ok())
+            .map(|f| f as u64);
+        let estimated_cost = Self::extract_attr_from_tag(opening_tag, "EstimatedTotalSubtreeCost")
+            .and_then(|s| s.parse::<f64>().ok());
+        let estimate_io = Self::extract_attr_from_tag(opening_tag, "EstimateIO")
+            .and_then(|s| s.parse::<f64>().ok());
+        let estimate_cpu = Self::extract_attr_from_tag(opening_tag, "EstimateCPU")
+            .and_then(|s| s.parse::<f64>().ok());
+
+        // Determine node type based on physical operation
+        let node_type = match physical_op.as_str() {
+            "Clustered Index Scan" => "Clustered Index Scan",
+            "Clustered Index Seek" => "Clustered Index Seek",
+            "Index Scan" => "Index Scan",
+            "Index Seek" => "Index Seek",
+            "Table Scan" => "Table Scan",
+            "Hash Match" => "Hash Join",
+            "Nested Loops" => "Nested Loop",
+            "Merge Join" => "Merge Join",
+            "Sort" => "Sort",
+            "Stream Aggregate" => "Aggregate",
+            "Hash Aggregate" => "Hash Aggregate",
+            "Compute Scalar" => "Compute Scalar",
+            "Filter" => "Filter",
+            "Top" => "Top",
+            "Parallelism" => "Parallelism",
+            "Concatenation" => "Concatenation",
+            "Constant Scan" => "Constant Scan",
+            _ => &physical_op,
+        }.to_string();
+
+        // Check for table scans and add warnings
+        if physical_op == "Table Scan" || physical_op == "Clustered Index Scan" {
+            if let Some(rows) = estimate_rows {
+                if rows > 1000 {
+                    warnings.push(ExplainWarning {
+                        severity: WarningSeverity::Warning,
+                        message: format!("{} scanning ~{} rows", physical_op, rows),
+                        node_type: Some(physical_op.clone()),
+                        suggestion: Some("Consider adding an index or using Index Seek".to_string()),
+                    });
+                }
+            }
+        }
+
+        // Extract table/index name from Object element
+        let (relation_name, index_name) = Self::extract_object_info(xml_from_start);
+
+        // Extract filter predicate if present
+        let filter = Self::extract_predicate(xml_from_start, "Predicate");
+        let index_cond = Self::extract_predicate(xml_from_start, "SeekPredicates");
+
+        // Find child RelOp elements
+        let children = Self::find_child_relops(xml_from_start, warnings);
+
+        // Calculate startup cost (IO) and total cost (IO + CPU)
+        let startup_cost = estimate_io;
+        let total_cost_node = match (estimate_io, estimate_cpu) {
+            (Some(io), Some(cpu)) => Some(io + cpu),
+            _ => estimated_cost,
+        };
+
+        PlanNode {
+            node_type,
+            relation_name,
+            alias: logical_op,
+            startup_cost,
+            total_cost: total_cost_node,
+            plan_rows: estimate_rows,
+            plan_width: None,
+            actual_startup_time: None,
+            actual_total_time: None,
+            actual_rows: None,
+            actual_loops: None,
+            index_name,
+            index_cond,
+            filter,
+            rows_removed_by_filter: None,
+            sort_key: None,
+            sort_method: None,
+            join_type: None,
+            hash_cond: None,
+            buffers_shared_hit: None,
+            buffers_shared_read: None,
+            children,
+            warnings: Vec::new(),
+            extra_info: HashMap::new(),
+        }
+    }
+
+    /// Find child RelOp elements within a parent element
+    fn find_child_relops(xml: &str, warnings: &mut Vec<ExplainWarning>) -> Vec<PlanNode> {
+        let mut children = Vec::new();
+
+        // Find the content after the first RelOp's attributes (skip the current element)
+        let Some(first_close) = xml.find('>') else {
+            return children;
+        };
+
+        let inner = &xml[first_close + 1..];
+
+        // Find all direct child RelOp elements
+        let mut pos = 0;
+        let mut depth = 0;
+
+        while let Some(rel_pos) = inner[pos..].find("<RelOp ") {
+            let abs_pos = pos + rel_pos;
+
+            // Check if we're back at depth 0 (direct child)
+            // Count opening/closing tags before this position
+            let before = &inner[pos..abs_pos];
+            for part in before.split("<RelOp") {
+                if part.contains("</RelOp>") {
+                    depth -= part.matches("</RelOp>").count() as i32;
+                }
+            }
+            depth += before.matches("<RelOp").count() as i32;
+
+            if depth == 0 {
+                // This is a direct child, parse it
+                let child = Self::parse_relop_element(inner, abs_pos, warnings);
+                children.push(child);
+            }
+
+            pos = abs_pos + 7; // Move past "<RelOp "
+        }
+
+        children
+    }
+
+    /// Extract an attribute value from an XML string
+    fn extract_xml_attr(xml: &str, attr_name: &str) -> Option<String> {
+        let pattern = format!("{}=\"", attr_name);
+        if let Some(start) = xml.find(&pattern) {
+            let value_start = start + pattern.len();
+            if let Some(end) = xml[value_start..].find('"') {
+                return Some(xml[value_start..value_start + end].to_string());
+            }
+        }
+        None
+    }
+
+    /// Extract an attribute from a tag string
+    fn extract_attr_from_tag(tag: &str, attr_name: &str) -> Option<String> {
+        let pattern = format!("{}=\"", attr_name);
+        if let Some(start) = tag.find(&pattern) {
+            let value_start = start + pattern.len();
+            if let Some(end) = tag[value_start..].find('"') {
+                return Some(tag[value_start..value_start + end].to_string());
+            }
+        }
+        None
+    }
+
+    /// Extract table and index name from Object element
+    fn extract_object_info(xml: &str) -> (Option<String>, Option<String>) {
+        // Look for <Object ... Table="..." Index="..." />
+        if let Some(obj_start) = xml.find("<Object ") {
+            let obj_end = xml[obj_start..].find("/>").unwrap_or(200);
+            let obj_tag = &xml[obj_start..obj_start + obj_end];
+
+            let table = Self::extract_attr_from_tag(obj_tag, "Table")
+                .map(|s| s.trim_matches('[').trim_matches(']').to_string());
+            let index = Self::extract_attr_from_tag(obj_tag, "Index")
+                .map(|s| s.trim_matches('[').trim_matches(']').to_string());
+
+            return (table, index);
+        }
+        (None, None)
+    }
+
+    /// Extract predicate/filter expression
+    fn extract_predicate(xml: &str, predicate_type: &str) -> Option<String> {
+        let start_tag = format!("<{}", predicate_type);
+        if let Some(start) = xml.find(&start_tag) {
+            // Find ScalarOperator within the predicate
+            let predicate_xml = &xml[start..];
+            if let Some(scalar_start) = predicate_xml.find("ScalarString=\"") {
+                let value_start = scalar_start + 14;
+                if let Some(end) = predicate_xml[value_start..].find('"') {
+                    let value = &predicate_xml[value_start..value_start + end];
+                    // Decode XML entities
+                    return Some(value
+                        .replace("&gt;", ">")
+                        .replace("&lt;", "<")
+                        .replace("&amp;", "&")
+                        .replace("&quot;", "\""));
+                }
+            }
+        }
+        None
     }
 }
 

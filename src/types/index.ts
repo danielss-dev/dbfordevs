@@ -250,3 +250,55 @@ export interface PreviewRequest {
   sql: string;
 }
 
+// Execution Plan types
+
+export interface ExplainRequest {
+  connectionId: string;
+  sql: string;
+  analyze: boolean;
+}
+
+export interface PlanNode {
+  nodeType: string;
+  relationName?: string;
+  alias?: string;
+  startupCost?: number;
+  totalCost?: number;
+  planRows?: number;
+  planWidth?: number;
+  actualStartupTime?: number;
+  actualTotalTime?: number;
+  actualRows?: number;
+  actualLoops?: number;
+  indexName?: string;
+  indexCond?: string;
+  filter?: string;
+  rowsRemovedByFilter?: number;
+  sortKey?: string[];
+  sortMethod?: string;
+  joinType?: string;
+  hashCond?: string;
+  buffersSharedHit?: number;
+  buffersSharedRead?: number;
+  children: PlanNode[];
+  warnings: string[];
+  extraInfo: Record<string, unknown>;
+}
+
+export interface ExplainWarning {
+  severity: "info" | "warning" | "critical";
+  message: string;
+  nodeType?: string;
+  suggestion?: string;
+}
+
+export interface ExplainResult {
+  plan: PlanNode;
+  planningTime?: number;
+  executionTime?: number;
+  totalCost: number;
+  warnings: ExplainWarning[];
+  rawOutput: string;
+  databaseType: string;
+}
+

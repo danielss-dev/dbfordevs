@@ -1,6 +1,9 @@
 use crate::db::{get_connection_manager, get_driver};
 use crate::error::{AppError, AppResult};
-use crate::models::{DatabaseType, PreviewRequest, PreviewResult, QueryRequest, QueryResult, TableInfo, TableSchema};
+use crate::models::{
+    DatabaseType, ExplainRequest, ExplainResult, PreviewRequest, PreviewResult,
+    QueryRequest, QueryResult, TableInfo, TableSchema
+};
 use crate::storage;
 
 /// Quotes a single SQL identifier part based on database type.
@@ -319,5 +322,25 @@ pub async fn drop_table(
     let sql = format!("DROP TABLE {}", quoted_table);
 
     driver.execute_query(pool_ref, &sql).await
+}
+
+/// Get execution plan for a SQL query
+#[tauri::command]
+pub async fn explain_query(request: ExplainRequest) -> Result<ExplainResult, AppError> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&request.connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    // Get config to determine driver type
+    let config = storage::get_connection(&request.connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    let driver = get_driver(&config);
+    let pool_ref = manager.get_pool_ref(&request.connection_id)?;
+
+    driver.explain_query(pool_ref, &request.sql, request.analyze).await
 }
 

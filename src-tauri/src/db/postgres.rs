@@ -2,9 +2,10 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::db::common::{parse_cte_statement_type, CteParserConfig};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    PreviewResult, QueryResult, StatementPreview, StatementType, TableInfo, TableProperties,
-    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo
+    ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
+    ForeignKeyInfo, IndexInfo, PlanNode, PreviewResult, QueryResult, StatementPreview,
+    StatementType, TableInfo, TableProperties, TableRelationship, TableSchema,
+    TestConnectionResult, ColumnInfo, WarningSeverity
 };
 use async_trait::async_trait;
 use sqlx::{postgres::PgPool, Row, Column, ValueRef, TypeInfo};
@@ -797,6 +798,143 @@ impl PostgresDriver {
                 affected_rows: Some(result.rows_affected()),
                 execution_time_ms: start.elapsed().as_millis() as u64,
             })
+        }
+    }
+
+    /// Parse PostgreSQL EXPLAIN JSON output into a PlanNode tree
+    fn parse_pg_plan_json(json: &serde_json::Value) -> AppResult<PlanNode> {
+        let plan = &json[0]["Plan"];
+        Self::parse_pg_plan_node(plan)
+    }
+
+    /// Recursively parse a single plan node from PostgreSQL EXPLAIN JSON
+    fn parse_pg_plan_node(node: &serde_json::Value) -> AppResult<PlanNode> {
+        let children: Vec<PlanNode> = node["Plans"]
+            .as_array()
+            .map(|arr| arr.iter().filter_map(|n| Self::parse_pg_plan_node(n).ok()).collect())
+            .unwrap_or_default();
+
+        let mut warnings = Vec::new();
+        let node_type = node["Node Type"].as_str().unwrap_or("Unknown").to_string();
+
+        // Detect sequential scans on potentially large tables
+        if node_type == "Seq Scan" {
+            if let Some(rows) = node["Plan Rows"].as_u64() {
+                if rows > 10000 {
+                    warnings.push(format!("Sequential scan on large table (~{} rows)", rows));
+                }
+            }
+        }
+
+        // Build extra_info from any additional fields
+        let mut extra_info = HashMap::new();
+        if let Some(obj) = node.as_object() {
+            for (key, value) in obj {
+                // Skip fields we already handle explicitly
+                if !["Node Type", "Relation Name", "Alias", "Startup Cost", "Total Cost",
+                     "Plan Rows", "Plan Width", "Actual Startup Time", "Actual Total Time",
+                     "Actual Rows", "Actual Loops", "Index Name", "Index Cond", "Filter",
+                     "Rows Removed by Filter", "Sort Key", "Sort Method", "Join Type",
+                     "Hash Cond", "Shared Hit Blocks", "Shared Read Blocks", "Plans"].contains(&key.as_str()) {
+                    extra_info.insert(key.clone(), value.clone());
+                }
+            }
+        }
+
+        Ok(PlanNode {
+            node_type,
+            relation_name: node["Relation Name"].as_str().map(String::from),
+            alias: node["Alias"].as_str().map(String::from),
+            startup_cost: node["Startup Cost"].as_f64(),
+            total_cost: node["Total Cost"].as_f64(),
+            plan_rows: node["Plan Rows"].as_u64(),
+            plan_width: node["Plan Width"].as_u64().map(|v| v as u32),
+            actual_startup_time: node["Actual Startup Time"].as_f64(),
+            actual_total_time: node["Actual Total Time"].as_f64(),
+            actual_rows: node["Actual Rows"].as_u64(),
+            actual_loops: node["Actual Loops"].as_u64(),
+            index_name: node["Index Name"].as_str().map(String::from),
+            index_cond: node["Index Cond"].as_str().map(String::from),
+            filter: node["Filter"].as_str().map(String::from),
+            rows_removed_by_filter: node["Rows Removed by Filter"].as_u64(),
+            sort_key: node["Sort Key"].as_array().map(|arr|
+                arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+            ),
+            sort_method: node["Sort Method"].as_str().map(String::from),
+            join_type: node["Join Type"].as_str().map(String::from),
+            hash_cond: node["Hash Cond"].as_str().map(String::from),
+            buffers_shared_hit: node["Shared Hit Blocks"].as_u64(),
+            buffers_shared_read: node["Shared Read Blocks"].as_u64(),
+            children,
+            warnings,
+            extra_info,
+        })
+    }
+
+    /// Analyze a plan tree and collect warnings
+    fn analyze_plan_warnings(plan: &PlanNode) -> Vec<ExplainWarning> {
+        let mut warnings = Vec::new();
+        Self::collect_warnings_recursive(plan, &mut warnings);
+        warnings
+    }
+
+    /// Recursively collect warnings from plan nodes
+    fn collect_warnings_recursive(node: &PlanNode, warnings: &mut Vec<ExplainWarning>) {
+        // Check for sequential scans on large tables
+        if node.node_type == "Seq Scan" {
+            if let Some(rows) = node.plan_rows {
+                if rows > 10000 {
+                    warnings.push(ExplainWarning {
+                        severity: WarningSeverity::Warning,
+                        message: format!(
+                            "Sequential scan on '{}' (~{} rows)",
+                            node.relation_name.as_deref().unwrap_or("unknown"),
+                            rows
+                        ),
+                        node_type: Some(node.node_type.clone()),
+                        suggestion: Some("Consider adding an index on frequently filtered columns".to_string()),
+                    });
+                }
+            }
+        }
+
+        // Check for row estimate vs actual mismatch (if ANALYZE data available)
+        if let (Some(estimated), Some(actual)) = (node.plan_rows, node.actual_rows) {
+            let ratio = if estimated > 0 {
+                actual as f64 / estimated as f64
+            } else {
+                1.0
+            };
+            if ratio > 10.0 || ratio < 0.1 {
+                warnings.push(ExplainWarning {
+                    severity: WarningSeverity::Info,
+                    message: format!(
+                        "Row estimate mismatch: estimated {} vs actual {}",
+                        estimated, actual
+                    ),
+                    node_type: Some(node.node_type.clone()),
+                    suggestion: Some("Run ANALYZE on the table to update statistics".to_string()),
+                });
+            }
+        }
+
+        // Check for sorts spilling to disk
+        if node.node_type == "Sort" {
+            if let Some(method) = &node.sort_method {
+                if method.contains("external") {
+                    warnings.push(ExplainWarning {
+                        severity: WarningSeverity::Warning,
+                        message: "Sort operation spilled to disk".to_string(),
+                        node_type: Some(node.node_type.clone()),
+                        suggestion: Some("Consider increasing work_mem or adding an index".to_string()),
+                    });
+                }
+            }
+        }
+
+        // Recursively check children
+        for child in &node.children {
+            Self::collect_warnings_recursive(child, warnings);
         }
     }
 }
@@ -2002,6 +2140,49 @@ impl DatabaseDriver for PostgresDriver {
             success: true,
             error: None,
             warning: None,
+        })
+    }
+
+    async fn explain_query(&self, pool: PoolRef<'_>, sql: &str, analyze: bool) -> AppResult<ExplainResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Build EXPLAIN query with JSON format for structured output
+        let explain_sql = if analyze {
+            format!("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {}", sql)
+        } else {
+            format!("EXPLAIN (FORMAT JSON) {}", sql)
+        };
+
+        // Execute EXPLAIN query
+        let row = sqlx::query(&explain_sql)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("EXPLAIN failed: {}", e)))?;
+
+        // PostgreSQL returns JSON in first column - use serde_json::Value directly
+        let json_plan: serde_json::Value = row.try_get(0)
+            .map_err(|e| AppError::QueryError(format!("Failed to get EXPLAIN result: {}", e)))?;
+
+        // Parse the plan tree
+        let plan_node = Self::parse_pg_plan_json(&json_plan)?;
+        let warnings = Self::analyze_plan_warnings(&plan_node);
+
+        // Extract timing info if ANALYZE was used
+        let planning_time = json_plan[0]["Planning Time"].as_f64();
+        let execution_time = json_plan[0]["Execution Time"].as_f64();
+        let total_cost = plan_node.total_cost.unwrap_or(0.0);
+
+        Ok(ExplainResult {
+            plan: plan_node,
+            planning_time,
+            execution_time,
+            total_cost,
+            warnings,
+            raw_output: serde_json::to_string_pretty(&json_plan).unwrap_or_default(),
+            database_type: "postgresql".to_string(),
         })
     }
 }

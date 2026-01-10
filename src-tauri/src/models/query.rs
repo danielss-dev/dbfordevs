@@ -161,3 +161,76 @@ pub struct PreviewRequest {
     pub sql: String,
 }
 
+// Execution Plan types
+
+/// Request for EXPLAIN query
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplainRequest {
+    pub connection_id: String,
+    pub sql: String,
+    pub analyze: bool,
+}
+
+/// A node in the execution plan tree
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanNode {
+    pub node_type: String,
+    pub relation_name: Option<String>,
+    pub alias: Option<String>,
+    pub startup_cost: Option<f64>,
+    pub total_cost: Option<f64>,
+    pub plan_rows: Option<u64>,
+    pub plan_width: Option<u32>,
+    pub actual_startup_time: Option<f64>,
+    pub actual_total_time: Option<f64>,
+    pub actual_rows: Option<u64>,
+    pub actual_loops: Option<u64>,
+    pub index_name: Option<String>,
+    pub index_cond: Option<String>,
+    pub filter: Option<String>,
+    pub rows_removed_by_filter: Option<u64>,
+    pub sort_key: Option<Vec<String>>,
+    pub sort_method: Option<String>,
+    pub join_type: Option<String>,
+    pub hash_cond: Option<String>,
+    pub buffers_shared_hit: Option<u64>,
+    pub buffers_shared_read: Option<u64>,
+    pub children: Vec<PlanNode>,
+    pub warnings: Vec<String>,
+    pub extra_info: std::collections::HashMap<String, serde_json::Value>,
+}
+
+/// Warning severity level
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WarningSeverity {
+    Info,
+    Warning,
+    Critical,
+}
+
+/// Warning/suggestion from plan analysis
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplainWarning {
+    pub severity: WarningSeverity,
+    pub message: String,
+    pub node_type: Option<String>,
+    pub suggestion: Option<String>,
+}
+
+/// Result of an EXPLAIN query
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplainResult {
+    pub plan: PlanNode,
+    pub planning_time: Option<f64>,
+    pub execution_time: Option<f64>,
+    pub total_cost: f64,
+    pub warnings: Vec<ExplainWarning>,
+    pub raw_output: String,
+    pub database_type: String,
+}
+

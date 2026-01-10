@@ -2,9 +2,10 @@ use crate::db::common::{parse_cte_statement_type, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    PreviewResult, QueryResult, StatementPreview, StatementType, TableInfo, TableProperties,
-    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo
+    ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
+    ForeignKeyInfo, IndexInfo, PlanNode, PreviewResult, QueryResult, StatementPreview,
+    StatementType, TableInfo, TableProperties, TableRelationship, TableSchema,
+    TestConnectionResult, ColumnInfo, WarningSeverity
 };
 use async_trait::async_trait;
 use sqlx::{mysql::MySqlPool, Row, Column, TypeInfo};
@@ -502,6 +503,188 @@ impl MySqlDriver {
                 affected_rows: Some(result.rows_affected()),
                 execution_time_ms: start.elapsed().as_millis() as u64,
             })
+        }
+    }
+
+    /// Parse MySQL EXPLAIN JSON output into a PlanNode tree
+    fn parse_mysql_plan_json(json: &serde_json::Value) -> AppResult<PlanNode> {
+        // MySQL EXPLAIN FORMAT=JSON returns a "query_block" structure
+        let query_block = &json["query_block"];
+        Self::parse_mysql_query_block(query_block)
+    }
+
+    /// Parse a MySQL query_block into a PlanNode
+    fn parse_mysql_query_block(block: &serde_json::Value) -> AppResult<PlanNode> {
+        let mut children = Vec::new();
+        let mut node_type = "Query Block".to_string();
+        let relation_name = None;
+        let mut total_cost = None;
+        let plan_rows = None;
+
+        // Check for nested_loop (JOIN operations)
+        if let Some(nested_loop) = block.get("nested_loop").and_then(|v| v.as_array()) {
+            node_type = "Nested Loop".to_string();
+            for item in nested_loop {
+                if let Some(table) = item.get("table") {
+                    if let Ok(child) = Self::parse_mysql_table_node(table) {
+                        children.push(child);
+                    }
+                }
+            }
+        }
+
+        // Check for ordering_operation
+        if let Some(ordering) = block.get("ordering_operation") {
+            node_type = "Sort".to_string();
+            if let Some(nested) = ordering.get("nested_loop").and_then(|v| v.as_array()) {
+                for item in nested {
+                    if let Some(table) = item.get("table") {
+                        if let Ok(child) = Self::parse_mysql_table_node(table) {
+                            children.push(child);
+                        }
+                    }
+                }
+            }
+            if let Some(grouping) = ordering.get("grouping_operation") {
+                if let Ok(child) = Self::parse_mysql_query_block(grouping) {
+                    children.push(child);
+                }
+            }
+        }
+
+        // Check for single table access
+        if let Some(table) = block.get("table") {
+            return Self::parse_mysql_table_node(table);
+        }
+
+        // Extract cost info if available
+        if let Some(cost) = block.get("cost_info") {
+            total_cost = cost["query_cost"].as_str().and_then(|s| s.parse::<f64>().ok());
+        }
+
+        Ok(PlanNode {
+            node_type,
+            relation_name,
+            alias: None,
+            startup_cost: None,
+            total_cost,
+            plan_rows,
+            plan_width: None,
+            actual_startup_time: None,
+            actual_total_time: None,
+            actual_rows: None,
+            actual_loops: None,
+            index_name: None,
+            index_cond: None,
+            filter: None,
+            rows_removed_by_filter: None,
+            sort_key: None,
+            sort_method: None,
+            join_type: None,
+            hash_cond: None,
+            buffers_shared_hit: None,
+            buffers_shared_read: None,
+            children,
+            warnings: Vec::new(),
+            extra_info: HashMap::new(),
+        })
+    }
+
+    /// Parse a MySQL table access node
+    fn parse_mysql_table_node(table: &serde_json::Value) -> AppResult<PlanNode> {
+        let table_name = table["table_name"].as_str().map(String::from);
+        let access_type = table["access_type"].as_str().unwrap_or("unknown");
+
+        // Map MySQL access types to node types
+        let node_type = match access_type {
+            "ALL" => "Full Table Scan",
+            "index" => "Index Scan",
+            "range" => "Index Range Scan",
+            "ref" => "Index Lookup",
+            "eq_ref" => "Unique Index Lookup",
+            "const" => "Constant Lookup",
+            "system" => "System Table",
+            "fulltext" => "Fulltext Search",
+            _ => access_type,
+        }.to_string();
+
+        let mut warnings = Vec::new();
+        if access_type == "ALL" {
+            if let Some(rows) = table["rows_examined_per_scan"].as_u64() {
+                if rows > 10000 {
+                    warnings.push(format!("Full table scan on large table (~{} rows)", rows));
+                }
+            }
+        }
+
+        // Extract cost info
+        let total_cost = table.get("cost_info")
+            .and_then(|c| c["read_cost"].as_str())
+            .and_then(|s| s.parse::<f64>().ok());
+
+        let plan_rows = table["rows_examined_per_scan"].as_u64()
+            .or_else(|| table["rows_produced_per_join"].as_u64());
+
+        Ok(PlanNode {
+            node_type,
+            relation_name: table_name,
+            alias: table["table_name"].as_str().map(String::from),
+            startup_cost: None,
+            total_cost,
+            plan_rows,
+            plan_width: None,
+            actual_startup_time: None,
+            actual_total_time: None,
+            actual_rows: None,
+            actual_loops: None,
+            index_name: table["key"].as_str().map(String::from),
+            index_cond: table["used_key_parts"].as_array().map(|arr|
+                arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", ")
+            ),
+            filter: table["attached_condition"].as_str().map(String::from),
+            rows_removed_by_filter: table["filtered"].as_str()
+                .and_then(|s| s.parse::<f64>().ok())
+                .map(|pct| ((100.0 - pct) / 100.0 * plan_rows.unwrap_or(0) as f64) as u64),
+            sort_key: None,
+            sort_method: None,
+            join_type: None,
+            hash_cond: None,
+            buffers_shared_hit: None,
+            buffers_shared_read: None,
+            children: Vec::new(),
+            warnings,
+            extra_info: HashMap::new(),
+        })
+    }
+
+    /// Analyze MySQL plan and collect warnings
+    fn analyze_mysql_warnings(plan: &PlanNode) -> Vec<ExplainWarning> {
+        let mut warnings = Vec::new();
+        Self::collect_mysql_warnings_recursive(plan, &mut warnings);
+        warnings
+    }
+
+    fn collect_mysql_warnings_recursive(node: &PlanNode, warnings: &mut Vec<ExplainWarning>) {
+        // Check for full table scans
+        if node.node_type == "Full Table Scan" {
+            if let Some(rows) = node.plan_rows {
+                if rows > 10000 {
+                    warnings.push(ExplainWarning {
+                        severity: WarningSeverity::Warning,
+                        message: format!(
+                            "Full table scan on '{}' (~{} rows)",
+                            node.relation_name.as_deref().unwrap_or("unknown"),
+                            rows
+                        ),
+                        node_type: Some(node.node_type.clone()),
+                        suggestion: Some("Consider adding an index on frequently filtered columns".to_string()),
+                    });
+                }
+            }
+        }
+
+        for child in &node.children {
+            Self::collect_mysql_warnings_recursive(child, warnings);
         }
     }
 }
@@ -1280,6 +1463,66 @@ impl DatabaseDriver for MySqlDriver {
             success: true,
             error: None,
             warning: None,
+        })
+    }
+
+    async fn explain_query(&self, pool: PoolRef<'_>, sql: &str, analyze: bool) -> AppResult<ExplainResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // MySQL 8.0.18+ supports EXPLAIN ANALYZE, earlier versions don't
+        // Try EXPLAIN ANALYZE first, fall back to regular EXPLAIN if it fails
+        let explain_sql = if analyze {
+            format!("EXPLAIN ANALYZE FORMAT=JSON {}", sql)
+        } else {
+            format!("EXPLAIN FORMAT=JSON {}", sql)
+        };
+
+        // Execute EXPLAIN query
+        let result = sqlx::query(&explain_sql)
+            .fetch_one(pool)
+            .await;
+
+        let row = match result {
+            Ok(row) => row,
+            Err(e) if analyze => {
+                // If EXPLAIN ANALYZE fails, fall back to regular EXPLAIN
+                let fallback_sql = format!("EXPLAIN FORMAT=JSON {}", sql);
+                sqlx::query(&fallback_sql)
+                    .fetch_one(pool)
+                    .await
+                    .map_err(|e2| AppError::QueryError(format!("EXPLAIN failed: {}", e2)))?
+            }
+            Err(e) => return Err(AppError::QueryError(format!("EXPLAIN failed: {}", e))),
+        };
+
+        // MySQL returns JSON in the "EXPLAIN" column
+        let json_str: String = row.try_get(0)
+            .map_err(|e| AppError::QueryError(format!("Failed to get EXPLAIN result: {}", e)))?;
+
+        let json_plan: serde_json::Value = serde_json::from_str(&json_str)
+            .map_err(|e| AppError::QueryError(format!("Failed to parse EXPLAIN JSON: {}", e)))?;
+
+        // Parse the plan tree
+        let plan_node = Self::parse_mysql_plan_json(&json_plan)?;
+        let warnings = Self::analyze_mysql_warnings(&plan_node);
+
+        // Extract cost from query_block
+        let total_cost = json_plan["query_block"]["cost_info"]["query_cost"]
+            .as_str()
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap_or(plan_node.total_cost.unwrap_or(0.0));
+
+        Ok(ExplainResult {
+            plan: plan_node,
+            planning_time: None,  // MySQL doesn't provide planning time
+            execution_time: None, // Would need EXPLAIN ANALYZE for this
+            total_cost,
+            warnings,
+            raw_output: serde_json::to_string_pretty(&json_plan).unwrap_or_default(),
+            database_type: "mysql".to_string(),
         })
     }
 }

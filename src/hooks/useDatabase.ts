@@ -13,6 +13,8 @@ import type {
   TableRelationship,
   PreviewRequest,
   PreviewResult,
+  ExplainRequest,
+  ExplainResult,
 } from "@/types";
 
 /**
@@ -250,6 +252,28 @@ export function useDatabase() {
 
       try {
         const result = await invoke<PreviewResult>("preview_query", { request });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Get execution plan for a SQL query
+   */
+  const explainQuery = useCallback(
+    async (request: ExplainRequest): Promise<ExplainResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<ExplainResult>("explain_query", { request });
         return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -568,6 +592,7 @@ export function useDatabase() {
     deleteConnection,
     executeQuery,
     previewQuery,
+    explainQuery,
     getTables,
     getTableSchema,
     fetchAllSchemas,
