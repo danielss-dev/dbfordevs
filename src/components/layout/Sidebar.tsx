@@ -131,7 +131,7 @@ function TreeItem({
 
 function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { activeConnectionId, setActiveConnection } = useConnectionsStore();
-  const { openConnectionModal, openRenameTableDialog, openRenameConnectionDialog } = useUIStore();
+  const { openConnectionModal, openRenameTableDialog, openRenameConnectionDialog, openCreateTableDialog } = useUIStore();
   const { tablesByConnection, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
   const { connect, disconnect, getTables, deleteConnection, dropTable, generateTableDdl } = useDatabase();
   const { toast } = useToast();
@@ -535,6 +535,11 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                 </div>
                               </ContextMenuTrigger>
                               <ContextMenuContent className="w-48">
+                                <ContextMenuItem onSelect={() => openCreateTableDialog(connection.id, schemaName)} className="gap-2">
+                                  <Plus className="h-4 w-4" />
+                                  Create Table
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
                                 <ContextMenuItem onSelect={() => handleViewSchemaDiagram(schemaName)} className="gap-2">
                                   <Network className="h-4 w-4" />
                                   View Diagram

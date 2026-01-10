@@ -3,9 +3,9 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     ColumnInfo, ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
-    ForeignKeyInfo, IndexInfo, PlanNode, PreviewResult, QueryResult, StatementPreview,
-    StatementType, TableInfo, TableProperties, TableRelationship, TableSchema,
-    TestConnectionResult, WarningSeverity,
+    ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
+    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
+    TableRelationship, TableSchema, TestConnectionResult, WarningSeverity,
 };
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -1751,6 +1751,224 @@ ORDER BY ic.key_ordinal;
             raw_output,
             database_type: "mssql".to_string(),
         })
+    }
+
+    fn generate_create_table_ddl(&self, table_def: &NewTableDefinition) -> AppResult<String> {
+        let mut ddl = String::new();
+
+        // MSSQL uses brackets for quoting
+        let table_name = if let Some(ref schema) = table_def.schema {
+            format!("[{}].[{}]", schema, table_def.name)
+        } else {
+            format!("[{}]", table_def.name)
+        };
+
+        ddl.push_str(&format!("CREATE TABLE {} (\n", table_name));
+
+        // Column definitions
+        let mut column_defs = Vec::new();
+        for col in &table_def.columns {
+            let mut col_def = format!("    [{}]", col.name);
+
+            // Regular type with optional length/precision
+            let type_str = if let Some(length) = col.length {
+                format!("{}({})", col.data_type, length)
+            } else if let (Some(precision), Some(scale)) = (col.precision, col.scale) {
+                format!("{}({},{})", col.data_type, precision, scale)
+            } else if let Some(precision) = col.precision {
+                format!("{}({})", col.data_type, precision)
+            } else {
+                col.data_type.clone()
+            };
+            col_def.push_str(&format!(" {}", type_str));
+
+            // IDENTITY for auto-increment
+            if col.is_auto_increment {
+                col_def.push_str(" IDENTITY(1,1)");
+            }
+
+            // NOT NULL constraint
+            if !col.nullable {
+                col_def.push_str(" NOT NULL");
+            } else {
+                col_def.push_str(" NULL");
+            }
+
+            // DEFAULT value
+            if let Some(ref default) = col.default_value {
+                col_def.push_str(&format!(" DEFAULT {}", default));
+            }
+
+            // UNIQUE constraint (inline)
+            if col.is_unique && !col.is_primary_key {
+                col_def.push_str(" UNIQUE");
+            }
+
+            column_defs.push(col_def);
+        }
+
+        // Primary key constraint
+        if !table_def.primary_key_columns.is_empty() {
+            let pk_cols: Vec<String> = table_def.primary_key_columns.iter()
+                .map(|c| format!("[{}]", c))
+                .collect();
+            column_defs.push(format!("    PRIMARY KEY ({})", pk_cols.join(", ")));
+        }
+
+        // Foreign key constraints
+        for fk in &table_def.foreign_keys {
+            let src_cols: Vec<String> = fk.columns.iter().map(|c| format!("[{}]", c)).collect();
+            let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| format!("[{}]", c)).collect();
+
+            let mut fk_def = String::new();
+            if let Some(ref name) = fk.name {
+                fk_def.push_str(&format!("    CONSTRAINT [{}] ", name));
+            } else {
+                fk_def.push_str("    ");
+            }
+            fk_def.push_str(&format!(
+                "FOREIGN KEY ({}) REFERENCES [{}] ({})",
+                src_cols.join(", "),
+                fk.references_table,
+                ref_cols.join(", ")
+            ));
+
+            if let Some(ref action) = fk.on_delete {
+                fk_def.push_str(&format!(" ON DELETE {}", action.to_sql()));
+            }
+            if let Some(ref action) = fk.on_update {
+                fk_def.push_str(&format!(" ON UPDATE {}", action.to_sql()));
+            }
+
+            column_defs.push(fk_def);
+        }
+
+        // Check constraints
+        for check in &table_def.check_constraints {
+            let check_def = if let Some(ref name) = check.name {
+                format!("    CONSTRAINT [{}] CHECK ({})", name, check.expression)
+            } else {
+                format!("    CHECK ({})", check.expression)
+            };
+            column_defs.push(check_def);
+        }
+
+        ddl.push_str(&column_defs.join(",\n"));
+        ddl.push_str("\n);\n");
+
+        // Create indexes (separate statements)
+        for idx in &table_def.indexes {
+            let idx_cols: Vec<String> = idx.columns.iter().map(|c| format!("[{}]", c)).collect();
+            let unique_str = if idx.is_unique { "UNIQUE " } else { "" };
+            let idx_name = idx.name.clone().unwrap_or_else(|| {
+                format!("idx_{}_{}", table_def.name, idx.columns.join("_"))
+            });
+            ddl.push_str(&format!(
+                "\nCREATE {}INDEX [{}] ON {} ({});",
+                unique_str,
+                idx_name,
+                table_name,
+                idx_cols.join(", ")
+            ));
+        }
+
+        // Add table description via extended property
+        if let Some(ref comment) = table_def.comment {
+            let schema = table_def.schema.as_deref().unwrap_or("dbo");
+            ddl.push_str(&format!(
+                "\n\nEXEC sp_addextendedproperty @name=N'MS_Description', @value=N'{}', @level0type=N'SCHEMA', @level0name=N'{}', @level1type=N'TABLE', @level1name=N'{}';",
+                comment.replace("'", "''"),
+                schema,
+                table_def.name
+            ));
+        }
+
+        // Add column descriptions via extended property
+        for col in &table_def.columns {
+            if let Some(ref comment) = col.comment {
+                let schema = table_def.schema.as_deref().unwrap_or("dbo");
+                ddl.push_str(&format!(
+                    "\nEXEC sp_addextendedproperty @name=N'MS_Description', @value=N'{}', @level0type=N'SCHEMA', @level0name=N'{}', @level1type=N'TABLE', @level1name=N'{}', @level2type=N'COLUMN', @level2name=N'{}';",
+                    comment.replace("'", "''"),
+                    schema,
+                    table_def.name,
+                    col.name
+                ));
+            }
+        }
+
+        Ok(ddl)
+    }
+
+    async fn get_referenceable_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableReferenceInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL driver".to_string())),
+        };
+
+        // Query to get all tables with their primary key columns
+        let query = r#"
+            SELECT
+                s.name AS table_schema,
+                t.name AS table_name,
+                c.name AS column_name,
+                ty.name AS data_type,
+                c.is_nullable
+            FROM sys.tables t
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            LEFT JOIN sys.indexes i ON t.object_id = i.object_id AND i.is_primary_key = 1
+            LEFT JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+            LEFT JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+            LEFT JOIN sys.types ty ON c.user_type_id = ty.user_type_id
+            ORDER BY s.name, t.name, ic.key_ordinal
+        "#;
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let stream = Query::new(query).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get referenceable tables: {}", e)))?;
+
+        let results = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch results: {}", e)))?;
+
+        // Group by table
+        let mut tables: HashMap<(String, String), Vec<ColumnInfo>> = HashMap::new();
+
+        for row in results {
+            let schema: &str = row.get(0).unwrap_or("");
+            let table: &str = row.get(1).unwrap_or("");
+            let key = (schema.to_string(), table.to_string());
+
+            // Only add if there's a primary key column
+            let col_name: Option<&str> = row.get(2);
+            if let Some(col_name) = col_name {
+                let data_type: &str = row.get(3).unwrap_or("unknown");
+                let is_nullable: bool = row.get(4).unwrap_or(true);
+
+                let pk_columns = tables.entry(key).or_insert_with(Vec::new);
+                pk_columns.push(ColumnInfo {
+                    name: col_name.to_string(),
+                    data_type: data_type.to_string(),
+                    nullable: is_nullable,
+                    is_primary_key: true,
+                });
+            } else {
+                // Table exists but has no primary key - still include it
+                tables.entry(key).or_insert_with(Vec::new);
+            }
+        }
+
+        let result: Vec<TableReferenceInfo> = tables
+            .into_iter()
+            .map(|((schema, table), pk_columns)| TableReferenceInfo {
+                table_name: table,
+                schema: Some(schema),
+                primary_key_columns: pk_columns,
+            })
+            .collect();
+
+        Ok(result)
     }
 }
 

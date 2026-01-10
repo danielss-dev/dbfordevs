@@ -3,7 +3,7 @@ import { TooltipProvider, Toaster } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar, RightActivityBar } from "@/components/layout";
 import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal, RenameConnectionDialog } from "@/components/connections";
-import { RenameTableDialog } from "@/components/table";
+import { RenameTableDialog, CreateTableDialog } from "@/components/table";
 import { CreateSchemaDialog } from "@/components/database";
 import { UpdateNotification } from "@/components/updater/UpdateNotification";
 import { useUIStore } from "@/stores";
@@ -41,6 +41,7 @@ function App() {
         <RenameTableDialog />
         <RenameConnectionDialog />
         <CreateSchemaDialog />
+        <CreateTableDialog />
         <UpdateNotification />
         <Toaster />
       </div>

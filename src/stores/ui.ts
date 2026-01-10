@@ -71,6 +71,9 @@ interface UIState {
   isDuplicatingConnection: boolean;
   showCreateSchemaDialog: boolean;
   creatingSchemaConnectionId: string | null;
+  showCreateTableDialog: boolean;
+  creatingTableConnectionId: string | null;
+  creatingTableSchemaName: string | null;
   // Edit mode for data grid
   editMode: boolean;
 
@@ -101,6 +104,8 @@ interface UIState {
   openRenameConnectionDialog: (connectionId: string, name: string, isDuplicate?: boolean) => void;
   setShowCreateSchemaDialog: (show: boolean) => void;
   openCreateSchemaDialog: (connectionId: string) => void;
+  setShowCreateTableDialog: (show: boolean) => void;
+  openCreateTableDialog: (connectionId: string, schemaName?: string) => void;
   setEditMode: (editMode: boolean) => void;
 }
 
@@ -148,6 +153,9 @@ export const useUIStore = create<UIState>()(
       isDuplicatingConnection: false,
       showCreateSchemaDialog: false,
       creatingSchemaConnectionId: null,
+      showCreateTableDialog: false,
+      creatingTableConnectionId: null,
+      creatingTableSchemaName: null,
       editMode: true,
 
       setTheme: (theme) => {
@@ -292,6 +300,20 @@ export const useUIStore = create<UIState>()(
         set({
           showCreateSchemaDialog: true,
           creatingSchemaConnectionId: connectionId,
+        }),
+
+      setShowCreateTableDialog: (show) =>
+        set((state) => ({
+          showCreateTableDialog: show,
+          creatingTableConnectionId: show ? state.creatingTableConnectionId : null,
+          creatingTableSchemaName: show ? state.creatingTableSchemaName : null,
+        })),
+
+      openCreateTableDialog: (connectionId, schemaName) =>
+        set({
+          showCreateTableDialog: true,
+          creatingTableConnectionId: connectionId,
+          creatingTableSchemaName: schemaName ?? null,
         }),
 
       setEditMode: (editMode) => set({ editMode }),

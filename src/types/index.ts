@@ -223,6 +223,65 @@ export interface PendingChange {
   primaryKey: Record<string, unknown>;
 }
 
+// Table Creation types
+
+export type ForeignKeyAction = 'CASCADE' | 'SET_NULL' | 'SET_DEFAULT' | 'RESTRICT' | 'NO_ACTION';
+
+export interface NewColumnDefinition {
+  id: string;
+  name: string;
+  dataType: string;
+  length?: number;
+  precision?: number;
+  scale?: number;
+  nullable: boolean;
+  defaultValue?: string;
+  isPrimaryKey: boolean;
+  isAutoIncrement: boolean;
+  isUnique: boolean;
+  comment?: string;
+}
+
+export interface NewForeignKeyDefinition {
+  id: string;
+  name?: string;
+  columns: string[];
+  referencesTable: string;
+  referencesColumns: string[];
+  onDelete?: ForeignKeyAction;
+  onUpdate?: ForeignKeyAction;
+}
+
+export interface NewCheckConstraintDefinition {
+  id: string;
+  name?: string;
+  expression: string;
+}
+
+export interface NewIndexDefinition {
+  id: string;
+  name?: string;
+  columns: string[];
+  isUnique: boolean;
+}
+
+export interface NewTableDefinition {
+  name: string;
+  schema?: string;
+  columns: NewColumnDefinition[];
+  primaryKeyColumns: string[];
+  foreignKeys: NewForeignKeyDefinition[];
+  checkConstraints: NewCheckConstraintDefinition[];
+  indexes: NewIndexDefinition[];
+  comment?: string;
+}
+
+export interface TableReferenceInfo {
+  tableName: string;
+  schema?: string;
+  primaryKeyColumns: ColumnInfo[];
+}
+
 // Preview query types
 export type StatementType = "ddl" | "dml" | "select" | "other";
 

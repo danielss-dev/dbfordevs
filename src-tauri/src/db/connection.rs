@@ -1,7 +1,8 @@
 use crate::error::AppResult;
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, ExplainResult, IndexInfo, PreviewResult, QueryResult, TableInfo,
-    TableProperties, TableRelationship, TableSchema, TestConnectionResult
+    ConnectionConfig, ConstraintInfo, ExplainResult, IndexInfo, NewTableDefinition, PreviewResult,
+    QueryResult, TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
+    TestConnectionResult
 };
 use async_trait::async_trait;
 use sqlx::{PgPool, MySqlPool, SqlitePool};
@@ -69,6 +70,12 @@ pub trait DatabaseDriver: Send + Sync {
 
     /// Get execution plan for a SQL query
     async fn explain_query(&self, pool: PoolRef<'_>, sql: &str, analyze: bool) -> AppResult<ExplainResult>;
+
+    /// Generate CREATE TABLE DDL from a table definition
+    fn generate_create_table_ddl(&self, table_def: &NewTableDefinition) -> AppResult<String>;
+
+    /// Get tables with their primary keys for foreign key reference picker
+    async fn get_referenceable_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableReferenceInfo>>;
 }
 
 /// Factory function to get the appropriate driver for a database type

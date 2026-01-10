@@ -3,9 +3,9 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
-    ForeignKeyInfo, IndexInfo, PlanNode, PreviewResult, QueryResult, StatementPreview,
-    StatementType, TableInfo, TableProperties, TableRelationship, TableSchema,
-    TestConnectionResult, ColumnInfo, WarningSeverity
+    ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
+    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
+    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo, WarningSeverity
 };
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -1513,6 +1513,167 @@ impl DatabaseDriver for SqliteDriver {
             raw_output,
             database_type: "sqlite".to_string(),
         })
+    }
+
+    fn generate_create_table_ddl(&self, table_def: &NewTableDefinition) -> AppResult<String> {
+        let mut ddl = String::new();
+
+        // SQLite uses double quotes for quoting
+        let table_name = format!("\"{}\"", table_def.name);
+
+        ddl.push_str(&format!("CREATE TABLE {} (\n", table_name));
+
+        // Column definitions
+        let mut column_defs = Vec::new();
+        for col in &table_def.columns {
+            let mut col_def = format!("    \"{}\"", col.name);
+
+            // Handle auto-increment (INTEGER PRIMARY KEY is auto-increment in SQLite)
+            if col.is_auto_increment && col.is_primary_key {
+                col_def.push_str(" INTEGER PRIMARY KEY AUTOINCREMENT");
+            } else {
+                // Regular type
+                col_def.push_str(&format!(" {}", col.data_type));
+
+                // NOT NULL constraint
+                if !col.nullable {
+                    col_def.push_str(" NOT NULL");
+                }
+
+                // DEFAULT value
+                if let Some(ref default) = col.default_value {
+                    col_def.push_str(&format!(" DEFAULT {}", default));
+                }
+
+                // UNIQUE constraint (inline)
+                if col.is_unique && !col.is_primary_key {
+                    col_def.push_str(" UNIQUE");
+                }
+            }
+
+            column_defs.push(col_def);
+        }
+
+        // Primary key constraint (for non-auto-increment or composite keys)
+        let non_autoincrement_pk: Vec<&str> = table_def.primary_key_columns.iter()
+            .filter(|pk| {
+                let col = table_def.columns.iter().find(|c| &c.name == *pk);
+                !col.map(|c| c.is_auto_increment).unwrap_or(false)
+            })
+            .map(|s| s.as_str())
+            .collect();
+
+        if !non_autoincrement_pk.is_empty() {
+            let pk_cols: Vec<String> = non_autoincrement_pk.iter()
+                .map(|c| format!("\"{}\"", c))
+                .collect();
+            column_defs.push(format!("    PRIMARY KEY ({})", pk_cols.join(", ")));
+        }
+
+        // Foreign key constraints
+        for fk in &table_def.foreign_keys {
+            let src_cols: Vec<String> = fk.columns.iter().map(|c| format!("\"{}\"", c)).collect();
+            let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+
+            let mut fk_def = format!(
+                "    FOREIGN KEY ({}) REFERENCES \"{}\" ({})",
+                src_cols.join(", "),
+                fk.references_table,
+                ref_cols.join(", ")
+            );
+
+            if let Some(ref action) = fk.on_delete {
+                fk_def.push_str(&format!(" ON DELETE {}", action.to_sql()));
+            }
+            if let Some(ref action) = fk.on_update {
+                fk_def.push_str(&format!(" ON UPDATE {}", action.to_sql()));
+            }
+
+            column_defs.push(fk_def);
+        }
+
+        // Check constraints
+        for check in &table_def.check_constraints {
+            let check_def = if let Some(ref name) = check.name {
+                format!("    CONSTRAINT \"{}\" CHECK ({})", name, check.expression)
+            } else {
+                format!("    CHECK ({})", check.expression)
+            };
+            column_defs.push(check_def);
+        }
+
+        ddl.push_str(&column_defs.join(",\n"));
+        ddl.push_str("\n);\n");
+
+        // Create indexes (separate statements in SQLite)
+        for idx in &table_def.indexes {
+            let idx_cols: Vec<String> = idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
+            let unique_str = if idx.is_unique { "UNIQUE " } else { "" };
+            let idx_name = idx.name.clone().unwrap_or_else(|| {
+                format!("idx_{}_{}", table_def.name, idx.columns.join("_"))
+            });
+            ddl.push_str(&format!(
+                "\nCREATE {}INDEX \"{}\" ON {} ({});",
+                unique_str,
+                idx_name,
+                table_name,
+                idx_cols.join(", ")
+            ));
+        }
+
+        Ok(ddl)
+    }
+
+    async fn get_referenceable_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableReferenceInfo>> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        // Get all tables from sqlite_master
+        let tables_query = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'";
+        let table_rows = sqlx::query(tables_query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get tables: {}", e)))?;
+
+        let mut result = Vec::new();
+
+        for table_row in table_rows {
+            let table_name: String = table_row.get("name");
+
+            // Get primary key columns using PRAGMA
+            let pragma_query = format!("PRAGMA table_info(\"{}\")", table_name);
+            let col_rows = sqlx::query(&pragma_query)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| AppError::QueryError(format!("Failed to get table info: {}", e)))?;
+
+            let mut pk_columns = Vec::new();
+            for col_row in col_rows {
+                let pk: i32 = col_row.get("pk");
+                if pk > 0 {
+                    let name: String = col_row.get("name");
+                    let data_type: String = col_row.get("type");
+                    let notnull: i32 = col_row.get("notnull");
+
+                    pk_columns.push(ColumnInfo {
+                        name,
+                        data_type,
+                        nullable: notnull == 0,
+                        is_primary_key: true,
+                    });
+                }
+            }
+
+            result.push(TableReferenceInfo {
+                table_name,
+                schema: None, // SQLite doesn't have schemas in the same way
+                primary_key_columns: pk_columns,
+            });
+        }
+
+        Ok(result)
     }
 }
 

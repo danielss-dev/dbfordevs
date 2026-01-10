@@ -1,6 +1,6 @@
 use crate::db::{get_connection_manager, get_driver};
 use crate::error::{AppError, AppResult};
-use crate::models::{QueryResult, TableProperties, TableRelationship};
+use crate::models::{NewTableDefinition, QueryResult, TableProperties, TableReferenceInfo, TableRelationship};
 use crate::storage;
 
 /// Generate CREATE TABLE DDL for a table
@@ -90,4 +90,70 @@ pub async fn get_table_relationships(
     let pool_ref = manager.get_pool_ref(&connection_id)?;
 
     driver.get_table_relationships(pool_ref, &table_name).await
+}
+
+/// Generate CREATE TABLE DDL from a table definition
+#[tauri::command]
+pub async fn generate_create_table_ddl(
+    connection_id: String,
+    table_definition: NewTableDefinition,
+) -> AppResult<String> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    let config = storage::get_connection(&connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    let driver = get_driver(&config);
+
+    driver.generate_create_table_ddl(&table_definition)
+}
+
+/// Create a new table from a table definition
+#[tauri::command]
+pub async fn create_table(
+    connection_id: String,
+    table_definition: NewTableDefinition,
+) -> AppResult<QueryResult> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    let config = storage::get_connection(&connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    let driver = get_driver(&config);
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
+
+    // Generate DDL and execute it
+    let ddl = driver.generate_create_table_ddl(&table_definition)?;
+    driver.execute_query(pool_ref, &ddl).await
+}
+
+/// Get tables with their primary keys for foreign key reference picker
+#[tauri::command]
+pub async fn get_referenceable_tables(
+    connection_id: String,
+) -> AppResult<Vec<TableReferenceInfo>> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    let config = storage::get_connection(&connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    let driver = get_driver(&config);
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
+
+    driver.get_referenceable_tables(pool_ref).await
 }

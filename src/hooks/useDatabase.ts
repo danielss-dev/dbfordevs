@@ -15,6 +15,8 @@ import type {
   PreviewResult,
   ExplainRequest,
   ExplainResult,
+  NewTableDefinition,
+  TableReferenceInfo,
 } from "@/types";
 
 /**
@@ -582,6 +584,70 @@ export function useDatabase() {
     [setQueryError]
   );
 
+  /**
+   * Generate CREATE TABLE DDL from a table definition
+   */
+  const generateCreateTableDDL = useCallback(
+    async (connectionId: string, tableDefinition: NewTableDefinition): Promise<string | null> => {
+      try {
+        const ddl = await invoke<string>("generate_create_table_ddl", {
+          connectionId,
+          tableDefinition,
+        });
+        return ddl;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new table from a table definition
+   */
+  const createTable = useCallback(
+    async (connectionId: string, tableDefinition: NewTableDefinition): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("create_table", {
+          connectionId,
+          tableDefinition,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Get tables with their primary keys for foreign key reference picker
+   */
+  const getReferenceableTables = useCallback(
+    async (connectionId: string): Promise<TableReferenceInfo[]> => {
+      try {
+        const tables = await invoke<TableReferenceInfo[]>("get_referenceable_tables", {
+          connectionId,
+        });
+        return tables;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
   return {
     testConnection,
     saveConnection,
@@ -605,6 +671,9 @@ export function useDatabase() {
     renameTable,
     getTableProperties,
     getTableRelationships,
+    generateCreateTableDDL,
+    createTable,
+    getReferenceableTables,
   };
 }
 
