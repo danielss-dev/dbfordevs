@@ -2268,10 +2268,20 @@ impl DatabaseDriver for PostgresDriver {
             } else {
                 fk_def.push_str("    ");
             }
+            // Quote the references table (handle schema.table format)
+            let ref_table = if fk.references_table.contains('.') {
+                fk.references_table
+                    .split('.')
+                    .map(|part| format!("\"{}\"", part))
+                    .collect::<Vec<_>>()
+                    .join(".")
+            } else {
+                format!("\"{}\"", fk.references_table)
+            };
             fk_def.push_str(&format!(
                 "FOREIGN KEY ({}) REFERENCES {} ({})",
                 src_cols.join(", "),
-                fk.references_table,
+                ref_table,
                 ref_cols.join(", ")
             ));
 

@@ -1575,10 +1575,20 @@ impl DatabaseDriver for SqliteDriver {
             let src_cols: Vec<String> = fk.columns.iter().map(|c| format!("\"{}\"", c)).collect();
             let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| format!("\"{}\"", c)).collect();
 
+            // Quote the references table (handle schema.table format)
+            let ref_table = if fk.references_table.contains('.') {
+                fk.references_table
+                    .split('.')
+                    .map(|part| format!("\"{}\"", part))
+                    .collect::<Vec<_>>()
+                    .join(".")
+            } else {
+                format!("\"{}\"", fk.references_table)
+            };
             let mut fk_def = format!(
-                "    FOREIGN KEY ({}) REFERENCES \"{}\" ({})",
+                "    FOREIGN KEY ({}) REFERENCES {} ({})",
                 src_cols.join(", "),
-                fk.references_table,
+                ref_table,
                 ref_cols.join(", ")
             );
 
