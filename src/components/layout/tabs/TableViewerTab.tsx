@@ -1,13 +1,13 @@
-import { useEffect } from "react";
-import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw } from "lucide-react";
+import { useEffect, useCallback } from "react";
+import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { Button, Separator } from "@/components/ui";
-import { useQueryStore, useCRUDStore, useUIStore, useConnectionsStore } from "@/stores";
+import { useQueryStore, useCRUDStore, useUIStore, useConnectionsStore, useSchemaStore } from "@/stores";
 import { useDatabase, useCRUD } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { quoteIdentifier } from "@/lib/utils";
-import type { Tab } from "@/types";
+import type { Tab, ColumnInfo } from "@/types";
 
 interface TableViewerTabProps {
   tab: Tab;
@@ -15,16 +15,51 @@ interface TableViewerTabProps {
 
 export function TableViewerTab({ tab }: TableViewerTabProps) {
   const { isExecuting, error, results } = useQueryStore();
-  const { pendingChanges, clearPendingChanges } = useCRUDStore();
+  const { pendingChanges, clearPendingChanges, selectedRows, addPendingChange, markSelectedForDeletion } = useCRUDStore();
   const { setRightPanelTab } = useUIStore();
   const { connections } = useConnectionsStore();
-  const { executeQuery } = useDatabase();
+  const { getSchema } = useSchemaStore();
+  const { executeQuery, getTableSchema } = useDatabase();
   const { commitChanges } = useCRUD();
   const tabResults = results[tab.id];
   const connectionId = tab.connectionId;
   const connection = connections.find((c) => c.id === connectionId);
+  const tableName = tab.tableName || tab.title;
 
   const pendingCount = Object.keys(pendingChanges).length;
+  const selectedCount = selectedRows.length;
+
+  // Get columns from results or cached schema
+  const columns: ColumnInfo[] = tabResults?.columns || getSchema(connectionId, tableName)?.columns || [];
+
+  // Add a new row with null values
+  const handleAddRow = useCallback(() => {
+    if (!tableName || columns.length === 0) return;
+
+    // Create a new row with null values
+    const newRowData: Record<string, unknown> = {};
+    columns.forEach((col) => {
+      newRowData[col.name] = null;
+    });
+
+    // Generate a unique temporary ID for the new row
+    const tempId = `__new_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const primaryKey: Record<string, unknown> = { __temp_id: tempId };
+
+    addPendingChange({
+      id: crypto.randomUUID(),
+      tableName,
+      type: "insert",
+      newData: newRowData,
+      primaryKey,
+    });
+  }, [tableName, columns, addPendingChange]);
+
+  // Delete selected rows
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedCount === 0 || columns.length === 0) return;
+    markSelectedForDeletion(tableName, columns);
+  }, [selectedCount, tableName, columns, markSelectedForDeletion]);
 
   const loadData = async () => {
     if (!connectionId || !connection) return;
@@ -46,6 +81,13 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
       loadData();
     }
   }, [tab.id, connectionId]);
+
+  // Fetch schema for empty tables or when schema is not available
+  useEffect(() => {
+    if (connectionId && tableName && columns.length === 0 && !isExecuting) {
+      getTableSchema(connectionId, tableName);
+    }
+  }, [connectionId, tableName, columns.length, isExecuting, getTableSchema]);
 
   // Handle F5 refresh
   useEffect(() => {
@@ -81,7 +123,30 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
             Refresh
           </Button>
 
-                 <Separator orientation="vertical" className="h-4" />
+          <Separator orientation="vertical" className="h-4" />
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAddRow}
+            disabled={isExecuting || !connectionId || columns.length === 0}
+            className="gap-2"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Row
+          </Button>
+
+          {selectedCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDeleteSelected}
+              className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete ({selectedCount})
+            </Button>
+          )}
        
                  {pendingCount > 0 && (
             <>

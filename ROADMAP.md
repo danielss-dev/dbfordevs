@@ -30,16 +30,16 @@ This document outlines all potential features, improvements, and technical debt 
 Currently, the application supports export only (JSON, CSV, INSERT SQL). Import is a fundamental feature for any database tool.
 
 **Implementation Tasks:**
-- [ ] CSV import with delimiter detection
-- [ ] Column mapping UI (source column → target column)
-- [ ] Data type validation and conversion
-- [ ] JSON import for structured data
-- [ ] SQL file execution (batch INSERT statements)
-- [ ] Import preview with first N rows
-- [ ] Error handling with row-level error reporting
-- [ ] Progress indicator for large imports
-- [ ] Duplicate handling options (skip, replace, fail)
-- [ ] Transaction support (rollback on error)
+- [x] CSV import with delimiter detection
+- [x] Column mapping UI (source column → target column)
+- [x] Data type validation and conversion
+- [x] JSON import for structured data
+- [x] SQL file execution (batch INSERT statements)
+- [x] Import preview with first N rows
+- [x] Error handling with row-level error reporting
+- [x] Progress indicator for large imports
+- [x] Duplicate handling options (skip, replace, fail)
+- [x] Transaction support (rollback on error)
 
 **Files to modify:**
 - `src-tauri/src/commands/queries.rs` - New import commands
