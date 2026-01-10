@@ -3,9 +3,9 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
-    ForeignKeyInfo, IndexInfo, PlanNode, PreviewResult, QueryResult, StatementPreview,
-    StatementType, TableInfo, TableProperties, TableRelationship, TableSchema,
-    TestConnectionResult, ColumnInfo, WarningSeverity
+    ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
+    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
+    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo, WarningSeverity
 };
 use async_trait::async_trait;
 use sqlx::{mysql::MySqlPool, Row, Column, TypeInfo};
@@ -1524,6 +1524,219 @@ impl DatabaseDriver for MySqlDriver {
             raw_output: serde_json::to_string_pretty(&json_plan).unwrap_or_default(),
             database_type: "mysql".to_string(),
         })
+    }
+
+    fn generate_create_table_ddl(&self, table_def: &NewTableDefinition) -> AppResult<String> {
+        let mut ddl = String::new();
+
+        // MySQL uses backticks for quoting
+        let table_name = format!("`{}`", table_def.name);
+
+        ddl.push_str(&format!("CREATE TABLE {} (\n", table_name));
+
+        // Column definitions
+        let mut column_defs = Vec::new();
+        for col in &table_def.columns {
+            let mut col_def = format!("    `{}`", col.name);
+
+            // Regular type with optional length/precision
+            let type_str = if let Some(length) = col.length {
+                format!("{}({})", col.data_type, length)
+            } else if let (Some(precision), Some(scale)) = (col.precision, col.scale) {
+                format!("{}({},{})", col.data_type, precision, scale)
+            } else if let Some(precision) = col.precision {
+                format!("{}({})", col.data_type, precision)
+            } else {
+                col.data_type.clone()
+            };
+            col_def.push_str(&format!(" {}", type_str));
+
+            // NOT NULL constraint
+            if !col.nullable {
+                col_def.push_str(" NOT NULL");
+            }
+
+            // AUTO_INCREMENT
+            if col.is_auto_increment {
+                col_def.push_str(" AUTO_INCREMENT");
+            }
+
+            // DEFAULT value
+            if let Some(ref default) = col.default_value {
+                col_def.push_str(&format!(" DEFAULT {}", default));
+            }
+
+            // UNIQUE constraint (inline)
+            if col.is_unique && !col.is_primary_key {
+                col_def.push_str(" UNIQUE");
+            }
+
+            // Column comment
+            if let Some(ref comment) = col.comment {
+                col_def.push_str(&format!(" COMMENT '{}'", comment.replace("'", "''")));
+            }
+
+            column_defs.push(col_def);
+        }
+
+        // Primary key constraint
+        if !table_def.primary_key_columns.is_empty() {
+            let pk_cols: Vec<String> = table_def.primary_key_columns.iter()
+                .map(|c| format!("`{}`", c))
+                .collect();
+            column_defs.push(format!("    PRIMARY KEY ({})", pk_cols.join(", ")));
+        }
+
+        // Foreign key constraints
+        for fk in &table_def.foreign_keys {
+            let src_cols: Vec<String> = fk.columns.iter().map(|c| format!("`{}`", c)).collect();
+            let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| format!("`{}`", c)).collect();
+
+            let mut fk_def = String::new();
+            if let Some(ref name) = fk.name {
+                fk_def.push_str(&format!("    CONSTRAINT `{}` ", name));
+            } else {
+                fk_def.push_str("    ");
+            }
+            // Quote the references table (handle schema.table format)
+            let ref_table = if fk.references_table.contains('.') {
+                fk.references_table
+                    .split('.')
+                    .map(|part| format!("`{}`", part))
+                    .collect::<Vec<_>>()
+                    .join(".")
+            } else {
+                format!("`{}`", fk.references_table)
+            };
+            fk_def.push_str(&format!(
+                "FOREIGN KEY ({}) REFERENCES {} ({})",
+                src_cols.join(", "),
+                ref_table,
+                ref_cols.join(", ")
+            ));
+
+            if let Some(ref action) = fk.on_delete {
+                fk_def.push_str(&format!(" ON DELETE {}", action.to_sql()));
+            }
+            if let Some(ref action) = fk.on_update {
+                fk_def.push_str(&format!(" ON UPDATE {}", action.to_sql()));
+            }
+
+            column_defs.push(fk_def);
+        }
+
+        // Check constraints (MySQL 8.0.16+)
+        for check in &table_def.check_constraints {
+            let check_def = if let Some(ref name) = check.name {
+                format!("    CONSTRAINT `{}` CHECK ({})", name, check.expression)
+            } else {
+                format!("    CHECK ({})", check.expression)
+            };
+            column_defs.push(check_def);
+        }
+
+        // Indexes (inline in CREATE TABLE for MySQL)
+        for idx in &table_def.indexes {
+            let idx_cols: Vec<String> = idx.columns.iter().map(|c| format!("`{}`", c)).collect();
+            let unique_str = if idx.is_unique { "UNIQUE " } else { "" };
+            let idx_name = idx.name.clone().unwrap_or_else(|| {
+                format!("idx_{}_{}", table_def.name, idx.columns.join("_"))
+            });
+            column_defs.push(format!(
+                "    {}INDEX `{}` ({})",
+                unique_str,
+                idx_name,
+                idx_cols.join(", ")
+            ));
+        }
+
+        ddl.push_str(&column_defs.join(",\n"));
+        ddl.push_str("\n)");
+
+        // Table options
+        ddl.push_str(" ENGINE=InnoDB");
+        if let Some(ref comment) = table_def.comment {
+            ddl.push_str(&format!(" COMMENT='{}'", comment.replace("'", "''")));
+        }
+        ddl.push(';');
+
+        Ok(ddl)
+    }
+
+    async fn get_referenceable_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableReferenceInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // Query to get all tables with their primary key columns
+        let query = r#"
+            SELECT
+                t.TABLE_SCHEMA as table_schema,
+                t.TABLE_NAME as table_name,
+                kcu.COLUMN_NAME as column_name,
+                c.DATA_TYPE as data_type,
+                CASE WHEN c.IS_NULLABLE = 'YES' THEN 1 ELSE 0 END as is_nullable
+            FROM information_schema.TABLES t
+            LEFT JOIN information_schema.TABLE_CONSTRAINTS tc
+                ON t.TABLE_SCHEMA = tc.TABLE_SCHEMA
+                AND t.TABLE_NAME = tc.TABLE_NAME
+                AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+            LEFT JOIN information_schema.KEY_COLUMN_USAGE kcu
+                ON tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+                AND tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                AND tc.TABLE_NAME = kcu.TABLE_NAME
+            LEFT JOIN information_schema.COLUMNS c
+                ON kcu.TABLE_SCHEMA = c.TABLE_SCHEMA
+                AND kcu.TABLE_NAME = c.TABLE_NAME
+                AND kcu.COLUMN_NAME = c.COLUMN_NAME
+            WHERE t.TABLE_TYPE = 'BASE TABLE'
+                AND t.TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
+            ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME, kcu.ORDINAL_POSITION
+        "#;
+
+        let rows = sqlx::query(query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get referenceable tables: {}", e)))?;
+
+        // Group by table
+        let mut tables: HashMap<(String, String), Vec<ColumnInfo>> = HashMap::new();
+
+        for row in rows {
+            let schema: String = row.get("table_schema");
+            let table: String = row.get("table_name");
+            let key = (schema, table);
+
+            // Only add if there's a primary key column
+            let col_name: Option<String> = row.try_get("column_name").ok();
+            if let Some(col_name) = col_name {
+                let data_type: String = row.get("data_type");
+                let is_nullable: i32 = row.get("is_nullable");
+
+                let pk_columns = tables.entry(key).or_insert_with(Vec::new);
+                pk_columns.push(ColumnInfo {
+                    name: col_name,
+                    data_type,
+                    nullable: is_nullable == 1,
+                    is_primary_key: true,
+                });
+            } else {
+                // Table exists but has no primary key - still include it
+                tables.entry(key).or_insert_with(Vec::new);
+            }
+        }
+
+        let result: Vec<TableReferenceInfo> = tables
+            .into_iter()
+            .map(|((schema, table), pk_columns)| TableReferenceInfo {
+                table_name: table,
+                schema: Some(schema),
+                primary_key_columns: pk_columns,
+            })
+            .collect();
+
+        Ok(result)
     }
 }
 

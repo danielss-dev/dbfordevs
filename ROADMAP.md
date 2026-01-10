@@ -103,28 +103,28 @@ The Monaco editor now includes SQL formatting capabilities.
 
 ### 4. Table Creation UI
 
-**Status:** Not Implemented
+**Status:** Implemented
 **Impact:** High
 **Effort:** Medium
 
-Users can only view/edit existing tables. Cannot create new tables via GUI.
+Users can create new tables via a wizard-style GUI with full column, constraint, and index support.
 
 **Implementation Tasks:**
-- [ ] Create Table dialog/wizard
-- [ ] Column definition editor:
-  - [ ] Name, data type, length/precision
-  - [ ] Nullable checkbox
-  - [ ] Default value input
-  - [ ] Primary key checkbox
-  - [ ] Auto-increment option
-- [ ] Constraint editor:
-  - [ ] Primary key (single/composite)
-  - [ ] Foreign keys with reference picker
-  - [ ] Unique constraints
-  - [ ] Check constraints
-- [ ] Index creation
-- [ ] Preview generated DDL
-- [ ] Execute with confirmation
+- [x] Create Table dialog/wizard
+- [x] Column definition editor:
+  - [x] Name, data type, length/precision
+  - [x] Nullable checkbox
+  - [x] Default value input
+  - [x] Primary key checkbox
+  - [x] Auto-increment option
+- [x] Constraint editor:
+  - [x] Primary key (single/composite)
+  - [x] Foreign keys with reference picker
+  - [x] Unique constraints
+  - [x] Check constraints
+- [x] Index creation
+- [x] Preview generated DDL
+- [x] Execute with confirmation
 - [ ] Template tables (common patterns)
 
 ---

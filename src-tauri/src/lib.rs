@@ -44,6 +44,9 @@ pub fn run() {
             tables::rename_table,
             tables::get_table_properties,
             tables::get_table_relationships,
+            tables::generate_create_table_ddl,
+            tables::create_table,
+            tables::get_referenceable_tables,
             // Utility commands
             utils::copy_to_clipboard,
             utils::read_from_clipboard,
