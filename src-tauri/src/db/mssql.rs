@@ -1768,7 +1768,12 @@ impl MssqlDriver {
         // Find the root RelOp element - handle both with and without namespace prefix
         // MSSQL SHOWPLAN_XML may have namespace like xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan"
         let relop_start = xml.find("<RelOp ")
-            .or_else(|| xml.find(":RelOp ").map(|p| p.saturating_sub(2))); // Handle namespace prefix like <p:RelOp
+            .or_else(|| {
+                // Handle namespace prefix like <prefix:RelOp by finding `:RelOp ` then searching backwards for `<`
+                xml.find(":RelOp ").and_then(|colon_pos| {
+                    xml[..colon_pos].rfind('<')
+                })
+            });
 
         let plan = if let Some(start) = relop_start {
             Self::parse_relop_element(xml, start, &mut warnings)
