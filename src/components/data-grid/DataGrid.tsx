@@ -381,7 +381,26 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
               columnType={col.dataType}
               nullable={col.nullable}
               onSave={(newValue) => {
-                // Always save changes, comparing against original value
+                const isPendingInsertRow = row.original.__pending_insert === true;
+
+                // For pending insert rows, update the existing insert change
+                if (isPendingInsertRow) {
+                  const tempPk = row.original.__temp_pk as Record<string, unknown>;
+                  addPendingChange({
+                    id: change?.id || crypto.randomUUID(),
+                    tableName: tableName || "unknown",
+                    type: "insert",
+                    newData: {
+                      ...(change?.newData || {}),
+                      [colId]: newValue,
+                    },
+                    primaryKey: tempPk,
+                  });
+                  setEditingCell(null);
+                  return;
+                }
+
+                // For existing rows, create an update change
                 if (newValue !== value) {
                   // Build primaryKey with sorted keys to match generateRowId
                   const pkColumns = data.columns.filter(c => c.isPrimaryKey).sort((a, b) => a.name.localeCompare(b.name));
@@ -502,16 +521,35 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
   }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter, selectedRowIds, clearSelection, setSelectedRows, setRightPanelTab]);
 
   const tableData = useMemo(() => {
-    return data.rows.map((row) => {
+    // Convert existing rows to records
+    const existingRows = data.rows.map((row) => {
       const record: Record<string, unknown> = {};
       data.columns.forEach((col, idx) => {
         record[col.name] = row[idx] ?? null;
       });
       return record;
     });
-  }, [data.rows, data.columns]);
+
+    // Add pending insert rows for this table
+    const pendingInserts = Object.values(pendingChanges)
+      .filter(change => change.type === "insert" && change.tableName === tableName)
+      .map(change => {
+        // Create a row with the new data, including the temp id marker
+        const record: Record<string, unknown> = { ...change.newData };
+        // Add a marker for identifying new rows
+        record.__pending_insert = true;
+        record.__temp_pk = change.primaryKey;
+        return record;
+      });
+
+    return [...existingRows, ...pendingInserts];
+  }, [data.rows, data.columns, pendingChanges, tableName]);
 
   const getRowId = useCallback((row: Record<string, unknown>) => {
+    // For pending insert rows, use the temp primary key
+    if (row.__pending_insert && row.__temp_pk) {
+      return JSON.stringify(row.__temp_pk);
+    }
     return generateRowId(row, data.columns);
   }, [data.columns]);
 
@@ -635,12 +673,22 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
           <tbody className="divide-y divide-[hsl(var(--border)/0.3)]">
             {table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-12 text-center text-muted-foreground/60 italic">
-                  No rows found
+                <td colSpan={columns.length} className="px-4 py-16 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Database className="h-10 w-10 text-muted-foreground/30" />
+                    <div className="text-muted-foreground/60">
+                      <p className="font-medium">No rows found</p>
+                      <p className="text-xs mt-1">Add rows using the toolbar or import data</p>
+                    </div>
+                  </div>
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row, idx) => (
+              table.getRowModel().rows.map((row, idx) => {
+                const isPendingInsert = row.original.__pending_insert === true;
+                const isPendingDelete = pendingChanges[row.id]?.type === "delete";
+
+                return (
                 <tr
                   key={row.id}
                   className={cn(
@@ -648,7 +696,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                     idx % 2 === 0 ? "bg-[hsl(var(--table-row-odd))]" : "bg-[hsl(var(--table-row-even))]",
                     "hover:bg-[hsl(var(--table-row-hover))]",
                     row.getIsSelected() && "bg-primary/15 hover:bg-primary/20 ring-1 ring-inset ring-primary/30",
-                    pendingChanges[row.id]?.type === "delete" && "opacity-40 grayscale line-through decoration-destructive/70 decoration-2"
+                    isPendingDelete && "opacity-40 grayscale line-through decoration-destructive/70 decoration-2",
+                    isPendingInsert && "bg-success/10 hover:bg-success/15 ring-1 ring-inset ring-success/30"
                   )}
                   onClick={() => {
                     onRowClick?.(row.original);
@@ -681,7 +730,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                     );
                   })}
                 </tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>

@@ -25,8 +25,10 @@ function DiffItem({ change, idx, onRemove }: { change: PendingChange; idx: numbe
         fields.push({ name, status: "removed", oldValue: value });
       });
     } else if (type === "insert" && newData) {
-      // INSERT: show all fields as added
+      // INSERT: show all fields as added (excluding internal markers)
       Object.entries(newData).forEach(([name, value]) => {
+        // Skip internal markers
+        if (name === "__pending_insert" || name === "__temp_pk") return;
         fields.push({ name, status: "added", newValue: value });
       });
     } else if (type === "update" && originalData && newData) {

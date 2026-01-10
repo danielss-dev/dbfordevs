@@ -38,10 +38,15 @@ export function useCRUD() {
             change.primaryKey
           );
         } else if (change.type === "insert") {
+          // Filter out internal marker fields
+          const insertData = { ...(change.newData || {}) };
+          delete (insertData as Record<string, unknown>).__pending_insert;
+          delete (insertData as Record<string, unknown>).__temp_pk;
+
           result = await insertRow(
             activeTab.connectionId,
             change.tableName,
-            change.newData || {}
+            insertData
           );
         }
 

@@ -1,7 +1,37 @@
 use crate::db::{get_connection_manager, get_driver};
 use crate::error::{AppError, AppResult};
-use crate::models::{PreviewRequest, PreviewResult, QueryRequest, QueryResult, TableInfo, TableSchema};
+use crate::models::{DatabaseType, PreviewRequest, PreviewResult, QueryRequest, QueryResult, TableInfo, TableSchema};
 use crate::storage;
+
+/// Quotes a single SQL identifier part based on database type.
+/// Handles identifiers with spaces, special characters, or reserved words.
+fn quote_single_identifier(identifier: &str, db_type: &DatabaseType) -> String {
+    match db_type {
+        DatabaseType::MySQL | DatabaseType::MariaDB => {
+            // MySQL uses backticks, escape any backticks in the identifier
+            format!("`{}`", identifier.replace('`', "``"))
+        }
+        DatabaseType::MSSQL => {
+            // MSSQL uses brackets, escape closing brackets
+            format!("[{}]", identifier.replace(']', "]]"))
+        }
+        DatabaseType::PostgreSQL | DatabaseType::SQLite | DatabaseType::CockroachDB => {
+            // PostgreSQL, SQLite, and CockroachDB use double quotes
+            format!("\"{}\"", identifier.replace('"', "\"\""))
+        }
+    }
+}
+
+/// Quotes a SQL identifier (table name, column name, etc.) based on database type.
+/// Handles schema-qualified names like "public.table name" by quoting each part separately.
+/// Example: "public.comments 2" becomes "\"public\".\"comments 2\"" for PostgreSQL.
+fn quote_identifier(identifier: &str, db_type: &DatabaseType) -> String {
+    identifier
+        .split('.')
+        .map(|part| quote_single_identifier(part, db_type))
+        .collect::<Vec<_>>()
+        .join(".")
+}
 
 /// Execute a SQL query against a connected database
 #[tauri::command]
@@ -124,39 +154,42 @@ pub async fn insert_row(
     values: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
     let manager = get_connection_manager().read().await;
-    
+
     // Verify connection exists
     if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
-    
+
     let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
-    
+
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
-    
-    // Build INSERT statement
-    let columns: Vec<String> = values.keys().cloned().collect();
-    
+
+    // Build INSERT statement with properly quoted identifiers
+    let quoted_table = quote_identifier(&table_name, &config.database_type);
+    let columns: Vec<String> = values.keys()
+        .map(|k| quote_single_identifier(k, &config.database_type))
+        .collect();
+
     // For now, execute as a simple query - in production, use parameterized queries
     let values_str: Vec<String> = values.values().map(|v| {
         match v {
-            serde_json::Value::String(s) => format!("'{}'", s.replace("'", "''")),
+            serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
             serde_json::Value::Number(n) => n.to_string(),
             serde_json::Value::Bool(b) => b.to_string(),
             serde_json::Value::Null => "NULL".to_string(),
-            _ => format!("'{}'", v.to_string().replace("'", "''")),
+            _ => format!("'{}'", v.to_string().replace('\'', "''")),
         }
     }).collect();
-    
+
     let sql_with_values = format!(
         "INSERT INTO {} ({}) VALUES ({})",
-        table_name,
+        quoted_table,
         columns.join(", "),
         values_str.join(", ")
     );
-    
+
     driver.execute_query(pool_ref, &sql_with_values).await
 }
 
@@ -169,48 +202,52 @@ pub async fn update_row(
     values: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
     let manager = get_connection_manager().read().await;
-    
+
     // Verify connection exists
     if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
-    
+
     let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
-    
+
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
-    
-    // Build UPDATE statement with WHERE clause from primary key
+
+    // Build UPDATE statement with properly quoted identifiers
+    let quoted_table = quote_identifier(&table_name, &config.database_type);
+
     let set_clauses: Vec<String> = values.iter().map(|(k, v)| {
+        let quoted_col = quote_single_identifier(k, &config.database_type);
         let value_str = match v {
-            serde_json::Value::String(s) => format!("'{}'", s.replace("'", "''")),
+            serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
             serde_json::Value::Number(n) => n.to_string(),
             serde_json::Value::Bool(b) => b.to_string(),
             serde_json::Value::Null => "NULL".to_string(),
-            _ => format!("'{}'", v.to_string().replace("'", "''")),
+            _ => format!("'{}'", v.to_string().replace('\'', "''")),
         };
-        format!("{} = {}", k, value_str)
+        format!("{} = {}", quoted_col, value_str)
     }).collect();
-    
+
     let where_clauses: Vec<String> = primary_key.iter().map(|(k, v)| {
+        let quoted_col = quote_single_identifier(k, &config.database_type);
         let value_str = match v {
-            serde_json::Value::String(s) => format!("'{}'", s.replace("'", "''")),
+            serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
             serde_json::Value::Number(n) => n.to_string(),
             serde_json::Value::Bool(b) => b.to_string(),
             serde_json::Value::Null => "NULL".to_string(),
-            _ => format!("'{}'", v.to_string().replace("'", "''")),
+            _ => format!("'{}'", v.to_string().replace('\'', "''")),
         };
-        format!("{} = {}", k, value_str)
+        format!("{} = {}", quoted_col, value_str)
     }).collect();
-    
+
     let sql = format!(
         "UPDATE {} SET {} WHERE {}",
-        table_name,
+        quoted_table,
         set_clauses.join(", "),
         where_clauses.join(" AND ")
     );
-    
+
     driver.execute_query(pool_ref, &sql).await
 }
 
@@ -222,36 +259,39 @@ pub async fn delete_row(
     primary_key: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
     let manager = get_connection_manager().read().await;
-    
+
     // Verify connection exists
     if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
-    
+
     let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
-    
+
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
-    
-    // Build DELETE statement with WHERE clause from primary key
+
+    // Build DELETE statement with properly quoted identifiers
+    let quoted_table = quote_identifier(&table_name, &config.database_type);
+
     let where_clauses: Vec<String> = primary_key.iter().map(|(k, v)| {
+        let quoted_col = quote_single_identifier(k, &config.database_type);
         let value_str = match v {
-            serde_json::Value::String(s) => format!("'{}'", s.replace("'", "''")),
+            serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
             serde_json::Value::Number(n) => n.to_string(),
             serde_json::Value::Bool(b) => b.to_string(),
             serde_json::Value::Null => "NULL".to_string(),
-            _ => format!("'{}'", v.to_string().replace("'", "''")),
+            _ => format!("'{}'", v.to_string().replace('\'', "''")),
         };
-        format!("{} = {}", k, value_str)
+        format!("{} = {}", quoted_col, value_str)
     }).collect();
-    
+
     let sql = format!(
         "DELETE FROM {} WHERE {}",
-        table_name,
+        quoted_table,
         where_clauses.join(" AND ")
     );
-    
+
     driver.execute_query(pool_ref, &sql).await
 }
 
@@ -262,20 +302,22 @@ pub async fn drop_table(
     table_name: String,
 ) -> AppResult<QueryResult> {
     let manager = get_connection_manager().read().await;
-    
+
     // Verify connection exists
     if !manager.is_connected(&connection_id) {
         return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
     }
-    
+
     let config = storage::get_connection(&connection_id)?
         .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
-    
+
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
-    
-    let sql = format!("DROP TABLE {}", table_name);
-    
+
+    // Build DROP TABLE with properly quoted identifier
+    let quoted_table = quote_identifier(&table_name, &config.database_type);
+    let sql = format!("DROP TABLE {}", quoted_table);
+
     driver.execute_query(pool_ref, &sql).await
 }
 
