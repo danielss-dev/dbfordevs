@@ -229,6 +229,13 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Line Numbers", description: "Show line numbers on the left side.", keywords: ["line", "number", "gutter"], tabValue: "editor" },
   { label: "Word Wrap", description: "Wrap lines that exceed viewport width.", keywords: ["word", "wrap", "lines", "width"], tabValue: "editor" },
   { label: "Show Invisibles", description: "Display spaces, tabs, and line endings.", keywords: ["invisible", "spaces", "tabs", "endings", "whitespace"], tabValue: "editor" },
+  // SQL Formatter
+  { label: "SQL Formatter", description: "Configure SQL code formatting options.", keywords: ["sql", "format", "formatter", "beautify", "beautifier", "pretty"], tabValue: "editor" },
+  { label: "Keyword Case", description: "How SQL keywords are formatted.", keywords: ["keyword", "case", "upper", "lower", "format"], tabValue: "editor" },
+  { label: "Indentation Width", description: "Number of spaces for indentation.", keywords: ["indent", "width", "spaces", "tab"], tabValue: "editor" },
+  { label: "Use Tabs", description: "Use tabs instead of spaces.", keywords: ["tabs", "spaces", "indent"], tabValue: "editor" },
+  { label: "Indent Style", description: "How clauses are indented.", keywords: ["indent", "style", "tabular"], tabValue: "editor" },
+  { label: "Dense Operators", description: "Remove spaces around operators.", keywords: ["dense", "operators", "compact"], tabValue: "editor" },
   // Appearance
   { label: "Theme", description: "Switch between light, dark, or system theme.", keywords: ["theme", "light", "dark", "system", "color"], tabValue: "appearance" },
   { label: "Enable Animations", description: "Enable smooth animations throughout the interface.", keywords: ["animation", "animations", "smooth", "motion", "transition", "effects"], tabValue: "appearance" },
@@ -251,6 +258,8 @@ export function SettingsDialog() {
     updateEditorSettings,
     generalSettings,
     updateGeneralSettings,
+    formatterSettings,
+    updateFormatterSettings,
     settingsDialogTab,
   } = useUIStore();
   const { toast } = useToast();
@@ -321,6 +330,13 @@ export function SettingsDialog() {
     });
   };
 
+  const handleFormatterSettingChange = (key: keyof typeof formatterSettings, value: any) => {
+    updateFormatterSettings({ [key]: value });
+    toast({
+      title: "Formatter setting updated",
+      description: `SQL formatting preference has been changed.`,
+    });
+  };
 
   // Filter tabs based on search query by searching all settings
   const filteredTabs = useMemo(() => {
@@ -682,6 +698,94 @@ export function SettingsDialog() {
                           />
                         </SettingRow>
                       </div>
+
+                      {/* SQL Formatter Settings */}
+                      <div className="mt-6">
+                        <h3 className="text-lg font-medium mb-3">SQL Formatter</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Configure how SQL is formatted when using Shift+Alt+F or the Format button.
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-card p-1">
+                        <SettingRow
+                          label="Keyword Case"
+                          description="How SQL keywords like SELECT, FROM, WHERE are formatted."
+                        >
+                          <Select
+                            value={formatterSettings.keywordCase}
+                            onValueChange={(value) => handleFormatterSettingChange("keywordCase", value)}
+                          >
+                            <SelectTrigger className="w-36">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="upper">UPPERCASE</SelectItem>
+                              <SelectItem value="lower">lowercase</SelectItem>
+                              <SelectItem value="preserve">Preserve</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Indentation Width"
+                          description="Number of spaces for each indentation level."
+                        >
+                          <Input
+                            type="number"
+                            value={formatterSettings.tabWidth}
+                            onChange={(e) =>
+                              handleFormatterSettingChange("tabWidth", parseInt(e.target.value))
+                            }
+                            className="w-20"
+                            min={1}
+                            max={8}
+                          />
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Use Tabs"
+                          description="Use tabs instead of spaces for indentation."
+                        >
+                          <Checkbox
+                            checked={formatterSettings.useTabs}
+                            onCheckedChange={(checked: boolean) =>
+                              handleFormatterSettingChange("useTabs", checked)
+                            }
+                          />
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Indent Style"
+                          description="How clauses are indented relative to keywords."
+                        >
+                          <Select
+                            value={formatterSettings.indentStyle}
+                            onValueChange={(value) => handleFormatterSettingChange("indentStyle", value)}
+                          >
+                            <SelectTrigger className="w-36">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="standard">Standard</SelectItem>
+                              <SelectItem value="tabularLeft">Tabular Left</SelectItem>
+                              <SelectItem value="tabularRight">Tabular Right</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Dense Operators"
+                          description="Remove spaces around operators (e.g., a=b instead of a = b)."
+                        >
+                          <Checkbox
+                            checked={formatterSettings.denseOperators}
+                            onCheckedChange={(checked: boolean) =>
+                              handleFormatterSettingChange("denseOperators", checked)
+                            }
+                          />
+                        </SettingRow>
+                      </div>
                     </div>
                   )}
 
@@ -763,6 +867,9 @@ export function SettingsDialog() {
 
                       <div className="rounded-xl border border-border bg-card p-4 divide-y divide-border">
                         <ShortcutItem label="Execute query" keys={["Cmd", "Enter"]} />
+                        <ShortcutItem label="Format SQL" keys={["Shift", "Alt", "F"]} />
+                        <ShortcutItem label="Explain with AI" keys={["Cmd", "Shift", "E"]} />
+                        <ShortcutItem label="Optimize with AI" keys={["Cmd", "Shift", "O"]} />
                         <ShortcutItem label="New connection" keys={["Cmd", "K"]} />
                         <ShortcutItem label="Open settings" keys={["Cmd", ","]} />
                         <ShortcutItem label="Toggle sidebar" keys={["Cmd", "B"]} />

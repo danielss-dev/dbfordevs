@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, TreeDeciduous } from "lucide-react";
+import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, TreeDeciduous, Code } from "lucide-react";
 import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore, usePreviewStore, useExplainStore } from "@/stores";
 import { useUIStore } from "@/stores/ui";
 import { useAIStore } from "@/lib/ai/store";
 import { useDatabase } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
-import { SqlEditor } from "@/components/editor";
+import { SqlEditor, type SqlEditorHandle } from "@/components/editor";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
@@ -31,7 +31,7 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
   const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
   const schemas = connectionId ? getSchemas(connectionId) : {};
   const results = useQueryStore(selectActiveResults);
-  const { theme } = useUIStore();
+  const { theme, formatterSettings } = useUIStore();
   const { setPanelOpen, sendMessage, settings } = useAIStore();
   const isAIEnabled = settings.aiEnabled ?? true;
   const { executeQuery, fetchAllSchemas, refreshSchemas, previewQuery, explainQuery } = useDatabase();
@@ -39,6 +39,11 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
   const { openExplain, setExplainResult, setExplainError } = useExplainStore();
   const [content, setContent] = useState(tab.content || "");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const sqlEditorRef = useRef<SqlEditorHandle>(null);
+
+  // Get the current connection for database type
+  const currentConnection = connections.find(c => c.id === connectionId);
+  const databaseType = currentConnection?.databaseType;
 
   // Fetch all schemas when connection changes
   useEffect(() => {
@@ -325,11 +330,28 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
             <TooltipContent>Refresh table schemas from database</TooltipContent>
           </Tooltip>
         )}
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => sqlEditorRef.current?.format()}
+              disabled={!content.trim()}
+              className="gap-2"
+            >
+              <Code className="h-3.5 w-3.5" />
+              Format
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Format SQL (Shift+Alt+F)</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Editor Area */}
       <div className="flex-1 bg-background overflow-hidden">
         <SqlEditor
+          ref={sqlEditorRef}
           value={content}
           onChange={(value) => {
             setContent(value);
@@ -341,6 +363,8 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           tables={tables}
           schemas={schemas}
           theme={theme}
+          databaseType={databaseType}
+          formatterOptions={formatterSettings}
           height="100%"
         />
       </div>

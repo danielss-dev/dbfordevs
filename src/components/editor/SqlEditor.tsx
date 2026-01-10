@@ -1,8 +1,9 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from "react";
 import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
 import type * as MonacoEditor from "monaco-editor";
 import { createSqlCompletionProvider } from "./sql-completion-provider";
 import { registerCustomThemes, getMonacoTheme } from "./monaco-themes";
+import { formatSql, mapDatabaseTypeToDialect, type SqlFormatterOptions } from "@/lib/sql-formatter";
 import type { TableInfo, TableSchema } from "@/types";
 
 interface SqlEditorProps {
@@ -11,25 +12,36 @@ interface SqlEditorProps {
   onExecute?: (sql: string) => void;
   onExplainWithAI?: (sql: string) => void;
   onOptimizeWithAI?: (sql: string) => void;
+  onFormat?: () => void;
   tables?: TableInfo[];
   schemas?: Record<string, TableSchema>;
   theme?: "light" | "dark" | "system" | "nordic-dark" | "nordic-light";
+  databaseType?: string;
+  formatterOptions?: SqlFormatterOptions;
   readOnly?: boolean;
   height?: string | number;
 }
 
-export function SqlEditor({
+export interface SqlEditorHandle {
+  format: () => void;
+  focus: () => void;
+}
+
+export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function SqlEditor({
   value,
   onChange,
   onExecute,
   onExplainWithAI,
   onOptimizeWithAI,
+  onFormat,
   tables = [],
   schemas = {},
   theme = "dark",
+  databaseType,
+  formatterOptions,
   readOnly = false,
   height = "100%",
-}: SqlEditorProps) {
+}, ref) {
   const editorRef = useRef<MonacoEditor.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const completionDisposableRef = useRef<MonacoEditor.IDisposable | null>(null);
@@ -39,6 +51,9 @@ export function SqlEditor({
   const onExecuteRef = useRef(onExecute);
   const onExplainWithAIRef = useRef(onExplainWithAI);
   const onOptimizeWithAIRef = useRef(onOptimizeWithAI);
+  const onFormatRef = useRef(onFormat);
+  const databaseTypeRef = useRef(databaseType);
+  const formatterOptionsRef = useRef(formatterOptions);
 
   // Keep refs in sync
   useEffect(() => {
@@ -60,6 +75,30 @@ export function SqlEditor({
   useEffect(() => {
     onOptimizeWithAIRef.current = onOptimizeWithAI;
   }, [onOptimizeWithAI]);
+
+  useEffect(() => {
+    onFormatRef.current = onFormat;
+  }, [onFormat]);
+
+  useEffect(() => {
+    databaseTypeRef.current = databaseType;
+  }, [databaseType]);
+
+  useEffect(() => {
+    formatterOptionsRef.current = formatterOptions;
+  }, [formatterOptions]);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    format: () => {
+      if (editorRef.current) {
+        editorRef.current.trigger("button", "format-sql", null);
+      }
+    },
+    focus: () => {
+      editorRef.current?.focus();
+    },
+  }), []);
 
   // Determine Monaco theme based on app theme
   const monacoTheme = useMemo(() => {
@@ -144,6 +183,63 @@ export function SqlEditor({
     });
     actionDisposablesRef.current.push(optimizeAction);
 
+    // Register "Format SQL" action with Shift+Alt+F shortcut
+    const formatAction = editor.addAction({
+      id: "format-sql",
+      label: "Format SQL",
+      contextMenuGroupId: "1_modification",
+      contextMenuOrder: 1.5,
+      keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF],
+      run: (ed) => {
+        const selection = ed.getSelection();
+        const model = ed.getModel();
+        if (!model) return;
+
+        const dialect = mapDatabaseTypeToDialect(databaseTypeRef.current);
+        const options = {
+          dialect,
+          ...formatterOptionsRef.current,
+        };
+
+        // Check if there's a selection
+        if (selection && !selection.isEmpty()) {
+          // Format only the selection
+          const selectedText = model.getValueInRange(selection);
+          if (selectedText.trim()) {
+            const formatted = formatSql(selectedText, options);
+            ed.executeEdits("format-sql", [
+              {
+                range: selection,
+                text: formatted,
+                forceMoveMarkers: true,
+              },
+            ]);
+          }
+        } else {
+          // Format the entire document
+          const fullText = ed.getValue();
+          if (fullText.trim()) {
+            const formatted = formatSql(fullText, options);
+            // Replace entire content while preserving cursor position as best as possible
+            const fullRange = model.getFullModelRange();
+            ed.executeEdits("format-sql", [
+              {
+                range: fullRange,
+                text: formatted,
+                forceMoveMarkers: true,
+              },
+            ]);
+          }
+        }
+
+        // Call the optional callback
+        if (onFormatRef.current) {
+          onFormatRef.current();
+        }
+      },
+    });
+    actionDisposablesRef.current.push(formatAction);
+
     // Focus the editor
     editor.focus();
   };
@@ -224,4 +320,4 @@ export function SqlEditor({
       }}
     />
   );
-}
+});

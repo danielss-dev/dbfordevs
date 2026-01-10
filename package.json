@@ -52,6 +52,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
+    "sql-formatter": "^15.6.12",
     "tailwind-merge": "^2.5.5",
     "zustand": "^5.0.2"
   },

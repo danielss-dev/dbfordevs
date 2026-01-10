@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PendingChange } from "@/types";
+import type { KeywordCaseOption, IndentStyle } from "@/lib/sql-formatter";
 
 /**
  * Theme type - all built-in themes:
@@ -20,6 +21,14 @@ interface EditorSettings {
   lineNumbers: boolean;
   wordWrap: boolean;
   showInvisibles: boolean;
+}
+
+interface FormatterSettings {
+  keywordCase: KeywordCaseOption;
+  tabWidth: number;
+  useTabs: boolean;
+  indentStyle: IndentStyle;
+  denseOperators: boolean;
 }
 
 interface GeneralSettings {
@@ -47,6 +56,7 @@ interface UIState {
   // Settings
   editorSettings: EditorSettings;
   generalSettings: GeneralSettings;
+  formatterSettings: FormatterSettings;
   // Modal states
   showConnectionModal: boolean;
   editingConnectionId: string | null; // ID of connection being edited, null for new
@@ -69,6 +79,7 @@ interface UIState {
   setAppStyle: (style: AppStyle) => void;
   updateEditorSettings: (settings: Partial<EditorSettings>) => void;
   updateGeneralSettings: (settings: Partial<GeneralSettings>) => void;
+  updateFormatterSettings: (settings: Partial<FormatterSettings>) => void;
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   toggleSidePanel: () => void;
@@ -116,6 +127,13 @@ export const useUIStore = create<UIState>()(
         checkUpdatesOnStartup: true,
         sendAnalytics: false,
         enableAnimations: true,
+      },
+      formatterSettings: {
+        keywordCase: "upper",
+        tabWidth: 2,
+        useTabs: false,
+        indentStyle: "standard",
+        denseOperators: false,
       },
       showConnectionModal: false,
       editingConnectionId: null,
@@ -169,6 +187,11 @@ export const useUIStore = create<UIState>()(
       updateGeneralSettings: (settings) =>
         set((state) => ({
           generalSettings: { ...state.generalSettings, ...settings },
+        })),
+
+      updateFormatterSettings: (settings) =>
+        set((state) => ({
+          formatterSettings: { ...state.formatterSettings, ...settings },
         })),
 
       toggleSidebar: () =>
@@ -282,6 +305,7 @@ export const useUIStore = create<UIState>()(
         sidePanelWidth: state.sidePanelWidth,
         editorSettings: state.editorSettings,
         generalSettings: state.generalSettings,
+        formatterSettings: state.formatterSettings,
       }),
     }
   )

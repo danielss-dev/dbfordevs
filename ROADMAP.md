@@ -77,27 +77,27 @@ Users cannot analyze query performance. EXPLAIN support would help optimize slow
 
 ### 3. SQL Formatter / Beautifier
 
-**Status:** Not Implemented
+**Status:** Implemented
 **Impact:** High
 **Effort:** Low
 
-The Monaco editor lacks SQL formatting capabilities.
+The Monaco editor now includes SQL formatting capabilities.
 
 **Implementation Tasks:**
-- [ ] Integrate SQL formatting library (sql-formatter or similar)
-- [ ] Format document command (Shift+Alt+F)
-- [ ] Format selection command
+- [x] Integrate SQL formatting library (sql-formatter or similar)
+- [x] Format document command (Shift+Alt+F)
+- [x] Format selection command
 - [ ] Auto-format on paste option
-- [ ] Configurable formatting options:
-  - [ ] Keyword case (UPPER, lower, Capitalize)
-  - [ ] Indentation style (spaces/tabs, size)
+- [x] Configurable formatting options:
+  - [x] Keyword case (UPPER, lower, Preserve)
+  - [x] Indentation style (spaces/tabs, size)
   - [ ] Comma position (before/after)
   - [ ] Line width limit
-- [ ] Per-database dialect support
-- [ ] Add to editor toolbar
-- [ ] Add to right-click context menu
+- [x] Per-database dialect support
+- [x] Add to editor toolbar
+- [x] Add to right-click context menu
 
-**Suggested library:** `sql-formatter` (npm package)
+**Library used:** `sql-formatter` (npm package)
 
 ---
 
