@@ -57,15 +57,15 @@ Currently, the application supports export only (JSON, CSV, INSERT SQL). Import 
 Users cannot analyze query performance. EXPLAIN support would help optimize slow queries.
 
 **Implementation Tasks:**
-- [ ] Add EXPLAIN/EXPLAIN ANALYZE execution command
-- [ ] Parse execution plan output per database type
-- [ ] Visual tree view for query plan nodes
-- [ ] Cost breakdown display
-- [ ] Index usage highlighting
-- [ ] Sequential scan warnings
-- [ ] Row estimate vs actual comparison
-- [ ] Query plan comparison (before/after optimization)
-- [ ] Save execution plans for reference
+- [x] Add EXPLAIN/EXPLAIN ANALYZE execution command
+- [x] Parse execution plan output per database type
+- [x] Visual tree view for query plan nodes
+- [x] Cost breakdown display
+- [x] Index usage highlighting
+- [x] Sequential scan warnings
+- [x] Row estimate vs actual comparison
+- [x] Query plan comparison (before/after optimization)
+- [x] Save execution plans for reference
 
 **Database-specific considerations:**
 - PostgreSQL: `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`
