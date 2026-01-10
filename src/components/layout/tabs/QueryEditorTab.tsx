@@ -320,7 +320,7 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
               </div>
             </div>
           ) : results ? (
-            <DataGrid data={results} />
+            <DataGrid data={results} connectionId={connectionId} />
           ) : !content.trim() ? (
             <EmptyQueryState
               onSelectExample={handleSelectExample}

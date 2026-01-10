@@ -41,6 +41,7 @@ interface CRUDState {
 
   // Actions
   setSelectedRowIds: (ids: string[]) => void;
+  setSelectedRows: (rows: SelectedRow[]) => void;
   addSelectedRow: (row: SelectedRow) => void;
   removeSelectedRow: (rowId: string) => void;
   toggleRowSelection: (row: SelectedRow) => void;
@@ -74,7 +75,13 @@ export const useCRUDStore = create<CRUDState>()(
       columnFilters: {},
 
       setSelectedRowIds: (selectedRowIds) => set({ selectedRowIds }),
-      
+
+      setSelectedRows: (rows) =>
+        set({
+          selectedRows: rows,
+          selectedRowIds: rows.map(r => r.rowId),
+        }),
+
       addSelectedRow: (row) =>
         set((state) => {
           // Don't add if already selected

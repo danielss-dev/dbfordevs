@@ -1,3 +1,5 @@
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeTextFile } from "@tauri-apps/plugin-fs";
 import type { SelectedRow } from "@/stores/crud";
 
 /**
@@ -57,7 +59,35 @@ export function rowsToCSV(rows: SelectedRow[], includeHeaders: boolean = true): 
 }
 
 /**
- * Download content as a file
+ * Save content to a file using Tauri save dialog
+ * Returns true if file was saved successfully, false if cancelled or error
+ */
+export async function saveFile(
+  content: string,
+  defaultFilename: string,
+  filters: { name: string; extensions: string[] }[]
+): Promise<boolean> {
+  try {
+    const filePath = await save({
+      defaultPath: defaultFilename,
+      filters,
+    });
+
+    if (filePath) {
+      await writeTextFile(filePath, content);
+      return true;
+    }
+
+    return false; // User cancelled
+  } catch (error) {
+    console.error("Failed to save file:", error);
+    return false;
+  }
+}
+
+/**
+ * Download content as a file (legacy browser fallback)
+ * @deprecated Use saveFile instead for Tauri apps
  */
 export function downloadFile(content: string, filename: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });

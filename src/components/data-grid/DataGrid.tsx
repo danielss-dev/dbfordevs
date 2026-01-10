@@ -40,6 +40,7 @@ import { useCRUDStore, useUIStore } from "@/stores";
 import { EditableCell } from "./EditableCell";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
 import { ExportMenu } from "./ExportMenu";
+import { ImportButton } from "./ImportButton";
 
 // Shared utility to generate consistent row IDs
 export function generateRowId(row: Record<string, unknown>, columns: ColumnInfo[]): string {
@@ -63,6 +64,8 @@ interface DataGridProps {
   data: QueryResult;
   onRowClick?: (row: Record<string, unknown>) => void;
   tableName?: string;
+  connectionId?: string;
+  onDataChange?: () => void;
 }
 
 const getTypeIcon = (dataType: string) => {
@@ -153,11 +156,13 @@ const customColumnFilter: FilterFn<any> = (row, columnId, filterValue) => {
   return true;
 };
 
-export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
+export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChange }: DataGridProps) {
   const {
     selectedRowIds,
     addSelectedRow,
+    setSelectedRows,
     toggleRowSelection,
+    clearSelection,
     editingCell,
     setEditingCell,
     pendingChanges,
@@ -204,11 +209,40 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
     // Row Number Column (Gutter) - Standardized as the selection trigger
     tableColumns.push({
       id: "rowNumber",
-      header: () => (
-        <div className="flex items-center justify-center w-full h-full text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">
-          #
-        </div>
-      ),
+      header: ({ table }) => {
+        const allRows = table.getRowModel().rows;
+        const allRowIds = allRows.map(r => r.id);
+        const allSelected = allRowIds.length > 0 && allRowIds.every(id => selectedRowIds.includes(id));
+
+        const handleSelectAll = () => {
+          if (allSelected) {
+            // Deselect all
+            clearSelection();
+            table.toggleAllRowsSelected(false);
+          } else {
+            // Select all visible rows
+            const newSelectedRows = allRows.map(r => createSelectedRow(r.original));
+            setSelectedRows(newSelectedRows);
+            table.toggleAllRowsSelected(true);
+            setRightPanelTab("fields");
+          }
+        };
+
+        return (
+          <div
+            className={cn(
+              "flex items-center justify-center w-full h-full text-[9px] font-bold uppercase tracking-wider cursor-pointer select-none transition-colors",
+              allSelected
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground/50 hover:text-primary/70 hover:bg-primary/5"
+            )}
+            onClick={handleSelectAll}
+            title={allSelected ? "Deselect all rows" : "Select all rows"}
+          >
+            #
+          </div>
+        );
+      },
       cell: ({ row, table }) => {
         const pageIndex = table.getState().pagination.pageIndex;
         const pageSize = table.getState().pagination.pageSize;
@@ -465,7 +499,7 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
       },
     })));
     return tableColumns;
-  }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter]);
+  }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter, selectedRowIds, clearSelection, setSelectedRows, setRightPanelTab]);
 
   const tableData = useMemo(() => {
     return data.rows.map((row) => {
@@ -677,7 +711,14 @@ export function DataGrid({ data, onRowClick, tableName }: DataGridProps) {
             )}
           </div>
 
-          {/* Export Menu */}
+          {/* Import/Export */}
+          {connectionId && (
+            <ImportButton
+              connectionId={connectionId}
+              tableName={tableName}
+              onImportComplete={onDataChange}
+            />
+          )}
           <ExportMenu tableName={tableName} />
 
           {/* Status Text */}
