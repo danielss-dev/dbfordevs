@@ -361,3 +361,33 @@ export interface ExplainResult {
   databaseType: string;
 }
 
+// Query Bookmark types
+
+export interface TemplateVariable {
+  name: string;
+  placeholder: string;
+  defaultValue?: string;
+}
+
+export interface Bookmark {
+  id: string;
+  name: string;
+  description?: string;
+  sql: string;
+  folderId: string | null;
+  connectionId: string | null;
+  databaseType?: DatabaseType;
+  isFavorite: boolean;
+  isTemplate: boolean;
+  variables?: TemplateVariable[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BookmarkFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdAt: number;
+}
+

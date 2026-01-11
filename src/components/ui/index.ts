@@ -2,6 +2,8 @@ export { Button, buttonVariants } from "./button";
 export { SplitButton } from "./split-button";
 export { AnimatedButton } from "./animated-button";
 export { Input } from "./input";
+export { Textarea } from "./textarea";
+export { AutocompleteInput, type AutocompleteOption } from "./autocomplete-input";
 export { Separator } from "./separator";
 export { ScrollArea, ScrollBar } from "./scroll-area";
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./tooltip";

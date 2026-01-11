@@ -317,7 +317,7 @@ export function ConnectionModal() {
 
   return (
     <Dialog open={showConnectionModal} onOpenChange={setShowConnectionModal}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BrandIcon
@@ -338,7 +338,7 @@ export function ConnectionModal() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
               <TabsList className={cn("grid w-full", isSqlite ? "grid-cols-1" : "grid-cols-4")}>
                 <TabsTrigger value="general" className="flex items-center gap-2">

@@ -12,6 +12,7 @@ interface SqlEditorProps {
   onExecute?: (sql: string) => void;
   onExplainWithAI?: (sql: string) => void;
   onOptimizeWithAI?: (sql: string) => void;
+  onSaveAsBookmark?: (sql: string) => void;
   onFormat?: () => void;
   tables?: TableInfo[];
   schemas?: Record<string, TableSchema>;
@@ -33,6 +34,7 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
   onExecute,
   onExplainWithAI,
   onOptimizeWithAI,
+  onSaveAsBookmark,
   onFormat,
   tables = [],
   schemas = {},
@@ -51,6 +53,7 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
   const onExecuteRef = useRef(onExecute);
   const onExplainWithAIRef = useRef(onExplainWithAI);
   const onOptimizeWithAIRef = useRef(onOptimizeWithAI);
+  const onSaveAsBookmarkRef = useRef(onSaveAsBookmark);
   const onFormatRef = useRef(onFormat);
   const databaseTypeRef = useRef(databaseType);
   const formatterOptionsRef = useRef(formatterOptions);
@@ -75,6 +78,10 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
   useEffect(() => {
     onOptimizeWithAIRef.current = onOptimizeWithAI;
   }, [onOptimizeWithAI]);
+
+  useEffect(() => {
+    onSaveAsBookmarkRef.current = onSaveAsBookmark;
+  }, [onSaveAsBookmark]);
 
   useEffect(() => {
     onFormatRef.current = onFormat;
@@ -182,6 +189,28 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
       },
     });
     actionDisposablesRef.current.push(optimizeAction);
+
+    // Register "Save as Bookmark" context menu action
+    const saveBookmarkAction = editor.addAction({
+      id: "save-as-bookmark",
+      label: "Save as Bookmark",
+      contextMenuGroupId: "bookmarks",
+      contextMenuOrder: 1,
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyB],
+      run: (ed) => {
+        const selection = ed.getSelection();
+        let sql = "";
+        if (selection && !selection.isEmpty()) {
+          sql = ed.getModel()?.getValueInRange(selection) || "";
+        } else {
+          sql = ed.getValue();
+        }
+        if (sql.trim() && onSaveAsBookmarkRef.current) {
+          onSaveAsBookmarkRef.current(sql);
+        }
+      },
+    });
+    actionDisposablesRef.current.push(saveBookmarkAction);
 
     // Register "Format SQL" action with Shift+Alt+F shortcut
     const formatAction = editor.addAction({

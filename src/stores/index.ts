@@ -6,4 +6,5 @@ export * from "./schema";
 export * from "./preview";
 export * from "./explain";
 export * from "./updater";
+export * from "./bookmarks";
 

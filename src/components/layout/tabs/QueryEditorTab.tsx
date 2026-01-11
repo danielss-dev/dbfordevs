@@ -11,6 +11,7 @@ import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
 import { QueryHistoryDropdown } from "@/components/query-history/QueryHistoryDropdown";
+import { BookmarksDropdown } from "@/components/bookmarks";
 import { BrandIcon } from "@/components/ui";
 import { getDatabaseBrand } from "@/lib/constants";
 import type { Tab, QueryHistoryEntry } from "@/types";
@@ -31,7 +32,7 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
   const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
   const schemas = connectionId ? getSchemas(connectionId) : {};
   const results = useQueryStore(selectActiveResults);
-  const { theme, formatterSettings } = useUIStore();
+  const { theme, formatterSettings, openSaveBookmarkDialog } = useUIStore();
   const { setPanelOpen, sendMessage, settings } = useAIStore();
   const isAIEnabled = settings.aiEnabled ?? true;
   const { executeQuery, fetchAllSchemas, refreshSchemas, previewQuery, explainQuery } = useDatabase();
@@ -77,6 +78,13 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
     // Send message to AI to optimize the query
     sendMessage(`Please optimize this SQL query for better performance:\n\n\`\`\`sql\n${sql}\n\`\`\``);
   }, [isAIEnabled, setPanelOpen, sendMessage]);
+
+  // Save as bookmark handler
+  const handleSaveAsBookmark = useCallback((sql: string) => {
+    if (sql.trim()) {
+      openSaveBookmarkDialog(sql, connectionId || null);
+    }
+  }, [connectionId, openSaveBookmarkDialog]);
 
   useEffect(() => {
     setContent(tab.content || "");
@@ -304,6 +312,13 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           />
         )}
 
+        <BookmarksDropdown
+          connectionId={connectionId || null}
+          databaseType={databaseType}
+          currentSql={content}
+          onLoadBookmark={handleSelectExample}
+        />
+
         {connectionId && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -360,6 +375,7 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           onExecute={handleExecute}
           onExplainWithAI={isAIEnabled ? handleExplainWithAI : undefined}
           onOptimizeWithAI={isAIEnabled ? handleOptimizeWithAI : undefined}
+          onSaveAsBookmark={handleSaveAsBookmark}
           tables={tables}
           schemas={schemas}
           theme={theme}
