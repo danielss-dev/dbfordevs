@@ -74,6 +74,14 @@ interface UIState {
   showCreateTableDialog: boolean;
   creatingTableConnectionId: string | null;
   creatingTableSchemaName: string | null;
+  // Bookmark modal states
+  showBookmarkManagerDialog: boolean;
+  showSaveBookmarkDialog: boolean;
+  savingBookmarkSql: string | null;
+  savingBookmarkConnectionId: string | null;
+  editingBookmarkId: string | null;
+  showTemplateVariableDialog: boolean;
+  templateVariableBookmarkId: string | null;
   // Edit mode for data grid
   editMode: boolean;
 
@@ -107,6 +115,14 @@ interface UIState {
   setShowCreateTableDialog: (show: boolean) => void;
   openCreateTableDialog: (connectionId: string, schemaName?: string) => void;
   setEditMode: (editMode: boolean) => void;
+  // Bookmark actions
+  setShowBookmarkManagerDialog: (show: boolean) => void;
+  openBookmarkManager: () => void;
+  setShowSaveBookmarkDialog: (show: boolean) => void;
+  openSaveBookmarkDialog: (sql: string, connectionId: string | null) => void;
+  openEditBookmarkDialog: (bookmarkId: string) => void;
+  setShowTemplateVariableDialog: (show: boolean) => void;
+  openTemplateVariableDialog: (bookmarkId: string) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -156,6 +172,13 @@ export const useUIStore = create<UIState>()(
       showCreateTableDialog: false,
       creatingTableConnectionId: null,
       creatingTableSchemaName: null,
+      showBookmarkManagerDialog: false,
+      showSaveBookmarkDialog: false,
+      savingBookmarkSql: null,
+      savingBookmarkConnectionId: null,
+      editingBookmarkId: null,
+      showTemplateVariableDialog: false,
+      templateVariableBookmarkId: null,
       editMode: true,
 
       setTheme: (theme) => {
@@ -317,6 +340,49 @@ export const useUIStore = create<UIState>()(
         }),
 
       setEditMode: (editMode) => set({ editMode }),
+
+      // Bookmark modal actions
+      setShowBookmarkManagerDialog: (show) =>
+        set({ showBookmarkManagerDialog: show }),
+
+      openBookmarkManager: () =>
+        set({ showBookmarkManagerDialog: true }),
+
+      setShowSaveBookmarkDialog: (show) =>
+        set((state) => ({
+          showSaveBookmarkDialog: show,
+          savingBookmarkSql: show ? state.savingBookmarkSql : null,
+          savingBookmarkConnectionId: show ? state.savingBookmarkConnectionId : null,
+          editingBookmarkId: show ? state.editingBookmarkId : null,
+        })),
+
+      openSaveBookmarkDialog: (sql, connectionId) =>
+        set({
+          showSaveBookmarkDialog: true,
+          savingBookmarkSql: sql,
+          savingBookmarkConnectionId: connectionId,
+          editingBookmarkId: null,
+        }),
+
+      openEditBookmarkDialog: (bookmarkId) =>
+        set({
+          showSaveBookmarkDialog: true,
+          editingBookmarkId: bookmarkId,
+          savingBookmarkSql: null,
+          savingBookmarkConnectionId: null,
+        }),
+
+      setShowTemplateVariableDialog: (show) =>
+        set((state) => ({
+          showTemplateVariableDialog: show,
+          templateVariableBookmarkId: show ? state.templateVariableBookmarkId : null,
+        })),
+
+      openTemplateVariableDialog: (bookmarkId) =>
+        set({
+          showTemplateVariableDialog: true,
+          templateVariableBookmarkId: bookmarkId,
+        }),
     }),
     {
       name: "dbfordevs-ui",

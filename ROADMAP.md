@@ -133,28 +133,28 @@ Users can create new tables via a wizard-style GUI with full column, constraint,
 
 ### 5. Query Bookmarks & Templates
 
-**Status:** Not Implemented
+**Status:** Implemented
 **Impact:** Medium
 **Effort:** Low
 
 **Implementation Tasks:**
-- [ ] Save query as bookmark
-- [ ] Bookmark manager UI
-- [ ] Organize bookmarks in folders
-- [ ] Quick access panel/dropdown
-- [ ] Search within bookmarks
-- [ ] Share bookmarks between connections
-- [ ] Built-in query templates:
-  - [ ] Basic SELECT with JOIN
-  - [ ] INSERT template
-  - [ ] UPDATE template
-  - [ ] DELETE with WHERE
-  - [ ] Common aggregations
-  - [ ] Index creation
-- [ ] Custom template creation
-- [ ] Template variables/placeholders
+- [x] Save query as bookmark
+- [x] Bookmark manager UI
+- [x] Organize bookmarks in folders
+- [x] Quick access panel/dropdown
+- [x] Search within bookmarks
+- [x] Share bookmarks between connections
+- [x] Built-in query templates:
+  - [x] Basic SELECT with JOIN
+  - [x] INSERT template
+  - [x] UPDATE template
+  - [x] DELETE with WHERE
+  - [x] Common aggregations
+  - [x] Index creation
+- [x] Custom template creation
+- [x] Template variables/placeholders
 
-**Storage:** Add to Zustand store with localStorage persistence
+**Storage:** Zustand store with localStorage persistence (`dbfordevs-bookmarks`)
 
 ---
 
