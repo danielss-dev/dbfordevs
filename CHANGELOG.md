@@ -2,6 +2,23 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-01-12
+
+
+### Added
+- Add Oracle Database Support (#45)
+- Add ExplainPanel and PlanTree components for SQL execution plan visualization
+- Add implementation roadmap for dbfordevs project
+
+### Changed
+- Implement Query Bookmarks & Templates feature (#44)
+- Table creation UI (#43)
+- Implement SQL formatting feature in SqlEditor (#42)
+- Update ROADMAP.md to mark completion of EXPLAIN feature tasks
+- Enhance MSSQL XML parsing to handle namespace prefixes in RelOp elements
+- Implement import functionality and enhance DataGrid for pending changes (#41)
+- Enhance DataGrid row selection functionality and CRUD store management (#40)
+- Remove PluginCard component and associated PluginData interface along… (#39)
 ## [0.2.7] - 2026-01-08
 
 
