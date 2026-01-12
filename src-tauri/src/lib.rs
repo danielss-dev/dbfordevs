@@ -2,15 +2,19 @@ mod commands;
 pub mod db;
 pub mod error;
 pub mod models;
+pub mod oracle_client;
 mod ssh;
 mod storage;
 
-use commands::{connections, import, queries, tables, utils};
+use commands::{connections, import, oracle, queries, tables, utils};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Install default drivers for sqlx::any
     sqlx::any::install_default_drivers();
+
+    // Configure Oracle client library path if available
+    let _ = oracle_client::configure_oracle_lib_path();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -54,6 +58,10 @@ pub fn run() {
             import::preview_import,
             import::execute_import,
             import::cancel_import,
+            // Oracle client setup commands
+            oracle::check_oracle_client_status,
+            oracle::get_oracle_download_info,
+            oracle::download_oracle_client,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

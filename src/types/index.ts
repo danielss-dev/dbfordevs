@@ -391,3 +391,25 @@ export interface BookmarkFolder {
   createdAt: number;
 }
 
+// Oracle client setup types
+
+export interface OracleClientStatus {
+  isInstalled: boolean;
+  installPath?: string;
+  version?: string;
+  errorMessage?: string;
+}
+
+export interface OracleDownloadInfo {
+  url: string;
+  filename: string;
+  size: string;
+  installPath: string;
+}
+
+export interface OracleDownloadProgress {
+  stage: "downloading" | "extracting" | "complete" | "error";
+  progress: number;
+  message: string;
+}
+

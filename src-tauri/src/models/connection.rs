@@ -9,6 +9,7 @@ pub enum DatabaseType {
     MSSQL,
     MariaDB,
     CockroachDB,
+    Oracle,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

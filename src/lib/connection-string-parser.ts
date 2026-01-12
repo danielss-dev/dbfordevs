@@ -23,6 +23,14 @@ export function detectDatabaseType(connStr: string): DatabaseType | null {
   if (trimmed.includes("cockroachdb") || trimmed.includes("cockroachlabs.cloud")) {
     return "cockroachdb";
   }
+  // Oracle Easy Connect format: //host:port/service or host:port/service
+  if (trimmed.match(/^\/\/[^/]+:\d+\/[^/]+/) || trimmed.match(/^[^/:]+:\d+\/[^/]+$/)) {
+    return "oracle";
+  }
+  // Oracle TNS format: (DESCRIPTION=(ADDRESS=...
+  if (trimmed.includes("(description=") || trimmed.includes("(address=")) {
+    return "oracle";
+  }
 
   return null;
 }
@@ -177,6 +185,70 @@ function parseMssqlConnectionString(connStr: string): ParsedConnection {
 }
 
 /**
+ * Parses an Oracle connection string
+ * Supports Easy Connect format: //host:port/service_name or host:port/service_name
+ * Also supports basic TNS format parsing
+ */
+function parseOracleConnectionString(connStr: string): ParsedConnection {
+  const result: ParsedConnection = {
+    options: {},
+    originalFormat: "easyconnect",
+    databaseType: "oracle"
+  };
+
+  const trimmed = connStr.trim();
+
+  // Easy Connect format: //host:port/service_name or host:port/service_name
+  const easyConnectMatch = trimmed.match(/^\/?\/?([^/:]+):(\d+)\/(.+)$/);
+  if (easyConnectMatch) {
+    result.host = easyConnectMatch[1];
+    result.port = parseInt(easyConnectMatch[2], 10);
+    result.database = easyConnectMatch[3];
+    return result;
+  }
+
+  // Simple format without port: //host/service_name
+  const simpleMatch = trimmed.match(/^\/?\/?([^/:]+)\/([^/]+)$/);
+  if (simpleMatch) {
+    result.host = simpleMatch[1];
+    result.port = 1521; // Default Oracle port
+    result.database = simpleMatch[2];
+    return result;
+  }
+
+  // TNS format parsing (basic support)
+  const lowerTrimmed = trimmed.toLowerCase();
+  if (lowerTrimmed.includes("(description=")) {
+    result.originalFormat = "tns";
+
+    // Extract HOST
+    const hostMatch = trimmed.match(/\(HOST\s*=\s*([^)]+)\)/i);
+    if (hostMatch) {
+      result.host = hostMatch[1].trim();
+    }
+
+    // Extract PORT
+    const portMatch = trimmed.match(/\(PORT\s*=\s*(\d+)\)/i);
+    if (portMatch) {
+      result.port = parseInt(portMatch[1], 10);
+    }
+
+    // Extract SERVICE_NAME or SID
+    const serviceMatch = trimmed.match(/\(SERVICE_NAME\s*=\s*([^)]+)\)/i);
+    const sidMatch = trimmed.match(/\(SID\s*=\s*([^)]+)\)/i);
+    if (serviceMatch) {
+      result.database = serviceMatch[1].trim();
+    } else if (sidMatch) {
+      result.database = sidMatch[1].trim();
+    }
+
+    return result;
+  }
+
+  throw new Error("Invalid Oracle connection string format. Supported formats: //host:port/service or TNS format");
+}
+
+/**
  * Main entry point for parsing connection strings
  * @param connStr The connection string to parse
  * @param dbType Optional database type hint (auto-detected if not provided)
@@ -198,7 +270,7 @@ export function parseConnectionString(
   if (!detectedType) {
     throw new Error(
       "Could not detect database type from connection string. " +
-      "Supported formats: postgresql://, mysql://, mariadb://, or MSSQL ADO.NET style (Server=...)"
+      "Supported formats: postgresql://, mysql://, mariadb://, MSSQL ADO.NET style (Server=...), or Oracle Easy Connect (//host:port/service)"
     );
   }
 
@@ -211,6 +283,8 @@ export function parseConnectionString(
       return parseMysqlUrl(trimmed);
     case "mssql":
       return parseMssqlConnectionString(trimmed);
+    case "oracle":
+      return parseOracleConnectionString(trimmed);
     default:
       throw new Error(
         `Connection string parsing is not supported for database type: ${detectedType}`

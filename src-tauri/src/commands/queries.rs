@@ -22,6 +22,10 @@ fn quote_single_identifier(identifier: &str, db_type: &DatabaseType) -> String {
             // PostgreSQL, SQLite, and CockroachDB use double quotes
             format!("\"{}\"", identifier.replace('"', "\"\""))
         }
+        DatabaseType::Oracle => {
+            // Oracle uses double quotes
+            format!("\"{}\"", identifier.replace('"', "\"\""))
+        }
     }
 }
 
