@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { Button, Separator } from "@/components/ui";
 import { useQueryStore, useCRUDStore, useUIStore, useConnectionsStore, useSchemaStore } from "@/stores";
@@ -15,7 +15,7 @@ interface TableViewerTabProps {
 
 export function TableViewerTab({ tab }: TableViewerTabProps) {
   const { isExecuting, error, results } = useQueryStore();
-  const { pendingChanges, clearPendingChanges, selectedRows, addPendingChange, markSelectedForDeletion } = useCRUDStore();
+  const { pendingChanges, clearPendingChanges, selectedRows, startCreatingRow, markSelectedForDeletion } = useCRUDStore();
   const { setRightPanelTab } = useUIStore();
   const { connections } = useConnectionsStore();
   const { getSchema } = useSchemaStore();
@@ -29,31 +29,41 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
   const pendingCount = Object.keys(pendingChanges).length;
   const selectedCount = selectedRows.length;
 
-  // Get columns from results or cached schema
-  const columns: ColumnInfo[] = tabResults?.columns || getSchema(connectionId, tableName)?.columns || [];
+  // Get cached schema for this table (used for empty tables fallback)
+  const cachedSchema = getSchema(connectionId, tableName);
 
-  // Add a new row with null values
+  // Get columns from results or cached schema (for empty tables)
+  // Note: tabResults?.columns might be empty array when table has 0 rows,
+  // so we need to explicitly check length, not just truthiness
+  const columns: ColumnInfo[] =
+    (tabResults?.columns && tabResults.columns.length > 0)
+      ? tabResults.columns
+      : cachedSchema?.columns || [];
+
+  // Create merged data for DataGrid that uses cached schema columns for empty tables
+  const dataGridData = useMemo(() => {
+    if (!tabResults) return null;
+    // If query returned columns, use them directly
+    if (tabResults.columns.length > 0) return tabResults;
+    // If no columns from query but we have cached schema, use those columns
+    if (cachedSchema?.columns && cachedSchema.columns.length > 0) {
+      return {
+        ...tabResults,
+        columns: cachedSchema.columns,
+      };
+    }
+    return tabResults;
+  }, [tabResults, cachedSchema]);
+
+  // Add a new row - opens the side panel in create mode
   const handleAddRow = useCallback(() => {
     if (!tableName || columns.length === 0) return;
 
-    // Create a new row with null values
-    const newRowData: Record<string, unknown> = {};
-    columns.forEach((col) => {
-      newRowData[col.name] = null;
-    });
-
-    // Generate a unique temporary ID for the new row
-    const tempId = `__new_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const primaryKey: Record<string, unknown> = { __temp_id: tempId };
-
-    addPendingChange({
-      id: crypto.randomUUID(),
-      tableName,
-      type: "insert",
-      newData: newRowData,
-      primaryKey,
-    });
-  }, [tableName, columns, addPendingChange]);
+    // Start creating a new row (opens side panel in create mode)
+    startCreatingRow(tableName, columns);
+    // Open the fields panel to edit the new row
+    setRightPanelTab("fields");
+  }, [tableName, columns, startCreatingRow, setRightPanelTab]);
 
   // Delete selected rows
   const handleDeleteSelected = useCallback(() => {
@@ -61,7 +71,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     markSelectedForDeletion(tableName, columns);
   }, [selectedCount, tableName, columns, markSelectedForDeletion]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!connectionId || !connection) return;
 
     const tableIdentifier = tab.tableName ?? tab.title;
@@ -74,7 +84,16 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
       },
       tab.id
     );
-  };
+  }, [connectionId, connection, tab.tableName, tab.title, tab.id, executeQuery]);
+
+  // Commit changes and refresh the table on success
+  const handleCommit = useCallback(async () => {
+    const successCount = await commitChanges();
+    if (successCount && successCount > 0) {
+      // Refresh the table data to show the committed changes
+      await loadData();
+    }
+  }, [commitChanges, loadData]);
 
   useEffect(() => {
     if (!tabResults && !isExecuting && connectionId) {
@@ -82,12 +101,13 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     }
   }, [tab.id, connectionId]);
 
-  // Fetch schema for empty tables or when schema is not available
+  // Fetch schema to get primary key info (needed for proper WHERE clause generation)
+  // Also needed for empty tables to know the column structure
   useEffect(() => {
-    if (connectionId && tableName && columns.length === 0 && !isExecuting) {
+    if (connectionId && tableName && !cachedSchema) {
       getTableSchema(connectionId, tableName);
     }
-  }, [connectionId, tableName, columns.length, isExecuting, getTableSchema]);
+  }, [connectionId, tableName, cachedSchema, getTableSchema]);
 
   // Handle F5 refresh
   useEffect(() => {
@@ -164,7 +184,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={commitChanges}
+                  onClick={handleCommit}
                   className="bg-success hover:bg-success/90 text-success-foreground gap-1.5 h-8 px-3"
                 >
                   <Save className="h-3.5 w-3.5" />
@@ -201,9 +221,9 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
               <span className="text-sm">{error}</span>
             </div>
           </div>
-        ) : tabResults ? (
+        ) : dataGridData ? (
           <DataGrid
-            data={tabResults}
+            data={dataGridData}
             tableName={tab.tableName || tab.title}
             connectionId={connectionId}
             onDataChange={loadData}

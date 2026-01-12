@@ -36,7 +36,7 @@ import {
 import { cn, formatTimestamp } from "@/lib/utils";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import type { QueryResult, ColumnInfo } from "@/types";
-import { useCRUDStore, useUIStore } from "@/stores";
+import { useCRUDStore, useUIStore, useSchemaStore } from "@/stores";
 import { EditableCell } from "./EditableCell";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
 import { ExportMenu } from "./ExportMenu";
@@ -176,10 +176,30 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     clearColumnFilter,
   } = useCRUDStore();
   const { setRightPanelTab } = useUIStore();
+  const { getSchema } = useSchemaStore();
 
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Get cached schema and merge isPrimaryKey info into columns
+  // This is needed because query results don't include primary key info
+  const columnsWithPK = useMemo(() => {
+    const cachedSchema = connectionId ? getSchema(connectionId, tableName || "") : null;
+    if (!cachedSchema) return data.columns;
+
+    // Build a set of primary key column names
+    const pkSet = new Set(cachedSchema.primaryKeys || []);
+    cachedSchema.columns?.forEach(col => {
+      if (col.isPrimaryKey) pkSet.add(col.name);
+    });
+
+    // Merge isPrimaryKey into data columns
+    return data.columns.map(col => ({
+      ...col,
+      isPrimaryKey: col.isPrimaryKey || pkSet.has(col.name),
+    }));
+  }, [data.columns, connectionId, tableName, getSchema]);
 
   // Handle Cmd+F / Ctrl+F to focus search
   useEffect(() => {
@@ -197,11 +217,11 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
 
   // Helper to create a SelectedRow object with full context
   const createSelectedRow = useCallback((row: Record<string, unknown>) => ({
-    rowId: generateRowId(row, data.columns),
+    rowId: generateRowId(row, columnsWithPK),
     tableName: tableName || "unknown",
     rowData: row,
-    columns: data.columns,
-  }), [data.columns, tableName]);
+    columns: columnsWithPK,
+  }), [columnsWithPK, tableName]);
 
   const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
     const tableColumns: ColumnDef<Record<string, unknown>>[] = [];
@@ -304,7 +324,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       enableSorting: false,
     });
 
-    tableColumns.push(...data.columns.map((col) => ({
+    tableColumns.push(...columnsWithPK.map((col) => ({
       id: col.name,
       accessorKey: col.name,
       header: ({ column }: { column: any }) => {
@@ -403,7 +423,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                 // For existing rows, create an update change
                 if (newValue !== value) {
                   // Build primaryKey with sorted keys to match generateRowId
-                  const pkColumns = data.columns.filter(c => c.isPrimaryKey).sort((a, b) => a.name.localeCompare(b.name));
+                  const pkColumns = columnsWithPK.filter(c => c.isPrimaryKey).sort((a, b) => a.name.localeCompare(b.name));
                   const primaryKey: Record<string, unknown> = {};
 
                   if (pkColumns.length > 0) {
@@ -496,11 +516,27 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
           content = (
             <span className={cn(
               "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border",
-              displayValue 
-                ? "bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))] border-[hsl(var(--success)/0.2)]" 
+              displayValue
+                ? "bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))] border-[hsl(var(--success)/0.2)]"
                 : "bg-muted text-muted-foreground/60 border-border/50"
             )}>
               {displayValue ? "true" : "false"}
+            </span>
+          );
+        } else if (typeof displayValue === "object") {
+          // Handle JSON/object values
+          let jsonStr: string;
+          try {
+            jsonStr = JSON.stringify(displayValue);
+          } catch {
+            jsonStr = "[Object]";
+          }
+          content = (
+            <span
+              className="font-mono text-[11px] text-[hsl(var(--text-dim))] hover:text-[hsl(var(--text-secondary))] transition-colors cursor-help truncate block max-w-[200px]"
+              title={JSON.stringify(displayValue, null, 2)}
+            >
+              {jsonStr}
             </span>
           );
         } else {
@@ -518,7 +554,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       },
     })));
     return tableColumns;
-  }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter, selectedRowIds, clearSelection, setSelectedRows, setRightPanelTab]);
+  }, [columnsWithPK, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter, selectedRowIds, clearSelection, setSelectedRows, setRightPanelTab]);
 
   const tableData = useMemo(() => {
     // Convert existing rows to records
@@ -550,8 +586,48 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     if (row.__pending_insert && row.__temp_pk) {
       return JSON.stringify(row.__temp_pk);
     }
-    return generateRowId(row, data.columns);
-  }, [data.columns]);
+    return generateRowId(row, columnsWithPK);
+  }, [columnsWithPK]);
+
+  // Sync selectedRows with current data when tableData changes
+  // This ensures selectedRows has fresh data after a refresh
+  // Use a ref to track the data.rows to detect actual data refresh (not just pendingChanges updates)
+  const lastDataRowsRef = useRef<typeof data.rows | null>(null);
+
+  useEffect(() => {
+    // Skip if no selection
+    if (selectedRowIds.length === 0) return;
+
+    // Only run when actual data rows change (from query refresh), not just pendingChanges
+    if (lastDataRowsRef.current === data.rows) return;
+    lastDataRowsRef.current = data.rows;
+
+    // Build a map of rowId -> current row data from tableData
+    const rowDataMap = new Map<string, Record<string, unknown>>();
+    tableData.forEach(row => {
+      const rowId = row.__pending_insert && row.__temp_pk
+        ? JSON.stringify(row.__temp_pk)
+        : generateRowId(row, columnsWithPK);
+      rowDataMap.set(rowId, row);
+    });
+
+    // Update selectedRows with fresh data for rows that still exist
+    const updatedSelectedRows = selectedRowIds
+      .map(rowId => {
+        const rowData = rowDataMap.get(rowId);
+        if (!rowData) return null;
+        return {
+          rowId,
+          tableName: tableName || "unknown",
+          rowData,
+          columns: columnsWithPK,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    // Always update to sync fresh data (the selection IDs are preserved)
+    setSelectedRows(updatedSelectedRows);
+  }, [data.rows, tableData, columnsWithPK, tableName, selectedRowIds, setSelectedRows]);
 
   // Convert our store filters to TanStack Table format
   const tanstackFilters = useMemo(() => {
@@ -608,7 +684,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
   const pageSize = table.getState().pagination.pageSize;
   const totalPages = table.getPageCount();
 
-  if (data.columns.length === 0) {
+  if (columnsWithPK.length === 0) {
     if (data.affectedRows !== undefined && data.affectedRows !== null) {
       return (
         <div className="flex h-full flex-col items-center justify-center text-center p-8 animate-fade-in">

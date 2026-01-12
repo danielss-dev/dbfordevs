@@ -121,6 +121,33 @@ export function CreateTableDialog() {
     }
   }, [showCreateTableDialog, creatingTableSchemaName, creatingTableConnectionId, setError, getReferenceableTables]);
 
+  // Regenerate DDL when step becomes preview or tableDefinition changes while on preview
+  useEffect(() => {
+    if (step !== "preview" || !creatingTableConnectionId) return;
+
+    let cancelled = false;
+    setIsGeneratingDDL(true);
+    generateCreateTableDDL(creatingTableConnectionId, tableDefinition)
+      .then((ddl) => {
+        if (!cancelled) {
+          setGeneratedDDL(ddl ?? "-- Failed to generate DDL");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setGeneratedDDL("-- Error generating DDL: " + (err instanceof Error ? err.message : String(err)));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsGeneratingDDL(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, tableDefinition, creatingTableConnectionId, generateCreateTableDDL]);
+
   // Update table definition helpers
   const updateTableDefinition = useCallback(
     (updates: Partial<NewTableDefinition>) => {
@@ -198,27 +225,14 @@ export function CreateTableDialog() {
   // Navigation
   const currentStepIndex = STEPS.findIndex((s) => s.id === step);
 
-  const goToNextStep = useCallback(async () => {
+  const goToNextStep = useCallback(() => {
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < STEPS.length) {
       const nextStep = STEPS[nextIndex].id;
-
-      // Generate DDL when going to preview step
-      if (nextStep === "preview" && creatingTableConnectionId) {
-        setIsGeneratingDDL(true);
-        try {
-          const ddl = await generateCreateTableDDL(creatingTableConnectionId, tableDefinition);
-          setGeneratedDDL(ddl ?? "-- Failed to generate DDL");
-        } catch (err) {
-          setGeneratedDDL("-- Error generating DDL: " + (err instanceof Error ? err.message : String(err)));
-        } finally {
-          setIsGeneratingDDL(false);
-        }
-      }
-
       setStep(nextStep);
+      // DDL generation is handled by useEffect when step becomes "preview"
     }
-  }, [currentStepIndex, creatingTableConnectionId, tableDefinition, generateCreateTableDDL]);
+  }, [currentStepIndex]);
 
   const goToPreviousStep = useCallback(() => {
     const prevIndex = currentStepIndex - 1;

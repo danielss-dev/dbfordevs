@@ -29,6 +29,48 @@ fn quote_single_identifier(identifier: &str, db_type: &DatabaseType) -> String {
     }
 }
 
+/// Formats a JSON value for SQL based on database type.
+/// Handles proper boolean literals, NULL, strings, and numbers.
+fn format_sql_value(v: &serde_json::Value, db_type: &DatabaseType) -> String {
+    match v {
+        serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => {
+            // Use database-specific boolean literals
+            match db_type {
+                DatabaseType::PostgreSQL | DatabaseType::CockroachDB => {
+                    if *b { "TRUE".to_string() } else { "FALSE".to_string() }
+                }
+                DatabaseType::MySQL | DatabaseType::MariaDB => {
+                    if *b { "1".to_string() } else { "0".to_string() }
+                }
+                DatabaseType::SQLite => {
+                    if *b { "1".to_string() } else { "0".to_string() }
+                }
+                DatabaseType::MSSQL => {
+                    if *b { "1".to_string() } else { "0".to_string() }
+                }
+                DatabaseType::Oracle => {
+                    // Oracle doesn't have a native boolean type, use 1/0
+                    if *b { "1".to_string() } else { "0".to_string() }
+                }
+            }
+        }
+        serde_json::Value::Null => "NULL".to_string(),
+        _ => format!("'{}'", v.to_string().replace('\'', "''")),
+    }
+}
+
+/// Formats a WHERE clause condition, handling NULL values correctly (IS NULL vs = NULL).
+fn format_where_condition(col: &str, v: &serde_json::Value, db_type: &DatabaseType) -> String {
+    let quoted_col = quote_single_identifier(col, db_type);
+    if v.is_null() {
+        format!("{} IS NULL", quoted_col)
+    } else {
+        format!("{} = {}", quoted_col, format_sql_value(v, db_type))
+    }
+}
+
 /// Quotes a SQL identifier (table name, column name, etc.) based on database type.
 /// Handles schema-qualified names like "public.table name" by quoting each part separately.
 /// Example: "public.comments 2" becomes "\"public\".\"comments 2\"" for PostgreSQL.
@@ -175,20 +217,15 @@ pub async fn insert_row(
 
     // Build INSERT statement with properly quoted identifiers
     let quoted_table = quote_identifier(&table_name, &config.database_type);
-    let columns: Vec<String> = values.keys()
-        .map(|k| quote_single_identifier(k, &config.database_type))
-        .collect();
 
-    // For now, execute as a simple query - in production, use parameterized queries
-    let values_str: Vec<String> = values.values().map(|v| {
-        match v {
-            serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
-            serde_json::Value::Number(n) => n.to_string(),
-            serde_json::Value::Bool(b) => b.to_string(),
-            serde_json::Value::Null => "NULL".to_string(),
-            _ => format!("'{}'", v.to_string().replace('\'', "''")),
-        }
-    }).collect();
+    // Collect columns and values in consistent order
+    let entries: Vec<_> = values.iter().collect();
+    let columns: Vec<String> = entries.iter()
+        .map(|(k, _)| quote_single_identifier(k, &config.database_type))
+        .collect();
+    let values_str: Vec<String> = entries.iter()
+        .map(|(_, v)| format_sql_value(v, &config.database_type))
+        .collect();
 
     let sql_with_values = format!(
         "INSERT INTO {} ({}) VALUES ({})",
@@ -224,29 +261,17 @@ pub async fn update_row(
     // Build UPDATE statement with properly quoted identifiers
     let quoted_table = quote_identifier(&table_name, &config.database_type);
 
+    // Build SET clauses with proper value formatting
     let set_clauses: Vec<String> = values.iter().map(|(k, v)| {
         let quoted_col = quote_single_identifier(k, &config.database_type);
-        let value_str = match v {
-            serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
-            serde_json::Value::Number(n) => n.to_string(),
-            serde_json::Value::Bool(b) => b.to_string(),
-            serde_json::Value::Null => "NULL".to_string(),
-            _ => format!("'{}'", v.to_string().replace('\'', "''")),
-        };
+        let value_str = format_sql_value(v, &config.database_type);
         format!("{} = {}", quoted_col, value_str)
     }).collect();
 
-    let where_clauses: Vec<String> = primary_key.iter().map(|(k, v)| {
-        let quoted_col = quote_single_identifier(k, &config.database_type);
-        let value_str = match v {
-            serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
-            serde_json::Value::Number(n) => n.to_string(),
-            serde_json::Value::Bool(b) => b.to_string(),
-            serde_json::Value::Null => "NULL".to_string(),
-            _ => format!("'{}'", v.to_string().replace('\'', "''")),
-        };
-        format!("{} = {}", quoted_col, value_str)
-    }).collect();
+    // Build WHERE clauses with proper NULL handling
+    let where_clauses: Vec<String> = primary_key.iter()
+        .map(|(k, v)| format_where_condition(k, v, &config.database_type))
+        .collect();
 
     let sql = format!(
         "UPDATE {} SET {} WHERE {}",
@@ -281,17 +306,10 @@ pub async fn delete_row(
     // Build DELETE statement with properly quoted identifiers
     let quoted_table = quote_identifier(&table_name, &config.database_type);
 
-    let where_clauses: Vec<String> = primary_key.iter().map(|(k, v)| {
-        let quoted_col = quote_single_identifier(k, &config.database_type);
-        let value_str = match v {
-            serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
-            serde_json::Value::Number(n) => n.to_string(),
-            serde_json::Value::Bool(b) => b.to_string(),
-            serde_json::Value::Null => "NULL".to_string(),
-            _ => format!("'{}'", v.to_string().replace('\'', "''")),
-        };
-        format!("{} = {}", quoted_col, value_str)
-    }).collect();
+    // Build WHERE clauses with proper NULL handling
+    let where_clauses: Vec<String> = primary_key.iter()
+        .map(|(k, v)| format_where_condition(k, v, &config.database_type))
+        .collect();
 
     let sql = format!(
         "DELETE FROM {} WHERE {}",
