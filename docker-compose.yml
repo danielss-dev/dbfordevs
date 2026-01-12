@@ -126,9 +126,48 @@ services:
         echo "Init complete!"
     restart: "no"
 
+  # Oracle Database Free - Port 1521
+  oracle:
+    image: gvenzl/oracle-free:23-slim-faststart
+    container_name: dbfordevs-oracle
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: testuser
+      APP_USER_PASSWORD: testuser
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # Oracle Init - runs sample data after Oracle is ready
+  oracle-init:
+    image: gvenzl/oracle-free:23-slim
+    container_name: dbfordevs-oracle-init
+    depends_on:
+      oracle:
+        condition: service_healthy
+    volumes:
+      - ./docker/oracle-init:/init
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Waiting for Oracle to be ready..."
+        sleep 10
+        echo "Running init script..."
+        sqlplus testuser/testuser@//oracle:1521/FREEPDB1 @/init/01-sample-data.sql
+        echo "Init complete!"
+    restart: "no"
+
 volumes:
   postgres_data:
   mysql_data:
   mariadb_data:
   mssql_data:
   cockroach_data:
+  oracle_data:

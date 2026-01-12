@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, CheckCircle2, XCircle, Database, HelpCircle, Server, Key, FolderOpen, Link2, Shield, Terminal, FileText } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Database, HelpCircle, Server, Key, FolderOpen, Link2, Shield, Terminal, FileText, Settings2 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { OracleSetupDialog, isOracleClientError } from "./OracleSetupDialog";
 import {
   Dialog,
   DialogContent,
@@ -158,6 +159,7 @@ export function ConnectionModal() {
 
   const [formData, setFormData] = useState<ConnectionConfig>(INITIAL_FORM_DATA);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [showOracleSetup, setShowOracleSetup] = useState(false);
 
   const isEditMode = editingConnectionId !== null;
   const defaults = useMemo(() => DATABASE_DEFAULTS[formData.databaseType], [formData.databaseType]);
@@ -867,7 +869,7 @@ export function ConnectionModal() {
                 ) : (
                   <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                 )}
-                <div className="space-y-1 min-w-0">
+                <div className="space-y-2 min-w-0 flex-1">
                   <p className={`text-sm font-medium ${
                     testResult.success
                       ? "text-green-900 dark:text-green-100"
@@ -886,6 +888,18 @@ export function ConnectionModal() {
                     <p className="text-xs text-green-600 dark:text-green-400 font-mono">
                       Server: {testResult.serverVersion}
                     </p>
+                  )}
+                  {/* Oracle Client Setup Button */}
+                  {!testResult.success && formData.databaseType === "oracle" && isOracleClientError(testResult.message) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => setShowOracleSetup(true)}
+                    >
+                      <Settings2 className="h-4 w-4 mr-2" />
+                      Setup Oracle Client
+                    </Button>
                   )}
                 </div>
               </div>
@@ -925,6 +939,17 @@ export function ConnectionModal() {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Oracle Setup Dialog */}
+      <OracleSetupDialog
+        open={showOracleSetup}
+        onOpenChange={setShowOracleSetup}
+        onSetupComplete={() => {
+          setShowOracleSetup(false);
+          // Clear the test result to encourage retrying
+          setTestResult(null);
+        }}
+      />
     </Dialog>
   );
 }

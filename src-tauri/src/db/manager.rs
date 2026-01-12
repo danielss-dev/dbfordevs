@@ -7,8 +7,9 @@ use sqlx::{postgres::PgPool, mysql::MySqlPool, sqlite::SqlitePool};
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 
-// Re-export MSSQL pool type from mssql module
+// Re-export pool types from driver modules
 pub use crate::db::mssql::MssqlPool;
+pub use crate::db::oracle::OraclePool;
 
 /// Enum to hold different database pool types
 pub enum ConnectionPool {
@@ -16,6 +17,7 @@ pub enum ConnectionPool {
     MySql(MySqlPool),
     Sqlite(SqlitePool),
     Mssql(MssqlPool),
+    Oracle(OraclePool),
 }
 
 /// Manages active database connections
@@ -112,6 +114,13 @@ impl ConnectionManager {
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to CockroachDB: {}", e)))?;
                 (ConnectionPool::Postgres(pool), connection_string)
             }
+            DatabaseType::Oracle => {
+                let oracle_config = super::oracle::build_oracle_config(&tunnel_config);
+                let connection_string = oracle_config.connect_string.clone();
+                let pool = super::oracle::create_oracle_pool(oracle_config).await
+                    .map_err(|e| AppError::ConnectionError(format!("Failed to connect to Oracle: {}", e)))?;
+                (ConnectionPool::Oracle(pool), connection_string)
+            }
         };
 
         self.connection_strings.insert(connection_id.clone(), connection_string);
@@ -128,6 +137,9 @@ impl ConnectionManager {
                 ConnectionPool::MySql(p) => p.close().await,
                 ConnectionPool::Sqlite(p) => p.close().await,
                 ConnectionPool::Mssql(p) => {
+                    p.close();
+                }
+                ConnectionPool::Oracle(p) => {
                     p.close();
                 }
             }
@@ -158,6 +170,7 @@ impl ConnectionManager {
             ConnectionPool::MySql(p) => Ok(PoolRef::MySql(p)),
             ConnectionPool::Sqlite(p) => Ok(PoolRef::Sqlite(p)),
             ConnectionPool::Mssql(p) => Ok(PoolRef::Mssql(p)),
+            ConnectionPool::Oracle(p) => Ok(PoolRef::Oracle(p)),
         }
     }
 
@@ -225,6 +238,7 @@ fn get_default_port(db_type: &DatabaseType) -> u16 {
         DatabaseType::MSSQL => 1433,
         DatabaseType::SQLite => 0, // Not used for SQLite
         DatabaseType::CockroachDB => 26257,
+        DatabaseType::Oracle => 1521,
     }
 }
 
