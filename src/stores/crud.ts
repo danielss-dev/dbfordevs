@@ -19,6 +19,13 @@ export interface SelectedRow {
   columns: ColumnInfo[];
 }
 
+// State for creating a new row
+export interface CreatingNewRow {
+  tableName: string;
+  columns: ColumnInfo[];
+  data: Record<string, unknown>;
+}
+
 interface CRUDState {
   // Selection with context
   selectedRows: SelectedRow[];
@@ -27,6 +34,9 @@ interface CRUDState {
 
   // Inline editing
   editingCell: { rowId: string; columnId: string } | null;
+
+  // Creating a new row (side panel create mode)
+  creatingNewRow: CreatingNewRow | null;
 
   // Changes management
   pendingChanges: Record<string, PendingChange>; // Keyed by rowId
@@ -52,6 +62,12 @@ interface CRUDState {
 
   setEditingCell: (cell: { rowId: string; columnId: string } | null) => void;
 
+  // Creating new row actions
+  startCreatingRow: (tableName: string, columns: ColumnInfo[]) => void;
+  updateCreatingRowField: (fieldName: string, value: unknown) => void;
+  cancelCreatingRow: () => void;
+  saveCreatingRow: () => void;
+
   addPendingChange: (change: PendingChange) => void;
   removePendingChange: (rowId: string) => void;
   clearPendingChanges: () => void;
@@ -72,6 +88,7 @@ export const useCRUDStore = create<CRUDState>()(
       selectedRows: [],
       selectedRowIds: [],
       editingCell: null,
+      creatingNewRow: null,
       pendingChanges: {},
       commitMode: "staged",
       newRowCounter: 0,
@@ -124,6 +141,65 @@ export const useCRUDStore = create<CRUDState>()(
       clearSelection: () => set({ selectedRows: [], selectedRowIds: [] }),
 
       setEditingCell: (editingCell) => set({ editingCell }),
+
+      // Creating new row actions
+      startCreatingRow: (tableName, columns) =>
+        set({
+          creatingNewRow: {
+            tableName,
+            columns,
+            data: columns.reduce((acc, col) => {
+              acc[col.name] = null;
+              return acc;
+            }, {} as Record<string, unknown>),
+          },
+          // Clear selection when starting to create a new row
+          selectedRows: [],
+          selectedRowIds: [],
+        }),
+
+      updateCreatingRowField: (fieldName, value) =>
+        set((state) => {
+          if (!state.creatingNewRow) return state;
+          return {
+            creatingNewRow: {
+              ...state.creatingNewRow,
+              data: {
+                ...state.creatingNewRow.data,
+                [fieldName]: value,
+              },
+            },
+          };
+        }),
+
+      cancelCreatingRow: () => set({ creatingNewRow: null }),
+
+      saveCreatingRow: () =>
+        set((state) => {
+          if (!state.creatingNewRow) return state;
+
+          const { tableName, data } = state.creatingNewRow;
+
+          // Generate a unique temporary ID for the new row
+          const tempId = `__new_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+          const primaryKey: Record<string, unknown> = { __temp_id: tempId };
+
+          const newChange: PendingChange = {
+            id: crypto.randomUUID(),
+            tableName,
+            type: "insert",
+            newData: data,
+            primaryKey,
+          };
+
+          return {
+            creatingNewRow: null,
+            pendingChanges: {
+              ...state.pendingChanges,
+              [JSON.stringify(primaryKey)]: newChange,
+            },
+          };
+        }),
 
       addPendingChange: (change) =>
         set((state) => {

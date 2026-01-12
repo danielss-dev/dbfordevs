@@ -15,7 +15,7 @@ interface TableViewerTabProps {
 
 export function TableViewerTab({ tab }: TableViewerTabProps) {
   const { isExecuting, error, results } = useQueryStore();
-  const { pendingChanges, clearPendingChanges, selectedRows, addPendingChange, markSelectedForDeletion } = useCRUDStore();
+  const { pendingChanges, clearPendingChanges, selectedRows, startCreatingRow, markSelectedForDeletion } = useCRUDStore();
   const { setRightPanelTab } = useUIStore();
   const { connections } = useConnectionsStore();
   const { getSchema } = useSchemaStore();
@@ -55,28 +55,15 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     return tabResults;
   }, [tabResults, cachedSchema]);
 
-  // Add a new row with null values
+  // Add a new row - opens the side panel in create mode
   const handleAddRow = useCallback(() => {
     if (!tableName || columns.length === 0) return;
 
-    // Create a new row with null values
-    const newRowData: Record<string, unknown> = {};
-    columns.forEach((col) => {
-      newRowData[col.name] = null;
-    });
-
-    // Generate a unique temporary ID for the new row
-    const tempId = `__new_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const primaryKey: Record<string, unknown> = { __temp_id: tempId };
-
-    addPendingChange({
-      id: crypto.randomUUID(),
-      tableName,
-      type: "insert",
-      newData: newRowData,
-      primaryKey,
-    });
-  }, [tableName, columns, addPendingChange]);
+    // Start creating a new row (opens side panel in create mode)
+    startCreatingRow(tableName, columns);
+    // Open the fields panel to edit the new row
+    setRightPanelTab("fields");
+  }, [tableName, columns, startCreatingRow, setRightPanelTab]);
 
   // Delete selected rows
   const handleDeleteSelected = useCallback(() => {
@@ -84,7 +71,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     markSelectedForDeletion(tableName, columns);
   }, [selectedCount, tableName, columns, markSelectedForDeletion]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!connectionId || !connection) return;
 
     const tableIdentifier = tab.tableName ?? tab.title;
@@ -97,7 +84,16 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
       },
       tab.id
     );
-  };
+  }, [connectionId, connection, tab.tableName, tab.title, tab.id, executeQuery]);
+
+  // Commit changes and refresh the table on success
+  const handleCommit = useCallback(async () => {
+    const successCount = await commitChanges();
+    if (successCount && successCount > 0) {
+      // Refresh the table data to show the committed changes
+      await loadData();
+    }
+  }, [commitChanges, loadData]);
 
   useEffect(() => {
     if (!tabResults && !isExecuting && connectionId) {
@@ -188,7 +184,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={commitChanges}
+                  onClick={handleCommit}
                   className="bg-success hover:bg-success/90 text-success-foreground gap-1.5 h-8 px-3"
                 >
                   <Save className="h-3.5 w-3.5" />

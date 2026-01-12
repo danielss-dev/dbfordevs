@@ -97,6 +97,14 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
   const formatValue = (value: unknown): string => {
     if (value === null || value === undefined) return "NULL";
     if (typeof value === "string") return `"${value}"`;
+    if (typeof value === "object") {
+      // Handle JSON objects - stringify them
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return "[Object]";
+      }
+    }
     return String(value);
   };
 

@@ -78,6 +78,26 @@ export function useCRUD() {
           delete (insertData as Record<string, unknown>).__pending_insert;
           delete (insertData as Record<string, unknown>).__temp_pk;
 
+          // Get schema to identify auto-increment columns
+          const cachedSchema = getSchema(activeTab.connectionId, change.tableName);
+
+          // Filter out auto-increment columns with NULL values
+          // Auto-increment columns should be omitted from INSERT to let the DB generate the value
+          if (cachedSchema?.columns) {
+            for (const col of cachedSchema.columns) {
+              const dataType = col.dataType.toLowerCase();
+              const isAutoIncrement =
+                dataType.includes("serial") || // PostgreSQL: serial, bigserial, smallserial
+                dataType.includes("identity") || // MSSQL/Oracle: identity columns
+                (dataType.includes("int") && col.isPrimaryKey); // Common pattern: int PK often auto-increment
+
+              // If column is auto-increment and value is null, remove it from insert
+              if (isAutoIncrement && insertData[col.name] === null) {
+                delete insertData[col.name];
+              }
+            }
+          }
+
           result = await insertRow(
             activeTab.connectionId,
             change.tableName,
@@ -102,9 +122,6 @@ export function useCRUD() {
         title: "Changes committed",
         description: `Successfully applied ${successCount} change(s).${errorCount > 0 ? ` ${errorCount} failed.` : ""}`,
       });
-      
-      // We might want to refresh the table here, but TableViewerTab should handle it 
-      // if we trigger a refresh or if it's watching something.
     } else if (errorCount > 0) {
       toast({
         title: "Commit failed",
@@ -112,6 +129,8 @@ export function useCRUD() {
         variant: "destructive",
       });
     }
+
+    return successCount;
   }, [activeTab, pendingChanges, updateRow, deleteRow, insertRow, removePendingChange, toast, getActualPrimaryKey]);
 
   return {

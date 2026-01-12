@@ -516,11 +516,27 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
           content = (
             <span className={cn(
               "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border",
-              displayValue 
-                ? "bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))] border-[hsl(var(--success)/0.2)]" 
+              displayValue
+                ? "bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))] border-[hsl(var(--success)/0.2)]"
                 : "bg-muted text-muted-foreground/60 border-border/50"
             )}>
               {displayValue ? "true" : "false"}
+            </span>
+          );
+        } else if (typeof displayValue === "object") {
+          // Handle JSON/object values
+          let jsonStr: string;
+          try {
+            jsonStr = JSON.stringify(displayValue);
+          } catch {
+            jsonStr = "[Object]";
+          }
+          content = (
+            <span
+              className="font-mono text-[11px] text-[hsl(var(--text-dim))] hover:text-[hsl(var(--text-secondary))] transition-colors cursor-help truncate block max-w-[200px]"
+              title={JSON.stringify(displayValue, null, 2)}
+            >
+              {jsonStr}
             </span>
           );
         } else {
@@ -572,6 +588,46 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     }
     return generateRowId(row, columnsWithPK);
   }, [columnsWithPK]);
+
+  // Sync selectedRows with current data when tableData changes
+  // This ensures selectedRows has fresh data after a refresh
+  // Use a ref to track the last tableData to avoid infinite loops
+  const lastTableDataRef = useRef<typeof tableData | null>(null);
+
+  useEffect(() => {
+    // Skip if no selection or if tableData hasn't actually changed
+    if (selectedRowIds.length === 0) return;
+    if (lastTableDataRef.current === tableData) return;
+    lastTableDataRef.current = tableData;
+
+    // Build a map of rowId -> current row data
+    const rowDataMap = new Map<string, Record<string, unknown>>();
+    tableData.forEach(row => {
+      const rowId = row.__pending_insert && row.__temp_pk
+        ? JSON.stringify(row.__temp_pk)
+        : generateRowId(row, columnsWithPK);
+      rowDataMap.set(rowId, row);
+    });
+
+    // Filter and update selectedRows to only include rows that still exist
+    const validSelectedRows = selectedRowIds
+      .map(rowId => {
+        const rowData = rowDataMap.get(rowId);
+        if (!rowData) return null;
+        return {
+          rowId,
+          tableName: tableName || "unknown",
+          rowData,
+          columns: columnsWithPK,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    // Only update if rows were removed or we need to sync fresh data
+    if (validSelectedRows.length > 0) {
+      setSelectedRows(validSelectedRows);
+    }
+  }, [tableData, columnsWithPK, tableName, selectedRowIds, setSelectedRows]);
 
   // Convert our store filters to TanStack Table format
   const tanstackFilters = useMemo(() => {
