@@ -591,16 +591,18 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
 
   // Sync selectedRows with current data when tableData changes
   // This ensures selectedRows has fresh data after a refresh
-  // Use a ref to track the last tableData to avoid infinite loops
-  const lastTableDataRef = useRef<typeof tableData | null>(null);
+  // Use a ref to track the data.rows to detect actual data refresh (not just pendingChanges updates)
+  const lastDataRowsRef = useRef<typeof data.rows | null>(null);
 
   useEffect(() => {
-    // Skip if no selection or if tableData hasn't actually changed
+    // Skip if no selection
     if (selectedRowIds.length === 0) return;
-    if (lastTableDataRef.current === tableData) return;
-    lastTableDataRef.current = tableData;
 
-    // Build a map of rowId -> current row data
+    // Only run when actual data rows change (from query refresh), not just pendingChanges
+    if (lastDataRowsRef.current === data.rows) return;
+    lastDataRowsRef.current = data.rows;
+
+    // Build a map of rowId -> current row data from tableData
     const rowDataMap = new Map<string, Record<string, unknown>>();
     tableData.forEach(row => {
       const rowId = row.__pending_insert && row.__temp_pk
@@ -609,8 +611,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       rowDataMap.set(rowId, row);
     });
 
-    // Filter and update selectedRows to only include rows that still exist
-    const validSelectedRows = selectedRowIds
+    // Update selectedRows with fresh data for rows that still exist
+    const updatedSelectedRows = selectedRowIds
       .map(rowId => {
         const rowData = rowDataMap.get(rowId);
         if (!rowData) return null;
@@ -623,11 +625,9 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       })
       .filter((row): row is NonNullable<typeof row> => row !== null);
 
-    // Only update if rows were removed or we need to sync fresh data
-    if (validSelectedRows.length > 0) {
-      setSelectedRows(validSelectedRows);
-    }
-  }, [tableData, columnsWithPK, tableName, selectedRowIds, setSelectedRows]);
+    // Always update to sync fresh data (the selection IDs are preserved)
+    setSelectedRows(updatedSelectedRows);
+  }, [data.rows, tableData, columnsWithPK, tableName, selectedRowIds, setSelectedRows]);
 
   // Convert our store filters to TanStack Table format
   const tanstackFilters = useMemo(() => {
