@@ -72,33 +72,46 @@ export const useUpdaterStore = create<UpdaterStore>()((set, get) => ({
     const { update } = get();
     if (!update) return;
 
-    set({ downloading: true, progress: 0 });
+    set({ downloading: true, progress: 0, error: null });
 
     try {
       let downloadedBytes = 0;
       let totalBytes = 0;
 
+      console.log("[Updater] Starting download and install...");
+
       await update.downloadAndInstall((event) => {
         switch (event.event) {
           case "Started":
             totalBytes = event.data.contentLength ?? 0;
+            console.log(`[Updater] Download started, total size: ${totalBytes} bytes`);
+            // If content length is unknown, show indeterminate progress
+            if (totalBytes === 0) {
+              set({ progress: -1 }); // -1 indicates indeterminate
+            }
             break;
           case "Progress":
             downloadedBytes += event.data.chunkLength;
             if (totalBytes > 0) {
               const progress = Math.round((downloadedBytes / totalBytes) * 100);
               set({ progress });
+            } else {
+              // For indeterminate progress, keep it at -1 but log bytes downloaded
+              console.log(`[Updater] Downloaded ${downloadedBytes} bytes (total unknown)`);
             }
             break;
           case "Finished":
+            console.log("[Updater] Download finished, installing...");
             set({ progress: 100 });
             break;
         }
       });
 
+      console.log("[Updater] Install complete, relaunching...");
       // Relaunch the app after installation
       await relaunch();
     } catch (error) {
+      console.error("[Updater] Error:", error);
       const errorMessage =
         error instanceof Error
           ? error.message

@@ -99,6 +99,7 @@ function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabP
     downloading,
     progress,
     newVersion,
+    error,
     checkForUpdates,
     downloadAndInstall,
   } = useUpdaterStore();
@@ -129,9 +130,13 @@ function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabP
           <div className="space-y-1">
             <Label className="text-sm font-medium">Software Update</Label>
             <p className="text-xs text-muted-foreground max-w-[280px]">
-              {available
-                ? `Version ${newVersion} is available.`
-                : "You're running the latest version."}
+              {error ? (
+                <span className="text-destructive">{error}</span>
+              ) : available ? (
+                `Version ${newVersion} is available.`
+              ) : (
+                "You're running the latest version."
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -140,11 +145,17 @@ function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabP
                 size="sm"
                 onClick={() => downloadAndInstall()}
                 disabled={downloading}
+                variant={error ? "destructive" : "default"}
               >
                 {downloading ? (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Installing {progress}%
+                    {progress === -1 ? "Downloading..." : `Installing ${progress}%`}
+                  </>
+                ) : error ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retry Update
                   </>
                 ) : (
                   <>
