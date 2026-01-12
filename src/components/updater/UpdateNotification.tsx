@@ -13,6 +13,7 @@ export function UpdateNotification() {
     progress,
     newVersion,
     dismissed,
+    error,
     downloadAndInstall,
     dismissUpdate,
     checkForUpdates,
@@ -77,9 +78,11 @@ export function UpdateNotification() {
               Update Available
             </ToastPrimitives.Title>
             <ToastPrimitives.Description className="text-sm opacity-90">
-              {downloading ? (
+              {error ? (
+                <span className="text-destructive">{error}</span>
+              ) : downloading ? (
                 <span className="flex items-center gap-2">
-                  Downloading... {progress}%
+                  {progress === -1 ? "Downloading..." : `Downloading... ${progress}%`}
                 </span>
               ) : (
                 <span>Version {newVersion} is ready to install.</span>
@@ -88,8 +91,11 @@ export function UpdateNotification() {
             {downloading && (
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary mt-2">
                 <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${progress}%` }}
+                  className={cn(
+                    "h-full bg-primary transition-all duration-300",
+                    progress === -1 && "animate-pulse w-full"
+                  )}
+                  style={progress >= 0 ? { width: `${progress}%` } : undefined}
                 />
               </div>
             )}
@@ -110,12 +116,18 @@ export function UpdateNotification() {
             size="sm"
             onClick={handleInstall}
             disabled={downloading}
+            variant={error ? "destructive" : "default"}
             className="h-8"
           >
             {downloading ? (
               <>
                 <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 Installing
+              </>
+            ) : error ? (
+              <>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                Retry
               </>
             ) : (
               <>
