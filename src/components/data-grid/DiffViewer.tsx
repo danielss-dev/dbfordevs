@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Hash, Trash2, Plus, Pencil } from "lucide-react";
 import type { PendingChange } from "@/types";
 
 interface DiffViewerProps {
@@ -14,7 +15,35 @@ interface DiffField {
   newValue?: unknown;
 }
 
-function DiffItem({ change, idx, onRemove }: { change: PendingChange; idx: number; onRemove: () => void }) {
+// Helper to get a readable row identifier from primary key
+function getRowIdentifier(change: PendingChange): { label: string; value: string } {
+  const pk = change.primaryKey;
+  const pkEntries = Object.entries(pk).filter(([key]) => !key.startsWith("__"));
+
+  if (pkEntries.length === 0) {
+    return { label: "Row", value: "unknown" };
+  }
+
+  // If there's an 'id' column, prioritize it
+  const idEntry = pkEntries.find(([key]) => key.toLowerCase() === "id");
+  if (idEntry) {
+    return { label: "id", value: String(idEntry[1]) };
+  }
+
+  // Otherwise use the first PK column
+  const [key, value] = pkEntries[0];
+  if (pkEntries.length === 1) {
+    return { label: key, value: String(value) };
+  }
+
+  // Multiple PK columns - show all
+  return {
+    label: "Row",
+    value: pkEntries.map(([k, v]) => `${k}=${v}`).join(", ")
+  };
+}
+
+function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () => void }) {
   const diffFields = useMemo(() => {
     const fields: DiffField[] = [];
     const { type, originalData, newData } = change;
@@ -36,7 +65,7 @@ function DiffItem({ change, idx, onRemove }: { change: PendingChange; idx: numbe
       // newData contains only the fields that were modified
       Object.entries(newData).forEach(([name, newValue]) => {
         const oldValue = originalData[name];
-        
+
         if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
           // Field changed
           fields.push({ name, status: "changed", oldValue, newValue });
@@ -47,12 +76,21 @@ function DiffItem({ change, idx, onRemove }: { change: PendingChange; idx: numbe
     return fields;
   }, [change]);
 
-  const getTypeLabel = (type: string) => {
+  const getTypeStyles = (type: string) => {
     switch (type) {
-      case "update": return "text-blue-500";
-      case "delete": return "text-destructive";
-      case "insert": return "text-success";
-      default: return "text-muted-foreground";
+      case "update": return { color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/30" };
+      case "delete": return { color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" };
+      case "insert": return { color: "text-success", bg: "bg-success/10", border: "border-success/30" };
+      default: return { color: "text-muted-foreground", bg: "bg-muted", border: "border-border" };
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "update": return <Pencil className="h-3 w-3" />;
+      case "delete": return <Trash2 className="h-3 w-3" />;
+      case "insert": return <Plus className="h-3 w-3" />;
+      default: return null;
     }
   };
 
@@ -62,35 +100,48 @@ function DiffItem({ change, idx, onRemove }: { change: PendingChange; idx: numbe
     return String(value);
   };
 
+  const styles = getTypeStyles(change.type);
+  const rowId = getRowIdentifier(change);
+
   return (
-    <div className="space-y-2 pb-4 border-b border-border last:border-0">
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-2 uppercase tracking-wider">
-        <span>Change #{idx + 1}</span>
-        <div className="flex items-center gap-2">
-          <span className={`font-bold ${getTypeLabel(change.type)}`}>{change.type}</span>
-          <button
-            onClick={onRemove}
-            className="hover:text-destructive transition-colors"
-          >
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+      {/* Change header with type badge and row identifier */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b border-border">
+        <div className="flex items-center gap-3">
+          {/* Type badge */}
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${styles.color} ${styles.bg} border ${styles.border}`}>
+            {getTypeIcon(change.type)}
+            {change.type}
+          </span>
+          {/* Row identifier */}
+          <div className="flex items-center gap-1.5 text-xs">
+            <Hash className="h-3 w-3 text-muted-foreground/50" />
+            <span className="text-muted-foreground/70">{rowId.label}:</span>
+            <span className="font-mono font-semibold text-foreground">{rowId.value}</span>
+          </div>
         </div>
+        <button
+          onClick={onRemove}
+          className="p-1.5 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors"
+          title="Remove change"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
-      <div className="bg-muted/30 rounded-lg border border-border overflow-hidden">
-        {/* Table name header */}
-        <div className="px-3 py-1.5 bg-muted/50 border-b border-border flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
-            {change.tableName}
+      {/* Table name subheader */}
+      <div className="px-3 py-1.5 bg-muted/10 border-b border-border/50 flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/80">
+          {change.tableName}
+        </span>
+        {change.type === "update" && change.originalData && (
+          <span className="text-[9px] text-muted-foreground/60">
+            {diffFields.length} of {Object.keys(change.originalData).length} fields changed
           </span>
-          {change.type === "update" && change.originalData && (
-            <span className="text-[9px] text-muted-foreground/60">
-              {diffFields.length} of {Object.keys(change.originalData).length} fields changed
-            </span>
-          )}
-        </div>
+        )}
+      </div>
 
         {/* Diff lines */}
         <div className="font-mono text-[11px] leading-relaxed p-2 space-y-0.5">
@@ -142,7 +193,6 @@ function DiffItem({ change, idx, onRemove }: { change: PendingChange; idx: numbe
             ))
           )}
         </div>
-      </div>
     </div>
   );
 }
@@ -162,12 +212,11 @@ export function DiffViewer({ changes, onRemoveChange }: DiffViewerProps) {
   }
 
   return (
-    <div className="space-y-0">
-      {changes.map((change, idx) => (
+    <div className="space-y-4 p-1">
+      {changes.map((change) => (
         <DiffItem
           key={change.id}
           change={change}
-          idx={idx}
           onRemove={() => onRemoveChange(JSON.stringify(change.primaryKey))}
         />
       ))}

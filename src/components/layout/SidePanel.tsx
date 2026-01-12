@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table, Code, GitCommit, Eye, AlertCircle, Loader2, Check, Sparkles, Settings, Bot, History, Plus, Coins, TreeDeciduous } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -11,8 +11,10 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  Switch,
+  Textarea,
 } from "@/components/ui";
-import { useUIStore, useCRUDStore, useQueryStore, usePreviewStore, useConnectionsStore, selectActiveConnection } from "@/stores";
+import { useUIStore, useCRUDStore, useQueryStore, usePreviewStore, useConnectionsStore, useSchemaStore, selectActiveConnection } from "@/stores";
 import { useCRUD, useDatabase } from "@/hooks";
 import { DiffViewer } from "@/components/data-grid/DiffViewer";
 import { DdlPreviewView } from "@/components/preview/DdlPreviewView";
@@ -31,13 +33,57 @@ interface FieldEditorProps {
   value: unknown;
   type: string;
   nullable: boolean;
+  isPrimaryKey?: boolean;
   onChange: (value: unknown) => void;
 }
 
-function FieldEditor({ name, value, type, nullable, onChange }: FieldEditorProps) {
+// Helper to determine field category from database type
+function getFieldCategory(dataType: string): "boolean" | "numeric" | "text" | "datetime" | "json" {
+  const type = dataType.toLowerCase();
+
+  // Boolean types
+  if (type.includes("bool") || type === "bit" || type === "tinyint(1)") {
+    return "boolean";
+  }
+
+  // Numeric types
+  if (
+    type.includes("int") ||
+    type.includes("decimal") ||
+    type.includes("numeric") ||
+    type.includes("float") ||
+    type.includes("real") ||
+    type.includes("double") ||
+    type.includes("money") ||
+    type.includes("serial") ||
+    type === "number"
+  ) {
+    return "numeric";
+  }
+
+  // Date/time types
+  if (
+    type.includes("date") ||
+    type.includes("time") ||
+    type.includes("timestamp") ||
+    type.includes("interval")
+  ) {
+    return "datetime";
+  }
+
+  // JSON types
+  if (type.includes("json") || type.includes("jsonb")) {
+    return "json";
+  }
+
+  // Default to text
+  return "text";
+}
+
+function FieldEditor({ name, value, type, nullable, isPrimaryKey, onChange }: FieldEditorProps) {
   const [localValue, setLocalValue] = useState(value);
   const isNull = localValue === null;
-  const stringValue = isNull ? "" : String(localValue);
+  const fieldCategory = getFieldCategory(type);
 
   useEffect(() => {
     setLocalValue(value);
@@ -48,48 +94,193 @@ function FieldEditor({ name, value, type, nullable, onChange }: FieldEditorProps
     onChange(newValue);
   };
 
+  // Convert value to display string
+  const getDisplayValue = (): string => {
+    if (isNull) return "";
+    if (typeof localValue === "boolean") return localValue ? "true" : "false";
+    if (typeof localValue === "object") return JSON.stringify(localValue, null, 2);
+    return String(localValue);
+  };
+
+  // Render NULL toggle button
+  const renderNullButton = () => {
+    if (!nullable) return null;
+    return (
+      <Button
+        variant={isNull ? "secondary" : "outline"}
+        size="sm"
+        className={cn(
+          "shrink-0 text-[10px] font-mono h-9 px-3 uppercase tracking-wider transition-all",
+          isNull
+            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
+            : "hover:bg-muted/80"
+        )}
+        onClick={() => {
+          if (isNull) {
+            // Set to default value based on type
+            switch (fieldCategory) {
+              case "boolean":
+                handleChange(false);
+                break;
+              case "numeric":
+                handleChange(0);
+                break;
+              default:
+                handleChange("");
+            }
+          } else {
+            handleChange(null);
+          }
+        }}
+      >
+        NULL
+      </Button>
+    );
+  };
+
+  // Render input based on field category
+  const renderInput = () => {
+    // Boolean: Switch
+    if (fieldCategory === "boolean") {
+      const boolValue = localValue === true || localValue === "true" || localValue === 1 || localValue === "1" || localValue === "t";
+      return (
+        <div className="flex items-center gap-3 flex-1">
+          <Switch
+            checked={!isNull && boolValue}
+            disabled={isNull}
+            onCheckedChange={(checked) => handleChange(checked)}
+          />
+          <span className={cn(
+            "text-sm font-medium",
+            isNull ? "text-muted-foreground italic" : boolValue ? "text-success" : "text-muted-foreground"
+          )}>
+            {isNull ? "NULL" : boolValue ? "true" : "false"}
+          </span>
+        </div>
+      );
+    }
+
+    // Numeric: Number input
+    if (fieldCategory === "numeric") {
+      return (
+        <Input
+          type="number"
+          value={isNull ? "" : String(localValue)}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val === "") {
+              if (nullable) handleChange(null);
+            } else {
+              // Preserve integer vs float based on type
+              const isInteger = type.toLowerCase().includes("int") || type.toLowerCase().includes("serial");
+              handleChange(isInteger ? parseInt(val, 10) : parseFloat(val));
+            }
+          }}
+          disabled={isNull || isPrimaryKey}
+          className={cn(
+            "font-mono text-sm h-9 transition-all flex-1",
+            isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background",
+            isPrimaryKey && "opacity-70 cursor-not-allowed"
+          )}
+          placeholder={isNull ? "NULL" : `Enter ${name}`}
+        />
+      );
+    }
+
+    // JSON or long text: Textarea
+    if (fieldCategory === "json" || (typeof localValue === "string" && localValue.length > 100)) {
+      return (
+        <Textarea
+          value={getDisplayValue()}
+          onChange={(e) => {
+            if (fieldCategory === "json") {
+              try {
+                handleChange(JSON.parse(e.target.value));
+              } catch {
+                handleChange(e.target.value);
+              }
+            } else {
+              handleChange(e.target.value);
+            }
+          }}
+          disabled={isNull}
+          className={cn(
+            "font-mono text-xs transition-all min-h-[80px] resize-y",
+            isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background"
+          )}
+          placeholder={isNull ? "NULL" : `Enter ${name}`}
+        />
+      );
+    }
+
+    // DateTime: Text input with formatted display
+    if (fieldCategory === "datetime") {
+      return (
+        <Input
+          type="text"
+          value={isNull ? "" : String(localValue)}
+          onChange={(e) => handleChange(e.target.value)}
+          disabled={isNull || isPrimaryKey}
+          className={cn(
+            "font-mono text-sm h-9 transition-all flex-1",
+            isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background",
+            isPrimaryKey && "opacity-70 cursor-not-allowed"
+          )}
+          placeholder={isNull ? "NULL" : "YYYY-MM-DD HH:MM:SS"}
+        />
+      );
+    }
+
+    // Default: Text input
+    return (
+      <Input
+        type="text"
+        value={getDisplayValue()}
+        onChange={(e) => handleChange(e.target.value)}
+        disabled={isNull}
+        className={cn(
+          "font-mono text-sm h-9 transition-all flex-1",
+          isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background"
+        )}
+        placeholder={isNull ? "NULL" : `Enter ${name}`}
+      />
+    );
+  };
+
   return (
     <div className="group space-y-2 p-3 rounded-lg hover:bg-muted/40 transition-all border border-transparent hover:border-border/50">
       <div className="flex items-center justify-between gap-2">
-        <Label className="text-sm font-medium text-foreground/90">{name}</Label>
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-medium text-foreground/90">{name}</Label>
+          {isPrimaryKey && (
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30">
+              PK
+            </Badge>
+          )}
+        </div>
         <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono bg-muted/70 px-1.5 py-0.5 rounded border border-border/30">
           {type}
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <Input
-          value={stringValue}
-          onChange={(e) => handleChange(e.target.value)}
-          disabled={isNull}
-          className={cn(
-            "font-mono text-sm h-9 transition-all",
-            isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background"
-          )}
-          placeholder={isNull ? "NULL" : `Enter ${name}`}
-        />
-        {nullable && (
-          <Button
-            variant={isNull ? "secondary" : "outline"}
-            size="sm"
-            className={cn(
-              "shrink-0 text-[10px] font-mono h-9 px-3 uppercase tracking-wider transition-all",
-              isNull
-                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
-                : "hover:bg-muted/80"
-            )}
-            onClick={() => handleChange(isNull ? "" : null)}
-          >
-            NULL
-          </Button>
-        )}
+        {renderInput()}
+        {fieldCategory !== "boolean" && renderNullButton()}
+        {fieldCategory === "boolean" && nullable && renderNullButton()}
       </div>
     </div>
   );
 }
 
+// Selector for active tab - defined outside component to be stable
+const selectActiveTab = (state: { tabs: { id: string; connectionId: string }[]; activeTabId: string | null }) => {
+  return state.tabs.find(t => t.id === state.activeTabId);
+};
+
 // Fields Panel - Row Editor
 function FieldsPanel() {
   const { selectedRows, pendingChanges, addPendingChange } = useCRUDStore();
+  const { getSchema } = useSchemaStore();
+  const activeTab = useQueryStore(selectActiveTab);
   const [currentRowIndex, setCurrentRowIndex] = useState(0);
 
   const currentSelection = selectedRows[currentRowIndex] || selectedRows[0];
@@ -99,23 +290,46 @@ function FieldsPanel() {
   const rowColumns = currentSelection?.columns || [];
   const change = selectedRowId ? pendingChanges[selectedRowId] : null;
 
+  // Get cached schema for better primary key detection
+  const connectionId = activeTab?.connectionId;
+  const cachedSchema = connectionId ? getSchema(connectionId, rowTableName) : null;
+
+  // Merge columns with cached schema to get accurate isPrimaryKey
+  const mergedColumns = useMemo(() => {
+    if (!cachedSchema?.columns) return rowColumns;
+
+    // Build a set of primary key column names from cached schema
+    const pkSet = new Set(cachedSchema.primaryKeys || []);
+    cachedSchema.columns.forEach(col => {
+      if (col.isPrimaryKey) pkSet.add(col.name);
+    });
+
+    // Merge isPrimaryKey into rowColumns
+    return rowColumns.map(col => ({
+      ...col,
+      isPrimaryKey: col.isPrimaryKey || pkSet.has(col.name),
+    }));
+  }, [rowColumns, cachedSchema]);
+
   useMemo(() => {
     if (currentRowIndex >= selectedRows.length && selectedRows.length > 0) {
       setCurrentRowIndex(0);
     }
   }, [currentRowIndex, selectedRows.length]);
 
-  const fields = rowColumns.map(col => ({
+  const fields = mergedColumns.map(col => ({
     name: col.name,
     type: col.dataType,
     nullable: col.nullable,
+    isPrimaryKey: col.isPrimaryKey,
     value: change?.newData?.[col.name] ?? rowData?.[col.name]
   }));
 
   const handleFieldChange = (name: string, newValue: unknown) => {
-    if (!rowData || !rowColumns.length) return;
+    if (!rowData || !mergedColumns.length) return;
 
-    const pkColumns = rowColumns.filter(c => c.isPrimaryKey).sort((a, b) => a.name.localeCompare(b.name));
+    // Use merged columns with accurate isPrimaryKey
+    const pkColumns = mergedColumns.filter(c => c.isPrimaryKey).sort((a, b) => a.name.localeCompare(b.name));
     const primaryKey: Record<string, unknown> = {};
 
     if (pkColumns.length > 0) {
@@ -123,6 +337,7 @@ function FieldsPanel() {
         primaryKey[c.name] = rowData[c.name];
       });
     } else {
+      // Fallback: use all columns (but this should rarely happen now)
       const sortedKeys = Object.keys(rowData).sort();
       sortedKeys.forEach(k => {
         primaryKey[k] = rowData[k];
@@ -205,6 +420,7 @@ function FieldsPanel() {
               value={field.value}
               type={field.type}
               nullable={field.nullable}
+              isPrimaryKey={field.isPrimaryKey}
               onChange={(newValue) => handleFieldChange(field.name, newValue)}
             />
           ))}
@@ -212,6 +428,72 @@ function FieldsPanel() {
       </div>
     </div>
   );
+}
+
+// Helper function to format SQL values for preview
+function formatSqlPreviewValue(val: unknown): string {
+  if (val === null || val === undefined) {
+    return 'NULL';
+  }
+  if (typeof val === 'boolean') {
+    return val ? 'TRUE' : 'FALSE';
+  }
+  if (typeof val === 'number') {
+    return String(val);
+  }
+  if (typeof val === 'string') {
+    return `'${val.replace(/'/g, "''")}'`;
+  }
+  return `'${String(val)}'`;
+}
+
+// Helper function to format WHERE conditions for preview
+function formatWhereCondition(key: string, val: unknown): React.ReactNode {
+  if (val === null || val === undefined) {
+    return (
+      <>
+        {key} <span className="text-blue-500">IS</span> <span className="text-amber-500">NULL</span>
+      </>
+    );
+  }
+  return (
+    <>
+      {key} = <span className="text-amber-500">{formatSqlPreviewValue(val)}</span>
+    </>
+  );
+}
+
+// Helper to get actual primary key from schema
+function useActualPrimaryKey() {
+  const { getSchema } = useSchemaStore();
+  const activeTab = useQueryStore(selectActiveTab);
+  const connectionId = activeTab?.connectionId;
+
+  return useCallback((change: { tableName: string; primaryKey: Record<string, unknown>; originalData?: Record<string, unknown> | null }) => {
+    if (!connectionId) return change.primaryKey;
+
+    const cachedSchema = getSchema(connectionId, change.tableName);
+    if (!cachedSchema?.columns || !change.originalData) {
+      return change.primaryKey;
+    }
+
+    // Build set of primary key column names from schema
+    const pkSet = new Set(cachedSchema.primaryKeys || []);
+    cachedSchema.columns.forEach(col => {
+      if (col.isPrimaryKey) pkSet.add(col.name);
+    });
+
+    // If schema has primary key info, recalculate from original data
+    if (pkSet.size > 0) {
+      const actualPK: Record<string, unknown> = {};
+      pkSet.forEach(colName => {
+        actualPK[colName] = change.originalData![colName];
+      });
+      return actualPK;
+    }
+
+    return change.primaryKey;
+  }, [connectionId, getSchema]);
 }
 
 // Changes Preview Panel
@@ -225,6 +507,7 @@ function ChangesPreviewPanel() {
   } = useCRUDStore();
   const { commitChanges } = useCRUD();
   const [viewMode, setViewMode] = useState<"sql" | "diff">("sql");
+  const getActualPrimaryKey = useActualPrimaryKey();
 
   const pendingChangesList = Object.values(pendingChanges);
 
@@ -282,40 +565,46 @@ function ChangesPreviewPanel() {
                     </div>
                     <div className="bg-muted/50 p-3 rounded border border-border">
                       <pre className="text-foreground whitespace-pre-wrap break-all">
-                        {change.type === "update" && (
-                          <>
-                            <span className="text-blue-500">UPDATE</span> {change.tableName} <br />
-                            <span className="text-blue-500">SET</span> {
-                              Object.entries(change.newData || {}).map(([key, val], i, arr) => (
-                                <span key={key}>
-                                  {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                  {i < arr.length - 1 ? ", " : ""}
-                                </span>
-                              ))
-                            } <br />
-                            <span className="text-blue-500">WHERE</span> {
-                              Object.entries(change.primaryKey).map(([key, val], i, arr) => (
-                                <span key={key}>
-                                  {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                  {i < arr.length - 1 ? " AND " : ""}
-                                </span>
-                              ))
-                            };
-                          </>
-                        )}
-                        {change.type === "delete" && (
-                          <>
-                            <span className="text-destructive">DELETE FROM</span> {change.tableName} <br />
-                            <span className="text-blue-500">WHERE</span> {
-                              Object.entries(change.primaryKey).map(([key, val], i, arr) => (
-                                <span key={key}>
-                                  {key} = <span className="text-amber-500">{typeof val === 'string' ? `'${val}'` : String(val)}</span>
-                                  {i < arr.length - 1 ? " AND " : ""}
-                                </span>
-                              ))
-                            };
-                          </>
-                        )}
+                        {change.type === "update" && (() => {
+                          const actualPK = getActualPrimaryKey(change);
+                          return (
+                            <>
+                              <span className="text-blue-500">UPDATE</span> {change.tableName} <br />
+                              <span className="text-blue-500">SET</span> {
+                                Object.entries(change.newData || {}).map(([key, val], i, arr) => (
+                                  <span key={key}>
+                                    {key} = <span className="text-amber-500">{formatSqlPreviewValue(val)}</span>
+                                    {i < arr.length - 1 ? ", " : ""}
+                                  </span>
+                                ))
+                              } <br />
+                              <span className="text-blue-500">WHERE</span> {
+                                Object.entries(actualPK).map(([key, val], i, arr) => (
+                                  <span key={key}>
+                                    {formatWhereCondition(key, val)}
+                                    {i < arr.length - 1 ? " AND " : ""}
+                                  </span>
+                                ))
+                              };
+                            </>
+                          );
+                        })()}
+                        {change.type === "delete" && (() => {
+                          const actualPK = getActualPrimaryKey(change);
+                          return (
+                            <>
+                              <span className="text-destructive">DELETE FROM</span> {change.tableName} <br />
+                              <span className="text-blue-500">WHERE</span> {
+                                Object.entries(actualPK).map(([key, val], i, arr) => (
+                                  <span key={key}>
+                                    {formatWhereCondition(key, val)}
+                                    {i < arr.length - 1 ? " AND " : ""}
+                                  </span>
+                                ))
+                              };
+                            </>
+                          );
+                        })()}
                       </pre>
                     </div>
                   </div>

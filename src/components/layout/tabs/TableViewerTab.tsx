@@ -29,8 +29,11 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
   const pendingCount = Object.keys(pendingChanges).length;
   const selectedCount = selectedRows.length;
 
-  // Get columns from results or cached schema
-  const columns: ColumnInfo[] = tabResults?.columns || getSchema(connectionId, tableName)?.columns || [];
+  // Get cached schema for this table (used for empty tables fallback)
+  const cachedSchema = getSchema(connectionId, tableName);
+
+  // Get columns from results or cached schema (for empty tables)
+  const columns: ColumnInfo[] = tabResults?.columns || cachedSchema?.columns || [];
 
   // Add a new row with null values
   const handleAddRow = useCallback(() => {
@@ -82,12 +85,12 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     }
   }, [tab.id, connectionId]);
 
-  // Fetch schema for empty tables or when schema is not available
+  // Fetch schema to get primary key info (needed for proper WHERE clause generation)
   useEffect(() => {
-    if (connectionId && tableName && columns.length === 0 && !isExecuting) {
+    if (connectionId && tableName && !cachedSchema && !isExecuting) {
       getTableSchema(connectionId, tableName);
     }
-  }, [connectionId, tableName, columns.length, isExecuting, getTableSchema]);
+  }, [connectionId, tableName, cachedSchema, isExecuting, getTableSchema]);
 
   // Handle F5 refresh
   useEffect(() => {

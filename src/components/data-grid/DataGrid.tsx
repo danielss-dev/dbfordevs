@@ -36,7 +36,7 @@ import {
 import { cn, formatTimestamp } from "@/lib/utils";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import type { QueryResult, ColumnInfo } from "@/types";
-import { useCRUDStore, useUIStore } from "@/stores";
+import { useCRUDStore, useUIStore, useSchemaStore } from "@/stores";
 import { EditableCell } from "./EditableCell";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
 import { ExportMenu } from "./ExportMenu";
@@ -176,10 +176,30 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     clearColumnFilter,
   } = useCRUDStore();
   const { setRightPanelTab } = useUIStore();
+  const { getSchema } = useSchemaStore();
 
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Get cached schema and merge isPrimaryKey info into columns
+  // This is needed because query results don't include primary key info
+  const columnsWithPK = useMemo(() => {
+    const cachedSchema = connectionId ? getSchema(connectionId, tableName || "") : null;
+    if (!cachedSchema) return data.columns;
+
+    // Build a set of primary key column names
+    const pkSet = new Set(cachedSchema.primaryKeys || []);
+    cachedSchema.columns?.forEach(col => {
+      if (col.isPrimaryKey) pkSet.add(col.name);
+    });
+
+    // Merge isPrimaryKey into data columns
+    return data.columns.map(col => ({
+      ...col,
+      isPrimaryKey: col.isPrimaryKey || pkSet.has(col.name),
+    }));
+  }, [data.columns, connectionId, tableName, getSchema]);
 
   // Handle Cmd+F / Ctrl+F to focus search
   useEffect(() => {
@@ -197,11 +217,11 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
 
   // Helper to create a SelectedRow object with full context
   const createSelectedRow = useCallback((row: Record<string, unknown>) => ({
-    rowId: generateRowId(row, data.columns),
+    rowId: generateRowId(row, columnsWithPK),
     tableName: tableName || "unknown",
     rowData: row,
-    columns: data.columns,
-  }), [data.columns, tableName]);
+    columns: columnsWithPK,
+  }), [columnsWithPK, tableName]);
 
   const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
     const tableColumns: ColumnDef<Record<string, unknown>>[] = [];
@@ -304,7 +324,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       enableSorting: false,
     });
 
-    tableColumns.push(...data.columns.map((col) => ({
+    tableColumns.push(...columnsWithPK.map((col) => ({
       id: col.name,
       accessorKey: col.name,
       header: ({ column }: { column: any }) => {
@@ -403,7 +423,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                 // For existing rows, create an update change
                 if (newValue !== value) {
                   // Build primaryKey with sorted keys to match generateRowId
-                  const pkColumns = data.columns.filter(c => c.isPrimaryKey).sort((a, b) => a.name.localeCompare(b.name));
+                  const pkColumns = columnsWithPK.filter(c => c.isPrimaryKey).sort((a, b) => a.name.localeCompare(b.name));
                   const primaryKey: Record<string, unknown> = {};
 
                   if (pkColumns.length > 0) {
@@ -518,7 +538,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       },
     })));
     return tableColumns;
-  }, [data.columns, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter, selectedRowIds, clearSelection, setSelectedRows, setRightPanelTab]);
+  }, [columnsWithPK, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter, selectedRowIds, clearSelection, setSelectedRows, setRightPanelTab]);
 
   const tableData = useMemo(() => {
     // Convert existing rows to records
@@ -550,8 +570,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     if (row.__pending_insert && row.__temp_pk) {
       return JSON.stringify(row.__temp_pk);
     }
-    return generateRowId(row, data.columns);
-  }, [data.columns]);
+    return generateRowId(row, columnsWithPK);
+  }, [columnsWithPK]);
 
   // Convert our store filters to TanStack Table format
   const tanstackFilters = useMemo(() => {
@@ -608,7 +628,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
   const pageSize = table.getState().pagination.pageSize;
   const totalPages = table.getPageCount();
 
-  if (data.columns.length === 0) {
+  if (columnsWithPK.length === 0) {
     if (data.affectedRows !== undefined && data.affectedRows !== null) {
       return (
         <div className="flex h-full flex-col items-center justify-center text-center p-8 animate-fade-in">

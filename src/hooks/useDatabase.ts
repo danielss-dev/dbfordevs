@@ -331,6 +331,8 @@ export function useDatabase() {
           tableName,
         });
         setTableSchema(schema);
+        // Also cache in schema store for data grid primary key detection
+        setSchemas(connectionId, tableName, schema);
         return schema;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -340,7 +342,7 @@ export function useDatabase() {
         setLoading(false);
       }
     },
-    [setLoading, setQueryError, setTableSchema]
+    [setLoading, setQueryError, setTableSchema, setSchemas]
   );
 
   /**
