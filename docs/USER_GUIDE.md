@@ -192,6 +192,100 @@ The left sidebar contains:
    - See CREATE TABLE statement
    - Copy DDL for documentation
 
+### Workflow 7: Query Performance Analysis
+
+**Goal**: Analyze and optimize slow queries using execution plans
+
+1. **Write Query**: Enter your query in the editor
+2. **View Plan**: Click **Explain** button or press `Ctrl/Cmd+E`
+3. **Review Tree**: Examine the visual execution plan
+   - Red nodes indicate high-cost operations
+   - Look for sequential scans on large tables
+4. **Enable ANALYZE**: Toggle ANALYZE for actual metrics
+   - Compare estimated vs actual row counts
+   - See real execution times
+5. **Identify Issues**: Check for:
+   - Missing indexes (sequential scans)
+   - Inefficient joins
+   - Large sorts
+6. **Optimize**: Modify query or add indexes
+7. **Compare**: Re-run EXPLAIN to verify improvements
+
+### Workflow 8: Importing Data
+
+**Goal**: Import data from a CSV file into a table
+
+1. **Select Table**: Click target table in sidebar
+2. **Open Import**: Click **Import** button in grid toolbar
+3. **Upload File**: Select your CSV file
+   - Delimiter auto-detected
+   - Preview first rows
+4. **Map Columns**: Review column mappings
+   - Auto-mapped columns shown
+   - Adjust any incorrect mappings
+   - Skip unwanted columns
+5. **Configure Options**:
+   - Duplicate handling: Skip or Replace
+   - Batch size for performance
+   - Transaction mode for safety
+6. **Run Import**: Click **Start Import**
+7. **Monitor Progress**: Watch real-time status
+8. **Review Results**: Check success/error summary
+
+### Workflow 9: Creating Tables with the Wizard
+
+**Goal**: Create a new table without writing DDL manually
+
+1. **Open Wizard**: Right-click schema → "Create Table"
+2. **Set Basics**: Enter table name and schema
+3. **Define Columns**:
+   - Add columns with types
+   - Set nullable, default values
+   - Mark primary key columns
+4. **Add Constraints**:
+   - Create foreign keys to other tables
+   - Add unique constraints
+   - Add check constraints
+5. **Create Indexes**: Add indexes for frequently queried columns
+6. **Preview DDL**: Review generated SQL
+7. **Execute**: Click "Create Table"
+8. **Verify**: New table appears in sidebar
+
+### Workflow 10: Using Query Bookmarks
+
+**Goal**: Save and reuse frequently used queries
+
+1. **Write Query**: Create a useful query you'll reuse
+2. **Save Bookmark**: Click **Save as Bookmark** or `Ctrl/Cmd+B`
+3. **Organize**:
+   - Name the bookmark descriptively
+   - Choose or create a folder
+   - Add description (optional)
+4. **Access Later**: Click **Bookmarks** dropdown
+5. **Search**: Use search box to find bookmarks
+6. **Use Template Variables**: For dynamic queries
+   ```sql
+   SELECT * FROM {{table}} WHERE status = '{{status}}'
+   ```
+7. **Manage**: Open Bookmark Manager to reorganize, edit, or delete
+
+### Workflow 11: Connecting via SSH Tunnel
+
+**Goal**: Connect to a database behind a firewall
+
+1. **New Connection**: Click "New Connection"
+2. **Basic Info**: Enter database type and name
+3. **SSH Tab**: Click the SSH tab
+4. **Enable Tunnel**: Check "Enable SSH Tunnel"
+5. **Configure SSH**:
+   - SSH Host: Your jump server
+   - SSH Port: Usually 22
+   - Username: Your SSH username
+   - Auth: Password or Private Key
+6. **Connection Tab**: Enter internal database hostname
+7. **Test**: Click "Test Connection"
+8. **Save**: Store the connection for future use
+
 ## Advanced Usage
 
 ### Working with Large Result Sets
@@ -302,6 +396,35 @@ SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME = 'table_name';
 ```
+
+#### Oracle-Specific
+
+```sql
+-- List all tables in current schema
+SELECT table_name FROM user_tables;
+
+-- List all tables you have access to
+SELECT owner, table_name FROM all_tables WHERE owner = 'SCHEMA_NAME';
+
+-- Get column info
+SELECT column_name, data_type, nullable, data_length
+FROM user_tab_columns
+WHERE table_name = 'TABLE_NAME';
+
+-- Get table DDL
+SELECT DBMS_METADATA.GET_DDL('TABLE', 'TABLE_NAME') FROM dual;
+
+-- View execution plan
+EXPLAIN PLAN FOR SELECT * FROM table_name WHERE id = 1;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+```
+
+**Oracle Connection Format:**
+```
+//hostname:port/service_name
+```
+
+Example: `//oracle-server.example.com:1521/ORCL`
 
 ### Using Connection String Validators
 
@@ -699,6 +822,14 @@ A: Yes. Connect to cluster endpoint with proper credentials. Features may vary d
 
 A: Yes. Configure VPN connection on your system first, then connect through dbfordevs normally.
 
+**Q: How do I connect to Oracle databases?**
+
+A: Select Oracle as the database type and use the Easy Connect format: `//host:port/service_name`. Example: `//db.example.com:1521/ORCL`.
+
+**Q: Can I use SSH tunneling for secure connections?**
+
+A: Yes. In the connection dialog, go to the SSH tab and enable SSH tunneling. You can authenticate with password or private key.
+
 ### Data Editing Questions
 
 **Q: Can I undo changes after committing?**
@@ -715,6 +846,18 @@ INSERT INTO users (name) VALUES ('Alice'), ('Bob'), ('Charlie');
 **Q: Can I edit data from a JOIN query?**
 
 A: Limited. Simple single-table updates work. Complex JOINs may require writing UPDATE query.
+
+**Q: How do I import data from a CSV file?**
+
+A: Click the Import button in the data grid toolbar, select your CSV file, map columns, and start the import. The wizard guides you through the process.
+
+**Q: Can I save and reuse queries?**
+
+A: Yes. Use Query Bookmarks. Click "Save as Bookmark" or press `Ctrl/Cmd+B`, then access saved queries from the Bookmarks dropdown.
+
+**Q: How do I format my SQL?**
+
+A: Press `Shift+Alt+F` or click the Format button in the editor toolbar. You can also select specific text to format only that portion.
 
 ### Performance Questions
 

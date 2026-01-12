@@ -51,6 +51,103 @@ Right-click any saved connection for options:
 - **Connecting**: In progress (spinner icon)
 - **Error** (red): Connection failed
 
+### SSL Configuration
+
+Secure your database connections with SSL/TLS encryption.
+
+**To configure SSL:**
+
+1. Open the connection dialog (new or edit)
+2. Click the **SSL** tab
+3. Configure SSL settings:
+
+**SSL Modes:**
+
+| Mode | Description |
+|------|-------------|
+| Disable | No SSL encryption |
+| Prefer | Use SSL if available, fall back to unencrypted |
+| Require | Require SSL, but don't verify certificate |
+| Verify-CA | Require SSL and verify server certificate |
+| Verify-Full | Require SSL, verify certificate and hostname |
+
+**Certificate Options:**
+- **CA Certificate**: Path to Certificate Authority file
+- **Client Certificate**: Path to client certificate file
+- **Client Key**: Path to client private key file
+
+**Tip:** Use Verify-Full for production databases to ensure both encryption and server identity verification.
+
+### SSH Tunneling
+
+Connect to databases through an SSH tunnel for secure access to remote servers.
+
+**When to use SSH tunneling:**
+- Database is behind a firewall
+- Database only accepts connections from specific hosts
+- Extra layer of security for remote connections
+
+**To configure SSH tunnel:**
+
+1. Open the connection dialog (new or edit)
+2. Click the **SSH** tab
+3. Enable **"Use SSH Tunnel"**
+4. Configure tunnel settings:
+
+**SSH Configuration:**
+
+- **SSH Host**: Hostname or IP of the SSH server
+- **SSH Port**: SSH port (default: 22)
+- **SSH Username**: Your SSH username
+
+**Authentication Methods:**
+
+**Password Authentication:**
+- Select "Password" method
+- Enter your SSH password
+
+**Key-Based Authentication:**
+- Select "Private Key" method
+- Browse to select your private key file
+- Enter passphrase if the key is encrypted
+
+**How it works:**
+1. dbfordevs establishes an SSH connection to the tunnel host
+2. Database connection is routed through the SSH tunnel
+3. From the database server's perspective, the connection comes from the SSH host
+
+**Example Setup:**
+
+```
+Your Computer → SSH Tunnel (jump-host.example.com) → Database Server (db.internal:5432)
+```
+
+Configure:
+- SSH Host: `jump-host.example.com`
+- SSH Username: `your-user`
+- Database Host: `db.internal` (internal hostname)
+- Database Port: `5432`
+
+### Supported Databases
+
+dbfordevs supports the following database systems:
+
+| Database | Status | SSL | SSH Tunnel |
+|----------|--------|-----|------------|
+| PostgreSQL | Full Support | Yes | Yes |
+| MySQL / MariaDB | Full Support | Yes | Yes |
+| Microsoft SQL Server | Full Support | Yes | Yes |
+| SQLite | Full Support | N/A | N/A |
+| Oracle | Full Support | Yes | Yes |
+| MongoDB | Planned | - | - |
+| Redis | Planned | - | - |
+
+**Oracle-Specific Notes:**
+- Uses Easy Connect format: `//host:port/service_name`
+- Supports Oracle Wallet authentication
+- Full PL/SQL execution support
+- EXPLAIN PLAN visualization with DBMS_XPLAN
+
 ## Query Editor
 
 The Monaco-based query editor is where you write and execute SQL commands.
@@ -115,6 +212,92 @@ Customize editor behavior in Settings:
 - **Tab Size**: Set indentation level
 - **Theme**: Choose editor color scheme
 
+### SQL Formatting
+
+Format your SQL queries with one click for better readability.
+
+**To format SQL:**
+
+1. Write or paste SQL in the editor
+2. Press `Shift+Alt+F` or click the **Format** button in the toolbar
+3. SQL is automatically beautified with proper indentation
+
+**Format Selection Only:**
+- Select a portion of SQL
+- Press `Shift+Alt+F`
+- Only the selected text is formatted
+
+**Formatting Options** (configurable in Settings):
+
+- **Keyword Case**: UPPER, lower, or Preserve original case
+- **Indentation**: Spaces or tabs, configurable width
+- **Indent Style**: Standard, tabularLeft, or tabularRight
+- **Logical Operator Placement**: Newline before or after AND/OR
+
+**Dialect Support:**
+SQL formatting is dialect-aware and automatically uses the correct syntax rules for:
+- PostgreSQL
+- MySQL / MariaDB
+- SQLite
+- Microsoft SQL Server
+- Oracle
+- Standard SQL
+
+### Query Bookmarks & Templates
+
+Save frequently used queries for quick access and reuse.
+
+**Saving a Bookmark:**
+
+1. Write a query in the editor
+2. Click **"Save as Bookmark"** or press `Ctrl/Cmd+B`
+3. Enter a name and optional description
+4. Choose a folder (or create a new one)
+5. Click **Save**
+
+**Accessing Bookmarks:**
+
+- Click the **Bookmarks** dropdown next to the editor
+- Use the search box to filter bookmarks
+- Click a bookmark to insert it into the editor
+
+**Bookmark Manager:**
+
+Open the Bookmark Manager for full control:
+
+1. Click **"Manage Bookmarks"** from the dropdown
+2. Features available:
+   - **Create folders** for organization
+   - **Drag and drop** bookmarks between folders
+   - **Edit** bookmark name, description, or SQL
+   - **Duplicate** bookmarks
+   - **Mark as favorite** for quick access
+   - **Delete** bookmarks or folders
+
+**Built-in Templates:**
+
+Access pre-built query templates for common operations:
+
+- Basic SELECT with JOIN
+- INSERT template
+- UPDATE template
+- DELETE with WHERE clause
+- Common aggregations (COUNT, SUM, AVG)
+- Index creation
+
+**Template Variables:**
+
+Create dynamic templates with placeholders:
+
+```sql
+SELECT * FROM {{table_name}} WHERE {{column}} = '{{value}}' LIMIT {{limit}};
+```
+
+When you use a template with variables:
+1. A dialog appears prompting for values
+2. Enter values for each variable
+3. Click **Apply** to insert the populated query
+
 ## Data Grid & Results
 
 Results from executed queries appear in the data grid below the editor.
@@ -128,6 +311,28 @@ Results from executed queries appear in the data grid below the editor.
 - **Resizable Columns**: Drag column borders to resize
 - **Scrolling**: Horizontal and vertical navigation
 - **Row Highlighting**: Current row is highlighted
+- **Global Search**: Search across all columns instantly
+
+### Global Search
+
+Search across all columns in the result set instantly.
+
+**Using Global Search:**
+
+1. Execute a query to load data into the grid
+2. Click the search box at the top of the grid (or press `Ctrl/Cmd+F`)
+3. Type your search term
+4. Results filter in real-time as you type
+
+**Search Behavior:**
+- Case-insensitive matching
+- Searches all visible columns
+- Works alongside column-specific filters
+- Clear the search box to show all rows
+
+**Keyboard Shortcut:**
+- `Ctrl/Cmd+F`: Focus the search box
+- `Escape`: Clear search and return focus to grid
 
 ### Grid Operations
 
@@ -280,6 +485,9 @@ For databases with schema support:
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl/Cmd + Enter` | Execute query |
+| `Ctrl/Cmd + E` | Explain query (show execution plan) |
+| `Shift + Alt + F` | Format SQL |
+| `Ctrl/Cmd + B` | Save as bookmark |
 | `Ctrl/Cmd + /` | Toggle line comment |
 | `Ctrl/Cmd + Shift + /` | Toggle block comment |
 | `Ctrl/Cmd + D` | Select current word |
@@ -292,9 +500,10 @@ For databases with schema support:
 
 | Shortcut | Action |
 |----------|--------|
+| `Ctrl/Cmd + F` | Focus global search |
 | `Ctrl/Cmd + A` | Select all rows |
 | `Ctrl/Cmd + C` | Copy selected rows |
-| `Escape` | Clear selection |
+| `Escape` | Clear selection / search |
 | `Page Down` | Next page |
 | `Page Up` | Previous page |
 | `Home` | First row |
@@ -450,6 +659,215 @@ Supported formats:
 - JSON
 - Excel (.xlsx)
 - SQL INSERT statements
+
+### Data Import
+
+Import data from external files into database tables.
+
+**To import data:**
+
+1. Select a table in the sidebar (or query it)
+2. Click the **Import** button in the data grid toolbar
+3. Follow the 5-step import wizard
+
+**Step 1: Upload File**
+- Select a file (CSV, JSON, or SQL)
+- Drag and drop or click to browse
+- Auto-detection of file format and delimiter
+- Preview of first rows
+
+**Step 2: Column Mapping**
+- Map source columns to target table columns
+- Auto-mapping attempts exact and fuzzy name matches
+- Manually adjust mappings as needed
+- Skip columns you don't want to import
+- View target column data types
+
+**Step 3: Import Options**
+- **Duplicate Handling**:
+  - Fail on duplicate (stop import)
+  - Skip duplicates (continue with others)
+  - Replace duplicates (update existing rows)
+- **Batch Size**: 100-5000 rows per batch
+- **Transaction Mode**: Rollback all on error
+- **Error Handling**: Stop on first error or continue
+
+**Step 4: Progress**
+- Real-time progress bar
+- Row counts: inserted, updated, skipped, failed
+- Batch progress indicator
+- Cancel option for long imports
+
+**Step 5: Complete**
+- Summary of import results
+- Success/failure status
+- Detailed error log with row numbers
+- Option to view imported data
+
+**Supported File Formats:**
+
+| Format | Description |
+|--------|-------------|
+| CSV | Comma, semicolon, tab, or pipe delimited |
+| JSON | Array of objects with column keys |
+| SQL | INSERT statements (batch execution) |
+
+**Tips:**
+- Ensure column names in CSV header match target table
+- Use JSON for complex data with nested structures
+- SQL files support multiple INSERT statements
+
+## Query Execution Plans
+
+Analyze query performance with visual execution plan analysis.
+
+### Viewing Execution Plans
+
+**To view a query plan:**
+
+1. Write your query in the editor
+2. Click the **Explain** button (or press `Ctrl/Cmd+E`)
+3. The execution plan appears in the Explain panel
+
+**ANALYZE Mode:**
+- Toggle **ANALYZE** to run the query and get actual execution metrics
+- Without ANALYZE: Shows estimated costs only
+- With ANALYZE: Shows actual rows, times, and buffer usage
+
+### Plan Tree View
+
+The interactive tree visualization shows:
+
+- **Operation Types**: Seq Scan, Index Scan, Hash Join, Sort, Aggregate, etc.
+- **Cost Indicators**: Color-coded from green (low) to red (high)
+- **Row Estimates**: Expected vs actual row counts
+- **Timing**: Planning and execution time
+- **Filters**: WHERE conditions applied at each step
+- **Index Usage**: Which indexes are used
+
+**Node Icons:**
+- Sequential scans (table icon)
+- Index scans (index icon)
+- Joins (merge icon)
+- Sorts (sort icon)
+- Aggregates (function icon)
+
+**Interacting with the Tree:**
+- Click nodes to expand/collapse details
+- Hover for additional information
+- High-cost nodes are highlighted for attention
+
+### Plan Summary
+
+At the top of the Explain panel:
+
+- **Total Cost**: Overall query cost estimate
+- **Planning Time**: Time spent planning the query
+- **Execution Time**: Time spent executing (ANALYZE mode)
+- **Database Type**: Current database being queried
+
+### Warnings & Suggestions
+
+The plan analyzer identifies potential issues:
+
+- Sequential scans on large tables
+- Missing indexes
+- High row estimates
+- Expensive sorts or aggregations
+
+**Database Support:**
+
+| Database | EXPLAIN Command |
+|----------|-----------------|
+| PostgreSQL | `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` |
+| MySQL | `EXPLAIN FORMAT=JSON` |
+| SQLite | `EXPLAIN QUERY PLAN` |
+| MSSQL | `SET SHOWPLAN_XML ON` |
+| Oracle | `EXPLAIN PLAN` with `DBMS_XPLAN` |
+
+## Table Creation
+
+Create new database tables with a guided wizard interface.
+
+### Using the Table Creation Wizard
+
+**To create a new table:**
+
+1. Right-click on a schema or database in the sidebar
+2. Select **"Create Table"**
+3. Follow the 5-step wizard
+
+### Step 1: Basics
+
+- **Table Name**: Enter the name for your new table
+- **Schema**: Select the target schema (for databases with schema support)
+- **Comment**: Optional description for the table
+
+### Step 2: Columns
+
+Define your table columns:
+
+- **Column Name**: Unique name for the column
+- **Data Type**: Select from database-specific types
+- **Length/Precision**: For types that support it (VARCHAR, DECIMAL)
+- **Nullable**: Allow NULL values
+- **Default Value**: Set a default value
+- **Primary Key**: Mark as part of the primary key
+- **Auto Increment**: For auto-generated IDs (database dependent)
+
+**Actions:**
+- Click **"Add Column"** to add more columns
+- Drag to reorder columns
+- Click trash icon to remove a column
+
+### Step 3: Constraints
+
+Add table constraints:
+
+**Primary Key:**
+- Single column: Check "Primary Key" in column definition
+- Composite: Select multiple columns in constraint editor
+
+**Foreign Keys:**
+- Select source column(s)
+- Choose reference table
+- Select reference column(s)
+- Set ON DELETE and ON UPDATE actions
+
+**Unique Constraints:**
+- Select one or more columns
+- Name the constraint (optional)
+
+**Check Constraints:**
+- Enter SQL expression (e.g., `price > 0`)
+- Name the constraint
+
+### Step 4: Indexes
+
+Create indexes for performance:
+
+- **Index Name**: Unique name for the index
+- **Columns**: Select columns to index
+- **Unique**: Create a unique index
+
+### Step 5: Preview
+
+Review the generated DDL:
+
+- Full CREATE TABLE statement
+- All constraints and indexes
+- Database-specific syntax
+
+**Actions:**
+- **Copy DDL**: Copy to clipboard for documentation
+- **Create Table**: Execute the DDL to create the table
+
+### After Creation
+
+- Success notification with table name
+- Sidebar automatically refreshes
+- New table appears in the schema tree
+- Click to browse or query the new table
 
 ## Performance Tips
 

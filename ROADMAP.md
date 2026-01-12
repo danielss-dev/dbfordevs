@@ -392,18 +392,29 @@ Support queries returning multiple result sets.
 
 ### 17. Oracle Driver
 
-**Status:** Types defined, not implemented
+**Status:** Implemented
 **Impact:** Medium
 **Effort:** High
 
 **Implementation Tasks:**
-- [ ] Evaluate Rust Oracle crates (oracle, sibyl)
-- [ ] Implement `DatabaseDriver` trait
-- [ ] Handle Oracle-specific types (NUMBER, VARCHAR2, CLOB, BLOB)
-- [ ] PL/SQL execution support
-- [ ] Package/procedure browsing
-- [ ] TNS connection string support
+- [x] Evaluate Rust Oracle crates (oracle, sibyl)
+- [x] Implement `DatabaseDriver` trait
+- [x] Handle Oracle-specific types (NUMBER, VARCHAR2, CLOB, BLOB)
+- [x] PL/SQL execution support
+- [x] Package/procedure browsing
+- [x] TNS connection string support (Easy Connect format)
 - [ ] Oracle Wallet authentication
+
+**Files:** `src-tauri/src/db/oracle.rs`
+
+**Features Implemented:**
+- Full Oracle driver using `oracle` crate with deadpool connection pooling
+- Easy Connect format support (`//host:port/service_name`)
+- All core operations: queries, tables, schemas, indexes, constraints, foreign keys
+- Oracle-specific type handling (NUMBER, VARCHAR2, CHAR, CLOB, BLOB, DATE, TIMESTAMP)
+- EXPLAIN PLAN visualization with DBMS_XPLAN
+- DDL generation using DBMS_METADATA
+- System schema filtering (SYS, SYSTEM, APEX_*, etc.)
 
 ---
 
@@ -743,7 +754,7 @@ Location: `src-tauri/src/commands/queries.rs:142`
 | P3 | Customizable Keybindings | Medium | Low |
 | P3 | E2E Tests | High | High |
 | P4 | Redis Driver | Medium | Medium |
-| P4 | Oracle Driver | Medium | High |
+| ~~P4~~ | ~~Oracle Driver~~ | ~~Medium~~ | ~~Implemented~~ |
 
 ---
 
