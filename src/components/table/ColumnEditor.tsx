@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Plus, Trash2, GripVertical, Key } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, Key } from "lucide-react";
 import { Button, Input, Checkbox, Label } from "@/components/ui";
 import {
   Tooltip,
@@ -159,21 +159,36 @@ export function ColumnEditor({ columns, databaseType, onChange }: ColumnEditorPr
                   key={column.id}
                   className="grid grid-cols-[auto_1fr_180px_70px_70px_70px_70px_auto] gap-2 px-3 py-2 items-center hover:bg-muted/30"
                 >
-                  {/* Drag handle */}
-                  <div className="flex flex-col gap-0.5">
+                  {/* Reorder buttons */}
+                  <div className="flex flex-col gap-0">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            className="cursor-grab text-muted-foreground hover:text-foreground"
+                            className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
                             onClick={() => moveColumn(index, index - 1)}
                             disabled={index === 0}
                           >
-                            <GripVertical className="h-4 w-4" />
+                            <ChevronUp className="h-3 w-3" />
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent>Drag to reorder</TooltipContent>
+                        <TooltipContent>Move up</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                            onClick={() => moveColumn(index, index + 1)}
+                            disabled={index === columns.length - 1}
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Move down</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>

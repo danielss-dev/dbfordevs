@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table, Code, GitCommit, Eye, AlertCircle, Loader2, Check, Sparkles, Settings, Bot, History, Plus, Coins, TreeDeciduous } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Save, Trash2, RotateCcw, Table, Code, GitCommit, Eye, AlertCircle, Loader2, Check, Sparkles, Settings, Bot, History, Plus, Coins, TreeDeciduous, Clock, Globe, Eraser, Braces, Minimize2, Dices, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Button,
@@ -13,6 +13,14 @@ import {
   TooltipTrigger,
   Switch,
   Textarea,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui";
 import { useUIStore, useCRUDStore, useQueryStore, usePreviewStore, useConnectionsStore, useSchemaStore, selectActiveConnection } from "@/stores";
 import { useCRUD, useDatabase } from "@/hooks";
@@ -82,6 +90,8 @@ function getFieldCategory(dataType: string): "boolean" | "numeric" | "text" | "d
 
 function FieldEditor({ name, value, type, nullable, isPrimaryKey, onChange }: FieldEditorProps) {
   const [localValue, setLocalValue] = useState(value);
+  const [jsonDialogOpen, setJsonDialogOpen] = useState(false);
+  const [jsonDialogValue, setJsonDialogValue] = useState("");
   const isNull = localValue === null;
   const fieldCategory = getFieldCategory(type);
 
@@ -187,47 +197,366 @@ function FieldEditor({ name, value, type, nullable, isPrimaryKey, onChange }: Fi
       );
     }
 
-    // JSON or long text: Textarea
+    // JSON or long text: Textarea with toolbar
     if (fieldCategory === "json" || (typeof localValue === "string" && localValue.length > 100)) {
-      return (
-        <Textarea
-          value={getDisplayValue()}
-          onChange={(e) => {
-            if (fieldCategory === "json") {
-              try {
-                handleChange(JSON.parse(e.target.value));
-              } catch {
-                handleChange(e.target.value);
-              }
-            } else {
-              handleChange(e.target.value);
+      const isJsonField = fieldCategory === "json";
+
+      const prettifyJson = () => {
+        try {
+          const parsed = typeof localValue === "string" ? JSON.parse(localValue) : localValue;
+          const formatted = JSON.stringify(parsed, null, 2);
+          handleChange(formatted);
+        } catch {
+          // Not valid JSON, do nothing
+        }
+      };
+
+      const minifyJson = () => {
+        try {
+          const parsed = typeof localValue === "string" ? JSON.parse(localValue) : localValue;
+          const minified = JSON.stringify(parsed);
+          handleChange(minified);
+        } catch {
+          // Not valid JSON, do nothing
+        }
+      };
+
+      const openJsonDialog = () => {
+        let displayVal = "";
+        if (localValue !== null && localValue !== undefined) {
+          if (typeof localValue === "object") {
+            displayVal = JSON.stringify(localValue, null, 2);
+          } else {
+            // Try to prettify if it's a JSON string
+            try {
+              displayVal = JSON.stringify(JSON.parse(String(localValue)), null, 2);
+            } catch {
+              displayVal = String(localValue);
             }
-          }}
-          disabled={isNull}
-          className={cn(
-            "font-mono text-xs transition-all min-h-[80px] resize-y",
-            isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background"
-          )}
-          placeholder={isNull ? "NULL" : `Enter ${name}`}
-        />
+          }
+        }
+        setJsonDialogValue(displayVal);
+        setJsonDialogOpen(true);
+      };
+
+      const saveJsonDialog = () => {
+        if (isJsonField) {
+          try {
+            handleChange(JSON.parse(jsonDialogValue));
+          } catch {
+            handleChange(jsonDialogValue);
+          }
+        } else {
+          handleChange(jsonDialogValue);
+        }
+        setJsonDialogOpen(false);
+      };
+
+      // Check if current value is valid JSON
+      const isValidJson = (() => {
+        if (localValue === null || localValue === undefined) return false;
+        if (typeof localValue === "object") return true;
+        try {
+          JSON.parse(String(localValue));
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+
+      return (
+        <>
+          <div className="flex-1 space-y-2">
+            {/* Toolbar for JSON fields */}
+            {isJsonField && (
+              <div className="flex items-center gap-2">
+                {/* Format group */}
+                <div className="flex items-center gap-1 border border-border rounded-md p-0.5 bg-muted/30">
+                  <span className="text-[9px] text-muted-foreground px-1.5 uppercase tracking-wide">Format</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1"
+                        onClick={prettifyJson}
+                        disabled={isNull || !isValidJson}
+                      >
+                        <Braces className="h-3 w-3" />
+                        Prettify
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Format JSON with indentation</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1"
+                        onClick={minifyJson}
+                        disabled={isNull || !isValidJson}
+                      >
+                        <Minimize2 className="h-3 w-3" />
+                        Minify
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Compact JSON to single line</TooltipContent>
+                  </Tooltip>
+                </div>
+                {/* Edit button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-[10px] gap-1"
+                      onClick={openJsonDialog}
+                      disabled={isNull}
+                    >
+                      <PenLine className="h-3 w-3" />
+                      Edit
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Open editor dialog</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+            <Textarea
+              value={getDisplayValue()}
+              onChange={(e) => {
+                if (isJsonField) {
+                  try {
+                    handleChange(JSON.parse(e.target.value));
+                  } catch {
+                    handleChange(e.target.value);
+                  }
+                } else {
+                  handleChange(e.target.value);
+                }
+              }}
+              disabled={isNull}
+              className={cn(
+                "font-mono text-xs transition-all min-h-[80px] resize-y",
+                isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background"
+              )}
+              placeholder={isNull ? "NULL" : `Enter ${name}`}
+            />
+          </div>
+
+          {/* JSON Editor Dialog */}
+          <Dialog open={jsonDialogOpen} onOpenChange={setJsonDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Braces className="h-4 w-4" />
+                  Edit {name}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 min-h-0">
+                <Textarea
+                  value={jsonDialogValue}
+                  onChange={(e) => setJsonDialogValue(e.target.value)}
+                  className="font-mono text-xs h-[400px] resize-none"
+                  placeholder="Enter JSON or text..."
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                {isJsonField && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        try {
+                          const parsed = JSON.parse(jsonDialogValue);
+                          setJsonDialogValue(JSON.stringify(parsed, null, 2));
+                        } catch {
+                          // Not valid JSON
+                        }
+                      }}
+                    >
+                      <Braces className="h-3.5 w-3.5 mr-1.5" />
+                      Prettify
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        try {
+                          const parsed = JSON.parse(jsonDialogValue);
+                          setJsonDialogValue(JSON.stringify(parsed));
+                        } catch {
+                          // Not valid JSON
+                        }
+                      }}
+                    >
+                      <Minimize2 className="h-3.5 w-3.5 mr-1.5" />
+                      Minify
+                    </Button>
+                  </>
+                )}
+                <div className="flex-1" />
+                <Button variant="outline" onClick={() => setJsonDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={saveJsonDialog}>
+                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                  Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       );
     }
 
-    // DateTime: Text input with formatted display
+    // DateTime: Enhanced input with quick actions
     if (fieldCategory === "datetime") {
+      // Helper to format date for datetime-local input (YYYY-MM-DDTHH:MM)
+      const formatForInput = (val: unknown): string => {
+        if (!val) return "";
+        const str = String(val);
+        // Handle various formats and normalize to datetime-local format
+        const match = str.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+        if (match) {
+          return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}`;
+        }
+        return str;
+      };
+
+      // Helper to format datetime for database (ISO 8601)
+      const formatForDb = (inputVal: string): string => {
+        if (!inputVal) return "";
+        // datetime-local gives us YYYY-MM-DDTHH:MM, add seconds
+        return inputVal.replace("T", " ") + ":00";
+      };
+
+      const setNow = () => {
+        const now = new Date();
+        const formatted = now.toISOString().slice(0, 19).replace("T", " ");
+        handleChange(formatted);
+      };
+
+      const setUtcNow = () => {
+        const now = new Date();
+        const formatted = now.toISOString().slice(0, 19).replace("T", " ");
+        handleChange(formatted);
+      };
+
+      const clearValue = () => {
+        if (nullable) {
+          handleChange(null);
+        } else {
+          handleChange("");
+        }
+      };
+
       return (
-        <Input
-          type="text"
-          value={isNull ? "" : String(localValue)}
-          onChange={(e) => handleChange(e.target.value)}
-          disabled={isNull || isPrimaryKey}
-          className={cn(
-            "font-mono text-sm h-9 transition-all flex-1",
-            isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background",
-            isPrimaryKey && "opacity-70 cursor-not-allowed"
-          )}
-          placeholder={isNull ? "NULL" : "YYYY-MM-DD HH:MM:SS"}
-        />
+        <div className="flex items-center gap-2 flex-1">
+          <Input
+            type="datetime-local"
+            value={isNull ? "" : formatForInput(localValue)}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "") {
+                if (nullable) handleChange(null);
+                else handleChange("");
+              } else {
+                handleChange(formatForDb(val));
+              }
+            }}
+            disabled={isNull || isPrimaryKey}
+            className={cn(
+              "font-mono text-sm h-9 transition-all flex-1",
+              isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background",
+              isPrimaryKey && "opacity-70 cursor-not-allowed"
+            )}
+          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                disabled={isPrimaryKey}
+              >
+                <Clock className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" align="end">
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="justify-start gap-2 h-8 text-xs"
+                  onClick={() => { setNow(); }}
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  Now (Local)
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="justify-start gap-2 h-8 text-xs"
+                  onClick={() => { setUtcNow(); }}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Now (UTC)
+                </Button>
+                <div className="h-px bg-border my-1" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="justify-start gap-2 h-8 text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => { clearValue(); }}
+                >
+                  <Eraser className="h-3.5 w-3.5" />
+                  Clear
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      );
+    }
+
+    // UUID: Text input with generate button
+    const isUuidField = type.toLowerCase().includes("uuid");
+    if (isUuidField) {
+      const generateUuid = () => {
+        handleChange(crypto.randomUUID());
+      };
+
+      return (
+        <div className="flex items-center gap-2 flex-1">
+          <Input
+            type="text"
+            value={isNull ? "" : String(localValue)}
+            onChange={(e) => handleChange(e.target.value)}
+            disabled={isNull || isPrimaryKey}
+            className={cn(
+              "font-mono text-sm h-9 transition-all flex-1",
+              isNull ? "bg-muted/50 text-muted-foreground italic" : "bg-background/50 focus:bg-background",
+              isPrimaryKey && "opacity-70 cursor-not-allowed"
+            )}
+            placeholder={isNull ? "NULL" : "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
+          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={generateUuid}
+                disabled={isNull || isPrimaryKey}
+              >
+                <Dices className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Generate new UUID</TooltipContent>
+          </Tooltip>
+        </div>
       );
     }
 
