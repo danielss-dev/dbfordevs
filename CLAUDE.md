@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-dbfordevs is a cross-platform database management application built with Tauri 2.0 (Rust backend) and React 18 (TypeScript frontend). It provides a unified interface for PostgreSQL, MySQL, SQLite, and other databases with AI-powered query assistance.
+dbfordevs is a cross-platform database management application built with Tauri 2.0 (Rust backend) and React 18 (TypeScript frontend). It provides a unified interface for PostgreSQL, MySQL, SQLite, Oracle, MSSQL and other databases with AI-powered query assistance.
 
 ## Development Commands
 
@@ -42,7 +42,7 @@ bun scripts/bump-version.ts
 
 ### Backend (src-tauri/)
 - **Commands** (`src-tauri/src/commands/`): Tauri IPC handlers for connections, queries, tables
-- **Database Layer** (`src-tauri/src/db/`): sqlx-based async connection pooling with driver-specific implementations (postgres.rs, mysql.rs, sqlite.rs)
+- **Database Layer** (`src-tauri/src/db/`): sqlx-based async connection pooling with driver-specific implementations (postgres.rs, mysql.rs, sqlite.rs, oracle.rs, mssql.rs)
 - **Connection Manager**: `src-tauri/src/db/manager.rs` - manages active connection pools per connection ID
 
 ### AI Integration (Built-in)
@@ -94,5 +94,17 @@ bun scripts/bump-version.ts
 
 ## Database Support Status
 
-- **Implemented**: PostgreSQL, MySQL, SQLite (via sqlx)
-- **Typed but not implemented**: MSSQL, MongoDB, Redis
+- **Fully Implemented**: PostgreSQL, MySQL, SQLite, Oracle, MSSQL
+- **Typed but not implemented**: MongoDB, Redis
+
+## Recent Features (v0.3.0)
+
+- **Oracle Database Support**: Full driver implementation with Easy Connect format
+- **Query Bookmarks & Templates**: Save, organize, and reuse queries with template variables
+- **Table Creation Wizard**: 5-step guided UI for creating tables with constraints and indexes
+- **SQL Formatting**: One-click SQL beautification with dialect-aware formatting
+- **Query Execution Plans**: Visual EXPLAIN output with interactive tree view
+- **Data Import**: CSV, JSON, SQL import with column mapping and progress tracking
+- **SSH Tunneling**: Secure database connections through SSH tunnels
+- **SSL Configuration**: Full SSL/TLS support with certificate configuration
+- **Global Search**: Search across all columns in data grid results

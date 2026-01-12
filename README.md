@@ -16,19 +16,25 @@
 
 ## 🚀 Key Features
 
-- **Unified Interface:** Manage PostgreSQL, MySQL, MSSQL, SQLite, MongoDB, and Redis from a single app.
+- **Unified Interface:** Manage PostgreSQL, MySQL, MSSQL, SQLite, Oracle, MongoDB, and Redis from a single app.
 - **Lightweight & Fast:** Minimal memory footprint (< 200MB) and near-instant startup.
 - **Visual Diff Preview:** Review all data changes before committing them to the database.
 - **Side Panel Editor:** High-performance data grid with a comfortable side-panel for editing complex records.
 - **AI-Powered Assistance:** Built-in AI assistant to generate, explain, and optimize SQL queries using Claude, GPT, or Gemini.
 - **Multiple Themes:** Choose from Light, Dark, Nordic Dark, Nordic Light, or System auto-switching.
+- **Query Execution Plans:** Visualize EXPLAIN output with interactive tree view and cost analysis.
+- **SQL Formatting:** One-click SQL beautification with configurable options per database dialect.
+- **Query Bookmarks & Templates:** Save, organize, and reuse frequently used queries with folder organization and template variables.
+- **Data Import:** Import CSV, JSON, and SQL files with column mapping and duplicate handling.
+- **Table Creation Wizard:** Create tables with a guided UI for columns, constraints, indexes, and foreign keys.
+- **SSH Tunneling & SSL:** Secure connections through SSH tunnels and SSL/TLS encryption.
 
 ## 🛠️ Tech Stack
 
 - **Frontend:** React 18+, TypeScript, Vite, TailwindCSS, shadcn/ui
 - **Backend:** Rust, Tauri 2.x
 - **State Management:** Zustand
-- **Database Drivers:** SQLx (PostgreSQL, MySQL, SQLite, MSSQL), MongoDB, Redis
+- **Database Drivers:** SQLx (PostgreSQL, MySQL, SQLite, MSSQL), Oracle, MongoDB, Redis
 - **Package Manager:** Bun
 
 ## 📁 Project Structure
@@ -37,12 +43,19 @@
 dbfordevs/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
+│   │   ├── ai/             # AI assistant panel
+│   │   ├── bookmarks/      # Query bookmarks & templates
+│   │   ├── connections/    # Connection management (SSH, SSL)
+│   │   ├── data-grid/      # Data grid with import/export
+│   │   ├── editor/         # SQL editor with formatting
+│   │   ├── explain/        # Query execution plan visualization
+│   │   └── table/          # Table creation wizard
 │   ├── lib/ai/             # Built-in AI assistant
 │   ├── stores/             # Zustand state management
 │   └── hooks/              # React hooks
 ├── src-tauri/              # Tauri application core (Rust)
 │   ├── src/commands/       # Tauri IPC command handlers
-│   └── src/db/             # Database drivers (PostgreSQL, MySQL, SQLite)
+│   └── src/db/             # Database drivers (PostgreSQL, MySQL, SQLite, Oracle)
 ├── public/                 # Static assets
 └── docs/                   # Project documentation & PRD
 ```
