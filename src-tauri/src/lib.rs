@@ -39,6 +39,8 @@ pub fn run() {
             queries::get_tables,
             queries::get_table_schema,
             queries::get_all_table_schemas,
+            queries::get_mssql_databases,
+            queries::get_mssql_database_tables,
             queries::insert_row,
             queries::update_row,
             queries::delete_row,

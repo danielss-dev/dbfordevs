@@ -1,7 +1,7 @@
-use crate::db::{get_connection_manager, get_driver};
+use crate::db::{get_connection_manager, get_driver, mssql::MssqlDriver};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    DatabaseType, ExplainRequest, ExplainResult, PreviewRequest, PreviewResult,
+    DatabaseInfo, DatabaseType, ExplainRequest, ExplainResult, PreviewRequest, PreviewResult,
     QueryRequest, QueryResult, TableInfo, TableSchema
 };
 use crate::storage;
@@ -364,5 +364,54 @@ pub async fn explain_query(request: ExplainRequest) -> Result<ExplainResult, App
     let pool_ref = manager.get_pool_ref(&request.connection_id)?;
 
     driver.explain_query(pool_ref, &request.sql, request.analyze).await
+}
+
+/// Get list of all databases on a MSSQL server (similar to SSMS Object Explorer)
+#[tauri::command]
+pub async fn get_mssql_databases(connection_id: String) -> AppResult<Vec<DatabaseInfo>> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    let config = storage::get_connection(&connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    // This command is only for MSSQL
+    if config.database_type != DatabaseType::MSSQL {
+        return Err(AppError::QueryError("This command is only available for MSSQL connections".to_string()));
+    }
+
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
+    let driver = MssqlDriver;
+
+    driver.get_databases(pool_ref).await
+}
+
+/// Get tables from a specific database on a MSSQL server
+/// This allows browsing tables in any accessible database without switching context
+#[tauri::command]
+pub async fn get_mssql_database_tables(connection_id: String, database_name: String) -> AppResult<Vec<TableInfo>> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    let config = storage::get_connection(&connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    // This command is only for MSSQL
+    if config.database_type != DatabaseType::MSSQL {
+        return Err(AppError::QueryError("This command is only available for MSSQL connections".to_string()));
+    }
+
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
+    let driver = MssqlDriver;
+
+    driver.get_database_tables(pool_ref, &database_name).await
 }
 

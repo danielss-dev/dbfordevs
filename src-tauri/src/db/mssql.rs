@@ -1999,6 +1999,125 @@ ORDER BY ic.key_ordinal;
 }
 
 impl MssqlDriver {
+    /// Get list of all databases on the SQL Server instance (similar to SSMS Object Explorer)
+    pub async fn get_databases(&self, pool: PoolRef<'_>) -> AppResult<Vec<crate::models::DatabaseInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Query sys.databases - only show databases the user has access to
+        // Uses HAS_DBACCESS() to filter based on user permissions
+        let sql = r#"
+            SELECT
+                d.name,
+                d.state_desc AS state,
+                d.recovery_model_desc AS recovery_model,
+                d.compatibility_level,
+                CASE WHEN d.name = DB_NAME() THEN 1 ELSE 0 END AS is_current
+            FROM sys.databases d
+            WHERE HAS_DBACCESS(d.name) = 1
+            ORDER BY
+                CASE WHEN d.name = DB_NAME() THEN 0 ELSE 1 END,
+                d.name
+        "#;
+
+        let query = Query::new(sql);
+        let stream = query.query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get databases: {}", e)))?;
+
+        let results = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch results: {}", e)))?;
+
+        let databases = results
+            .iter()
+            .map(|row| {
+                crate::models::DatabaseInfo {
+                    name: row.get::<&str, _>(0).unwrap_or("").to_string(),
+                    state: row.get::<&str, _>(1).unwrap_or("UNKNOWN").to_string(),
+                    recovery_model: row.get::<&str, _>(2).unwrap_or("UNKNOWN").to_string(),
+                    // compatibility_level is tinyint (u8) in SQL Server
+                    compatibility_level: row.get::<u8, _>(3).map(|v| v as i32).unwrap_or(0),
+                    is_current: row.get::<i32, _>(4).unwrap_or(0) == 1,
+                }
+            })
+            .collect();
+
+        Ok(databases)
+    }
+
+    /// Get tables from a specific database on the SQL Server instance
+    /// This allows browsing tables in any database, not just the currently connected one
+    pub async fn get_database_tables(&self, pool: PoolRef<'_>, database_name: &str) -> AppResult<Vec<TableInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Use three-part naming to query tables from a specific database
+        // This avoids needing to switch database context
+        let sql = format!(
+            r#"
+            SELECT
+                s.name AS schema_name,
+                t.name AS table_name,
+                0 AS is_view
+            FROM [{db}].sys.tables t
+            INNER JOIN [{db}].sys.schemas s ON t.schema_id = s.schema_id
+            WHERE t.is_ms_shipped = 0
+              AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest', 'db_owner', 'db_accessadmin', 'db_securityadmin', 'db_ddladmin', 'db_backupoperator', 'db_datareader', 'db_datawriter', 'db_denydatareader', 'db_denydatawriter')
+              AND t.name NOT LIKE 'spt_%'
+              AND t.name NOT LIKE 'MS%'
+            UNION ALL
+            SELECT
+                s.name AS schema_name,
+                v.name AS table_name,
+                1 AS is_view
+            FROM [{db}].sys.views v
+            INNER JOIN [{db}].sys.schemas s ON v.schema_id = s.schema_id
+            WHERE v.is_ms_shipped = 0
+              AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest')
+            ORDER BY schema_name, table_name
+            "#,
+            db = database_name.replace(']', "]]") // Escape brackets in database name
+        );
+
+        let query = Query::new(&sql);
+        let stream = query.query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get tables for database '{}': {}", database_name, e)))?;
+
+        let results = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch results: {}", e)))?;
+
+        let tables = results
+            .iter()
+            .map(|row| {
+                let schema: Option<&str> = row.get(0);
+                let name: Option<&str> = row.get(1);
+                let is_view: Option<i32> = row.get(2);
+
+                TableInfo {
+                    name: name.unwrap_or("").to_string(),
+                    schema: schema.map(|s| s.to_string()),
+                    table_type: if is_view.unwrap_or(0) == 1 {
+                        "VIEW".to_string()
+                    } else {
+                        "TABLE".to_string()
+                    },
+                    row_count: None,
+                }
+            })
+            .collect();
+
+        Ok(tables)
+    }
+
     /// Parse MSSQL SHOWPLAN_XML output into a PlanNode structure
     fn parse_mssql_plan_xml(xml: &str) -> (PlanNode, f64, Vec<ExplainWarning>) {
         let mut warnings = Vec::new();

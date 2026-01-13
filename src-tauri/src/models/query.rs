@@ -36,6 +36,17 @@ pub struct TableInfo {
     pub row_count: Option<i64>,
 }
 
+/// Information about a database (used for MSSQL to show all databases like SSMS)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatabaseInfo {
+    pub name: String,
+    pub state: String,          // ONLINE, OFFLINE, etc.
+    pub recovery_model: String, // SIMPLE, FULL, BULK_LOGGED
+    pub compatibility_level: i32,
+    pub is_current: bool,       // Is this the currently connected database?
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableSchema {
