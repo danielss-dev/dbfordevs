@@ -2,6 +2,20 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] - 2026-01-13
+
+
+### Added
+- **feat**: enhance field editor with date/time pickers, FK validation, and UX improvements (#53)
+- **feat**: show only specified database for MSSQL connections (#51)
+- **feat**: enhance MSSQL connection string parsing to support named instances
+
+### Fixed
+- **fix**: improve CRUD operations robustness across all database providers (#52)
+- **fix**: prevent SQL injection via identifier quoting (#49)
+
+### Other
+- **docs**: add comprehensive feature analysis (#50)
 ## [0.3.1] - 2026-01-12
 
 
