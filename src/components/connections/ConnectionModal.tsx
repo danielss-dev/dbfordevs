@@ -299,8 +299,10 @@ export function ConnectionModal() {
     }
   };
 
-  const canTest = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : formData.database.trim());
-  const canSave = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : formData.database.trim());
+  const isMssql = formData.databaseType === "mssql";
+  // MSSQL allows connecting without a specific database (defaults to master, shows all databases)
+  const canTest = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : (isMssql || formData.database.trim()));
+  const canSave = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : (isMssql || formData.database.trim()));
 
   // Get status indicators for tabs
   const getSslStatus = () => {
@@ -565,12 +567,14 @@ export function ConnectionModal() {
                           <FormField
                             label="Database Name"
                             htmlFor="database"
-                            hint="The name of the database to connect to"
-                            required
+                            hint={isMssql
+                              ? "Leave empty to connect to 'master' and browse all databases"
+                              : "The name of the database to connect to"}
+                            required={!isMssql}
                           >
                             <Input
                               id="database"
-                              placeholder="mydb"
+                              placeholder={isMssql ? "master (optional)" : "mydb"}
                               value={formData.database}
                               onChange={(e) => setFormData({ ...formData, database: e.target.value })}
                               className="transition-colors"

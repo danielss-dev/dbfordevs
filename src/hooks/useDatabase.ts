@@ -4,6 +4,7 @@ import { useConnectionsStore, useQueryStore, useSchemaStore } from "@/stores";
 import type {
   ConnectionConfig,
   ConnectionInfo,
+  DatabaseInfo,
   TestConnectionResult,
   QueryRequest,
   QueryResult,
@@ -315,6 +316,45 @@ export function useDatabase() {
       }
     },
     [setLoading, setQueryError, setTablesForConnection, updateConnection]
+  );
+
+  /**
+   * Get list of all databases for MSSQL connections (similar to SSMS Object Explorer)
+   */
+  const getMssqlDatabases = useCallback(
+    async (connectionId: string): Promise<DatabaseInfo[]> => {
+      setLoading(true);
+      setQueryError(null);
+
+      try {
+        const databases = await invoke<DatabaseInfo[]>("get_mssql_databases", { connectionId });
+        return databases;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      } finally {
+        setLoading(false);
+      }
+    },
+    [setLoading, setQueryError]
+  );
+
+  /**
+   * Get tables from a specific database on MSSQL (allows browsing any database)
+   */
+  const getMssqlDatabaseTables = useCallback(
+    async (connectionId: string, databaseName: string): Promise<TableInfo[]> => {
+      try {
+        const tables = await invoke<TableInfo[]>("get_mssql_database_tables", { connectionId, databaseName });
+        return tables;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
   );
 
   /**
@@ -662,6 +702,8 @@ export function useDatabase() {
     previewQuery,
     explainQuery,
     getTables,
+    getMssqlDatabases,
+    getMssqlDatabaseTables,
     getTableSchema,
     fetchAllSchemas,
     refreshSchemas,

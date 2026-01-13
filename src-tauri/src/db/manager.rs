@@ -326,10 +326,18 @@ fn build_mssql_connection_string(config: &ConnectionConfig) -> AppResult<String>
     let username = config.username.as_deref().unwrap_or("sa");
     let password = config.password.as_deref().unwrap_or("");
 
+    // MSSQL allows connecting without specifying a database (defaults to master)
+    // This is similar to how SSMS works - connect to server, browse all databases
+    let database = if config.database.trim().is_empty() {
+        "master".to_string()
+    } else {
+        config.database.clone()
+    };
+
     // Tiberius uses ADO.NET style connection strings
     let mut parts = vec![
         format!("Server=tcp:{},{}", host, port),
-        format!("Database={}", config.database),
+        format!("Database={}", database),
         format!("User Id={}", username),
         format!("Password={}", password),
     ];

@@ -42,7 +42,7 @@ import {
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { useConnectionsStore, useUIStore, useQueryStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
-import type { ConnectionInfo, TableInfo } from "@/types";
+import type { ConnectionInfo, TableInfo, DatabaseInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
@@ -133,7 +133,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { activeConnectionId, setActiveConnection } = useConnectionsStore();
   const { openConnectionModal, openRenameTableDialog, openRenameConnectionDialog, openCreateTableDialog } = useUIStore();
   const { tablesByConnection, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
-  const { connect, disconnect, getTables, deleteConnection, dropTable, generateTableDdl } = useDatabase();
+  const { connect, disconnect, getTables, getMssqlDatabases, getMssqlDatabaseTables, deleteConnection, dropTable, generateTableDdl } = useDatabase();
   const { toast } = useToast();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [tablesOpen, setTablesOpen] = useState(true);
@@ -141,6 +141,16 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const [showDeleteConnectionDialog, setShowDeleteConnectionDialog] = useState(false);
   const [tableToDrop, setTableToDrop] = useState<string | null>(null);
   const isActive = activeConnectionId === connection.id;
+
+  // MSSQL-specific state for showing all databases
+  const isMssql = connection.databaseType === "mssql";
+  const [databases, setDatabases] = useState<DatabaseInfo[]>([]);
+  const [isLoadingDatabases, setIsLoadingDatabases] = useState(false);
+  const [databasesOpen, setDatabasesOpen] = useState(false);
+  // Track tables per database for MSSQL explorer view
+  const [tablesByDatabase, setTablesByDatabase] = useState<Record<string, TableInfo[]>>({});
+  const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(new Set());
+  const [loadingDatabaseTables, setLoadingDatabaseTables] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isActive && connection.connected && tablesOpen && !tablesByConnection[connection.id]?.length) {
@@ -178,6 +188,92 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
       showErrorToast("Failed to load tables", error instanceof Error ? error.message : String(error));
     } finally {
       setIsLoadingTables(false);
+    }
+  };
+
+  // Check if connection has a specific database configured
+  const hasSpecificDatabase = isMssql && connection.database && connection.database.trim() !== "";
+
+  // Load all databases for MSSQL (similar to SSMS Object Explorer)
+  const loadDatabases = async () => {
+    if (!isMssql) return;
+
+    if (!connection.connected) {
+      const connected = await connect(connection.id);
+      if (!connected) {
+        showErrorToast("Connection failed", `Failed to connect to "${connection.name}". Please check your connection settings.`);
+        return;
+      }
+    }
+
+    // If a specific database is configured, only show that one
+    if (hasSpecificDatabase) {
+      setDatabases([{
+        name: connection.database,
+        state: "ONLINE",
+        recoveryModel: "",
+        compatibilityLevel: 0,
+        isCurrent: true,
+      }]);
+      return;
+    }
+
+    // Otherwise, fetch all accessible databases
+    setIsLoadingDatabases(true);
+    try {
+      const dbs = await getMssqlDatabases(connection.id);
+      setDatabases(dbs);
+    } catch (error) {
+      console.error("Failed to load databases:", error);
+      showErrorToast("Failed to load databases", error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingDatabases(false);
+    }
+  };
+
+  const handleDatabasesClick = () => {
+    setDatabasesOpen(!databasesOpen);
+    if (!databasesOpen && connection.connected && databases.length === 0) {
+      loadDatabases();
+    }
+  };
+
+  // Load tables for a specific database (MSSQL)
+  const loadTablesForDatabase = async (databaseName: string) => {
+    if (!isMssql || loadingDatabaseTables.has(databaseName)) return;
+
+    setLoadingDatabaseTables(prev => new Set(prev).add(databaseName));
+    try {
+      const tables = await getMssqlDatabaseTables(connection.id, databaseName);
+      setTablesByDatabase(prev => ({ ...prev, [databaseName]: tables }));
+    } catch (error) {
+      console.error(`Failed to load tables for database '${databaseName}':`, error);
+      showErrorToast("Failed to load tables", error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoadingDatabaseTables(prev => {
+        const next = new Set(prev);
+        next.delete(databaseName);
+        return next;
+      });
+    }
+  };
+
+  // Toggle database expansion (MSSQL)
+  const handleDatabaseToggle = (databaseName: string) => {
+    const isExpanding = !expandedDatabases.has(databaseName);
+    setExpandedDatabases(prev => {
+      const next = new Set(prev);
+      if (isExpanding) {
+        next.add(databaseName);
+      } else {
+        next.delete(databaseName);
+      }
+      return next;
+    });
+
+    // Load tables if expanding and not already loaded
+    if (isExpanding && !tablesByDatabase[databaseName]) {
+      loadTablesForDatabase(databaseName);
     }
   };
 
@@ -449,6 +545,129 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
               onClick={handleConnectionClick}
             >
               {connection.connected && (
+                <>
+                  {/* MSSQL: Show "Databases" node with expandable databases containing tables */}
+                  {isMssql && (
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div>
+                          <TreeItem
+                            label="Databases"
+                            icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
+                            onClick={handleDatabasesClick}
+                            defaultOpen={false}
+                          >
+                            {isLoadingDatabases ? (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading...</span>
+                              </div>
+                            ) : databases.length > 0 ? (
+                              databases.map((db) => {
+                                const isExpanded = expandedDatabases.has(db.name);
+                                const isLoadingTables = loadingDatabaseTables.has(db.name);
+                                const dbTables = tablesByDatabase[db.name] || [];
+
+                                // Group tables by schema for this database
+                                const dbTablesBySchema = dbTables.reduce((acc: Record<string, TableInfo[]>, table: TableInfo) => {
+                                  const schemaName = table.schema || "dbo";
+                                  if (!acc[schemaName]) {
+                                    acc[schemaName] = [];
+                                  }
+                                  acc[schemaName].push(table);
+                                  return acc;
+                                }, {});
+                                const dbSchemaNames = Object.keys(dbTablesBySchema).sort();
+
+                                return (
+                                  <div key={db.name} className="ml-2">
+                                    <div
+                                      className={cn(
+                                        "group flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-all duration-200 cursor-pointer",
+                                        "hover:bg-sidebar-accent/50",
+                                        db.isCurrent && "bg-primary/10 font-medium"
+                                      )}
+                                      onClick={() => handleDatabaseToggle(db.name)}
+                                    >
+                                      <span className="text-muted-foreground">
+                                        {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                      </span>
+                                      <Database className={cn("h-3.5 w-3.5", db.isCurrent ? "text-primary" : "text-muted-foreground")} />
+                                      <span className="truncate flex-1 text-left">{db.name}</span>
+                                      {db.isCurrent && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">current</span>
+                                      )}
+                                      {db.state !== "ONLINE" && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
+                                          {db.state.toLowerCase()}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Expanded database content - show tables */}
+                                    {isExpanded && (
+                                      <div className="ml-4 animate-slide-down">
+                                        {isLoadingTables ? (
+                                          <div className="ml-4 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            <span>Loading tables...</span>
+                                          </div>
+                                        ) : dbSchemaNames.length > 0 ? (
+                                          dbSchemaNames.map((schemaName) => (
+                                            <TreeItem
+                                              key={schemaName}
+                                              label={schemaName}
+                                              icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                                              level={1}
+                                              defaultOpen={dbSchemaNames.length === 1}
+                                            >
+                                              {dbTablesBySchema[schemaName].map((table) => (
+                                                <ContextMenu key={table.name}>
+                                                  <ContextMenuTrigger asChild>
+                                                    <div>
+                                                      <TreeItem
+                                                        label={table.name}
+                                                        icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
+                                                        level={2}
+                                                        onClick={() => handleTableClick(`${db.name}.${schemaName}.${table.name}`, table.name)}
+                                                      />
+                                                    </div>
+                                                  </ContextMenuTrigger>
+                                                  <ContextMenuContent className="w-56">
+                                                    <ContextMenuItem onSelect={() => handleTableClick(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
+                                                      <Table className="h-4 w-4" />
+                                                      View Data
+                                                    </ContextMenuItem>
+                                                  </ContextMenuContent>
+                                                </ContextMenu>
+                                              ))}
+                                            </TreeItem>
+                                          ))
+                                        ) : (
+                                          <div className="ml-4 py-2 text-xs text-muted-foreground">No tables found</div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            ) : databasesOpen ? (
+                              <div className="ml-6 py-2 text-xs text-muted-foreground">No databases found</div>
+                            ) : null}
+                          </TreeItem>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem onSelect={loadDatabases} className="gap-2">
+                          <RefreshCw className={cn("h-4 w-4", isLoadingDatabases && "animate-spin")} />
+                          Refresh
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  )}
+
+                  {/* For non-MSSQL databases, show Schemas tree */}
+                  {!isMssql && (
                 <ContextMenu>
                   <ContextMenuTrigger asChild>
                     <div>
@@ -560,6 +779,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                     </ContextMenuItem>
                   </ContextMenuContent>
                 </ContextMenu>
+                  )}
+                </>
               )}
             </TreeItem>
           </div>

@@ -113,6 +113,15 @@ export interface TableInfo {
   rowCount?: number;
 }
 
+/** Information about a database (used for MSSQL to show all databases like SSMS) */
+export interface DatabaseInfo {
+  name: string;
+  state: string;           // ONLINE, OFFLINE, etc.
+  recoveryModel: string;   // SIMPLE, FULL, BULK_LOGGED
+  compatibilityLevel: number;
+  isCurrent: boolean;      // Is this the currently connected database?
+}
+
 export interface TableSchema {
   tableName: string;
   columns: ColumnInfo[];
