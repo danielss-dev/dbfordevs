@@ -104,6 +104,7 @@ fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
     // First pass: gather all values
     let mut host = String::from("localhost");
     let mut port: u16 = 1433;
+    let mut instance_name: Option<String> = None;
     let mut database = String::new();
     let mut username = String::new();
     let mut password = String::new();
@@ -122,13 +123,25 @@ fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
             match key.as_str() {
                 "server" => {
                     let server = value.strip_prefix("tcp:").unwrap_or(value);
-                    if let Some((h, port_str)) = server.split_once(',') {
-                        host = h.to_string();
-                        if let Ok(p) = port_str.parse::<u16>() {
-                            port = p;
-                        }
+                    // First extract port if specified with comma (e.g., server,1433)
+                    let (server_part, explicit_port) = if let Some((s, port_str)) = server.split_once(',') {
+                        let p = port_str.parse::<u16>().ok();
+                        (s, p)
                     } else {
-                        host = server.to_string();
+                        (server, None)
+                    };
+
+                    // Then check for named instance (e.g., server\SQLEXPRESS)
+                    if let Some((h, inst)) = server_part.split_once('\\') {
+                        host = h.to_string();
+                        instance_name = Some(inst.to_string());
+                    } else {
+                        host = server_part.to_string();
+                    }
+
+                    // Apply explicit port if specified
+                    if let Some(p) = explicit_port {
+                        port = p;
                     }
                 }
                 "database" | "initial catalog" => {
@@ -149,7 +162,13 @@ fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
     }
 
     config.host(&host);
-    config.port(port);
+    // If instance name is specified, use it (this queries SQL Browser for the port)
+    // Otherwise use the explicit port
+    if let Some(ref inst) = instance_name {
+        config.instance_name(inst);
+    } else {
+        config.port(port);
+    }
     if !database.is_empty() {
         config.database(&database);
     }
