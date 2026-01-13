@@ -492,6 +492,7 @@ impl DatabaseDriver for OracleDriver {
             let mut all_columns: Vec<ColumnInfo> = Vec::new();
             let mut all_rows: Vec<Vec<JsonValue>> = Vec::new();
             let mut total_affected: u64 = 0;
+            let mut needs_commit = false;
 
             for statement in statements {
                 if statement.trim().is_empty() {
@@ -543,10 +544,7 @@ impl DatabaseDriver for OracleDriver {
                         let affected = stmt.row_count()
                             .map_err(|e| AppError::QueryError(format!("Failed to get row count: {}", e)))?;
                         total_affected += affected as u64;
-
-                        // Commit the transaction
-                        conn.inner().commit()
-                            .map_err(|e| AppError::QueryError(format!("Commit failed: {}", e)))?;
+                        needs_commit = true;
                     }
                     StatementType::Ddl => {
                         let mut stmt = conn.inner().statement(&statement).build()
@@ -554,9 +552,7 @@ impl DatabaseDriver for OracleDriver {
 
                         stmt.execute(&[])
                             .map_err(|e| AppError::QueryError(format!("DDL execution failed: {}", e)))?;
-
-                        conn.inner().commit()
-                            .map_err(|e| AppError::QueryError(format!("Commit failed: {}", e)))?;
+                        needs_commit = true;
                     }
                     StatementType::Other => {
                         // Try to execute anyway
@@ -567,7 +563,7 @@ impl DatabaseDriver for OracleDriver {
                             Ok(_) => {
                                 let affected = stmt.row_count().unwrap_or(0);
                                 total_affected += affected as u64;
-                                let _ = conn.inner().commit();
+                                needs_commit = true;
                             }
                             Err(e) => {
                                 return Err(AppError::QueryError(format!("Execution failed: {}", e)));
@@ -575,6 +571,14 @@ impl DatabaseDriver for OracleDriver {
                         }
                     }
                 }
+            }
+
+            // Commit all changes at once after all statements succeed
+            // This ensures atomicity - if any statement failed, we wouldn't reach here
+            // and Oracle will automatically rollback when the connection is returned to the pool
+            if needs_commit {
+                conn.inner().commit()
+                    .map_err(|e| AppError::QueryError(format!("Commit failed: {}", e)))?;
             }
 
             let execution_time_ms = start.elapsed().as_millis() as u64;
@@ -668,9 +672,9 @@ impl DatabaseDriver for OracleDriver {
                 (current_user, table_name.to_uppercase())
             };
 
-            // Get columns
+            // Get columns (IDENTITY_COLUMN is available in Oracle 12c+, returns NULL for older versions)
             let cols_sql = "
-                SELECT column_name, data_type, data_length, data_precision, data_scale, nullable
+                SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, identity_column
                 FROM all_tab_columns
                 WHERE owner = :1 AND table_name = :2
                 ORDER BY column_id
@@ -692,8 +696,15 @@ impl DatabaseDriver for OracleDriver {
                 let data_precision: Option<i32> = row.get(3).ok();
                 let data_scale: Option<i32> = row.get(4).ok();
                 let nullable: String = row.get(5).map_err(|e| AppError::QueryError(e.to_string()))?;
+                let identity_column: Option<String> = row.get(6).ok();
 
-                let formatted_type = Self::format_oracle_type(&data_type, data_length, data_precision, data_scale);
+                let mut formatted_type = Self::format_oracle_type(&data_type, data_length, data_precision, data_scale);
+
+                // Append IDENTITY to type string for auto-increment columns (Oracle 12c+)
+                // This enables frontend auto-increment detection via dataType.includes("identity")
+                if identity_column.as_deref() == Some("YES") {
+                    formatted_type.push_str(" IDENTITY");
+                }
 
                 columns.push(ColumnInfo {
                     name: col_name,

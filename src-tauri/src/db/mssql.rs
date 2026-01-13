@@ -952,11 +952,17 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        let (schema_name, table) = if table_name.contains('.') {
-            let parts: Vec<&str> = table_name.splitn(2, '.').collect();
-            (parts[0], parts[1])
-        } else {
-            ("dbo", table_name)
+        // Parse table name which can be:
+        // - "table" -> schema=dbo, table=table
+        // - "schema.table" -> schema=schema, table=table
+        // - "database.schema.table" -> schema=schema, table=table (ignore database)
+        let (schema_name, table) = {
+            let parts: Vec<&str> = table_name.split('.').collect();
+            match parts.len() {
+                1 => ("dbo", parts[0]),
+                2 => (parts[0], parts[1]),
+                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
+            }
         };
 
         let mut client = pool.get().await
@@ -971,7 +977,8 @@ impl DatabaseDriver for MssqlDriver {
                 c.precision,
                 c.scale,
                 c.is_nullable,
-                CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key
+                CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key,
+                c.is_identity
             FROM sys.columns c
             INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
             INNER JOIN sys.tables tbl ON c.object_id = tbl.object_id
@@ -1006,6 +1013,7 @@ impl DatabaseDriver for MssqlDriver {
                 let scale: Option<u8> = row.get(4);
                 let is_nullable: Option<bool> = row.get(5);
                 let is_pk: Option<i32> = row.get(6);
+                let is_identity: Option<bool> = row.get(7);
 
                 let col_name = name.unwrap_or("").to_string();
                 let is_primary = is_pk.unwrap_or(0) == 1;
@@ -1014,12 +1022,18 @@ impl DatabaseDriver for MssqlDriver {
                     primary_keys.push(col_name.clone());
                 }
 
-                let type_str = format_mssql_type(
+                let mut type_str = format_mssql_type(
                     data_type.unwrap_or(""),
                     max_length,
                     precision,
                     scale,
                 );
+
+                // Append IDENTITY to type string for auto-increment columns
+                // This enables frontend auto-increment detection via dataType.includes("identity")
+                if is_identity.unwrap_or(false) {
+                    type_str.push_str(" IDENTITY");
+                }
 
                 ColumnInfo {
                     name: col_name,
@@ -1113,11 +1127,17 @@ impl DatabaseDriver for MssqlDriver {
     async fn generate_table_ddl(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<String> {
         let schema = self.get_table_schema(pool, table_name).await?;
 
-        let (schema_name, table) = if table_name.contains('.') {
-            let parts: Vec<&str> = table_name.splitn(2, '.').collect();
-            (parts[0], parts[1])
-        } else {
-            ("dbo", table_name)
+        // Parse table name which can be:
+        // - "table" -> schema=dbo, table=table
+        // - "schema.table" -> schema=schema, table=table
+        // - "database.schema.table" -> schema=schema, table=table (ignore database)
+        let (schema_name, table) = {
+            let parts: Vec<&str> = table_name.split('.').collect();
+            match parts.len() {
+                1 => ("dbo", parts[0]),
+                2 => (parts[0], parts[1]),
+                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
+            }
         };
 
         let mut ddl = format!("CREATE TABLE [{}].[{}] (\n", schema_name, table);
@@ -1160,11 +1180,17 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        let (schema_name, table) = if table_name.contains('.') {
-            let parts: Vec<&str> = table_name.splitn(2, '.').collect();
-            (parts[0], parts[1])
-        } else {
-            ("dbo", table_name)
+        // Parse table name which can be:
+        // - "table" -> schema=dbo, table=table
+        // - "schema.table" -> schema=schema, table=table
+        // - "database.schema.table" -> schema=schema, table=table (ignore database)
+        let (schema_name, table) = {
+            let parts: Vec<&str> = table_name.split('.').collect();
+            match parts.len() {
+                1 => ("dbo", parts[0]),
+                2 => (parts[0], parts[1]),
+                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
+            }
         };
 
         let mut client = pool.get().await
@@ -1225,11 +1251,17 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        let (schema_name, table) = if table_name.contains('.') {
-            let parts: Vec<&str> = table_name.splitn(2, '.').collect();
-            (parts[0], parts[1])
-        } else {
-            ("dbo", table_name)
+        // Parse table name which can be:
+        // - "table" -> schema=dbo, table=table
+        // - "schema.table" -> schema=schema, table=table
+        // - "database.schema.table" -> schema=schema, table=table (ignore database)
+        let (schema_name, table) = {
+            let parts: Vec<&str> = table_name.split('.').collect();
+            match parts.len() {
+                1 => ("dbo", parts[0]),
+                2 => (parts[0], parts[1]),
+                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
+            }
         };
 
         let mut client = pool.get().await
@@ -1319,11 +1351,17 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        let (schema_name, table) = if table_name.contains('.') {
-            let parts: Vec<&str> = table_name.splitn(2, '.').collect();
-            (parts[0], parts[1])
-        } else {
-            ("dbo", table_name)
+        // Parse table name which can be:
+        // - "table" -> schema=dbo, table=table
+        // - "schema.table" -> schema=schema, table=table
+        // - "database.schema.table" -> schema=schema, table=table (ignore database)
+        let (schema_name, table) = {
+            let parts: Vec<&str> = table_name.split('.').collect();
+            match parts.len() {
+                1 => ("dbo", parts[0]),
+                2 => (parts[0], parts[1]),
+                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
+            }
         };
 
         let mut client = pool.get().await

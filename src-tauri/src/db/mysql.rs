@@ -816,11 +816,12 @@ impl DatabaseDriver for MySqlDriver {
         };
         // Get columns
         let columns_query = r#"
-            SELECT 
+            SELECT
                 COLUMN_NAME as column_name,
                 DATA_TYPE as data_type,
                 IS_NULLABLE as is_nullable,
-                COLUMN_KEY as column_key
+                COLUMN_KEY as column_key,
+                EXTRA as extra
             FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = DATABASE()
             AND TABLE_NAME = ?
@@ -885,9 +886,18 @@ impl DatabaseDriver for MySqlDriver {
             .map(|row| {
                 let col_name = decode_string(row, "column_name");
                 let column_key = decode_string(row, "column_key");
+                let extra = decode_string(row, "extra");
+                let mut data_type = decode_string(row, "data_type");
+
+                // Append AUTO_INCREMENT to type string for auto-increment columns
+                // This enables frontend auto-increment detection via dataType.includes("auto_increment")
+                if extra.to_lowercase().contains("auto_increment") {
+                    data_type.push_str(" AUTO_INCREMENT");
+                }
+
                 ColumnInfo {
                     name: col_name,
-                    data_type: decode_string(row, "data_type"),
+                    data_type,
                     nullable: decode_string(row, "is_nullable") == "YES",
                     is_primary_key: column_key == "PRI",
                 }

@@ -20,6 +20,39 @@ function getRowIdentifier(change: PendingChange): { label: string; value: string
   const pk = change.primaryKey;
   const pkEntries = Object.entries(pk).filter(([key]) => !key.startsWith("__"));
 
+  // Special handling for INSERT operations
+  if (change.type === "insert") {
+    // For inserts, try to find a meaningful identifier from newData
+    if (change.newData) {
+      // Look for common identifier columns in newData
+      const idValue = change.newData["id"] ?? change.newData["ID"] ?? change.newData["Id"];
+      if (idValue !== null && idValue !== undefined) {
+        return { label: "id", value: String(idValue) };
+      }
+
+      // Look for name-like columns
+      const nameValue = change.newData["name"] ?? change.newData["Name"] ?? change.newData["NAME"];
+      if (nameValue !== null && nameValue !== undefined) {
+        return { label: "New Row", value: String(nameValue) };
+      }
+    }
+
+    // Extract sequence from temp_id (__new_timestamp_random) or use "New"
+    const tempId = pk.__temp_id as string | undefined;
+    if (tempId && tempId.startsWith("__new_")) {
+      // Extract timestamp for a short identifier
+      const parts = tempId.split("_");
+      if (parts.length >= 3) {
+        const timestamp = parts[2];
+        // Use last 4 digits of timestamp for a short unique identifier
+        const shortId = timestamp.slice(-4);
+        return { label: "New Row", value: `#${shortId}` };
+      }
+    }
+
+    return { label: "New Row", value: "(pending)" };
+  }
+
   if (pkEntries.length === 0) {
     return { label: "Row", value: "unknown" };
   }

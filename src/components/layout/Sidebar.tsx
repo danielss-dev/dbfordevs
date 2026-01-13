@@ -638,6 +638,36 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                                       <Table className="h-4 w-4" />
                                                       View Data
                                                     </ContextMenuItem>
+                                                    <ContextMenuItem onSelect={() => handleViewProperties(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
+                                                      <Info className="h-4 w-4" />
+                                                      View Properties
+                                                    </ContextMenuItem>
+                                                    <ContextMenuItem onSelect={() => handleViewDiagram(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
+                                                      <Network className="h-4 w-4" />
+                                                      View Diagram
+                                                    </ContextMenuItem>
+                                                    <ContextMenuSeparator />
+                                                    <ContextMenuItem onSelect={() => handleCopyDdl(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
+                                                      <Copy className="h-4 w-4" />
+                                                      Copy
+                                                    </ContextMenuItem>
+                                                    <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
+                                                      <ClipboardPaste className="h-4 w-4" />
+                                                      Paste
+                                                    </ContextMenuItem>
+                                                    <ContextMenuSeparator />
+                                                    <ContextMenuItem onSelect={() => handleRenameTable(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
+                                                      <Pencil className="h-4 w-4" />
+                                                      Rename Table
+                                                    </ContextMenuItem>
+                                                    <ContextMenuSeparator />
+                                                    <ContextMenuItem
+                                                      onSelect={() => handleTableDelete(`${db.name}.${schemaName}.${table.name}`)}
+                                                      className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                    >
+                                                      <Trash2 className="h-4 w-4" />
+                                                      Drop Table
+                                                    </ContextMenuItem>
                                                   </ContextMenuContent>
                                                 </ContextMenu>
                                               ))}

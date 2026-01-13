@@ -888,12 +888,18 @@ impl DatabaseDriver for SqliteDriver {
                 let name: String = row.get("name");
                 let notnull: i64 = row.get("notnull");
                 let pk: i64 = row.get("pk");
-                let data_type: String = row.get("type");
-                
+                let mut data_type: String = row.get("type");
+
                 if pk > 0 {
                     primary_keys.push(name.clone());
                 }
-                
+
+                // In SQLite, INTEGER PRIMARY KEY columns are ROWID aliases and auto-increment
+                // Append AUTOINCREMENT to type string for frontend auto-increment detection
+                if pk > 0 && data_type.to_uppercase() == "INTEGER" {
+                    data_type.push_str(" AUTOINCREMENT");
+                }
+
                 ColumnInfo {
                     name: name.clone(),
                     data_type,

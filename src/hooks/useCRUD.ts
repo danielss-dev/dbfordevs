@@ -81,18 +81,19 @@ export function useCRUD() {
           // Get schema to identify auto-increment columns
           const cachedSchema = getSchema(activeTab.connectionId, change.tableName);
 
-          // Filter out auto-increment columns with NULL values
-          // Auto-increment columns should be omitted from INSERT to let the DB generate the value
+          // Filter out auto-increment columns - they should always be omitted from INSERT
+          // to let the DB generate the value
           if (cachedSchema?.columns) {
             for (const col of cachedSchema.columns) {
               const dataType = col.dataType.toLowerCase();
               const isAutoIncrement =
                 dataType.includes("serial") || // PostgreSQL: serial, bigserial, smallserial
-                dataType.includes("identity") || // MSSQL/Oracle: identity columns
-                (dataType.includes("int") && col.isPrimaryKey); // Common pattern: int PK often auto-increment
+                dataType.includes("identity") || // MSSQL: IDENTITY columns
+                dataType.includes("auto_increment") || // MySQL: AUTO_INCREMENT columns
+                dataType.includes("autoincrement"); // SQLite: INTEGER PRIMARY KEY AUTOINCREMENT
 
-              // If column is auto-increment and value is null, remove it from insert
-              if (isAutoIncrement && insertData[col.name] === null) {
+              // Always remove auto-increment columns from insert
+              if (isAutoIncrement) {
                 delete insertData[col.name];
               }
             }
