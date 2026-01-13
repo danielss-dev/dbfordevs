@@ -1,7 +1,8 @@
+use crate::db::common::{quote_identifier, quote_identifier_single};
 use crate::db::{get_connection_manager, get_driver};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    BatchImportResult, ColumnMapping, ImportFormat,
+    BatchImportResult, ColumnMapping, DatabaseType, ImportFormat,
     ImportPreviewRequest, ImportPreviewResult, ImportProgress, ImportRequest, ImportResult,
     ImportRowError, ImportStatus,
 };
@@ -309,16 +310,21 @@ fn format_sql_value(value: &serde_json::Value) -> String {
     }
 }
 
-/// Build INSERT statement for a batch of rows
+/// Build INSERT statement for a batch of rows with properly quoted identifiers
 fn build_insert_sql(
     table_name: &str,
     mappings: &[ColumnMapping],
     rows: &[Vec<serde_json::Value>],
+    db_type: &DatabaseType,
 ) -> String {
-    let columns: Vec<&str> = mappings
+    // Properly quote the table name
+    let quoted_table = quote_identifier(table_name, db_type);
+
+    // Properly quote column names
+    let columns: Vec<String> = mappings
         .iter()
         .filter(|m| !m.target_column.is_empty())
-        .map(|m| m.target_column.as_str())
+        .map(|m| quote_identifier_single(&m.target_column, db_type))
         .collect();
 
     let values: Vec<String> = rows
@@ -340,7 +346,7 @@ fn build_insert_sql(
 
     format!(
         "INSERT INTO {} ({}) VALUES {}",
-        table_name,
+        quoted_table,
         columns.join(", "),
         values.join(", ")
     )
@@ -536,7 +542,7 @@ pub async fn execute_import(app: AppHandle, request: ImportRequest) -> AppResult
         );
 
         // Build and execute INSERT for this batch
-        let insert_sql = build_insert_sql(&request.table_name, &request.column_mappings, chunk);
+        let insert_sql = build_insert_sql(&request.table_name, &request.column_mappings, chunk, &config.database_type);
 
         match driver.execute_query(pool_ref.clone(), &insert_sql).await {
             Ok(query_result) => {
@@ -564,6 +570,7 @@ pub async fn execute_import(app: AppHandle, request: ImportRequest) -> AppResult
                             &request.table_name,
                             &request.column_mappings,
                             &[row.clone()],
+                            &config.database_type,
                         );
 
                         match driver.execute_query(pool_ref.clone(), &single_insert).await {

@@ -1,5 +1,6 @@
-use crate::db::common::{parse_cte_statement_type, CteParserConfig};
+use crate::db::common::{parse_cte_statement_type, quote_identifier, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
+use crate::models::DatabaseType;
 use crate::error::{AppError, AppResult};
 use crate::models::{
     ColumnInfo, ConnectionConfig, ConstraintInfo, ExplainResult, ExtendedColumnInfo,
@@ -841,7 +842,10 @@ impl DatabaseDriver for OracleDriver {
     }
 
     async fn rename_table(&self, pool: PoolRef<'_>, old_name: &str, new_name: &str) -> AppResult<QueryResult> {
-        let sql = format!("ALTER TABLE {} RENAME TO {}", old_name, new_name);
+        // Properly quote identifiers to prevent SQL injection
+        let quoted_old = quote_identifier(old_name, &DatabaseType::Oracle);
+        let quoted_new = quote_identifier(new_name, &DatabaseType::Oracle);
+        let sql = format!("ALTER TABLE {} RENAME TO {}", quoted_old, quoted_new);
         self.execute_query(pool, &sql).await
     }
 
@@ -1316,25 +1320,33 @@ impl DatabaseDriver for OracleDriver {
     }
 
     fn generate_create_table_ddl(&self, table_def: &NewTableDefinition) -> AppResult<String> {
+        let db_type = DatabaseType::Oracle;
+        use crate::db::common::quote_identifier_single;
+
         let table_name = if let Some(ref schema) = table_def.schema {
-            format!("{}.{}", schema, table_def.name)
+            format!(
+                "{}.{}",
+                quote_identifier_single(schema, &db_type),
+                quote_identifier_single(&table_def.name, &db_type)
+            )
         } else {
-            table_def.name.clone()
+            quote_identifier_single(&table_def.name, &db_type)
         };
 
         let mut ddl = format!("CREATE TABLE {} (\n", table_name);
         let mut column_defs = Vec::new();
 
         for col in &table_def.columns {
-            let mut col_def = format!("    {} {}", col.name, col.data_type.to_uppercase());
+            let col_name = quote_identifier_single(&col.name, &db_type);
+            let mut col_def = format!("    {} {}", col_name, col.data_type.to_uppercase());
 
             // Add length/precision if specified
             if let Some(length) = col.length {
-                col_def = format!("    {} {}({})", col.name, col.data_type.to_uppercase(), length);
+                col_def = format!("    {} {}({})", col_name, col.data_type.to_uppercase(), length);
             } else if let (Some(precision), Some(scale)) = (col.precision, col.scale) {
-                col_def = format!("    {} {}({},{})", col.name, col.data_type.to_uppercase(), precision, scale);
+                col_def = format!("    {} {}({},{})", col_name, col.data_type.to_uppercase(), precision, scale);
             } else if let Some(precision) = col.precision {
-                col_def = format!("    {} {}({})", col.name, col.data_type.to_uppercase(), precision);
+                col_def = format!("    {} {}({})", col_name, col.data_type.to_uppercase(), precision);
             }
 
             if !col.nullable {
@@ -1356,27 +1368,34 @@ impl DatabaseDriver for OracleDriver {
 
         // Add primary key constraint if any
         if !table_def.primary_key_columns.is_empty() {
+            let pk_cols: Vec<String> = table_def.primary_key_columns.iter()
+                .map(|c| quote_identifier_single(c, &db_type))
+                .collect();
+            let pk_name = format!("pk_{}", table_def.name.replace('.', "_").replace('"', ""));
             column_defs.push(format!(
-                "    CONSTRAINT pk_{} PRIMARY KEY ({})",
-                table_def.name.replace('.', "_"),
-                table_def.primary_key_columns.join(", ")
+                "    CONSTRAINT {} PRIMARY KEY ({})",
+                quote_identifier_single(&pk_name, &db_type),
+                pk_cols.join(", ")
             ));
         }
 
         // Add foreign key constraints
         for fk in &table_def.foreign_keys {
             let fk_name = fk.name.clone().unwrap_or_else(|| {
-                format!("fk_{}_{}", table_def.name.replace('.', "_"), fk.columns.join("_"))
+                format!("fk_{}_{}", table_def.name.replace('.', "_").replace('"', ""), fk.columns.join("_"))
             });
+            let src_cols: Vec<String> = fk.columns.iter().map(|c| quote_identifier_single(c, &db_type)).collect();
+            let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| quote_identifier_single(c, &db_type)).collect();
+            let ref_table = quote_identifier(&fk.references_table, &db_type);
             let on_delete = fk.on_delete.as_ref().map(|a| format!(" ON DELETE {}", a.to_sql())).unwrap_or_default();
             let on_update = fk.on_update.as_ref().map(|a| format!(" ON UPDATE {}", a.to_sql())).unwrap_or_default();
 
             column_defs.push(format!(
                 "    CONSTRAINT {} FOREIGN KEY ({}) REFERENCES {} ({}){}{}",
-                fk_name,
-                fk.columns.join(", "),
-                fk.references_table,
-                fk.references_columns.join(", "),
+                quote_identifier_single(&fk_name, &db_type),
+                src_cols.join(", "),
+                ref_table,
+                ref_cols.join(", "),
                 on_delete,
                 on_update
             ));
@@ -1385,11 +1404,11 @@ impl DatabaseDriver for OracleDriver {
         // Add check constraints
         for check in &table_def.check_constraints {
             let check_name = check.name.clone().unwrap_or_else(|| {
-                format!("chk_{}_{}", table_def.name.replace('.', "_"), check.id)
+                format!("chk_{}_{}", table_def.name.replace('.', "_").replace('"', ""), check.id)
             });
             column_defs.push(format!(
                 "    CONSTRAINT {} CHECK ({})",
-                check_name,
+                quote_identifier_single(&check_name, &db_type),
                 check.expression
             ));
         }

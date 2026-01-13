@@ -1,6 +1,44 @@
 //! Common utilities shared across database drivers.
 
-use crate::models::StatementType;
+use crate::models::{DatabaseType, StatementType};
+
+/// Quotes a single SQL identifier (table name, column name, schema name) based on database type.
+/// Properly escapes special characters within the identifier to prevent SQL injection.
+///
+/// # Examples
+/// - PostgreSQL: `my"table` becomes `"my""table"`
+/// - MySQL: `my`table` becomes `` `my``table` ``
+/// - MSSQL: `my]table` becomes `[my]]table]`
+pub fn quote_identifier_single(identifier: &str, db_type: &DatabaseType) -> String {
+    match db_type {
+        DatabaseType::MySQL | DatabaseType::MariaDB => {
+            // MySQL uses backticks, escape any backticks in the identifier
+            format!("`{}`", identifier.replace('`', "``"))
+        }
+        DatabaseType::MSSQL => {
+            // MSSQL uses brackets, escape closing brackets
+            format!("[{}]", identifier.replace(']', "]]"))
+        }
+        DatabaseType::PostgreSQL | DatabaseType::SQLite | DatabaseType::CockroachDB | DatabaseType::Oracle => {
+            // PostgreSQL, SQLite, CockroachDB, and Oracle use double quotes
+            format!("\"{}\"", identifier.replace('"', "\"\""))
+        }
+    }
+}
+
+/// Quotes a SQL identifier that may be schema-qualified (e.g., "schema.table").
+/// Handles each part of the identifier separately.
+///
+/// # Examples
+/// - PostgreSQL: `public.my"table` becomes `"public"."my""table"`
+/// - MySQL: `mydb.my`table` becomes `` `mydb`.`my``table` ``
+pub fn quote_identifier(identifier: &str, db_type: &DatabaseType) -> String {
+    identifier
+        .split('.')
+        .map(|part| quote_identifier_single(part, db_type))
+        .collect::<Vec<_>>()
+        .join(".")
+}
 
 /// Configuration for CTE parsing that varies by database.
 #[derive(Default)]
