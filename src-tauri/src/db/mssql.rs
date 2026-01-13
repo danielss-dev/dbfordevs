@@ -1,8 +1,8 @@
-use crate::db::common::{parse_cte_statement_type, CteParserConfig};
+use crate::db::common::{parse_cte_statement_type, quote_identifier, quote_identifier_single, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ColumnInfo, ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
+    ColumnInfo, ConnectionConfig, ConstraintInfo, DatabaseType, ExplainResult, ExplainWarning, ExtendedColumnInfo,
     ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
     StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
     TableRelationship, TableSchema, TestConnectionResult, WarningSeverity,
@@ -1774,12 +1774,17 @@ ORDER BY ic.key_ordinal;
 
     fn generate_create_table_ddl(&self, table_def: &NewTableDefinition) -> AppResult<String> {
         let mut ddl = String::new();
+        let db_type = DatabaseType::MSSQL;
 
-        // MSSQL uses brackets for quoting
+        // MSSQL uses brackets for quoting - properly escape identifiers
         let table_name = if let Some(ref schema) = table_def.schema {
-            format!("[{}].[{}]", schema, table_def.name)
+            format!(
+                "{}.{}",
+                quote_identifier_single(schema, &db_type),
+                quote_identifier_single(&table_def.name, &db_type)
+            )
         } else {
-            format!("[{}]", table_def.name)
+            quote_identifier_single(&table_def.name, &db_type)
         };
 
         ddl.push_str(&format!("CREATE TABLE {} (\n", table_name));
@@ -1787,7 +1792,7 @@ ORDER BY ic.key_ordinal;
         // Column definitions
         let mut column_defs = Vec::new();
         for col in &table_def.columns {
-            let mut col_def = format!("    [{}]", col.name);
+            let mut col_def = format!("    {}", quote_identifier_single(&col.name, &db_type));
 
             // Regular type with optional length/precision
             let type_str = if let Some(length) = col.length {
@@ -1829,32 +1834,24 @@ ORDER BY ic.key_ordinal;
         // Primary key constraint
         if !table_def.primary_key_columns.is_empty() {
             let pk_cols: Vec<String> = table_def.primary_key_columns.iter()
-                .map(|c| format!("[{}]", c))
+                .map(|c| quote_identifier_single(c, &db_type))
                 .collect();
             column_defs.push(format!("    PRIMARY KEY ({})", pk_cols.join(", ")));
         }
 
         // Foreign key constraints
         for fk in &table_def.foreign_keys {
-            let src_cols: Vec<String> = fk.columns.iter().map(|c| format!("[{}]", c)).collect();
-            let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| format!("[{}]", c)).collect();
+            let src_cols: Vec<String> = fk.columns.iter().map(|c| quote_identifier_single(c, &db_type)).collect();
+            let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| quote_identifier_single(c, &db_type)).collect();
 
             let mut fk_def = String::new();
             if let Some(ref name) = fk.name {
-                fk_def.push_str(&format!("    CONSTRAINT [{}] ", name));
+                fk_def.push_str(&format!("    CONSTRAINT {} ", quote_identifier_single(name, &db_type)));
             } else {
                 fk_def.push_str("    ");
             }
             // Quote the references table (handle schema.table format)
-            let ref_table = if fk.references_table.contains('.') {
-                fk.references_table
-                    .split('.')
-                    .map(|part| format!("[{}]", part))
-                    .collect::<Vec<_>>()
-                    .join(".")
-            } else {
-                format!("[{}]", fk.references_table)
-            };
+            let ref_table = quote_identifier(&fk.references_table, &db_type);
             fk_def.push_str(&format!(
                 "FOREIGN KEY ({}) REFERENCES {} ({})",
                 src_cols.join(", "),
@@ -1875,7 +1872,7 @@ ORDER BY ic.key_ordinal;
         // Check constraints
         for check in &table_def.check_constraints {
             let check_def = if let Some(ref name) = check.name {
-                format!("    CONSTRAINT [{}] CHECK ({})", name, check.expression)
+                format!("    CONSTRAINT {} CHECK ({})", quote_identifier_single(name, &db_type), check.expression)
             } else {
                 format!("    CHECK ({})", check.expression)
             };
@@ -1887,15 +1884,15 @@ ORDER BY ic.key_ordinal;
 
         // Create indexes (separate statements)
         for idx in &table_def.indexes {
-            let idx_cols: Vec<String> = idx.columns.iter().map(|c| format!("[{}]", c)).collect();
+            let idx_cols: Vec<String> = idx.columns.iter().map(|c| quote_identifier_single(c, &db_type)).collect();
             let unique_str = if idx.is_unique { "UNIQUE " } else { "" };
             let idx_name = idx.name.clone().unwrap_or_else(|| {
                 format!("idx_{}_{}", table_def.name, idx.columns.join("_"))
             });
             ddl.push_str(&format!(
-                "\nCREATE {}INDEX [{}] ON {} ({});",
+                "\nCREATE {}INDEX {} ON {} ({});",
                 unique_str,
-                idx_name,
+                quote_identifier_single(&idx_name, &db_type),
                 table_name,
                 idx_cols.join(", ")
             ));
@@ -1906,9 +1903,9 @@ ORDER BY ic.key_ordinal;
             let schema = table_def.schema.as_deref().unwrap_or("dbo");
             ddl.push_str(&format!(
                 "\n\nEXEC sp_addextendedproperty @name=N'MS_Description', @value=N'{}', @level0type=N'SCHEMA', @level0name=N'{}', @level1type=N'TABLE', @level1name=N'{}';",
-                comment.replace("'", "''"),
-                schema,
-                table_def.name
+                comment.replace('\'', "''"),
+                schema.replace('\'', "''"),
+                table_def.name.replace('\'', "''")
             ));
         }
 
@@ -1918,10 +1915,10 @@ ORDER BY ic.key_ordinal;
                 let schema = table_def.schema.as_deref().unwrap_or("dbo");
                 ddl.push_str(&format!(
                     "\nEXEC sp_addextendedproperty @name=N'MS_Description', @value=N'{}', @level0type=N'SCHEMA', @level0name=N'{}', @level1type=N'TABLE', @level1name=N'{}', @level2type=N'COLUMN', @level2name=N'{}';",
-                    comment.replace("'", "''"),
-                    schema,
-                    table_def.name,
-                    col.name
+                    comment.replace('\'', "''"),
+                    schema.replace('\'', "''"),
+                    table_def.name.replace('\'', "''"),
+                    col.name.replace('\'', "''")
                 ));
             }
         }

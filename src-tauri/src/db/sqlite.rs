@@ -1,8 +1,8 @@
-use crate::db::common::{escape_sqlite_identifier, parse_cte_statement_type, CteParserConfig};
+use crate::db::common::{escape_sqlite_identifier, parse_cte_statement_type, quote_identifier, quote_identifier_single, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, ExplainResult, ExplainWarning, ExtendedColumnInfo,
+    ConnectionConfig, ConstraintInfo, DatabaseType, ExplainResult, ExplainWarning, ExtendedColumnInfo,
     ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
     StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
     TableRelationship, TableSchema, TestConnectionResult, ColumnInfo, WarningSeverity
@@ -1517,16 +1517,17 @@ impl DatabaseDriver for SqliteDriver {
 
     fn generate_create_table_ddl(&self, table_def: &NewTableDefinition) -> AppResult<String> {
         let mut ddl = String::new();
+        let db_type = DatabaseType::SQLite;
 
-        // SQLite uses double quotes for quoting
-        let table_name = format!("\"{}\"", table_def.name);
+        // SQLite uses double quotes for quoting - properly escape identifiers
+        let table_name = quote_identifier_single(&table_def.name, &db_type);
 
         ddl.push_str(&format!("CREATE TABLE {} (\n", table_name));
 
         // Column definitions
         let mut column_defs = Vec::new();
         for col in &table_def.columns {
-            let mut col_def = format!("    \"{}\"", col.name);
+            let mut col_def = format!("    {}", quote_identifier_single(&col.name, &db_type));
 
             // Handle auto-increment (INTEGER PRIMARY KEY is auto-increment in SQLite)
             if col.is_auto_increment && col.is_primary_key {
@@ -1565,26 +1566,18 @@ impl DatabaseDriver for SqliteDriver {
 
         if !non_autoincrement_pk.is_empty() {
             let pk_cols: Vec<String> = non_autoincrement_pk.iter()
-                .map(|c| format!("\"{}\"", c))
+                .map(|c| quote_identifier_single(c, &db_type))
                 .collect();
             column_defs.push(format!("    PRIMARY KEY ({})", pk_cols.join(", ")));
         }
 
         // Foreign key constraints
         for fk in &table_def.foreign_keys {
-            let src_cols: Vec<String> = fk.columns.iter().map(|c| format!("\"{}\"", c)).collect();
-            let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+            let src_cols: Vec<String> = fk.columns.iter().map(|c| quote_identifier_single(c, &db_type)).collect();
+            let ref_cols: Vec<String> = fk.references_columns.iter().map(|c| quote_identifier_single(c, &db_type)).collect();
 
             // Quote the references table (handle schema.table format)
-            let ref_table = if fk.references_table.contains('.') {
-                fk.references_table
-                    .split('.')
-                    .map(|part| format!("\"{}\"", part))
-                    .collect::<Vec<_>>()
-                    .join(".")
-            } else {
-                format!("\"{}\"", fk.references_table)
-            };
+            let ref_table = quote_identifier(&fk.references_table, &db_type);
             let mut fk_def = format!(
                 "    FOREIGN KEY ({}) REFERENCES {} ({})",
                 src_cols.join(", "),
@@ -1605,7 +1598,7 @@ impl DatabaseDriver for SqliteDriver {
         // Check constraints
         for check in &table_def.check_constraints {
             let check_def = if let Some(ref name) = check.name {
-                format!("    CONSTRAINT \"{}\" CHECK ({})", name, check.expression)
+                format!("    CONSTRAINT {} CHECK ({})", quote_identifier_single(name, &db_type), check.expression)
             } else {
                 format!("    CHECK ({})", check.expression)
             };
@@ -1617,15 +1610,15 @@ impl DatabaseDriver for SqliteDriver {
 
         // Create indexes (separate statements in SQLite)
         for idx in &table_def.indexes {
-            let idx_cols: Vec<String> = idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
+            let idx_cols: Vec<String> = idx.columns.iter().map(|c| quote_identifier_single(c, &db_type)).collect();
             let unique_str = if idx.is_unique { "UNIQUE " } else { "" };
             let idx_name = idx.name.clone().unwrap_or_else(|| {
                 format!("idx_{}_{}", table_def.name, idx.columns.join("_"))
             });
             ddl.push_str(&format!(
-                "\nCREATE {}INDEX \"{}\" ON {} ({});",
+                "\nCREATE {}INDEX {} ON {} ({});",
                 unique_str,
-                idx_name,
+                quote_identifier_single(&idx_name, &db_type),
                 table_name,
                 idx_cols.join(", ")
             ));
