@@ -59,11 +59,17 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
   const handleAddRow = useCallback(() => {
     if (!tableName || columns.length === 0) return;
 
+    // Prefer cached schema columns (which include IDENTITY/auto-increment info)
+    // over query result columns (which don't have type metadata like IDENTITY)
+    const columnsForCreate = cachedSchema?.columns && cachedSchema.columns.length > 0
+      ? cachedSchema.columns
+      : columns;
+
     // Start creating a new row (opens side panel in create mode)
-    startCreatingRow(tableName, columns);
+    startCreatingRow(tableName, columnsForCreate);
     // Open the fields panel to edit the new row
     setRightPanelTab("fields");
-  }, [tableName, columns, startCreatingRow, setRightPanelTab]);
+  }, [tableName, columns, cachedSchema, startCreatingRow, setRightPanelTab]);
 
   // Delete selected rows
   const handleDeleteSelected = useCallback(() => {
