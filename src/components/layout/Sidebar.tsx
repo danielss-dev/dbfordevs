@@ -191,6 +191,9 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     }
   };
 
+  // Check if connection has a specific database configured
+  const hasSpecificDatabase = isMssql && connection.database && connection.database.trim() !== "";
+
   // Load all databases for MSSQL (similar to SSMS Object Explorer)
   const loadDatabases = async () => {
     if (!isMssql) return;
@@ -203,6 +206,19 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
       }
     }
 
+    // If a specific database is configured, only show that one
+    if (hasSpecificDatabase) {
+      setDatabases([{
+        name: connection.database,
+        state: "ONLINE",
+        recoveryModel: "",
+        compatibilityLevel: 0,
+        isCurrent: true,
+      }]);
+      return;
+    }
+
+    // Otherwise, fetch all accessible databases
     setIsLoadingDatabases(true);
     try {
       const dbs = await getMssqlDatabases(connection.id);
