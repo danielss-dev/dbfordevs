@@ -6,7 +6,7 @@ pub mod oracle_client;
 mod ssh;
 mod storage;
 
-use commands::{connections, import, oracle, queries, tables, utils};
+use commands::{connections, import, oracle, queries, tables, users, utils};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -64,6 +64,21 @@ pub fn run() {
             oracle::check_oracle_client_status,
             oracle::get_oracle_download_info,
             oracle::download_oracle_client,
+            // User management commands
+            users::supports_user_management,
+            users::get_users,
+            users::create_user,
+            users::delete_user,
+            users::change_password,
+            users::get_roles,
+            users::create_role,
+            users::delete_role,
+            users::get_permissions,
+            users::get_available_privileges,
+            users::grant_permission,
+            users::revoke_permission,
+            users::grant_role,
+            users::revoke_role,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

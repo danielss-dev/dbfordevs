@@ -6,6 +6,12 @@ import { ConnectionModal, RenameConnectionDialog } from "@/components/connection
 import { RenameTableDialog, CreateTableDialog } from "@/components/table";
 import { CreateSchemaDialog } from "@/components/database";
 import { BookmarkDialogs } from "@/components/bookmarks";
+import {
+  CreateUserDialog,
+  ChangePasswordDialog,
+  CreateRoleDialog,
+  ManagePermissionsDialog,
+} from "@/components/users";
 import { UpdateNotification } from "@/components/updater/UpdateNotification";
 import { useUIStore } from "@/stores";
 import { useKeyboardShortcuts } from "@/hooks";
@@ -44,6 +50,11 @@ function App() {
         <CreateSchemaDialog />
         <CreateTableDialog />
         <BookmarkDialogs />
+        {/* User Management Dialogs */}
+        <CreateUserDialog />
+        <ChangePasswordDialog />
+        <CreateRoleDialog />
+        <ManagePermissionsDialog />
         <UpdateNotification />
         <Toaster />
       </div>

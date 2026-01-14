@@ -84,6 +84,19 @@ interface UIState {
   templateVariableBookmarkId: string | null;
   // Edit mode for data grid
   editMode: boolean;
+  // User management dialog states
+  showCreateUserDialog: boolean;
+  creatingUserConnectionId: string | null;
+  showChangePasswordDialog: boolean;
+  changingPasswordUser: string | null;
+  changingPasswordHost: string | null;
+  changingPasswordConnectionId: string | null;
+  showCreateRoleDialog: boolean;
+  creatingRoleConnectionId: string | null;
+  showManagePermissionsDialog: boolean;
+  managingPermissionsGrantee: string | null;
+  managingPermissionsGranteeHost: string | null;
+  managingPermissionsConnectionId: string | null;
 
   // Actions
   setTheme: (theme: Theme) => void;
@@ -123,6 +136,15 @@ interface UIState {
   openEditBookmarkDialog: (bookmarkId: string) => void;
   setShowTemplateVariableDialog: (show: boolean) => void;
   openTemplateVariableDialog: (bookmarkId: string) => void;
+  // User management dialog actions
+  setShowCreateUserDialog: (show: boolean) => void;
+  openCreateUserDialog: (connectionId: string) => void;
+  setShowChangePasswordDialog: (show: boolean) => void;
+  openChangePasswordDialog: (connectionId: string, username: string, host?: string) => void;
+  setShowCreateRoleDialog: (show: boolean) => void;
+  openCreateRoleDialog: (connectionId: string) => void;
+  setShowManagePermissionsDialog: (show: boolean) => void;
+  openManagePermissionsDialog: (connectionId: string, grantee: string, host?: string) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -180,6 +202,19 @@ export const useUIStore = create<UIState>()(
       showTemplateVariableDialog: false,
       templateVariableBookmarkId: null,
       editMode: true,
+      // User management dialog initial states
+      showCreateUserDialog: false,
+      creatingUserConnectionId: null,
+      showChangePasswordDialog: false,
+      changingPasswordUser: null,
+      changingPasswordHost: null,
+      changingPasswordConnectionId: null,
+      showCreateRoleDialog: false,
+      creatingRoleConnectionId: null,
+      showManagePermissionsDialog: false,
+      managingPermissionsGrantee: null,
+      managingPermissionsGranteeHost: null,
+      managingPermissionsConnectionId: null,
 
       setTheme: (theme) => {
         const root = document.documentElement;
@@ -382,6 +417,63 @@ export const useUIStore = create<UIState>()(
         set({
           showTemplateVariableDialog: true,
           templateVariableBookmarkId: bookmarkId,
+        }),
+
+      // User management dialog actions
+      setShowCreateUserDialog: (show) =>
+        set((state) => ({
+          showCreateUserDialog: show,
+          creatingUserConnectionId: show ? state.creatingUserConnectionId : null,
+        })),
+
+      openCreateUserDialog: (connectionId) =>
+        set({
+          showCreateUserDialog: true,
+          creatingUserConnectionId: connectionId,
+        }),
+
+      setShowChangePasswordDialog: (show) =>
+        set((state) => ({
+          showChangePasswordDialog: show,
+          changingPasswordUser: show ? state.changingPasswordUser : null,
+          changingPasswordHost: show ? state.changingPasswordHost : null,
+          changingPasswordConnectionId: show ? state.changingPasswordConnectionId : null,
+        })),
+
+      openChangePasswordDialog: (connectionId, username, host) =>
+        set({
+          showChangePasswordDialog: true,
+          changingPasswordConnectionId: connectionId,
+          changingPasswordUser: username,
+          changingPasswordHost: host ?? null,
+        }),
+
+      setShowCreateRoleDialog: (show) =>
+        set((state) => ({
+          showCreateRoleDialog: show,
+          creatingRoleConnectionId: show ? state.creatingRoleConnectionId : null,
+        })),
+
+      openCreateRoleDialog: (connectionId) =>
+        set({
+          showCreateRoleDialog: true,
+          creatingRoleConnectionId: connectionId,
+        }),
+
+      setShowManagePermissionsDialog: (show) =>
+        set((state) => ({
+          showManagePermissionsDialog: show,
+          managingPermissionsGrantee: show ? state.managingPermissionsGrantee : null,
+          managingPermissionsGranteeHost: show ? state.managingPermissionsGranteeHost : null,
+          managingPermissionsConnectionId: show ? state.managingPermissionsConnectionId : null,
+        })),
+
+      openManagePermissionsDialog: (connectionId, grantee, host) =>
+        set({
+          showManagePermissionsDialog: true,
+          managingPermissionsConnectionId: connectionId,
+          managingPermissionsGrantee: grantee,
+          managingPermissionsGranteeHost: host ?? null,
         }),
     }),
     {

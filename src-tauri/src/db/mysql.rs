@@ -2,10 +2,13 @@ use crate::db::common::{parse_cte_statement_type, quote_identifier, quote_identi
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, DatabaseType, ExplainResult, ExplainWarning, ExtendedColumnInfo,
-    ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
-    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
-    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo, WarningSeverity
+    AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
+    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseType,
+    DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
+    NewTableDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
+    RoleMembershipRequest, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, ColumnInfo,
+    WarningSeverity,
 };
 use async_trait::async_trait;
 use sqlx::{mysql::MySqlPool, Row, Column, TypeInfo};
@@ -1740,6 +1743,440 @@ impl DatabaseDriver for MySqlDriver {
             .collect();
 
         Ok(result)
+    }
+
+    // ============ User Management Methods ============
+
+    async fn get_users(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseUser>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let query = r#"
+            SELECT
+                User as name,
+                Host as host,
+                IF(Super_priv = 'Y', true, false) as is_superuser
+            FROM mysql.user
+            WHERE User != ''
+            ORDER BY User, Host
+        "#;
+
+        let rows = sqlx::query(query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get users: {}", e)))?;
+
+        let users = rows
+            .iter()
+            .map(|row| {
+                DatabaseUser {
+                    name: decode_string(row, "name"),
+                    host: Some(decode_string(row, "host")),
+                    is_superuser: row.try_get::<i8, _>("is_superuser").unwrap_or(0) == 1,
+                    can_login: true, // MySQL users can always login
+                    roles: vec![],   // MySQL 8+ has roles, but we'll fetch separately if needed
+                }
+            })
+            .collect();
+
+        Ok(users)
+    }
+
+    async fn create_user(&self, pool: PoolRef<'_>, request: &CreateUserRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        if request.username.is_empty() {
+            return Err(AppError::ValidationError("Username cannot be empty".to_string()));
+        }
+
+        let host = request.host.as_deref().unwrap_or("%");
+
+        let sql = format!(
+            "CREATE USER '{}'@'{}' IDENTIFIED BY '{}'",
+            request.username.replace('\'', "''"),
+            host.replace('\'', "''"),
+            request.password.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create user: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn delete_user(
+        &self,
+        pool: PoolRef<'_>,
+        username: &str,
+        host: Option<&str>,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let host = host.unwrap_or("%");
+
+        let sql = format!(
+            "DROP USER IF EXISTS '{}'@'{}'",
+            username.replace('\'', "''"),
+            host.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to delete user: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn change_password(
+        &self,
+        pool: PoolRef<'_>,
+        request: &ChangePasswordRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let host = request.host.as_deref().unwrap_or("%");
+
+        let sql = format!(
+            "ALTER USER '{}'@'{}' IDENTIFIED BY '{}'",
+            request.username.replace('\'', "''"),
+            host.replace('\'', "''"),
+            request.new_password.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to change password: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn get_roles(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseRole>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // MySQL 8.0+ supports roles via mysql.role_edges
+        // For older versions, return empty
+        let query = r#"
+            SELECT DISTINCT
+                TO_USER as name,
+                false as is_system_role
+            FROM mysql.role_edges
+            UNION
+            SELECT DISTINCT
+                FROM_USER as name,
+                false as is_system_role
+            FROM mysql.role_edges
+            ORDER BY name
+        "#;
+
+        let rows = sqlx::query(query)
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default(); // If mysql.role_edges doesn't exist (MySQL < 8), return empty
+
+        let roles = rows
+            .iter()
+            .map(|row| {
+                DatabaseRole {
+                    name: decode_string(row, "name"),
+                    is_system_role: false,
+                    members: vec![],
+                }
+            })
+            .collect();
+
+        Ok(roles)
+    }
+
+    async fn create_role(&self, pool: PoolRef<'_>, request: &CreateRoleRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        if request.role_name.is_empty() {
+            return Err(AppError::ValidationError("Role name cannot be empty".to_string()));
+        }
+
+        // MySQL 8.0+ only
+        let sql = format!(
+            "CREATE ROLE '{}'",
+            request.role_name.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn delete_role(&self, pool: PoolRef<'_>, role_name: &str) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let sql = format!(
+            "DROP ROLE IF EXISTS '{}'",
+            role_name.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to delete role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn get_permissions(
+        &self,
+        pool: PoolRef<'_>,
+        grantee: &str,
+        host: Option<&str>,
+    ) -> AppResult<Vec<DatabasePermission>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let host = host.unwrap_or("%");
+
+        // Use SHOW GRANTS to get all permissions
+        let sql = format!(
+            "SHOW GRANTS FOR '{}'@'{}'",
+            grantee.replace('\'', "''"),
+            host.replace('\'', "''")
+        );
+
+        let rows = sqlx::query(&sql)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get permissions: {}", e)))?;
+
+        // Parse SHOW GRANTS output
+        let mut permissions = Vec::new();
+        for row in rows {
+            let grant_stmt: String = row.try_get(0).unwrap_or_default();
+            // Extract privileges from GRANT statement
+            // Format: GRANT priv1, priv2 ON *.* TO 'user'@'host'
+            if let Some(start) = grant_stmt.find("GRANT ") {
+                if let Some(end) = grant_stmt.find(" ON ") {
+                    let privs_str = &grant_stmt[start + 6..end];
+                    for privilege_str in privs_str.split(',') {
+                        let privilege_str = privilege_str.trim();
+                        if !privilege_str.is_empty() {
+                            permissions.push(DatabasePermission {
+                                privilege: privilege_str.to_string(),
+                                grantee: grantee.to_string(),
+                                is_grantable: grant_stmt.contains("WITH GRANT OPTION"),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(permissions)
+    }
+
+    async fn get_available_privileges(&self, _pool: PoolRef<'_>) -> AppResult<AvailablePrivileges> {
+        Ok(AvailablePrivileges {
+            database_privileges: vec![
+                "ALL PRIVILEGES".to_string(),
+                "CREATE".to_string(),
+                "DROP".to_string(),
+                "ALTER".to_string(),
+                "INDEX".to_string(),
+                "CREATE VIEW".to_string(),
+                "SHOW VIEW".to_string(),
+                "CREATE ROUTINE".to_string(),
+                "ALTER ROUTINE".to_string(),
+                "EVENT".to_string(),
+                "TRIGGER".to_string(),
+            ],
+        })
+    }
+
+    async fn grant_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // Validate privilege against allowed list to prevent SQL injection
+        let allowed_privileges = [
+            "ALL PRIVILEGES", "CREATE", "DROP", "ALTER", "INDEX",
+            "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
+            "EVENT", "TRIGGER",
+        ];
+        let privilege_upper = request.privilege.to_uppercase();
+        if !allowed_privileges.contains(&privilege_upper.as_str()) {
+            return Err(AppError::ValidationError(format!(
+                "Invalid privilege '{}'. Allowed privileges: {}",
+                request.privilege,
+                allowed_privileges.join(", ")
+            )));
+        }
+
+        let host = request.host.as_deref().unwrap_or("%");
+        let grant_option = if request.with_grant_option {
+            " WITH GRANT OPTION"
+        } else {
+            ""
+        };
+
+        // Get current database
+        let db_row = sqlx::query("SELECT DATABASE()")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get current database: {}", e)))?;
+        let db_name: Option<String> = db_row.try_get(0).ok();
+        let db_name = db_name.ok_or_else(|| {
+            AppError::QueryError("No database selected. Please connect to a specific database first.".to_string())
+        })?;
+
+        let sql = format!(
+            "GRANT {} ON `{}`.* TO '{}'@'{}'{}",
+            privilege_upper,
+            db_name.replace('`', "``"),
+            request.grantee.replace('\'', "''"),
+            host.replace('\'', "''"),
+            grant_option
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to grant permission: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn revoke_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // Validate privilege against allowed list to prevent SQL injection
+        let allowed_privileges = [
+            "ALL PRIVILEGES", "CREATE", "DROP", "ALTER", "INDEX",
+            "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
+            "EVENT", "TRIGGER",
+        ];
+        let privilege_upper = request.privilege.to_uppercase();
+        if !allowed_privileges.contains(&privilege_upper.as_str()) {
+            return Err(AppError::ValidationError(format!(
+                "Invalid privilege '{}'. Allowed privileges: {}",
+                request.privilege,
+                allowed_privileges.join(", ")
+            )));
+        }
+
+        let host = request.host.as_deref().unwrap_or("%");
+
+        // Get current database
+        let db_row = sqlx::query("SELECT DATABASE()")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get current database: {}", e)))?;
+        let db_name: Option<String> = db_row.try_get(0).ok();
+        let db_name = db_name.ok_or_else(|| {
+            AppError::QueryError("No database selected. Please connect to a specific database first.".to_string())
+        })?;
+
+        let sql = format!(
+            "REVOKE {} ON `{}`.* FROM '{}'@'{}'",
+            privilege_upper,
+            db_name.replace('`', "``"),
+            request.grantee.replace('\'', "''"),
+            host.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to revoke permission: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn grant_role(&self, pool: PoolRef<'_>, request: &RoleMembershipRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let host = request.member_host.as_deref().unwrap_or("%");
+
+        let sql = format!(
+            "GRANT '{}' TO '{}'@'{}'",
+            request.role_name.replace('\'', "''"),
+            request.member_name.replace('\'', "''"),
+            host.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to grant role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn revoke_role(
+        &self,
+        pool: PoolRef<'_>,
+        request: &RoleMembershipRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let host = request.member_host.as_deref().unwrap_or("%");
+
+        let sql = format!(
+            "REVOKE '{}' FROM '{}'@'{}'",
+            request.role_name.replace('\'', "''"),
+            request.member_name.replace('\'', "''"),
+            host.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to revoke role: {}", e)))?;
+
+        Ok(())
     }
 }
 
