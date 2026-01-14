@@ -2,10 +2,12 @@ use crate::db::common::{escape_sqlite_identifier, parse_cte_statement_type, quot
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, DatabaseType, ExplainResult, ExplainWarning, ExtendedColumnInfo,
-    ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
-    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
-    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo, WarningSeverity
+    AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
+    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseType,
+    DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
+    NewTableDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
+    RoleMembershipRequest, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, WarningSeverity,
 };
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -1683,6 +1685,65 @@ impl DatabaseDriver for SqliteDriver {
         }
 
         Ok(result)
+    }
+
+    // ============ User Management Methods ============
+    // SQLite does not support user management - it's a file-based database
+
+    fn supports_user_management(&self) -> bool {
+        false
+    }
+
+    async fn get_users(&self, _pool: PoolRef<'_>) -> AppResult<Vec<DatabaseUser>> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn create_user(&self, _pool: PoolRef<'_>, _request: &CreateUserRequest) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn delete_user(&self, _pool: PoolRef<'_>, _username: &str, _host: Option<&str>) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn change_password(&self, _pool: PoolRef<'_>, _request: &ChangePasswordRequest) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn get_roles(&self, _pool: PoolRef<'_>) -> AppResult<Vec<DatabaseRole>> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn create_role(&self, _pool: PoolRef<'_>, _request: &CreateRoleRequest) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn delete_role(&self, _pool: PoolRef<'_>, _role_name: &str) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn get_permissions(&self, _pool: PoolRef<'_>, _grantee: &str, _host: Option<&str>) -> AppResult<Vec<DatabasePermission>> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn get_available_privileges(&self, _pool: PoolRef<'_>) -> AppResult<AvailablePrivileges> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn grant_permission(&self, _pool: PoolRef<'_>, _request: &PermissionRequest) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn revoke_permission(&self, _pool: PoolRef<'_>, _request: &PermissionRequest) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn grant_role(&self, _pool: PoolRef<'_>, _request: &RoleMembershipRequest) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    async fn revoke_role(&self, _pool: PoolRef<'_>, _request: &RoleMembershipRequest) -> AppResult<()> {
+        Err(AppError::QueryError("SQLite does not support user management".to_string()))
     }
 }
 

@@ -18,6 +18,16 @@ import type {
   ExplainResult,
   NewTableDefinition,
   TableReferenceInfo,
+  // User management types
+  DatabaseUser,
+  DatabaseRole,
+  DatabasePermission,
+  AvailablePrivileges,
+  CreateUserRequest,
+  ChangePasswordRequest,
+  CreateRoleRequest,
+  PermissionRequest,
+  RoleMembershipRequest,
 } from "@/types";
 
 /**
@@ -690,6 +700,303 @@ export function useDatabase() {
     [setQueryError]
   );
 
+  // ============================================
+  // User Management Methods
+  // ============================================
+
+  /**
+   * Check if connection supports user management
+   */
+  const supportsUserManagement = useCallback(
+    async (connectionId: string): Promise<boolean> => {
+      try {
+        const supports = await invoke<boolean>("supports_user_management", {
+          connectionId,
+        });
+        return supports;
+      } catch {
+        return false;
+      }
+    },
+    []
+  );
+
+  /**
+   * Get all users for a connection
+   */
+  const getUsers = useCallback(
+    async (connectionId: string): Promise<DatabaseUser[]> => {
+      try {
+        const users = await invoke<DatabaseUser[]>("get_users", {
+          connectionId,
+        });
+        return users;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new database user
+   */
+  const createUser = useCallback(
+    async (connectionId: string, request: CreateUserRequest): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("create_user", { connectionId, request });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Delete a database user
+   */
+  const deleteUser = useCallback(
+    async (connectionId: string, username: string, host?: string): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("delete_user", { connectionId, username, host });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Change a user's password
+   */
+  const changePassword = useCallback(
+    async (connectionId: string, request: ChangePasswordRequest): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("change_password", { connectionId, request });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Get all roles for a connection
+   */
+  const getRoles = useCallback(
+    async (connectionId: string): Promise<DatabaseRole[]> => {
+      try {
+        const roles = await invoke<DatabaseRole[]>("get_roles", {
+          connectionId,
+        });
+        return roles;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new role
+   */
+  const createRole = useCallback(
+    async (connectionId: string, request: CreateRoleRequest): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("create_role", { connectionId, request });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Delete a role
+   */
+  const deleteRole = useCallback(
+    async (connectionId: string, roleName: string): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("delete_role", { connectionId, roleName });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Get permissions for a grantee (user or role)
+   */
+  const getPermissions = useCallback(
+    async (connectionId: string, grantee: string, host?: string): Promise<DatabasePermission[]> => {
+      try {
+        const permissions = await invoke<DatabasePermission[]>("get_permissions", {
+          connectionId,
+          grantee,
+          host,
+        });
+        return permissions;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Get available privileges for a connection
+   */
+  const getAvailablePrivileges = useCallback(
+    async (connectionId: string): Promise<AvailablePrivileges | null> => {
+      try {
+        const privileges = await invoke<AvailablePrivileges>("get_available_privileges", {
+          connectionId,
+        });
+        return privileges;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Grant a permission to a user or role
+   */
+  const grantPermission = useCallback(
+    async (connectionId: string, request: PermissionRequest): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("grant_permission", { connectionId, request });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Revoke a permission from a user or role
+   */
+  const revokePermission = useCallback(
+    async (connectionId: string, request: PermissionRequest): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("revoke_permission", { connectionId, request });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Grant a role to a user
+   */
+  const grantRole = useCallback(
+    async (connectionId: string, request: RoleMembershipRequest): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("grant_role", { connectionId, request });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Revoke a role from a user
+   */
+  const revokeRole = useCallback(
+    async (connectionId: string, request: RoleMembershipRequest): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("revoke_role", { connectionId, request });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
   return {
     testConnection,
     saveConnection,
@@ -718,6 +1025,21 @@ export function useDatabase() {
     generateCreateTableDDL,
     createTable,
     getReferenceableTables,
+    // User management
+    supportsUserManagement,
+    getUsers,
+    createUser,
+    deleteUser,
+    changePassword,
+    getRoles,
+    createRole,
+    deleteRole,
+    getPermissions,
+    getAvailablePrivileges,
+    grantPermission,
+    revokePermission,
+    grantRole,
+    revokeRole,
   };
 }
 

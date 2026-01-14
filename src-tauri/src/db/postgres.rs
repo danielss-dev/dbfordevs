@@ -2,10 +2,13 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::db::common::{parse_cte_statement_type, quote_identifier, quote_identifier_single, CteParserConfig};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, DatabaseType, ExplainResult, ExplainWarning, ExtendedColumnInfo,
-    ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
-    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
-    TableRelationship, TableSchema, TestConnectionResult, ColumnInfo, WarningSeverity
+    AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
+    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseType,
+    DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
+    NewTableDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
+    RoleMembershipRequest, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, ColumnInfo,
+    WarningSeverity,
 };
 use async_trait::async_trait;
 use sqlx::{postgres::PgPool, Row, Column, ValueRef, TypeInfo};
@@ -2418,6 +2421,459 @@ impl DatabaseDriver for PostgresDriver {
             .collect();
 
         Ok(result)
+    }
+
+    // ============ User Management Methods ============
+
+    async fn get_users(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseUser>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let query = r#"
+            SELECT
+                r.rolname as name,
+                r.rolsuper as is_superuser,
+                r.rolcanlogin as can_login,
+                COALESCE(
+                    array_agg(m.rolname) FILTER (WHERE m.rolname IS NOT NULL),
+                    ARRAY[]::text[]
+                ) as roles
+            FROM pg_roles r
+            LEFT JOIN pg_auth_members am ON r.oid = am.member
+            LEFT JOIN pg_roles m ON am.roleid = m.oid
+            WHERE r.rolname !~ '^pg_'
+            GROUP BY r.rolname, r.rolsuper, r.rolcanlogin
+            ORDER BY r.rolname
+        "#;
+
+        let rows = sqlx::query(query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get users: {}", e)))?;
+
+        let users = rows
+            .iter()
+            .map(|row| {
+                let roles: Vec<String> = row
+                    .try_get::<Vec<String>, _>("roles")
+                    .unwrap_or_default();
+                DatabaseUser {
+                    name: row.get("name"),
+                    host: None,
+                    is_superuser: row.get("is_superuser"),
+                    can_login: row.get("can_login"),
+                    roles,
+                }
+            })
+            .collect();
+
+        Ok(users)
+    }
+
+    async fn create_user(&self, pool: PoolRef<'_>, request: &CreateUserRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Validate username
+        if request.username.is_empty() {
+            return Err(AppError::ValidationError("Username cannot be empty".to_string()));
+        }
+
+        let sql = format!(
+            "CREATE USER {} WITH PASSWORD '{}'",
+            quote_identifier_single(&request.username, &DatabaseType::PostgreSQL),
+            request.password.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create user: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn delete_user(
+        &self,
+        pool: PoolRef<'_>,
+        username: &str,
+        _host: Option<&str>,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let sql = format!(
+            "DROP USER IF EXISTS {}",
+            quote_identifier_single(username, &DatabaseType::PostgreSQL)
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to delete user: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn change_password(
+        &self,
+        pool: PoolRef<'_>,
+        request: &ChangePasswordRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let sql = format!(
+            "ALTER USER {} WITH PASSWORD '{}'",
+            quote_identifier_single(&request.username, &DatabaseType::PostgreSQL),
+            request.new_password.replace('\'', "''")
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to change password: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn get_roles(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseRole>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let query = r#"
+            SELECT
+                r.rolname as name,
+                r.rolsuper as is_system_role,
+                COALESCE(
+                    array_agg(DISTINCT m.rolname) FILTER (WHERE m.rolname IS NOT NULL),
+                    ARRAY[]::text[]
+                ) as members
+            FROM pg_roles r
+            LEFT JOIN pg_auth_members am ON r.oid = am.roleid
+            LEFT JOIN pg_roles m ON am.member = m.oid
+            WHERE NOT r.rolcanlogin
+                AND r.rolname !~ '^pg_'
+            GROUP BY r.rolname, r.rolsuper
+            ORDER BY r.rolname
+        "#;
+
+        let rows = sqlx::query(query)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get roles: {}", e)))?;
+
+        let roles = rows
+            .iter()
+            .map(|row| {
+                let members: Vec<String> = row
+                    .try_get::<Vec<String>, _>("members")
+                    .unwrap_or_default();
+                DatabaseRole {
+                    name: row.get("name"),
+                    is_system_role: row.get("is_system_role"),
+                    members,
+                }
+            })
+            .collect();
+
+        Ok(roles)
+    }
+
+    async fn create_role(&self, pool: PoolRef<'_>, request: &CreateRoleRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        if request.role_name.is_empty() {
+            return Err(AppError::ValidationError("Role name cannot be empty".to_string()));
+        }
+
+        let sql = format!(
+            "CREATE ROLE {}",
+            quote_identifier_single(&request.role_name, &DatabaseType::PostgreSQL)
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn delete_role(&self, pool: PoolRef<'_>, role_name: &str) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let sql = format!(
+            "DROP ROLE IF EXISTS {}",
+            quote_identifier_single(role_name, &DatabaseType::PostgreSQL)
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to delete role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn get_permissions(
+        &self,
+        pool: PoolRef<'_>,
+        grantee: &str,
+        _host: Option<&str>,
+    ) -> AppResult<Vec<DatabasePermission>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // First check if the user is a superuser - superusers have all privileges inherently
+        let superuser_check = r#"
+            SELECT rolsuper FROM pg_roles WHERE rolname = $1
+        "#;
+
+        let is_superuser: Option<bool> = sqlx::query_scalar(superuser_check)
+            .bind(grantee)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to check superuser status: {}", e)))?;
+
+        if is_superuser == Some(true) {
+            // Superusers have all privileges inherently
+            return Ok(vec![
+                DatabasePermission {
+                    privilege: "SUPERUSER (all privileges)".to_string(),
+                    grantee: grantee.to_string(),
+                    is_grantable: true,
+                },
+            ]);
+        }
+
+        // Get database-level permissions from pg_database ACL
+        // The datacl column contains entries like: {username=CTc/grantor}
+        // C = CREATE, T = TEMPORARY, c = CONNECT
+        let query = r#"
+            WITH acl_entries AS (
+                SELECT
+                    unnest(datacl)::text as acl_entry
+                FROM pg_database
+                WHERE datname = current_database()
+            )
+            SELECT
+                acl_entry,
+                CASE
+                    WHEN acl_entry LIKE $1 || '=%' THEN true
+                    ELSE false
+                END as matches_user
+            FROM acl_entries
+            WHERE acl_entry LIKE $1 || '=%'
+        "#;
+
+        let rows = sqlx::query(query)
+            .bind(grantee)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get permissions: {}", e)))?;
+
+        let mut permissions = Vec::new();
+
+        for row in rows {
+            let acl_entry: String = row.get("acl_entry");
+            // Parse ACL entry format: username=privileges/grantor
+            if let Some(eq_pos) = acl_entry.find('=') {
+                let privs_part = &acl_entry[eq_pos + 1..];
+                let privs = if let Some(slash_pos) = privs_part.find('/') {
+                    &privs_part[..slash_pos]
+                } else {
+                    privs_part
+                };
+
+                // Parse privilege characters
+                for c in privs.chars() {
+                    let (privilege, is_grantable) = match c {
+                        'C' => (Some("CREATE"), false),
+                        'c' => (Some("CONNECT"), false),
+                        'T' => (Some("TEMPORARY"), false),
+                        '*' => (None, true), // Grant option marker
+                        _ => (None, false),
+                    };
+
+                    if let Some(priv_name) = privilege {
+                        permissions.push(DatabasePermission {
+                            privilege: priv_name.to_string(),
+                            grantee: grantee.to_string(),
+                            is_grantable,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(permissions)
+    }
+
+    async fn get_available_privileges(&self, _pool: PoolRef<'_>) -> AppResult<AvailablePrivileges> {
+        Ok(AvailablePrivileges {
+            database_privileges: vec![
+                "CONNECT".to_string(),
+                "CREATE".to_string(),
+                "TEMPORARY".to_string(),
+                "TEMP".to_string(),
+            ],
+        })
+    }
+
+    async fn grant_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Validate privilege against allowed list to prevent SQL injection
+        let allowed_privileges = ["CONNECT", "CREATE", "TEMPORARY", "TEMP"];
+        let privilege_upper = request.privilege.to_uppercase();
+        if !allowed_privileges.contains(&privilege_upper.as_str()) {
+            return Err(AppError::ValidationError(format!(
+                "Invalid privilege '{}'. Allowed privileges: {}",
+                request.privilege,
+                allowed_privileges.join(", ")
+            )));
+        }
+
+        let grant_option = if request.with_grant_option {
+            " WITH GRANT OPTION"
+        } else {
+            ""
+        };
+
+        // Get current database name
+        let db_row = sqlx::query("SELECT current_database()")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get current database: {}", e)))?;
+        let db_name: String = db_row.get(0);
+
+        let sql = format!(
+            "GRANT {} ON DATABASE {} TO {}{}",
+            privilege_upper,
+            quote_identifier_single(&db_name, &DatabaseType::PostgreSQL),
+            quote_identifier_single(&request.grantee, &DatabaseType::PostgreSQL),
+            grant_option
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to grant permission: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn revoke_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Validate privilege against allowed list to prevent SQL injection
+        let allowed_privileges = ["CONNECT", "CREATE", "TEMPORARY", "TEMP"];
+        let privilege_upper = request.privilege.to_uppercase();
+        if !allowed_privileges.contains(&privilege_upper.as_str()) {
+            return Err(AppError::ValidationError(format!(
+                "Invalid privilege '{}'. Allowed privileges: {}",
+                request.privilege,
+                allowed_privileges.join(", ")
+            )));
+        }
+
+        // Get current database name
+        let db_row = sqlx::query("SELECT current_database()")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get current database: {}", e)))?;
+        let db_name: String = db_row.get(0);
+
+        let sql = format!(
+            "REVOKE {} ON DATABASE {} FROM {}",
+            privilege_upper,
+            quote_identifier_single(&db_name, &DatabaseType::PostgreSQL),
+            quote_identifier_single(&request.grantee, &DatabaseType::PostgreSQL)
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to revoke permission: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn grant_role(&self, pool: PoolRef<'_>, request: &RoleMembershipRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let sql = format!(
+            "GRANT {} TO {}",
+            quote_identifier_single(&request.role_name, &DatabaseType::PostgreSQL),
+            quote_identifier_single(&request.member_name, &DatabaseType::PostgreSQL)
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to grant role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn revoke_role(
+        &self,
+        pool: PoolRef<'_>,
+        request: &RoleMembershipRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let sql = format!(
+            "REVOKE {} FROM {}",
+            quote_identifier_single(&request.role_name, &DatabaseType::PostgreSQL),
+            quote_identifier_single(&request.member_name, &DatabaseType::PostgreSQL)
+        );
+
+        sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to revoke role: {}", e)))?;
+
+        Ok(())
     }
 }
 

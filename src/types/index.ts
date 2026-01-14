@@ -422,3 +422,58 @@ export interface OracleDownloadProgress {
   message: string;
 }
 
+// User management types
+
+export interface DatabaseUser {
+  name: string;
+  host?: string;
+  isSuperuser: boolean;
+  canLogin: boolean;
+  roles: string[];
+}
+
+export interface DatabaseRole {
+  name: string;
+  isSystemRole: boolean;
+  members: string[];
+}
+
+export interface DatabasePermission {
+  privilege: string;
+  grantee: string;
+  isGrantable: boolean;
+}
+
+export interface AvailablePrivileges {
+  databasePrivileges: string[];
+}
+
+export interface CreateUserRequest {
+  username: string;
+  password: string;
+  host?: string;
+}
+
+export interface ChangePasswordRequest {
+  username: string;
+  host?: string;
+  newPassword: string;
+}
+
+export interface CreateRoleRequest {
+  roleName: string;
+}
+
+export interface PermissionRequest {
+  grantee: string;
+  host?: string;
+  privilege: string;
+  withGrantOption: boolean;
+}
+
+export interface RoleMembershipRequest {
+  roleName: string;
+  memberName: string;
+  memberHost?: string;
+}
+

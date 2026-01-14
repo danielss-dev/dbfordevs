@@ -1,8 +1,10 @@
 use crate::error::AppResult;
 use crate::models::{
-    ConnectionConfig, ConstraintInfo, ExplainResult, IndexInfo, NewTableDefinition, PreviewResult,
-    QueryResult, TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
-    TestConnectionResult
+    AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
+    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseUser,
+    ExplainResult, IndexInfo, NewTableDefinition, PermissionRequest, PreviewResult, QueryResult,
+    RoleMembershipRequest, TableInfo, TableProperties, TableReferenceInfo, TableRelationship,
+    TableSchema, TestConnectionResult,
 };
 use async_trait::async_trait;
 use sqlx::{PgPool, MySqlPool, SqlitePool};
@@ -78,6 +80,75 @@ pub trait DatabaseDriver: Send + Sync {
 
     /// Get tables with their primary keys for foreign key reference picker
     async fn get_referenceable_tables(&self, pool: PoolRef<'_>) -> AppResult<Vec<TableReferenceInfo>>;
+
+    // ============ User Management Methods ============
+
+    /// Check if user management is supported for this database type
+    fn supports_user_management(&self) -> bool {
+        true
+    }
+
+    /// Get list of database users
+    async fn get_users(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseUser>>;
+
+    /// Create a new database user
+    async fn create_user(&self, pool: PoolRef<'_>, request: &CreateUserRequest) -> AppResult<()>;
+
+    /// Delete a database user
+    async fn delete_user(
+        &self,
+        pool: PoolRef<'_>,
+        username: &str,
+        host: Option<&str>,
+    ) -> AppResult<()>;
+
+    /// Change a user's password
+    async fn change_password(
+        &self,
+        pool: PoolRef<'_>,
+        request: &ChangePasswordRequest,
+    ) -> AppResult<()>;
+
+    /// Get list of database roles
+    async fn get_roles(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseRole>>;
+
+    /// Create a new role
+    async fn create_role(&self, pool: PoolRef<'_>, request: &CreateRoleRequest) -> AppResult<()>;
+
+    /// Delete a role
+    async fn delete_role(&self, pool: PoolRef<'_>, role_name: &str) -> AppResult<()>;
+
+    /// Get permissions for a user or role
+    async fn get_permissions(
+        &self,
+        pool: PoolRef<'_>,
+        grantee: &str,
+        host: Option<&str>,
+    ) -> AppResult<Vec<DatabasePermission>>;
+
+    /// Get available database-level privileges for this database type
+    async fn get_available_privileges(&self, pool: PoolRef<'_>) -> AppResult<AvailablePrivileges>;
+
+    /// Grant a database-level permission
+    async fn grant_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()>;
+
+    /// Revoke a database-level permission
+    async fn revoke_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()>;
+
+    /// Grant a role to a user
+    async fn grant_role(&self, pool: PoolRef<'_>, request: &RoleMembershipRequest) -> AppResult<()>;
+
+    /// Revoke a role from a user
+    async fn revoke_role(&self, pool: PoolRef<'_>, request: &RoleMembershipRequest)
+        -> AppResult<()>;
 }
 
 /// Factory function to get the appropriate driver for a database type

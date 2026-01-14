@@ -3,8 +3,10 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::models::DatabaseType;
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ColumnInfo, ConnectionConfig, ConstraintInfo, ExplainResult, ExtendedColumnInfo,
-    ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
+    AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
+    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseUser,
+    ExplainResult, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo, NewTableDefinition,
+    PermissionRequest, PlanNode, PreviewResult, QueryResult, RoleMembershipRequest,
     StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
     TableRelationship, TableSchema, TestConnectionResult,
 };
@@ -1498,6 +1500,442 @@ impl DatabaseDriver for OracleDriver {
             }
 
             Ok(table_map.into_values().collect())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    // ============ User Management Methods ============
+
+    async fn get_users(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseUser>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = r#"
+                SELECT
+                    u.username,
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM dba_role_privs rp
+                        WHERE rp.grantee = u.username AND rp.granted_role = 'DBA'
+                    ) THEN 1 ELSE 0 END as is_superuser,
+                    CASE WHEN u.account_status = 'OPEN' THEN 1 ELSE 0 END as can_login,
+                    LISTAGG(rp.granted_role, ',') WITHIN GROUP (ORDER BY rp.granted_role) as roles
+                FROM dba_users u
+                LEFT JOIN dba_role_privs rp ON u.username = rp.grantee
+                WHERE u.oracle_maintained = 'N'
+                GROUP BY u.username, u.account_status
+                ORDER BY u.username
+            "#;
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[])
+                .map_err(|e| AppError::QueryError(format!("Query failed: {}", e)))?;
+
+            let mut users = Vec::new();
+            for row_result in rows {
+                let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to fetch row: {}", e)))?;
+                let roles_str: Option<String> = row.get(3).ok();
+                let roles: Vec<String> = roles_str
+                    .map(|s| s.split(',').map(|r| r.to_string()).collect())
+                    .unwrap_or_default();
+
+                users.push(DatabaseUser {
+                    name: row.get::<_, String>(0).unwrap_or_default(),
+                    host: None,
+                    is_superuser: row.get::<_, i32>(1).unwrap_or(0) == 1,
+                    can_login: row.get::<_, i32>(2).unwrap_or(0) == 1,
+                    roles,
+                });
+            }
+
+            Ok(users)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn create_user(&self, pool: PoolRef<'_>, request: &CreateUserRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        if request.username.is_empty() {
+            return Err(AppError::ValidationError("Username cannot be empty".to_string()));
+        }
+
+        let username = request.username.clone();
+        let password = request.password.clone();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!(
+                "CREATE USER {} IDENTIFIED BY \"{}\"",
+                username,
+                password.replace('"', "\"\"")
+            );
+
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to create user: {}", e)))?;
+
+            // Grant basic connect privilege
+            let grant_sql = format!("GRANT CREATE SESSION TO {}", username);
+            conn.inner().execute(&grant_sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to grant connect: {}", e)))?;
+
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn delete_user(
+        &self,
+        pool: PoolRef<'_>,
+        username: &str,
+        _host: Option<&str>,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let username = username.to_string();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!("DROP USER {} CASCADE", username);
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to drop user: {}", e)))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn change_password(
+        &self,
+        pool: PoolRef<'_>,
+        request: &ChangePasswordRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let username = request.username.clone();
+        let new_password = request.new_password.clone();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!(
+                "ALTER USER {} IDENTIFIED BY \"{}\"",
+                username,
+                new_password.replace('"', "\"\"")
+            );
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to change password: {}", e)))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_roles(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseRole>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = r#"
+                SELECT
+                    r.role,
+                    CASE WHEN r.oracle_maintained = 'Y' THEN 1 ELSE 0 END as is_system_role,
+                    LISTAGG(rp.grantee, ',') WITHIN GROUP (ORDER BY rp.grantee) as members
+                FROM dba_roles r
+                LEFT JOIN dba_role_privs rp ON r.role = rp.granted_role
+                GROUP BY r.role, r.oracle_maintained
+                ORDER BY r.role
+            "#;
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[])
+                .map_err(|e| AppError::QueryError(format!("Query failed: {}", e)))?;
+
+            let mut roles = Vec::new();
+            for row_result in rows {
+                let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to fetch row: {}", e)))?;
+                let members_str: Option<String> = row.get(2).ok();
+                let members: Vec<String> = members_str
+                    .map(|s| s.split(',').map(|r| r.to_string()).collect())
+                    .unwrap_or_default();
+
+                roles.push(DatabaseRole {
+                    name: row.get::<_, String>(0).unwrap_or_default(),
+                    is_system_role: row.get::<_, i32>(1).unwrap_or(0) == 1,
+                    members,
+                });
+            }
+
+            Ok(roles)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn create_role(&self, pool: PoolRef<'_>, request: &CreateRoleRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        if request.role_name.is_empty() {
+            return Err(AppError::ValidationError("Role name cannot be empty".to_string()));
+        }
+
+        let role_name = request.role_name.clone();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!("CREATE ROLE {}", role_name);
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to create role: {}", e)))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn delete_role(&self, pool: PoolRef<'_>, role_name: &str) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let role_name = role_name.to_string();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!("DROP ROLE {}", role_name);
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to delete role: {}", e)))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_permissions(
+        &self,
+        pool: PoolRef<'_>,
+        grantee: &str,
+        _host: Option<&str>,
+    ) -> AppResult<Vec<DatabasePermission>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let grantee = grantee.to_string();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = r#"
+                SELECT
+                    privilege,
+                    grantee,
+                    CASE WHEN admin_option = 'YES' THEN 1 ELSE 0 END as is_grantable
+                FROM dba_sys_privs
+                WHERE grantee = :1
+            "#;
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[&grantee])
+                .map_err(|e| AppError::QueryError(format!("Query failed: {}", e)))?;
+
+            let mut permissions = Vec::new();
+            for row_result in rows {
+                let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to fetch row: {}", e)))?;
+                permissions.push(DatabasePermission {
+                    privilege: row.get::<_, String>(0).unwrap_or_default(),
+                    grantee: row.get::<_, String>(1).unwrap_or_default(),
+                    is_grantable: row.get::<_, i32>(2).unwrap_or(0) == 1,
+                });
+            }
+
+            Ok(permissions)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_available_privileges(&self, _pool: PoolRef<'_>) -> AppResult<AvailablePrivileges> {
+        Ok(AvailablePrivileges {
+            database_privileges: vec![
+                "CREATE SESSION".to_string(),
+                "CREATE TABLE".to_string(),
+                "CREATE VIEW".to_string(),
+                "CREATE PROCEDURE".to_string(),
+                "CREATE SEQUENCE".to_string(),
+                "CREATE TRIGGER".to_string(),
+                "CREATE TYPE".to_string(),
+            ],
+        })
+    }
+
+    async fn grant_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        // Validate privilege against allowed list to prevent SQL injection
+        let allowed_privileges = [
+            "CREATE SESSION", "CREATE TABLE", "CREATE VIEW", "CREATE PROCEDURE",
+            "CREATE SEQUENCE", "CREATE TRIGGER", "CREATE TYPE",
+        ];
+        let privilege_upper = request.privilege.to_uppercase();
+        if !allowed_privileges.contains(&privilege_upper.as_str()) {
+            return Err(AppError::ValidationError(format!(
+                "Invalid privilege '{}'. Allowed privileges: {}",
+                request.privilege,
+                allowed_privileges.join(", ")
+            )));
+        }
+
+        // Quote the grantee identifier to prevent injection
+        let grantee = format!("\"{}\"", request.grantee.replace('"', "\"\""));
+        let with_admin = request.with_grant_option;
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let admin_option = if with_admin { " WITH ADMIN OPTION" } else { "" };
+            let sql = format!("GRANT {} TO {}{}", privilege_upper, grantee, admin_option);
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to grant permission: {}", e)))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn revoke_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        // Validate privilege against allowed list to prevent SQL injection
+        let allowed_privileges = [
+            "CREATE SESSION", "CREATE TABLE", "CREATE VIEW", "CREATE PROCEDURE",
+            "CREATE SEQUENCE", "CREATE TRIGGER", "CREATE TYPE",
+        ];
+        let privilege_upper = request.privilege.to_uppercase();
+        if !allowed_privileges.contains(&privilege_upper.as_str()) {
+            return Err(AppError::ValidationError(format!(
+                "Invalid privilege '{}'. Allowed privileges: {}",
+                request.privilege,
+                allowed_privileges.join(", ")
+            )));
+        }
+
+        // Quote the grantee identifier to prevent injection
+        let grantee = format!("\"{}\"", request.grantee.replace('"', "\"\""));
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!("REVOKE {} FROM {}", privilege_upper, grantee);
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to revoke permission: {}", e)))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn grant_role(&self, pool: PoolRef<'_>, request: &RoleMembershipRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let role_name = request.role_name.clone();
+        let member_name = request.member_name.clone();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!("GRANT {} TO {}", role_name, member_name);
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to grant role: {}", e)))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn revoke_role(
+        &self,
+        pool: PoolRef<'_>,
+        request: &RoleMembershipRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let role_name = request.role_name.clone();
+        let member_name = request.member_name.clone();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!("REVOKE {} FROM {}", role_name, member_name);
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to revoke role: {}", e)))?;
+            Ok(())
         })
         .await
         .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?

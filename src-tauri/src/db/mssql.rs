@@ -2,10 +2,12 @@ use crate::db::common::{parse_cte_statement_type, quote_identifier, quote_identi
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ColumnInfo, ConnectionConfig, ConstraintInfo, DatabaseType, ExplainResult, ExplainWarning, ExtendedColumnInfo,
-    ForeignKeyInfo, IndexInfo, NewTableDefinition, PlanNode, PreviewResult, QueryResult,
-    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
-    TableRelationship, TableSchema, TestConnectionResult, WarningSeverity,
+    AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
+    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseType,
+    DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
+    NewTableDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
+    RoleMembershipRequest, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, WarningSeverity,
 };
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -2033,6 +2035,454 @@ ORDER BY ic.key_ordinal;
             .collect();
 
         Ok(result)
+    }
+
+    // ============ User Management Methods ============
+
+    async fn get_users(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseUser>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        // Query server logins (which can actually log in and have passwords)
+        // rather than database users (which are just mappings)
+        let query = r#"
+            SELECT
+                sp.name,
+                CASE WHEN sp.type = 'S' THEN 1 ELSE 0 END as is_sql_login,
+                CASE WHEN IS_SRVROLEMEMBER('sysadmin', sp.name) = 1 THEN 1 ELSE 0 END as is_superuser,
+                sp.is_disabled,
+                STUFF((
+                    SELECT ',' + r.name
+                    FROM sys.server_role_members srm
+                    JOIN sys.server_principals r ON srm.role_principal_id = r.principal_id
+                    WHERE srm.member_principal_id = sp.principal_id
+                    FOR XML PATH('')
+                ), 1, 1, '') as roles
+            FROM sys.server_principals sp
+            WHERE sp.type IN ('S', 'U', 'G')
+                AND sp.name NOT LIKE '##%'
+                AND sp.name NOT LIKE 'NT %'
+                AND sp.name NOT IN ('sa')
+                AND sp.is_disabled = 0
+            ORDER BY sp.name
+        "#;
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let stream = Query::new(query).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get users: {}", e)))?;
+
+        let results = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch users: {}", e)))?;
+
+        let users = results
+            .iter()
+            .map(|row| {
+                let roles_str: Option<&str> = row.get(4);
+                let roles: Vec<String> = roles_str
+                    .map(|s| s.split(',').map(|r| r.to_string()).collect())
+                    .unwrap_or_default();
+                let is_disabled: bool = row.get::<bool, _>(3).unwrap_or(false);
+                DatabaseUser {
+                    name: row.get::<&str, _>(0).unwrap_or("").to_string(),
+                    host: None,
+                    is_superuser: row.get::<i32, _>(2).unwrap_or(0) == 1,
+                    can_login: !is_disabled,
+                    roles,
+                }
+            })
+            .collect();
+
+        Ok(users)
+    }
+
+    async fn create_user(&self, pool: PoolRef<'_>, request: &CreateUserRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        if request.username.is_empty() {
+            return Err(AppError::ValidationError("Username cannot be empty".to_string()));
+        }
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        // Create login first (server level)
+        let create_login = format!(
+            "CREATE LOGIN [{}] WITH PASSWORD = N'{}'",
+            request.username.replace(']', "]]"),
+            request.password.replace('\'', "''")
+        );
+
+        Query::new(&create_login).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create login: {}", e)))?;
+
+        // Create user in current database
+        let create_user = format!(
+            "CREATE USER [{}] FOR LOGIN [{}]",
+            request.username.replace(']', "]]"),
+            request.username.replace(']', "]]")
+        );
+
+        Query::new(&create_user).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create user: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn delete_user(
+        &self,
+        pool: PoolRef<'_>,
+        username: &str,
+        _host: Option<&str>,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        // Drop user from database
+        let drop_user = format!(
+            "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'{}') DROP USER [{}]",
+            username.replace('\'', "''"),
+            username.replace(']', "]]")
+        );
+
+        Query::new(&drop_user).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop user: {}", e)))?;
+
+        // Drop login from server (only if no other users depend on it)
+        let drop_login = format!(
+            "IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'{}') DROP LOGIN [{}]",
+            username.replace('\'', "''"),
+            username.replace(']', "]]")
+        );
+
+        // Ignore errors on login drop since the user might still exist in other databases
+        let _ = Query::new(&drop_login).execute(&mut *client).await;
+
+        Ok(())
+    }
+
+    async fn change_password(
+        &self,
+        pool: PoolRef<'_>,
+        request: &ChangePasswordRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = format!(
+            "ALTER LOGIN [{}] WITH PASSWORD = N'{}'",
+            request.username.replace(']', "]]"),
+            request.new_password.replace('\'', "''")
+        );
+
+        Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to change password: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn get_roles(&self, pool: PoolRef<'_>) -> AppResult<Vec<DatabaseRole>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let query = r#"
+            SELECT
+                dp.name,
+                dp.is_fixed_role as is_system_role,
+                STUFF((
+                    SELECT ',' + m.name
+                    FROM sys.database_role_members drm
+                    JOIN sys.database_principals m ON drm.member_principal_id = m.principal_id
+                    WHERE drm.role_principal_id = dp.principal_id
+                    FOR XML PATH('')
+                ), 1, 1, '') as members
+            FROM sys.database_principals dp
+            WHERE dp.type = 'R'
+                AND dp.name NOT IN ('public')
+            ORDER BY dp.name
+        "#;
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let stream = Query::new(query).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get roles: {}", e)))?;
+
+        let results = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch roles: {}", e)))?;
+
+        let roles = results
+            .iter()
+            .map(|row| {
+                let members_str: Option<&str> = row.get(2);
+                let members: Vec<String> = members_str
+                    .map(|s| s.split(',').map(|r| r.to_string()).collect())
+                    .unwrap_or_default();
+                DatabaseRole {
+                    name: row.get::<&str, _>(0).unwrap_or("").to_string(),
+                    is_system_role: row.get::<bool, _>(1).unwrap_or(false),
+                    members,
+                }
+            })
+            .collect();
+
+        Ok(roles)
+    }
+
+    async fn create_role(&self, pool: PoolRef<'_>, request: &CreateRoleRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        if request.role_name.is_empty() {
+            return Err(AppError::ValidationError("Role name cannot be empty".to_string()));
+        }
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = format!(
+            "CREATE ROLE [{}]",
+            request.role_name.replace(']', "]]")
+        );
+
+        Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn delete_role(&self, pool: PoolRef<'_>, role_name: &str) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = format!(
+            "DROP ROLE [{}]",
+            role_name.replace(']', "]]")
+        );
+
+        Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to delete role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn get_permissions(
+        &self,
+        pool: PoolRef<'_>,
+        grantee: &str,
+        _host: Option<&str>,
+    ) -> AppResult<Vec<DatabasePermission>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let query = format!(
+            r#"
+            SELECT
+                p.permission_name,
+                dp.name as grantee,
+                CASE WHEN p.state = 'W' THEN 1 ELSE 0 END as is_grantable
+            FROM sys.database_permissions p
+            JOIN sys.database_principals dp ON p.grantee_principal_id = dp.principal_id
+            WHERE dp.name = N'{}'
+                AND p.class = 0  -- Database level permissions
+            "#,
+            grantee.replace('\'', "''")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let stream = Query::new(&query).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get permissions: {}", e)))?;
+
+        let results = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch permissions: {}", e)))?;
+
+        let permissions = results
+            .iter()
+            .map(|row| DatabasePermission {
+                privilege: row.get::<&str, _>(0).unwrap_or("").to_string(),
+                grantee: row.get::<&str, _>(1).unwrap_or("").to_string(),
+                is_grantable: row.get::<i32, _>(2).unwrap_or(0) == 1,
+            })
+            .collect();
+
+        Ok(permissions)
+    }
+
+    async fn get_available_privileges(&self, _pool: PoolRef<'_>) -> AppResult<AvailablePrivileges> {
+        Ok(AvailablePrivileges {
+            database_privileges: vec![
+                "CONNECT".to_string(),
+                "CREATE TABLE".to_string(),
+                "CREATE VIEW".to_string(),
+                "CREATE PROCEDURE".to_string(),
+                "CREATE FUNCTION".to_string(),
+                "EXECUTE".to_string(),
+                "SELECT".to_string(),
+                "INSERT".to_string(),
+                "UPDATE".to_string(),
+                "DELETE".to_string(),
+            ],
+        })
+    }
+
+    async fn grant_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        // Validate privilege against allowed list to prevent SQL injection
+        let allowed_privileges = [
+            "CONNECT", "CREATE TABLE", "CREATE VIEW", "CREATE PROCEDURE",
+            "CREATE FUNCTION", "EXECUTE", "SELECT", "INSERT", "UPDATE", "DELETE",
+        ];
+        let privilege_upper = request.privilege.to_uppercase();
+        if !allowed_privileges.contains(&privilege_upper.as_str()) {
+            return Err(AppError::ValidationError(format!(
+                "Invalid privilege '{}'. Allowed privileges: {}",
+                request.privilege,
+                allowed_privileges.join(", ")
+            )));
+        }
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let grant_option = if request.with_grant_option {
+            " WITH GRANT OPTION"
+        } else {
+            ""
+        };
+
+        let sql = format!(
+            "GRANT {} TO [{}]{}",
+            privilege_upper,
+            request.grantee.replace(']', "]]"),
+            grant_option
+        );
+
+        Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to grant permission: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn revoke_permission(
+        &self,
+        pool: PoolRef<'_>,
+        request: &PermissionRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        // Validate privilege against allowed list to prevent SQL injection
+        let allowed_privileges = [
+            "CONNECT", "CREATE TABLE", "CREATE VIEW", "CREATE PROCEDURE",
+            "CREATE FUNCTION", "EXECUTE", "SELECT", "INSERT", "UPDATE", "DELETE",
+        ];
+        let privilege_upper = request.privilege.to_uppercase();
+        if !allowed_privileges.contains(&privilege_upper.as_str()) {
+            return Err(AppError::ValidationError(format!(
+                "Invalid privilege '{}'. Allowed privileges: {}",
+                request.privilege,
+                allowed_privileges.join(", ")
+            )));
+        }
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = format!(
+            "REVOKE {} FROM [{}]",
+            privilege_upper,
+            request.grantee.replace(']', "]]")
+        );
+
+        Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to revoke permission: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn grant_role(&self, pool: PoolRef<'_>, request: &RoleMembershipRequest) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = format!(
+            "ALTER ROLE [{}] ADD MEMBER [{}]",
+            request.role_name.replace(']', "]]"),
+            request.member_name.replace(']', "]]")
+        );
+
+        Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to grant role: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn revoke_role(
+        &self,
+        pool: PoolRef<'_>,
+        request: &RoleMembershipRequest,
+    ) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = format!(
+            "ALTER ROLE [{}] DROP MEMBER [{}]",
+            request.role_name.replace(']', "]]"),
+            request.member_name.replace(']', "]]")
+        );
+
+        Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to revoke role: {}", e)))?;
+
+        Ok(())
     }
 }
 
