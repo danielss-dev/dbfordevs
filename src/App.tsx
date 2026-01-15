@@ -13,7 +13,7 @@ import {
   ManagePermissionsDialog,
 } from "@/components/users";
 import { UpdateNotification } from "@/components/updater/UpdateNotification";
-import { useUIStore } from "@/stores";
+import { useUIStore, useQueryStore } from "@/stores";
 import { useKeyboardShortcuts } from "@/hooks";
 
 function App() {
@@ -26,6 +26,12 @@ function App() {
   useEffect(() => {
     setTheme(theme);
     setAppStyle(appStyle);
+
+    // Run query history cleanup on startup
+    const { historySettings, cleanupOldHistory } = useQueryStore.getState();
+    if (historySettings.autoCleanupEnabled) {
+      cleanupOldHistory();
+    }
   }, []);
 
   return (

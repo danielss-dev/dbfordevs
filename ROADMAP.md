@@ -212,25 +212,34 @@ Settings show keybindings but they cannot be changed.
 
 ### 8. Query History Improvements
 
-**Status:** Basic implementation
+**Status:** Implemented
 **Impact:** Medium
 **Effort:** Low
 
 **Implementation Tasks:**
-- [ ] Search within history
-- [ ] Filter by:
-  - [ ] Date range
-  - [ ] Connection
-  - [ ] Success/failure
-  - [ ] Execution time
-- [ ] Star/favorite queries
-- [ ] History cleanup settings:
-  - [ ] Max history items
-  - [ ] Auto-delete after N days
-  - [ ] Clear all button
-- [ ] Export history
-- [ ] Query execution statistics
-- [ ] Duplicate detection
+- [x] Search within history
+- [x] Filter by:
+  - [x] Date range
+  - [x] Connection (per-connection history)
+  - [x] Success/failure
+  - [x] Execution time
+- [x] Star/favorite queries
+- [x] History cleanup settings:
+  - [x] Max history items
+  - [x] Auto-delete after N days
+  - [x] Clear all button
+- [x] Export history (JSON, CSV)
+- [x] Query execution statistics
+- [x] Duplicate detection
+
+**Files modified:**
+- `src/types/index.ts` - Added QueryHistorySettings, QueryHistoryFilters, QueryHistoryStats types
+- `src/stores/query.ts` - Added history settings, cleanup, favorites, export, and statistics
+- `src/components/query-history/QueryHistoryPanel.tsx` - Complete rewrite with filters, stats, export
+- `src/components/query-history/QueryHistoryItem.tsx` - Added favorites support
+- `src/components/query-history/QueryHistoryDropdownItem.tsx` - Added favorites indicator
+- `src/components/settings/SettingsDialog.tsx` - Added Query History settings in Advanced tab
+- `src/App.tsx` - Added auto-cleanup on startup
 
 ---
 

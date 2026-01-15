@@ -104,6 +104,30 @@ export interface QueryHistoryEntry {
   rowCount?: number;
   success: boolean;
   error?: string;
+  isFavorite?: boolean;
+}
+
+export interface QueryHistorySettings {
+  maxHistoryItems: number;
+  maxDaysOld: number;
+  autoCleanupEnabled: boolean;
+}
+
+export interface QueryHistoryFilters {
+  searchQuery: string;
+  dateRange: { start: number | null; end: number | null };
+  successFilter: 'all' | 'success' | 'failed';
+  executionTimeRange: { min: number | null; max: number | null };
+  showFavoritesOnly: boolean;
+}
+
+export interface QueryHistoryStats {
+  totalQueries: number;
+  successfulQueries: number;
+  failedQueries: number;
+  averageExecutionTime: number;
+  totalExecutionTime: number;
+  favoriteCount: number;
 }
 
 export interface TableInfo {

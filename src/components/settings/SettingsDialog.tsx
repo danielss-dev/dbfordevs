@@ -13,7 +13,7 @@ import {
   Input,
   Checkbox,
 } from "@/components/ui";
-import { useUIStore, useUpdaterStore } from "@/stores";
+import { useUIStore, useUpdaterStore, useQueryStore } from "@/stores";
 import { useToast } from "@/hooks/useToast";
 import { open } from "@tauri-apps/plugin-shell";
 import { getVersion } from "@tauri-apps/api/app";
@@ -257,6 +257,11 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Debug Logging", description: "Log detailed information to help troubleshoot issues.", keywords: ["debug", "log", "logging", "troubleshoot"], tabValue: "advanced" },
   { label: "Reset all settings", description: "Restore all settings to their default values.", keywords: ["reset", "default", "restore"], tabValue: "advanced" },
   { label: "Clear cache", description: "Clear cached data and temporary files.", keywords: ["cache", "clear", "temporary", "files"], tabValue: "advanced" },
+  // Query History
+  { label: "Query History", description: "Configure how query history is stored and cleaned up.", keywords: ["query", "history", "cleanup", "storage"], tabValue: "advanced" },
+  { label: "Auto-cleanup enabled", description: "Automatically remove old queries based on age and count limits.", keywords: ["auto", "cleanup", "history", "automatic"], tabValue: "advanced" },
+  { label: "Maximum history items", description: "Maximum number of queries to keep per connection.", keywords: ["max", "history", "items", "limit", "queries"], tabValue: "advanced" },
+  { label: "Delete queries older than", description: "Automatically remove queries older than this many days.", keywords: ["delete", "old", "days", "history", "retention"], tabValue: "advanced" },
 ];
 
 export function SettingsDialog() {
@@ -898,67 +903,161 @@ export function SettingsDialog() {
                   )}
 
                   {/* Advanced Tab */}
-                  {activeTab === "advanced" && (
-                    <div className="space-y-6 animate-fade-in">
-                      <div>
-                        <h2 className="text-xl font-semibold mb-1">Advanced</h2>
-                        <p className="text-sm text-muted-foreground">Advanced settings for power users.</p>
-                      </div>
+                  {activeTab === "advanced" && (() => {
+                    const { historySettings, updateHistorySettings, cleanupOldHistory } = useQueryStore.getState();
 
-                      <div className="rounded-xl border border-border bg-card p-1">
-                        <SettingRow
-                          label="Developer Mode"
-                          description="Enable additional debugging information and console logging."
-                        >
-                          <Checkbox defaultChecked={false} />
-                        </SettingRow>
-                        <Separator />
-                        <SettingRow
-                          label="Debug Logging"
-                          description="Log detailed information to help troubleshoot issues."
-                        >
-                          <Checkbox defaultChecked={false} />
-                        </SettingRow>
-                        <Separator />
-                        <SettingRow
-                          label="Reset all settings"
-                          description="Restore all settings to their default values."
-                        >
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              toast({
-                                title: "Settings reset",
-                                description: "All settings have been reset to default values.",
-                              });
-                            }}
+                    return (
+                      <div className="space-y-6 animate-fade-in">
+                        <div>
+                          <h2 className="text-xl font-semibold mb-1">Advanced</h2>
+                          <p className="text-sm text-muted-foreground">Advanced settings for power users.</p>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-card p-1">
+                          <SettingRow
+                            label="Developer Mode"
+                            description="Enable additional debugging information and console logging."
                           >
-                            <RotateCcw className="h-4 w-4 mr-2" />
-                            Reset
-                          </Button>
-                        </SettingRow>
-                        <Separator />
-                        <SettingRow
-                          label="Clear cache"
-                          description="Clear cached data and temporary files."
-                        >
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              toast({
-                                title: "Cache cleared",
-                                description: "All cached data has been cleared.",
-                              });
-                            }}
+                            <Checkbox defaultChecked={false} />
+                          </SettingRow>
+                          <Separator />
+                          <SettingRow
+                            label="Debug Logging"
+                            description="Log detailed information to help troubleshoot issues."
                           >
-                            Clear Cache
-                          </Button>
-                        </SettingRow>
+                            <Checkbox defaultChecked={false} />
+                          </SettingRow>
+                          <Separator />
+                          <SettingRow
+                            label="Reset all settings"
+                            description="Restore all settings to their default values."
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                toast({
+                                  title: "Settings reset",
+                                  description: "All settings have been reset to default values.",
+                                });
+                              }}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              Reset
+                            </Button>
+                          </SettingRow>
+                          <Separator />
+                          <SettingRow
+                            label="Clear cache"
+                            description="Clear cached data and temporary files."
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                toast({
+                                  title: "Cache cleared",
+                                  description: "All cached data has been cleared.",
+                                });
+                              }}
+                            >
+                              Clear Cache
+                            </Button>
+                          </SettingRow>
+                        </div>
+
+                        {/* Query History Settings */}
+                        <div className="mt-6">
+                          <h3 className="text-lg font-medium mb-3">Query History</h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Configure how query history is stored and cleaned up.
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-card p-1">
+                          <SettingRow
+                            label="Auto-cleanup enabled"
+                            description="Automatically remove old queries based on age and count limits."
+                          >
+                            <Checkbox
+                              checked={historySettings.autoCleanupEnabled}
+                              onCheckedChange={(checked: boolean) => {
+                                updateHistorySettings({ autoCleanupEnabled: checked });
+                                toast({
+                                  title: checked ? "Auto-cleanup enabled" : "Auto-cleanup disabled",
+                                  description: checked
+                                    ? "Old queries will be automatically cleaned up."
+                                    : "Query history will be kept indefinitely.",
+                                });
+                              }}
+                            />
+                          </SettingRow>
+                          <Separator />
+                          <SettingRow
+                            label="Maximum history items"
+                            description="Maximum number of queries to keep per connection."
+                          >
+                            <Input
+                              type="number"
+                              min="10"
+                              max="1000"
+                              value={historySettings.maxHistoryItems}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value);
+                                if (!isNaN(value) && value >= 10) {
+                                  updateHistorySettings({ maxHistoryItems: value });
+                                }
+                              }}
+                              className="w-20"
+                            />
+                          </SettingRow>
+                          <Separator />
+                          <SettingRow
+                            label="Delete queries older than (days)"
+                            description="Automatically remove queries older than this many days."
+                          >
+                            <Input
+                              type="number"
+                              min="1"
+                              max="365"
+                              value={historySettings.maxDaysOld}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value);
+                                if (!isNaN(value) && value > 0) {
+                                  updateHistorySettings({ maxDaysOld: value });
+                                }
+                              }}
+                              className="w-20"
+                            />
+                          </SettingRow>
+                          <Separator />
+                          <SettingRow
+                            label="Run cleanup now"
+                            description="Manually trigger history cleanup based on current settings."
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                cleanupOldHistory();
+                                toast({
+                                  title: "Cleanup complete",
+                                  description: "Query history has been cleaned up.",
+                                });
+                              }}
+                            >
+                              Clean Up Now
+                            </Button>
+                          </SettingRow>
+                          <div className="px-4 py-3 bg-muted/30">
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Note:</strong> Favorited queries are never deleted during auto-cleanup.
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* About Tab */}
                   {activeTab === "about" && (

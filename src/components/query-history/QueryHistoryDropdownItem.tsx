@@ -1,6 +1,7 @@
-import { Check, X, Clock } from "lucide-react";
+import { Check, X, Clock, Star, Trash2 } from "lucide-react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { QueryHistoryEntry } from "@/types";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime, formatExecutionTime, truncateSQL } from "./query-history-utils";
@@ -11,6 +12,8 @@ interface QueryHistoryDropdownItemProps {
   onHover: () => void;
   onLeave: () => void;
   onClick: () => void;
+  onToggleFavorite?: (e: React.MouseEvent, id: string) => void;
+  onDelete?: (e: React.MouseEvent, id: string) => void;
 }
 
 export function QueryHistoryDropdownItem({
@@ -19,12 +22,15 @@ export function QueryHistoryDropdownItem({
   onHover,
   onLeave,
   onClick,
+  onToggleFavorite,
+  onDelete,
 }: QueryHistoryDropdownItemProps) {
   return (
     <DropdownMenuItem
       className={cn(
-        "flex flex-col items-start gap-2 p-3 cursor-pointer transition-all duration-200",
+        "flex flex-col items-start gap-2 p-3 cursor-pointer transition-all duration-200 group",
         entry.success ? "border-l-2 border-l-transparent" : "border-l-2 border-l-destructive",
+        entry.isFavorite && "border-l-yellow-500 bg-yellow-500/5",
         isExpanded && "bg-muted/50"
       )}
       onMouseEnter={onHover}
@@ -41,12 +47,43 @@ export function QueryHistoryDropdownItem({
         <span className="text-xs text-muted-foreground flex-shrink-0">
           {formatRelativeTime(entry.executedAt)}
         </span>
+        {entry.isFavorite && (
+          <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 flex-shrink-0" />
+        )}
         <code className={cn(
           "text-xs font-mono flex-1 min-w-0 transition-all duration-200",
           isExpanded ? "whitespace-pre-wrap line-clamp-3" : "truncate"
         )}>
           {isExpanded ? entry.sql : truncateSQL(entry.sql, 60)}
         </code>
+        {/* Action buttons - visible on hover */}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onToggleFavorite && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={(e) => onToggleFavorite(e, entry.id)}
+            >
+              <Star
+                className={cn(
+                  "h-3 w-3",
+                  entry.isFavorite ? "fill-yellow-500 text-yellow-500" : ""
+                )}
+              />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={(e) => onDelete(e, entry.id)}
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Expanded metadata - only visible on hover */}

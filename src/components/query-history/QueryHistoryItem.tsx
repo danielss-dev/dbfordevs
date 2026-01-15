@@ -1,4 +1,4 @@
-import { Check, X, Clock, Database, Trash2 } from "lucide-react";
+import { Check, X, Clock, Database, Trash2, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
@@ -10,14 +10,16 @@ interface QueryHistoryItemProps {
   entry: QueryHistoryEntry;
   onLoad: (sql: string) => void;
   onDelete: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
 }
 
-export function QueryHistoryItem({ entry, onLoad, onDelete }: QueryHistoryItemProps) {
+export function QueryHistoryItem({ entry, onLoad, onDelete, onToggleFavorite }: QueryHistoryItemProps) {
   return (
     <div
       className={cn(
         "group flex flex-col gap-2 rounded-md border p-3 hover:bg-muted/50 cursor-pointer transition-colors",
-        entry.success ? "border-border" : "border-destructive/50"
+        entry.success ? "border-border" : "border-destructive/50",
+        entry.isFavorite && "border-yellow-500/50 bg-yellow-500/5"
       )}
       onClick={() => onLoad(entry.sql)}
     >
@@ -31,23 +33,56 @@ export function QueryHistoryItem({ entry, onLoad, onDelete }: QueryHistoryItemPr
           <span className="text-xs text-muted-foreground flex-shrink-0">
             {formatRelativeTime(entry.executedAt)}
           </span>
+          {entry.isFavorite && (
+            <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500 flex-shrink-0" />
+          )}
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(entry.id);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Delete from history</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-0.5">
+          {onToggleFavorite && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-6 w-6 transition-opacity",
+                    entry.isFavorite ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite(entry.id);
+                  }}
+                >
+                  <Star
+                    className={cn(
+                      "h-3.5 w-3.5",
+                      entry.isFavorite ? "fill-yellow-500 text-yellow-500" : ""
+                    )}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {entry.isFavorite ? "Remove from favorites" : "Add to favorites"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(entry.id);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Delete from history</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
