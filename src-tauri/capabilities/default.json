@@ -12,12 +12,14 @@
     "fs:allow-write-text-file",
     "updater:default",
     "process:allow-restart",
-    {
+{
       "identifier": "http:allow-fetch",
       "allow": [
         { "url": "https://api.anthropic.com/*" },
         { "url": "https://generativelanguage.googleapis.com/*" },
-        { "url": "https://api.openai.com/*" }
+        { "url": "https://api.openai.com/*" },
+        { "url": "https://github.com/danielss-dev/dbfordevs/*" },
+        { "url": "https://objects.githubusercontent.com/*" }
       ]
     }
   ]
