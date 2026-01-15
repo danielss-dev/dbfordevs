@@ -2,6 +2,16 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.4] - 2026-01-15
+
+
+### Added
+- **feat**: implement data grid enhancements with new features and settings
+- **feat**: implement comprehensive query history management (#55)
+- **feat**: add user and role management with permission controls (#54)
+
+### Fixed
+- **fix**: disable updater in development mode and update release draft status
 ## [0.3.3] - 2026-01-13
 ## [0.3.2] - 2026-01-13
 
