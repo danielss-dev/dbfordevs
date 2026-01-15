@@ -3,12 +3,12 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
-    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseType,
-    DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    NewTableDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
-    RoleMembershipRequest, StatementPreview, StatementType, TableInfo, TableProperties,
-    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, ColumnInfo,
-    WarningSeverity,
+    CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
+    DatabaseType, DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo,
+    IndexInfo, NewTableDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
+    QueryResult, RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType,
+    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
+    TestConnectionResult, ColumnInfo, ViewInfo, WarningSeverity,
 };
 use async_trait::async_trait;
 use sqlx::{mysql::MySqlPool, Row, Column, TypeInfo};
@@ -2177,6 +2177,347 @@ impl DatabaseDriver for MySqlDriver {
             .map_err(|e| AppError::QueryError(format!("Failed to revoke role: {}", e)))?;
 
         Ok(())
+    }
+
+    // ============ View Management Methods ============
+
+    async fn get_views(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<ViewInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let sql = r#"
+            SELECT
+                TABLE_NAME as name,
+                NULL as `schema`,
+                VIEW_DEFINITION as definition,
+                IS_UPDATABLE = 'YES' as is_updatable,
+                CHECK_OPTION as check_option
+            FROM information_schema.VIEWS
+            WHERE TABLE_SCHEMA = DATABASE()
+            ORDER BY TABLE_NAME
+        "#;
+
+        let rows = sqlx::query(sql)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get views: {}", e)))?;
+
+        let views = rows
+            .iter()
+            .map(|row| ViewInfo {
+                name: decode_string(row, "name"),
+                schema: None,
+                definition: row.try_get::<Option<String>, _>("definition").ok().flatten(),
+                is_updatable: row.try_get::<i32, _>("is_updatable").unwrap_or(0) == 1,
+                check_option: row.try_get::<Option<String>, _>("check_option").ok().flatten(),
+            })
+            .collect();
+
+        Ok(views)
+    }
+
+    async fn get_view_ddl(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let sql = format!("SHOW CREATE VIEW {}", quote_identifier_single(view_name, &DatabaseType::MySQL));
+
+        let row = sqlx::query(&sql)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get view DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("View '{}' not found", view_name)))?;
+
+        // SHOW CREATE VIEW returns columns: View, Create View, character_set_client, collation_connection
+        let ddl: String = row.try_get(1).unwrap_or_default();
+        Ok(format!("{};", ddl))
+    }
+
+    async fn create_view(
+        &self,
+        pool: PoolRef<'_>,
+        view_def: &NewViewDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let or_replace = if view_def.or_replace { "OR REPLACE " } else { "" };
+
+        let check_option = view_def
+            .check_option
+            .as_ref()
+            .filter(|c| *c != "NONE" && !c.is_empty())
+            .map(|c| format!("\nWITH {} CHECK OPTION", c))
+            .unwrap_or_default();
+
+        let sql = format!(
+            "CREATE {}VIEW {} AS\n{}{}",
+            or_replace,
+            quote_identifier_single(&view_def.name, &DatabaseType::MySQL),
+            view_def.definition.trim(),
+            check_option
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create view: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_view(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP VIEW IF EXISTS {}",
+            quote_identifier_single(view_name, &DatabaseType::MySQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop view: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Index Management Methods ============
+
+    async fn get_all_indexes(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<StandaloneIndexInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let sql = r#"
+            SELECT
+                INDEX_NAME as index_name,
+                TABLE_NAME as table_name,
+                GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) as columns,
+                NOT NON_UNIQUE as is_unique,
+                INDEX_NAME = 'PRIMARY' as is_primary,
+                INDEX_TYPE as index_type
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+            GROUP BY TABLE_NAME, INDEX_NAME, NON_UNIQUE, INDEX_TYPE
+            ORDER BY TABLE_NAME, INDEX_NAME
+        "#;
+
+        let rows = sqlx::query(sql)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get indexes: {}", e)))?;
+
+        let indexes = rows
+            .iter()
+            .map(|row| {
+                let columns_str: String = decode_string(row, "columns");
+                let columns: Vec<String> = columns_str.split(',').map(|s| s.to_string()).collect();
+                StandaloneIndexInfo {
+                    name: decode_string(row, "index_name"),
+                    schema: None,
+                    table_name: decode_string(row, "table_name"),
+                    columns,
+                    is_unique: row.try_get::<i32, _>("is_unique").unwrap_or(0) == 1,
+                    is_primary: row.try_get::<i32, _>("is_primary").unwrap_or(0) == 1,
+                    index_type: row.try_get::<Option<String>, _>("index_type").ok().flatten(),
+                }
+            })
+            .collect();
+
+        Ok(indexes)
+    }
+
+    async fn get_index_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        table_name: Option<&str>,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        // For MySQL, we need to reconstruct the DDL from STATISTICS
+        let table = table_name.ok_or_else(|| {
+            AppError::QueryError("Table name is required for MySQL index DDL".to_string())
+        })?;
+
+        let sql = r#"
+            SELECT
+                INDEX_NAME,
+                GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) as columns,
+                NOT NON_UNIQUE as is_unique,
+                INDEX_TYPE
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = ?
+              AND INDEX_NAME = ?
+            GROUP BY INDEX_NAME, NON_UNIQUE, INDEX_TYPE
+        "#;
+
+        let row = sqlx::query(sql)
+            .bind(table)
+            .bind(index_name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get index DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Index '{}' not found", index_name)))?;
+
+        let columns_str: String = decode_string(&row, "columns");
+        let is_unique = row.try_get::<i32, _>("is_unique").unwrap_or(0) == 1;
+        let index_type: Option<String> = row.try_get("INDEX_TYPE").ok();
+
+        let columns: Vec<String> = columns_str
+            .split(',')
+            .map(|c| quote_identifier_single(c, &DatabaseType::MySQL))
+            .collect();
+
+        let unique = if is_unique { "UNIQUE " } else { "" };
+        let using = index_type
+            .filter(|t| t != "BTREE")
+            .map(|t| format!(" USING {}", t))
+            .unwrap_or_default();
+
+        let ddl = format!(
+            "CREATE {}INDEX {} ON {}({}){}",
+            unique,
+            quote_identifier_single(index_name, &DatabaseType::MySQL),
+            quote_identifier_single(table, &DatabaseType::MySQL),
+            columns.join(", "),
+            using
+        );
+
+        Ok(format!("{};", ddl))
+    }
+
+    async fn create_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_def: &CreateIndexDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let unique = if index_def.is_unique { "UNIQUE " } else { "" };
+
+        // Generate index name if not provided
+        let index_name = index_def.name.clone().unwrap_or_else(|| {
+            format!(
+                "idx_{}_{}",
+                index_def.table_name,
+                index_def.columns.join("_")
+            )
+        });
+
+        let columns = index_def
+            .columns
+            .iter()
+            .map(|c| quote_identifier_single(c, &DatabaseType::MySQL))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let index_type = index_def
+            .index_type
+            .as_ref()
+            .filter(|t| !t.is_empty() && t.to_uppercase() != "BTREE")
+            .map(|t| format!(" USING {}", t))
+            .unwrap_or_default();
+
+        let sql = format!(
+            "CREATE {}INDEX {} ON {}({}){}",
+            unique,
+            quote_identifier_single(&index_name, &DatabaseType::MySQL),
+            quote_identifier_single(&index_def.table_name, &DatabaseType::MySQL),
+            columns,
+            index_type
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // MySQL requires table name for DROP INDEX
+        let table = table_name.ok_or_else(|| {
+            AppError::QueryError("Table name is required for MySQL DROP INDEX".to_string())
+        })?;
+
+        let sql = format!(
+            "DROP INDEX {} ON {}",
+            quote_identifier_single(index_name, &DatabaseType::MySQL),
+            quote_identifier_single(table, &DatabaseType::MySQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
     }
 }
 

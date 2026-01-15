@@ -3,12 +3,12 @@ use crate::db::common::{parse_cte_statement_type, quote_identifier, quote_identi
 use crate::error::{AppError, AppResult};
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
-    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseType,
-    DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    NewTableDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
-    RoleMembershipRequest, StatementPreview, StatementType, TableInfo, TableProperties,
-    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, ColumnInfo,
-    WarningSeverity,
+    CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
+    DatabaseType, DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo,
+    IndexInfo, NewTableDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
+    QueryResult, RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType,
+    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
+    TestConnectionResult, ColumnInfo, ViewInfo, WarningSeverity,
 };
 use async_trait::async_trait;
 use sqlx::{postgres::PgPool, Row, Column, ValueRef, TypeInfo};
@@ -2874,6 +2874,393 @@ impl DatabaseDriver for PostgresDriver {
             .map_err(|e| AppError::QueryError(format!("Failed to revoke role: {}", e)))?;
 
         Ok(())
+    }
+
+    // ============ View Management Methods ============
+
+    async fn get_views(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<ViewInfo>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // PostgreSQL defaults to "public" schema
+        let schema = "public";
+
+        let sql = r#"
+            SELECT
+                v.table_name as name,
+                v.table_schema as schema,
+                v.view_definition as definition,
+                v.is_updatable = 'YES' as is_updatable,
+                v.check_option
+            FROM information_schema.views v
+            WHERE v.table_schema = $1
+            ORDER BY v.table_name
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(schema)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get views: {}", e)))?;
+
+        let views = rows
+            .iter()
+            .map(|row| ViewInfo {
+                name: row.get::<String, _>("name"),
+                schema: row.get::<Option<String>, _>("schema"),
+                definition: row.get::<Option<String>, _>("definition"),
+                is_updatable: row.get::<bool, _>("is_updatable"),
+                check_option: row.get::<Option<String>, _>("check_option"),
+            })
+            .collect();
+
+        Ok(views)
+    }
+
+    async fn get_view_ddl(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Parse schema.view_name format
+        let (schema, name) = if view_name.contains('.') {
+            let parts: Vec<&str> = view_name.splitn(2, '.').collect();
+            (Some(parts[0].to_string()), parts[1].to_string())
+        } else {
+            (None, view_name.to_string())
+        };
+
+        // Get view definition from information_schema
+        let sql = r#"
+            SELECT
+                v.table_schema,
+                v.table_name,
+                v.view_definition,
+                v.check_option,
+                v.is_updatable
+            FROM information_schema.views v
+            WHERE v.table_name = $1
+              AND ($2::text IS NULL OR v.table_schema = $2)
+            LIMIT 1
+        "#;
+
+        let row = sqlx::query(sql)
+            .bind(&name)
+            .bind(&schema)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get view DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("View '{}' not found", view_name)))?;
+
+        let view_schema: String = row.get("table_schema");
+        let view_name: String = row.get("table_name");
+        let definition: Option<String> = row.get("view_definition");
+        let check_option: Option<String> = row.get("check_option");
+
+        let mut ddl = format!(
+            "CREATE OR REPLACE VIEW {}.{} AS\n{}",
+            quote_identifier_single(&view_schema, &DatabaseType::PostgreSQL),
+            quote_identifier_single(&view_name, &DatabaseType::PostgreSQL),
+            definition.unwrap_or_default().trim()
+        );
+
+        if let Some(check) = check_option {
+            if check != "NONE" {
+                ddl.push_str(&format!("\nWITH {} CHECK OPTION", check));
+            }
+        }
+
+        ddl.push(';');
+        Ok(ddl)
+    }
+
+    async fn create_view(
+        &self,
+        pool: PoolRef<'_>,
+        view_def: &NewViewDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let schema_prefix = view_def
+            .schema
+            .as_ref()
+            .map(|s| format!("{}.", quote_identifier_single(s, &DatabaseType::PostgreSQL)))
+            .unwrap_or_default();
+
+        let or_replace = if view_def.or_replace { "OR REPLACE " } else { "" };
+
+        let check_option = view_def
+            .check_option
+            .as_ref()
+            .filter(|c| *c != "NONE" && !c.is_empty())
+            .map(|c| format!("\nWITH {} CHECK OPTION", c))
+            .unwrap_or_default();
+
+        let sql = format!(
+            "CREATE {}VIEW {}{} AS\n{}{}",
+            or_replace,
+            schema_prefix,
+            quote_identifier_single(&view_def.name, &DatabaseType::PostgreSQL),
+            view_def.definition.trim(),
+            check_option
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create view: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_view(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP VIEW IF EXISTS {}",
+            quote_identifier(view_name, &DatabaseType::PostgreSQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop view: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Index Management Methods ============
+
+    async fn get_all_indexes(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<StandaloneIndexInfo>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // PostgreSQL defaults to "public" schema
+        let schema = "public";
+
+        let sql = r#"
+            SELECT
+                i.relname as index_name,
+                n.nspname as schema_name,
+                t.relname as table_name,
+                array_agg(a.attname ORDER BY x.ordinality) as columns,
+                ix.indisunique as is_unique,
+                ix.indisprimary as is_primary,
+                am.amname as index_type
+            FROM pg_index ix
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_class t ON t.oid = ix.indrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            JOIN pg_am am ON am.oid = i.relam
+            CROSS JOIN LATERAL unnest(ix.indkey) WITH ORDINALITY AS x(attnum, ordinality)
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = x.attnum
+            WHERE n.nspname = $1
+            GROUP BY i.relname, n.nspname, t.relname, ix.indisunique, ix.indisprimary, am.amname
+            ORDER BY t.relname, i.relname
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(schema)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get indexes: {}", e)))?;
+
+        let indexes = rows
+            .iter()
+            .map(|row| {
+                let columns: Vec<String> = row.get("columns");
+                StandaloneIndexInfo {
+                    name: row.get::<String, _>("index_name"),
+                    schema: row.get::<Option<String>, _>("schema_name"),
+                    table_name: row.get::<String, _>("table_name"),
+                    columns,
+                    is_unique: row.get::<bool, _>("is_unique"),
+                    is_primary: row.get::<bool, _>("is_primary"),
+                    index_type: row.get::<Option<String>, _>("index_type"),
+                }
+            })
+            .collect();
+
+        Ok(indexes)
+    }
+
+    async fn get_index_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Parse schema.index_name format
+        let (schema, name) = if index_name.contains('.') {
+            let parts: Vec<&str> = index_name.splitn(2, '.').collect();
+            (Some(parts[0].to_string()), parts[1].to_string())
+        } else {
+            (None, index_name.to_string())
+        };
+
+        let sql = r#"
+            SELECT pg_get_indexdef(i.oid) as ddl
+            FROM pg_index ix
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_namespace n ON n.oid = i.relnamespace
+            WHERE i.relname = $1
+              AND ($2::text IS NULL OR n.nspname = $2)
+            LIMIT 1
+        "#;
+
+        let row = sqlx::query(sql)
+            .bind(&name)
+            .bind(&schema)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get index DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Index '{}' not found", index_name)))?;
+
+        let ddl: String = row.get("ddl");
+        Ok(format!("{};", ddl))
+    }
+
+    async fn create_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_def: &CreateIndexDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let schema_prefix = index_def
+            .schema
+            .as_ref()
+            .map(|s| format!("{}.", quote_identifier_single(s, &DatabaseType::PostgreSQL)))
+            .unwrap_or_default();
+
+        let unique = if index_def.is_unique { "UNIQUE " } else { "" };
+
+        // Generate index name if not provided
+        let index_name = index_def.name.clone().unwrap_or_else(|| {
+            format!(
+                "idx_{}_{}",
+                index_def.table_name,
+                index_def.columns.join("_")
+            )
+        });
+
+        let columns = index_def
+            .columns
+            .iter()
+            .map(|c| quote_identifier_single(c, &DatabaseType::PostgreSQL))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let index_type = index_def
+            .index_type
+            .as_ref()
+            .filter(|t| !t.is_empty() && t.to_uppercase() != "BTREE")
+            .map(|t| format!(" USING {}", t))
+            .unwrap_or_default();
+
+        let where_clause = index_def
+            .where_clause
+            .as_ref()
+            .filter(|w| !w.is_empty())
+            .map(|w| format!(" WHERE {}", w))
+            .unwrap_or_default();
+
+        let sql = format!(
+            "CREATE {}INDEX {} ON {}{}({}){}{}",
+            unique,
+            quote_identifier_single(&index_name, &DatabaseType::PostgreSQL),
+            schema_prefix,
+            quote_identifier_single(&index_def.table_name, &DatabaseType::PostgreSQL),
+            columns,
+            index_type,
+            where_clause
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP INDEX IF EXISTS {}",
+            quote_identifier(index_name, &DatabaseType::PostgreSQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
     }
 }
 

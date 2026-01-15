@@ -245,3 +245,55 @@ pub struct ExplainResult {
     pub database_type: String,
 }
 
+// ============ View Management Types ============
+
+/// Information about a database view
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewInfo {
+    pub name: String,
+    pub schema: Option<String>,
+    pub definition: Option<String>,
+    pub is_updatable: bool,
+    pub check_option: Option<String>,
+}
+
+/// Definition for creating a new view
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewViewDefinition {
+    pub name: String,
+    pub schema: Option<String>,
+    pub definition: String,
+    pub or_replace: bool,
+    pub check_option: Option<String>,
+}
+
+// ============ Standalone Index Types ============
+
+/// Information about a database index (for standalone listing)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StandaloneIndexInfo {
+    pub name: String,
+    pub schema: Option<String>,
+    pub table_name: String,
+    pub columns: Vec<String>,
+    pub is_unique: bool,
+    pub is_primary: bool,
+    pub index_type: Option<String>,
+}
+
+/// Definition for creating a standalone index
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateIndexDefinition {
+    pub name: Option<String>,
+    pub schema: Option<String>,
+    pub table_name: String,
+    pub columns: Vec<String>,
+    pub is_unique: bool,
+    pub index_type: Option<String>,
+    pub where_clause: Option<String>,
+}
+

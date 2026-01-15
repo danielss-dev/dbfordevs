@@ -22,6 +22,8 @@ import {
   UserCog,
   User,
   KeyRound,
+  Eye,
+  ListTree,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -45,9 +47,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
-import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore } from "@/stores";
+import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
-import type { ConnectionInfo, TableInfo, DatabaseInfo } from "@/types";
+import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo } from "@/types";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
@@ -153,6 +155,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     setUsers,
     setRoles,
   } = useUsersStore();
+  const { viewsByConnection, setViews } = useViewsStore();
+  const { indexesByConnection, setIndexes } = useIndexesStore();
   const {
     connect,
     disconnect,
@@ -167,6 +171,12 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     getRoles,
     deleteUser,
     deleteRole,
+    getViews,
+    getViewDdl,
+    dropView,
+    getAllIndexes,
+    getIndexDdl,
+    dropIndex,
   } = useDatabase();
   const { toast } = useToast();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
@@ -183,6 +193,14 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const [userToDelete, setUserToDelete] = useState<{ name: string; host?: string } | null>(null);
   const [roleToDelete, setRoleToDelete] = useState<string | null>(null);
   const [supportsUsers, setSupportsUsers] = useState<boolean | null>(null);
+
+  // Views section state
+  const [isLoadingViews, setIsLoadingViews] = useState(false);
+  const [viewToDrop, setViewToDrop] = useState<string | null>(null);
+
+  // Indexes section state
+  const [isLoadingIndexes, setIsLoadingIndexes] = useState(false);
+  const [indexToDrop, setIndexToDrop] = useState<{ name: string; tableName?: string } | null>(null);
 
   // MSSQL-specific state for showing all databases
   const isMssql = connection.databaseType === "mssql";
@@ -570,6 +588,188 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const connectionRoles = rolesByConnection[connection.id] || [];
   const isMySQL = connection.databaseType === "mysql";
   const isSqlite = connection.databaseType === "sqlite";
+
+  // Views section handlers
+  const handleViewsClick = async () => {
+    // Load views on first expansion if not already loaded
+    if (connection.connected && !viewsByConnection[connection.id] && !isLoadingViews) {
+      setIsLoadingViews(true);
+      try {
+        const views = await getViews(connection.id);
+        setViews(connection.id, views);
+      } catch (error) {
+        console.error("Failed to load views:", error);
+        showErrorToast("Failed to load views", error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsLoadingViews(false);
+      }
+    }
+  };
+
+  const loadConnectionViews = async () => {
+    setIsLoadingViews(true);
+    try {
+      const views = await getViews(connection.id);
+      setViews(connection.id, views);
+    } catch (error) {
+      console.error("Failed to load views:", error);
+      showErrorToast("Failed to load views", error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingViews(false);
+    }
+  };
+
+  const handleViewClick = (viewName: string) => {
+    // Open view data in a table-like tab
+    const tabId = `view-${connection.id}-${viewName}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: viewName,
+        tableName: viewName,
+        type: "table", // Views can be queried like tables
+        connectionId: connection.id,
+      });
+    }
+  };
+
+  const handleCopyViewDdl = async (viewName: string) => {
+    try {
+      const ddl = await getViewDdl(connection.id, viewName);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          showInfoToast("DDL Copied", "View definition copied to clipboard.");
+        } else {
+          throw new Error("Failed to copy to clipboard");
+        }
+      } else {
+        showErrorToast("Copy Failed", "Could not get DDL for this view.");
+      }
+    } catch (error) {
+      showErrorToast("Copy Failed", error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const confirmViewDrop = async () => {
+    if (!viewToDrop) return;
+    try {
+      const result = await dropView(connection.id, viewToDrop);
+      if (result) {
+        // Remove associated tab if open
+        const tabId = `view-${connection.id}-${viewToDrop}`;
+        removeTab(tabId);
+        // Refresh views list
+        await loadConnectionViews();
+
+        toast({
+          title: "View dropped",
+          description: `View "${viewToDrop}" has been dropped successfully.`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to drop view",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setViewToDrop(null);
+    }
+  };
+
+  // Indexes section handlers
+  const handleIndexesClick = async () => {
+    // Load indexes on first expansion if not already loaded
+    if (connection.connected && !indexesByConnection[connection.id] && !isLoadingIndexes) {
+      setIsLoadingIndexes(true);
+      try {
+        const indexes = await getAllIndexes(connection.id);
+        setIndexes(connection.id, indexes);
+      } catch (error) {
+        console.error("Failed to load indexes:", error);
+        showErrorToast("Failed to load indexes", error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsLoadingIndexes(false);
+      }
+    }
+  };
+
+  const loadConnectionIndexes = async () => {
+    setIsLoadingIndexes(true);
+    try {
+      const indexes = await getAllIndexes(connection.id);
+      setIndexes(connection.id, indexes);
+    } catch (error) {
+      console.error("Failed to load indexes:", error);
+      showErrorToast("Failed to load indexes", error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingIndexes(false);
+    }
+  };
+
+  const handleCopyIndexDdl = async (indexName: string, tableName?: string) => {
+    try {
+      const ddl = await getIndexDdl(connection.id, indexName, tableName);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          showInfoToast("DDL Copied", "Index definition copied to clipboard.");
+        } else {
+          throw new Error("Failed to copy to clipboard");
+        }
+      } else {
+        showErrorToast("Copy Failed", "Could not get DDL for this index.");
+      }
+    } catch (error) {
+      showErrorToast("Copy Failed", error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const confirmIndexDrop = async () => {
+    if (!indexToDrop) return;
+    try {
+      const result = await dropIndex(connection.id, indexToDrop.name, indexToDrop.tableName);
+      if (result) {
+        // Refresh indexes list
+        await loadConnectionIndexes();
+
+        toast({
+          title: "Index dropped",
+          description: `Index "${indexToDrop.name}" has been dropped successfully.`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to drop index",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIndexToDrop(null);
+    }
+  };
+
+  // Get views and indexes for this connection
+  const connectionViews = viewsByConnection[connection.id] || [];
+  const connectionIndexes = indexesByConnection[connection.id] || [];
+
+  // Group indexes by table
+  const indexesByTable = connectionIndexes.reduce((acc: Record<string, StandaloneIndexInfo[]>, idx) => {
+    const tableName = idx.tableName || "Unknown";
+    if (!acc[tableName]) {
+      acc[tableName] = [];
+    }
+    acc[tableName].push(idx);
+    return acc;
+  }, {});
+  const indexTableNames = Object.keys(indexesByTable).sort();
 
   const confirmTableDelete = async () => {
     if (!tableToDrop) return;
@@ -1128,6 +1328,157 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                       </ContextMenuContent>
                     </ContextMenu>
                   )}
+
+                  {/* Views section */}
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <div>
+                        <TreeItem
+                          label="Views"
+                          icon={<Eye className="h-3.5 w-3.5 text-muted-foreground" />}
+                          onClick={handleViewsClick}
+                          defaultOpen={false}
+                        >
+                          {isLoadingViews ? (
+                            <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <span>Loading views...</span>
+                            </div>
+                          ) : connectionViews.length > 0 ? (
+                            connectionViews.map((view) => (
+                              <ContextMenu key={view.name}>
+                                <ContextMenuTrigger asChild>
+                                  <div>
+                                    <TreeItem
+                                      label={view.name}
+                                      icon={<Eye className="h-3.5 w-3.5 text-muted-foreground" />}
+                                      level={1}
+                                      onClick={() => handleViewClick(view.name)}
+                                    />
+                                  </div>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent className="w-48">
+                                  <ContextMenuItem onSelect={() => handleViewClick(view.name)} className="gap-2">
+                                    <Table className="h-4 w-4" />
+                                    View Data
+                                  </ContextMenuItem>
+                                  <ContextMenuItem onSelect={() => handleCopyViewDdl(view.name)} className="gap-2">
+                                    <Copy className="h-4 w-4" />
+                                    Copy DDL
+                                  </ContextMenuItem>
+                                  <ContextMenuSeparator />
+                                  <ContextMenuItem
+                                    onSelect={() => setViewToDrop(view.name)}
+                                    className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Drop View
+                                  </ContextMenuItem>
+                                </ContextMenuContent>
+                              </ContextMenu>
+                            ))
+                          ) : viewsByConnection[connection.id] ? (
+                            <div className="ml-6 py-2 text-xs text-muted-foreground">No views found</div>
+                          ) : (
+                            <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <span>Loading views...</span>
+                            </div>
+                          )}
+                        </TreeItem>
+                      </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-48">
+                      <ContextMenuItem onSelect={loadConnectionViews} className="gap-2">
+                        <RefreshCw className={cn("h-4 w-4", isLoadingViews && "animate-spin")} />
+                        Refresh
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+
+                  {/* Indexes section */}
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <div>
+                        <TreeItem
+                          label="Indexes"
+                          icon={<ListTree className="h-3.5 w-3.5 text-muted-foreground" />}
+                          onClick={handleIndexesClick}
+                          defaultOpen={false}
+                        >
+                          {isLoadingIndexes ? (
+                            <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <span>Loading indexes...</span>
+                            </div>
+                          ) : indexTableNames.length > 0 ? (
+                            indexTableNames.map((tableName) => (
+                              <TreeItem
+                                key={tableName}
+                                label={tableName}
+                                icon={<Table className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                                level={1}
+                                defaultOpen={false}
+                              >
+                                {indexesByTable[tableName].map((idx) => (
+                                  <ContextMenu key={idx.name}>
+                                    <ContextMenuTrigger asChild>
+                                      <div>
+                                        <TreeItem
+                                          label={idx.name}
+                                          icon={<ListTree className={cn(
+                                            "h-3.5 w-3.5",
+                                            idx.isPrimary ? "text-primary" : idx.isUnique ? "text-yellow-500" : "text-muted-foreground"
+                                          )} />}
+                                          level={2}
+                                        />
+                                      </div>
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent className="w-48">
+                                      <ContextMenuItem onSelect={() => handleCopyIndexDdl(idx.name, idx.tableName)} className="gap-2">
+                                        <Copy className="h-4 w-4" />
+                                        Copy DDL
+                                      </ContextMenuItem>
+                                      {!idx.isPrimary && (
+                                        <>
+                                          <ContextMenuSeparator />
+                                          <ContextMenuItem
+                                            onSelect={() => setIndexToDrop({ name: idx.name, tableName: idx.tableName })}
+                                            className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                            Drop Index
+                                          </ContextMenuItem>
+                                        </>
+                                      )}
+                                      {idx.isPrimary && (
+                                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                          Primary key (cannot drop)
+                                        </div>
+                                      )}
+                                    </ContextMenuContent>
+                                  </ContextMenu>
+                                ))}
+                              </TreeItem>
+                            ))
+                          ) : indexesByConnection[connection.id] ? (
+                            <div className="ml-6 py-2 text-xs text-muted-foreground">No indexes found</div>
+                          ) : (
+                            <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <span>Loading indexes...</span>
+                            </div>
+                          )}
+                        </TreeItem>
+                      </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-48">
+                      <ContextMenuItem onSelect={loadConnectionIndexes} className="gap-2">
+                        <RefreshCw className={cn("h-4 w-4", isLoadingIndexes && "animate-spin")} />
+                        Refresh
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                 </>
               )}
             </TreeItem>
@@ -1262,6 +1613,48 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete Role
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Drop View Confirmation Dialog */}
+      <AlertDialog open={!!viewToDrop} onOpenChange={(open) => !open && setViewToDrop(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop View</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the view "{viewToDrop}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmViewDrop}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop View
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Drop Index Confirmation Dialog */}
+      <AlertDialog open={!!indexToDrop} onOpenChange={(open) => !open && setIndexToDrop(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop Index</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the index "{indexToDrop?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmIndexDrop}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop Index
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

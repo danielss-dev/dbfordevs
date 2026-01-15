@@ -3,11 +3,12 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
-    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseType,
-    DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    NewTableDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
-    RoleMembershipRequest, StatementPreview, StatementType, TableInfo, TableProperties,
-    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, WarningSeverity,
+    CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
+    DatabaseType, DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo,
+    IndexInfo, NewTableDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
+    QueryResult, RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType,
+    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
+    TestConnectionResult, ViewInfo, WarningSeverity,
 };
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -2483,6 +2484,436 @@ ORDER BY ic.key_ordinal;
             .map_err(|e| AppError::QueryError(format!("Failed to revoke role: {}", e)))?;
 
         Ok(())
+    }
+
+    // ============ View Management Methods ============
+
+    async fn get_views(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<ViewInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        // MSSQL defaults to "dbo" schema
+        let schema = "dbo";
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = format!(r#"
+            SELECT
+                v.name as name,
+                SCHEMA_NAME(v.schema_id) as schema_name,
+                OBJECT_DEFINITION(v.object_id) as definition,
+                OBJECTPROPERTY(v.object_id, 'IsUpdatable') as is_updatable,
+                v.with_check_option as check_option
+            FROM sys.views v
+            WHERE SCHEMA_NAME(v.schema_id) = '{}'
+            ORDER BY v.name
+        "#, schema.replace('\'', "''"));
+
+        let stream = Query::new(&sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get views: {}", e)))?;
+
+        let rows: Vec<Row> = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get result: {}", e)))?;
+
+        let views = rows
+            .iter()
+            .map(|row| {
+                let name: &str = row.get(0).unwrap_or_default();
+                let schema: Option<&str> = row.get(1);
+                let definition: Option<&str> = row.get(2);
+                let is_updatable: i32 = row.get(3).unwrap_or(0);
+                let check_option: bool = row.get(4).unwrap_or(false);
+
+                ViewInfo {
+                    name: name.to_string(),
+                    schema: schema.map(|s| s.to_string()),
+                    definition: definition.map(|s| s.to_string()),
+                    is_updatable: is_updatable == 1,
+                    check_option: if check_option { Some("CASCADED".to_string()) } else { None },
+                }
+            })
+            .collect();
+
+        Ok(views)
+    }
+
+    async fn get_view_ddl(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        // Parse schema.view_name format
+        let (schema, name) = if view_name.contains('.') {
+            let parts: Vec<&str> = view_name.splitn(2, '.').collect();
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            ("dbo".to_string(), view_name.to_string())
+        };
+
+        let sql = format!(
+            "SELECT OBJECT_DEFINITION(OBJECT_ID('[{}].[{}]'))",
+            schema.replace('\'', "''"),
+            name.replace('\'', "''")
+        );
+
+        let stream = Query::new(&sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get view DDL: {}", e)))?;
+
+        let rows: Vec<Row> = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get result: {}", e)))?;
+
+        let ddl: Option<&str> = rows.first().and_then(|r| r.get(0));
+
+        ddl.map(|s| format!("{};", s.trim()))
+            .ok_or_else(|| AppError::QueryError(format!("View '{}' not found", view_name)))
+    }
+
+    async fn create_view(
+        &self,
+        pool: PoolRef<'_>,
+        view_def: &NewViewDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let schema_prefix = view_def
+            .schema
+            .as_ref()
+            .map(|s| format!("[{}].", s.replace(']', "]]")))
+            .unwrap_or_default();
+
+        let check_option = view_def
+            .check_option
+            .as_ref()
+            .filter(|c| *c != "NONE" && !c.is_empty())
+            .map(|_| "\nWITH CHECK OPTION")
+            .unwrap_or_default();
+
+        // MSSQL uses ALTER VIEW instead of OR REPLACE
+        let sql = if view_def.or_replace {
+            // Try ALTER first, fall back to CREATE
+            format!(
+                "IF OBJECT_ID('{}[{}]', 'V') IS NOT NULL ALTER VIEW {}[{}] AS\n{}{} ELSE EXEC('CREATE VIEW {}[{}] AS {} {}')",
+                schema_prefix,
+                view_def.name.replace(']', "]]"),
+                schema_prefix,
+                view_def.name.replace(']', "]]"),
+                view_def.definition.trim(),
+                check_option,
+                schema_prefix,
+                view_def.name.replace(']', "]]"),
+                view_def.definition.trim().replace('\'', "''"),
+                if check_option.is_empty() { "" } else { "WITH CHECK OPTION" }
+            )
+        } else {
+            format!(
+                "CREATE VIEW {}[{}] AS\n{}{}",
+                schema_prefix,
+                view_def.name.replace(']', "]]"),
+                view_def.definition.trim(),
+                check_option
+            )
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create view: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_view(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP VIEW IF EXISTS {}",
+            quote_identifier(view_name, &DatabaseType::MSSQL)
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop view: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Index Management Methods ============
+
+    async fn get_all_indexes(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<StandaloneIndexInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        // MSSQL defaults to "dbo" schema
+        let schema = "dbo";
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = format!(r#"
+            SELECT
+                i.name as index_name,
+                SCHEMA_NAME(t.schema_id) as schema_name,
+                t.name as table_name,
+                STRING_AGG(c.name, ',') WITHIN GROUP (ORDER BY ic.key_ordinal) as columns,
+                i.is_unique,
+                i.is_primary_key as is_primary,
+                i.type_desc as index_type
+            FROM sys.indexes i
+            JOIN sys.tables t ON t.object_id = i.object_id
+            JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+            JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+            WHERE i.name IS NOT NULL
+              AND SCHEMA_NAME(t.schema_id) = '{}'
+            GROUP BY i.name, SCHEMA_NAME(t.schema_id), t.name, i.is_unique, i.is_primary_key, i.type_desc
+            ORDER BY SCHEMA_NAME(t.schema_id), t.name, i.name
+        "#, schema.replace('\'', "''"));
+
+        let stream = Query::new(&sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get indexes: {}", e)))?;
+
+        let rows: Vec<Row> = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get result: {}", e)))?;
+
+        let indexes = rows
+            .iter()
+            .map(|row| {
+                let name: &str = row.get(0).unwrap_or_default();
+                let schema: Option<&str> = row.get(1);
+                let table_name: &str = row.get(2).unwrap_or_default();
+                let columns_str: &str = row.get(3).unwrap_or_default();
+                let is_unique: bool = row.get(4).unwrap_or(false);
+                let is_primary: bool = row.get(5).unwrap_or(false);
+                let index_type: Option<&str> = row.get(6);
+
+                let columns: Vec<String> = columns_str.split(',').map(|s| s.to_string()).collect();
+
+                StandaloneIndexInfo {
+                    name: name.to_string(),
+                    schema: schema.map(|s| s.to_string()),
+                    table_name: table_name.to_string(),
+                    columns,
+                    is_unique,
+                    is_primary,
+                    index_type: index_type.map(|s| s.to_string()),
+                }
+            })
+            .collect();
+
+        Ok(indexes)
+    }
+
+    async fn get_index_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        table_name: Option<&str>,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        // Get index info to reconstruct DDL
+        let sql = format!(r#"
+            SELECT
+                i.name as index_name,
+                SCHEMA_NAME(t.schema_id) as schema_name,
+                t.name as table_name,
+                STRING_AGG(c.name, ',') WITHIN GROUP (ORDER BY ic.key_ordinal) as columns,
+                i.is_unique,
+                i.type_desc
+            FROM sys.indexes i
+            JOIN sys.tables t ON t.object_id = i.object_id
+            JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+            JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+            WHERE i.name = '{}'
+            {}
+            GROUP BY i.name, SCHEMA_NAME(t.schema_id), t.name, i.is_unique, i.type_desc
+        "#,
+            index_name.replace('\'', "''"),
+            table_name.map(|t| format!("AND t.name = '{}'", t.replace('\'', "''"))).unwrap_or_default()
+        );
+
+        let stream = Query::new(&sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get index DDL: {}", e)))?;
+
+        let rows: Vec<Row> = stream.into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get result: {}", e)))?;
+
+        let row = rows.first()
+            .ok_or_else(|| AppError::QueryError(format!("Index '{}' not found", index_name)))?;
+
+        let idx_name: &str = row.get(0).unwrap_or_default();
+        let schema: &str = row.get(1).unwrap_or("dbo");
+        let tbl_name: &str = row.get(2).unwrap_or_default();
+        let columns_str: &str = row.get(3).unwrap_or_default();
+        let is_unique: bool = row.get(4).unwrap_or(false);
+
+        let columns: Vec<String> = columns_str
+            .split(',')
+            .map(|c| format!("[{}]", c.replace(']', "]]")))
+            .collect();
+
+        let unique = if is_unique { "UNIQUE " } else { "" };
+
+        let ddl = format!(
+            "CREATE {}INDEX [{}] ON [{}].[{}]({})",
+            unique,
+            idx_name.replace(']', "]]"),
+            schema.replace(']', "]]"),
+            tbl_name.replace(']', "]]"),
+            columns.join(", ")
+        );
+
+        Ok(format!("{};", ddl))
+    }
+
+    async fn create_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_def: &CreateIndexDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let schema_prefix = index_def
+            .schema
+            .as_ref()
+            .map(|s| format!("[{}].", s.replace(']', "]]")))
+            .unwrap_or_default();
+
+        let unique = if index_def.is_unique { "UNIQUE " } else { "" };
+
+        // Generate index name if not provided
+        let index_name = index_def.name.clone().unwrap_or_else(|| {
+            format!(
+                "IX_{}_{}",
+                index_def.table_name,
+                index_def.columns.join("_")
+            )
+        });
+
+        let columns = index_def
+            .columns
+            .iter()
+            .map(|c| format!("[{}]", c.replace(']', "]]")))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let where_clause = index_def
+            .where_clause
+            .as_ref()
+            .filter(|w| !w.is_empty())
+            .map(|w| format!(" WHERE {}", w))
+            .unwrap_or_default();
+
+        let sql = format!(
+            "CREATE {}INDEX [{}] ON {}[{}]({}){}",
+            unique,
+            index_name.replace(']', "]]"),
+            schema_prefix,
+            index_def.table_name.replace(']', "]]"),
+            columns,
+            where_clause
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // MSSQL requires table name for DROP INDEX
+        let table = table_name.ok_or_else(|| {
+            AppError::QueryError("Table name is required for MSSQL DROP INDEX".to_string())
+        })?;
+
+        let sql = format!(
+            "DROP INDEX [{}] ON [{}]",
+            index_name.replace(']', "]]"),
+            table.replace(']', "]]")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
     }
 }
 

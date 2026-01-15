@@ -504,3 +504,43 @@ export interface RoleMembershipRequest {
   memberHost?: string;
 }
 
+// View management types
+
+export interface ViewInfo {
+  name: string;
+  schema?: string;
+  definition?: string;
+  isUpdatable: boolean;
+  checkOption?: string;
+}
+
+export interface NewViewDefinition {
+  name: string;
+  schema?: string;
+  definition: string;
+  orReplace: boolean;
+  checkOption?: string;
+}
+
+// Standalone index types (for index management, not table creation)
+
+export interface StandaloneIndexInfo {
+  name: string;
+  schema?: string;
+  tableName: string;
+  columns: string[];
+  isUnique: boolean;
+  isPrimary: boolean;
+  indexType?: string;
+}
+
+export interface CreateIndexDefinition {
+  name?: string;
+  schema?: string;
+  tableName: string;
+  columns: string[];
+  isUnique: boolean;
+  indexType?: string;
+  whereClause?: string;
+}
+
