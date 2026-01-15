@@ -85,7 +85,7 @@ jobs:
           tagName: v__VERSION__
           releaseName: "Release v__VERSION__"
           releaseBody: "See the assets below for the latest version."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           updaterJsonKeepUniversal: true
           args: ${{ matrix.platform == 'ubuntu-22.04' && '--target x86_64-unknown-linux-gnu' || '' }}

@@ -24,6 +24,10 @@ export function UpdateNotification() {
 
   // Check for updates on mount if setting is enabled
   useEffect(() => {
+    if (import.meta.env.DEV) {
+      return;
+    }
+
     if (!generalSettings.checkUpdatesOnStartup) {
       return;
     }

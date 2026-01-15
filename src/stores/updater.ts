@@ -39,6 +39,15 @@ export const useUpdaterStore = create<UpdaterStore>()((set, get) => ({
     set({ checking: true, error: null });
 
     try {
+      if (import.meta.env.DEV) {
+        set({
+          checking: false,
+          available: false,
+          error: "Updater is disabled in development mode.",
+        });
+        return false;
+      }
+
       const update = await check();
 
       if (update) {
