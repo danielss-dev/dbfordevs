@@ -27,6 +27,10 @@
 - **Query Bookmarks & Templates:** Save, organize, and reuse frequently used queries with folder organization and template variables.
 - **Data Import:** Import CSV, JSON, and SQL files with column mapping and duplicate handling.
 - **Table Creation Wizard:** Create tables with a guided UI for columns, constraints, indexes, and foreign keys.
+- **View & Index Management:** Create, view DDL, and drop views and indexes directly from the sidebar.
+- **User & Role Management:** Manage database users, roles, and permissions with an intuitive UI.
+- **Query History:** Search, filter, favorite, and export your query execution history with statistics.
+- **Advanced Data Grid:** Column pinning, conditional formatting, find & replace, binary preview, and more.
 - **SSH Tunneling & SSL:** Secure connections through SSH tunnels and SSL/TLS encryption.
 
 ## 🛠️ Tech Stack
@@ -49,13 +53,15 @@ dbfordevs/
 │   │   ├── data-grid/      # Data grid with import/export
 │   │   ├── editor/         # SQL editor with formatting
 │   │   ├── explain/        # Query execution plan visualization
-│   │   └── table/          # Table creation wizard
+│   │   ├── query-history/  # Query history panel
+│   │   ├── table/          # Table creation wizard
+│   │   └── users/          # User & role management
 │   ├── lib/ai/             # Built-in AI assistant
 │   ├── stores/             # Zustand state management
 │   └── hooks/              # React hooks
 ├── src-tauri/              # Tauri application core (Rust)
-│   ├── src/commands/       # Tauri IPC command handlers
-│   └── src/db/             # Database drivers (PostgreSQL, MySQL, SQLite, Oracle)
+│   ├── src/commands/       # Tauri IPC command handlers (views, indexes, users)
+│   └── src/db/             # Database drivers (PostgreSQL, MySQL, SQLite, MSSQL, Oracle)
 ├── public/                 # Static assets
 └── docs/                   # Project documentation & PRD
 ```

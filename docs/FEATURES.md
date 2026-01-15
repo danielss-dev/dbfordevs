@@ -869,6 +869,370 @@ Review the generated DDL:
 - New table appears in the schema tree
 - Click to browse or query the new table
 
+## View Management
+
+Manage database views directly from the sidebar.
+
+### Viewing Views
+
+1. Connect to a database
+2. Expand the **Views** section in the sidebar
+3. Click a view to see its data
+4. Right-click for additional options
+
+### View Properties
+
+- **View Name**: The name of the view
+- **Schema**: The schema containing the view
+- **Definition**: The underlying SELECT statement
+- **Updatable**: Whether the view supports INSERT/UPDATE/DELETE
+- **Check Option**: LOCAL or CASCADED check option (if set)
+
+### Creating Views
+
+1. Right-click the **Views** section in sidebar
+2. Select **Create View**
+3. Configure the view:
+   - **Name**: Unique view name
+   - **Schema**: Target schema (optional)
+   - **Definition**: The SELECT statement
+   - **Or Replace**: Replace existing view if it exists
+   - **Check Option**: Enforce data validation on updates
+4. Click **Create** to execute
+
+### Viewing DDL
+
+Right-click a view and select **View DDL** to see the CREATE VIEW statement.
+
+### Dropping Views
+
+1. Right-click the view
+2. Select **Drop View**
+3. Confirm the action
+
+**Warning**: Dropping a view is permanent and may affect dependent objects.
+
+## Index Management
+
+Manage database indexes for query performance optimization.
+
+### Viewing Indexes
+
+1. Connect to a database
+2. Expand the **Indexes** section in the sidebar
+3. View all indexes across all tables
+4. Right-click for additional options
+
+### Index Information
+
+Each index displays:
+
+- **Name**: Index name
+- **Table**: The table the index belongs to
+- **Columns**: Columns included in the index
+- **Unique**: Whether the index enforces uniqueness
+- **Primary**: Whether it's the primary key index
+- **Type**: Index type (BTREE, HASH, etc.)
+
+### Creating Indexes
+
+1. Right-click the **Indexes** section
+2. Select **Create Index**
+3. Configure the index:
+   - **Name**: Optional custom name (auto-generated if empty)
+   - **Table**: Select the target table
+   - **Columns**: Choose columns to index
+   - **Unique**: Enforce uniqueness
+   - **Type**: Index type (database-specific)
+   - **WHERE Clause**: Partial index condition (PostgreSQL)
+4. Click **Create** to execute
+
+### Viewing Index DDL
+
+Right-click an index and select **View DDL** to see the CREATE INDEX statement.
+
+### Dropping Indexes
+
+1. Right-click the index
+2. Select **Drop Index**
+3. Confirm the action
+
+**Note**: Primary key indexes cannot be dropped directly. Modify the table constraints instead.
+
+## User & Role Management
+
+Manage database users, roles, and permissions.
+
+### Users Section
+
+Access user management by expanding the **Users** section in the sidebar when connected.
+
+#### Viewing Users
+
+Each user displays:
+
+- **Username**: The login name
+- **Host**: Connection host (MySQL/MariaDB)
+- **Superuser**: Whether user has admin privileges
+- **Can Login**: Whether user can connect
+- **Roles**: Assigned roles/groups
+
+#### Creating Users
+
+1. Right-click **Users** section
+2. Select **Create User**
+3. Enter:
+   - **Username**: Unique username
+   - **Password**: Strong password
+   - **Host**: Connection host (MySQL only, use `%` for any)
+4. Click **Create**
+
+#### Changing Passwords
+
+1. Right-click a user
+2. Select **Change Password**
+3. Enter the new password
+4. Click **Change**
+
+#### Dropping Users
+
+1. Right-click the user
+2. Select **Drop User**
+3. Confirm the action
+
+### Roles Section
+
+Access role management by expanding the **Roles** section in the sidebar.
+
+#### Viewing Roles
+
+Each role displays:
+
+- **Role Name**: The role identifier
+- **System Role**: Whether it's a built-in role
+- **Members**: Users/roles that have this role
+
+#### Creating Roles
+
+1. Right-click **Roles** section
+2. Select **Create Role**
+3. Enter the role name
+4. Click **Create**
+
+#### Dropping Roles
+
+1. Right-click the role
+2. Select **Drop Role**
+3. Confirm the action
+
+**Note**: System roles cannot be dropped.
+
+### Permission Management
+
+#### Viewing Permissions
+
+1. Right-click a user or role
+2. Select **Manage Permissions**
+3. View current database permissions
+
+#### Granting Permissions
+
+1. Open permission manager for user/role
+2. Click **Grant Permission**
+3. Select:
+   - **Privilege**: Permission type (SELECT, INSERT, etc.)
+   - **With Grant Option**: Allow grantee to grant to others
+4. Click **Grant**
+
+#### Revoking Permissions
+
+1. Open permission manager
+2. Click the revoke button next to a permission
+3. Confirm the action
+
+#### Role Membership
+
+**Adding a user to a role:**
+1. Right-click the role
+2. Select **Add Member**
+3. Choose the user/role to add
+
+**Removing from a role:**
+1. Right-click the role
+2. Select **Remove Member**
+3. Choose the member to remove
+
+### Database-Specific Notes
+
+| Feature | PostgreSQL | MySQL | MSSQL | SQLite | Oracle |
+|---------|------------|-------|-------|--------|--------|
+| Users | Yes | Yes | Yes | N/A | Yes |
+| Roles | Yes | Yes | Yes | N/A | Yes |
+| Host-based | No | Yes | No | N/A | No |
+| Grant Option | Yes | Yes | Yes | N/A | Yes |
+
+## Query History
+
+### Query History Panel
+
+Access your query execution history from the sidebar.
+
+**Features:**
+
+- **Search**: Filter history by query text
+- **Filters**:
+  - Date range (Today, Week, Month, All Time)
+  - Connection (per-connection history)
+  - Status (Success/Failed)
+  - Execution time threshold
+- **Favorites**: Star frequently used queries
+- **Statistics**: View execution stats (count, avg time, success rate)
+
+### Using History
+
+1. Click the **History** icon in the sidebar
+2. Browse or search your past queries
+3. Click a query to load it into the editor
+4. Click the star to mark as favorite
+
+### History Settings
+
+Configure in Settings → Advanced → Query History:
+
+- **Max History Items**: Maximum queries to store (default: 1000)
+- **Auto-Delete After**: Days to keep history (0 = forever)
+- **Clear All**: Remove all history
+
+### Exporting History
+
+1. Open Query History panel
+2. Click **Export**
+3. Choose format (JSON or CSV)
+4. Save the file
+
+### Query Statistics
+
+The history panel shows:
+
+- **Total Queries**: Number of executed queries
+- **Success Rate**: Percentage of successful executions
+- **Average Time**: Mean execution time
+- **Favorites Count**: Number of starred queries
+
+## Data Grid Enhancements
+
+### Column Operations
+
+**Column Header Menu:**
+Right-click any column header for options:
+
+- **Sort Ascending/Descending**: Order by this column
+- **Pin Left/Right**: Freeze column while scrolling
+- **Hide Column**: Remove from view
+- **Show Statistics**: View column statistics
+- **Copy Column**: Copy all values in column
+
+**Column Visibility:**
+Click the **Columns** button to show/hide columns. All hidden columns can be restored.
+
+### Row Height
+
+Configure row height in Settings → Grid:
+
+- **Compact**: Minimal padding, more rows visible
+- **Default**: Standard row height
+- **Comfortable**: Extra padding for readability
+- **Spacious**: Maximum padding
+
+### Cell Formatting
+
+**Date/Time Formats:**
+- ISO 8601 (`2026-01-15T10:30:00Z`)
+- Locale (based on system settings)
+- Relative (`2 hours ago`)
+- Custom patterns
+
+**Number Formats:**
+- Compact (`1.2K`, `3.4M`)
+- Percentage (`85.5%`)
+- Decimal places (configurable)
+
+**JSON Display:**
+- Collapsed (single line)
+- Inline (formatted, single line)
+- Pretty (multi-line, indented)
+
+### Conditional Formatting
+
+Apply visual highlighting based on cell values:
+
+1. Right-click a cell → **Conditional Format**
+2. Configure rules:
+   - **Column**: Which column to format
+   - **Condition**: equals, contains, greater than, etc.
+   - **Value**: Comparison value
+   - **Style**: Background color, text color
+3. Click **Apply**
+
+### Column Statistics
+
+View statistical analysis of column data:
+
+1. Right-click column header
+2. Select **Show Statistics**
+3. View metrics:
+   - **Count**: Total values
+   - **Distinct**: Unique values
+   - **Nulls**: NULL count
+   - **Min/Max**: Range (for numbers)
+   - **Sum/Average**: Aggregates (for numbers)
+   - **Std Dev**: Standard deviation
+
+### Find & Replace
+
+Search within the current result set:
+
+1. Press `Ctrl/Cmd+F` or click the search icon
+2. Enter search term
+3. Options:
+   - **Case Sensitive**: Match exact case
+   - **Regex**: Use regular expressions
+   - **Whole Word**: Match complete words only
+4. Navigate with **Next/Previous** buttons
+5. View match count
+
+### NULL Value Display
+
+Configure how NULL values appear in Settings → Grid:
+
+- **Display Text**: What to show (default: `NULL`)
+- **Style**: Italic, bold, etc.
+- **Color**: Custom text color
+
+### Binary Data Preview
+
+View binary/BLOB data:
+
+1. Click a binary cell
+2. Select **Preview Binary**
+3. Choose view mode:
+   - **Hex View**: Hexadecimal dump with ASCII
+   - **Base64**: Base64 encoded string
+   - **Text**: Attempt to decode as text
+4. **Image Preview**: Auto-detected for PNG, JPEG, GIF, WebP, BMP
+
+### Copy Options
+
+**Cell Context Menu:**
+- **Copy Value**: Plain text value
+- **Copy as JSON**: JSON formatted
+- **Copy as CSV**: CSV formatted
+- **Copy as INSERT**: SQL INSERT statement
+
+**Row Operations:**
+- **Copy Row**: All columns for selected row
+- **Copy Selected Rows**: Multiple row selection
+
 ## Performance Tips
 
 1. **Use LIMIT**: Reduce result size with `LIMIT` clause

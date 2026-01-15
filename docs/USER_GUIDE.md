@@ -59,8 +59,10 @@ The left sidebar contains:
 **Database Trees** (when connected)
 - Schemas (for databases with schema support)
 - Tables
-- Views
-- Indexes
+- Views (with create/drop/DDL support)
+- Indexes (with create/drop/DDL support)
+- Users (with create/drop/password management)
+- Roles (with create/drop/membership management)
 - Functions/Procedures
 
 **Actions**
@@ -268,6 +270,83 @@ The left sidebar contains:
    SELECT * FROM {{table}} WHERE status = '{{status}}'
    ```
 7. **Manage**: Open Bookmark Manager to reorganize, edit, or delete
+
+### Workflow 12: Managing Views
+
+**Goal**: Create and manage database views
+
+1. **Browse Views**: Expand **Views** section in sidebar
+2. **View Data**: Click a view to query its data
+3. **View DDL**: Right-click → **View DDL** to see the definition
+4. **Create View**:
+   - Right-click **Views** → **Create View**
+   - Enter name and SELECT statement
+   - Choose "Or Replace" to update existing
+   - Click **Create**
+5. **Drop View**: Right-click → **Drop View** (confirm when prompted)
+
+**Tip**: Use views to simplify complex queries or restrict data access.
+
+### Workflow 13: Managing Indexes
+
+**Goal**: Create indexes to optimize query performance
+
+1. **Identify Slow Query**: Use EXPLAIN to find sequential scans
+2. **Browse Indexes**: Expand **Indexes** section in sidebar
+3. **View Index DDL**: Right-click index → **View DDL**
+4. **Create Index**:
+   - Right-click **Indexes** → **Create Index**
+   - Select the table
+   - Choose columns to index
+   - Enable **Unique** if needed
+   - Click **Create**
+5. **Verify**: Re-run EXPLAIN to confirm index usage
+6. **Drop Unused**: Right-click unused index → **Drop Index**
+
+**Best Practices**:
+- Index columns used in WHERE clauses
+- Index foreign key columns
+- Avoid over-indexing (slows writes)
+
+### Workflow 14: User & Role Management
+
+**Goal**: Create users and manage permissions
+
+1. **View Users**: Expand **Users** section in sidebar
+2. **Create User**:
+   - Right-click **Users** → **Create User**
+   - Enter username and password
+   - Click **Create**
+3. **Create Role**:
+   - Expand **Roles** section
+   - Right-click → **Create Role**
+   - Enter role name
+4. **Grant Permissions**:
+   - Right-click user/role → **Manage Permissions**
+   - Click **Grant Permission**
+   - Select privilege and options
+   - Click **Grant**
+5. **Assign Role to User**:
+   - Right-click role → **Add Member**
+   - Select the user
+6. **Change Password**: Right-click user → **Change Password**
+
+### Workflow 15: Using Query History
+
+**Goal**: Find and reuse past queries
+
+1. **Open History**: Click the **History** icon in sidebar
+2. **Search**: Type keywords to filter queries
+3. **Filter**:
+   - By date range (Today, Week, Month)
+   - By connection
+   - By success/failure
+   - By execution time
+4. **Load Query**: Click a history item to load it in editor
+5. **Favorite**: Click the star to mark frequently used queries
+6. **View Stats**: Check execution statistics at top of panel
+7. **Export**: Click **Export** for JSON or CSV backup
+8. **Clean Up**: Use Settings → Advanced to configure auto-cleanup
 
 ### Workflow 11: Connecting via SSH Tunnel
 

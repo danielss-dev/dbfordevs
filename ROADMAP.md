@@ -302,19 +302,27 @@ Support queries returning multiple result sets.
 
 ### 11. Database Object Management
 
-**Status:** Partial
+**Status:** Partial (Views, Indexes, Users/Roles implemented)
 **Impact:** Low
 **Effort:** High
 
 **Implementation Tasks:**
-- [ ] Create/Edit/Drop Views
-- [ ] Create/Edit/Drop Indexes
+- [x] Create/Edit/Drop Views
+- [x] Create/Edit/Drop Indexes
 - [ ] Create/Edit/Drop Stored Procedures
 - [ ] Create/Edit/Drop Functions
 - [ ] Create/Edit/Drop Triggers
 - [ ] Create/Edit/Drop Sequences
-- [ ] User/Role management
-- [ ] Permission management
+- [x] User/Role management
+- [x] Permission management
+
+**Files created:**
+- `src-tauri/src/commands/views.rs` - View management commands
+- `src-tauri/src/commands/indexes.rs` - Index management commands
+- `src/stores/views.ts` - Views Zustand store
+- `src/stores/indexes.ts` - Indexes Zustand store
+- `src/stores/users.ts` - Users/Roles Zustand store
+- `src/components/users/` - User management UI components
 
 ---
 
@@ -764,54 +772,70 @@ Location: `src-tauri/src/commands/queries.rs:142`
 
 ## Implementation Priority Matrix
 
-| Priority | Feature | Impact | Effort |
-|----------|---------|--------|--------|
-| P0 | Parameterized Queries (Security) | Critical | Medium |
-| P1 | Data Import | High | Medium |
-| P1 | Query Execution Plans | High | Medium |
-| P1 | SQL Formatter | High | Low |
-| P2 | Table Creation UI | High | Medium |
-| P2 | Query Bookmarks | Medium | Low |
-| P2 | Global Schema Search | Medium | Low |
-| P2 | MongoDB Driver | High | High |
-| P3 | Customizable Keybindings | Medium | Low |
-| P3 | E2E Tests | High | High |
-| P4 | Redis Driver | Medium | Medium |
-| ~~P4~~ | ~~Oracle Driver~~ | ~~Medium~~ | ~~Implemented~~ |
+| Priority | Feature | Impact | Effort | Status |
+|----------|---------|--------|--------|--------|
+| ~~P0~~ | ~~Parameterized Queries (Security)~~ | ~~Critical~~ | ~~Medium~~ | Partial |
+| ~~P1~~ | ~~Data Import~~ | ~~High~~ | ~~Medium~~ | **Implemented** |
+| ~~P1~~ | ~~Query Execution Plans~~ | ~~High~~ | ~~Medium~~ | **Implemented** |
+| ~~P1~~ | ~~SQL Formatter~~ | ~~High~~ | ~~Low~~ | **Implemented** |
+| ~~P2~~ | ~~Table Creation UI~~ | ~~High~~ | ~~Medium~~ | **Implemented** |
+| ~~P2~~ | ~~Query Bookmarks~~ | ~~Medium~~ | ~~Low~~ | **Implemented** |
+| P2 | Global Schema Search | Medium | Low | Partial |
+| P2 | MongoDB Driver | High | High | Not Started |
+| P3 | Customizable Keybindings | Medium | Low | Not Started |
+| P3 | E2E Tests | High | High | Not Started |
+| P4 | Redis Driver | Medium | Medium | Not Started |
+| ~~P4~~ | ~~Oracle Driver~~ | ~~Medium~~ | ~~High~~ | **Implemented** |
+| ~~P2~~ | ~~View Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
+| ~~P2~~ | ~~Index Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
+| ~~P2~~ | ~~User/Role Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
+| ~~P2~~ | ~~Query History Enhancements~~ | ~~Medium~~ | ~~Low~~ | **Implemented** |
+| ~~P2~~ | ~~Data Grid Enhancements~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 
 ---
 
 ## Version Milestones (Suggested)
 
-### v0.3.0 - Data Management
-- Data Import (CSV, JSON, SQL)
-- SQL Formatter
-- Query Bookmarks
-- Parameterized Queries Fix
+### v0.3.0 - Data Management ✅ RELEASED
+- ✅ Data Import (CSV, JSON, SQL)
+- ✅ SQL Formatter
+- ✅ Query Bookmarks
+- ✅ Query Execution Plans
+- ✅ Table Creation UI
+- ✅ Oracle Driver
+
+### v0.3.5 - Schema & User Management ✅ RELEASED
+- ✅ View Management (Create/Drop/DDL)
+- ✅ Index Management (Create/Drop/DDL)
+- ✅ User/Role Management
+- ✅ Permission Controls
+- ✅ Query History Enhancements
+- ✅ Data Grid Enhancements
 
 ### v0.4.0 - Query Intelligence
-- Query Execution Plans
 - Query Validation
 - Performance Warnings
 - Global Schema Search
+- Parameterized Queries Improvement
 
-### v0.5.0 - Schema Management
-- Table Creation UI
-- Index Management
-- View Management
-- Schema Diff
-
-### v0.6.0 - NoSQL Support
+### v0.5.0 - NoSQL Support
 - MongoDB Driver
 - Redis Driver
 - Document Viewer
+
+### v0.6.0 - Advanced Features
+- Stored Procedures Management
+- Functions Management
+- Triggers Management
+- Schema Diff
 
 ### v1.0.0 - Production Ready
 - Full Test Coverage
 - User Documentation
 - Accessibility Compliance
+- Customizable Keybindings
 
 ---
 
-*Last updated: January 2026*
-*Generated from codebase analysis*
+*Last updated: January 16, 2026*
+*Generated from codebase analysis - v0.3.5*
