@@ -104,7 +104,7 @@ export function downloadFile(content: string, filename: string, mimeType: string
 /**
  * Format a value for SQL
  */
-function formatSQLValue(value: unknown): string {
+export function formatSQLValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "NULL";
   }
@@ -154,7 +154,7 @@ function formatValue(value: unknown): string {
 /**
  * Escape a value for CSV
  */
-function escapeCSV(value: string): string {
+export function escapeCSV(value: string): string {
   // If value contains comma, quote, or newline, wrap in quotes and escape quotes
   if (value.includes(",") || value.includes('"') || value.includes("\n")) {
     const escaped = value.replace(/"/g, '""');

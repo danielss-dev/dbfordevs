@@ -1,6 +1,9 @@
 // Re-export import types
 export * from "./import";
 
+// Re-export grid types
+export * from "./grid";
+
 // Database types
 export type DatabaseType =
   | "postgresql"

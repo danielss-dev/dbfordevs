@@ -245,26 +245,40 @@ Settings show keybindings but they cannot be changed.
 
 ### 9. Data Grid Enhancements
 
-**Status:** Functional
+**Status:** Implemented
 **Impact:** Medium
 **Effort:** Medium
 
 **Implementation Tasks:**
-- [ ] Column reordering (drag & drop)
-- [ ] Column hiding/showing
-- [ ] Column pinning (freeze left/right)
-- [ ] Row height configuration
-- [ ] Cell value formatting options:
-  - [ ] Date/time formats
-  - [ ] Number formats
-  - [ ] JSON pretty-print
-- [ ] Conditional formatting (highlight cells)
-- [ ] Column statistics (count, sum, avg, min, max)
-- [ ] Copy cell/row/column
-- [ ] Find & replace in results
-- [ ] NULL value display customization
-- [ ] Binary data preview (hex view)
-- [ ] Image preview for BLOB/BYTEA
+- [x] Column reordering (via header menu)
+- [x] Column hiding/showing (ColumnVisibilityPopover)
+- [x] Column pinning (freeze left/right)
+- [x] Row height configuration (compact/default/comfortable/spacious)
+- [x] Cell value formatting options:
+  - [x] Date/time formats (ISO, locale, relative, custom)
+  - [x] Number formats (compact, percentage, decimal places)
+  - [x] JSON pretty-print (collapsed, inline, pretty)
+- [x] Conditional formatting (highlight cells with rule builder)
+- [x] Column statistics (count, sum, avg, min, max, stdDev)
+- [x] Copy cell/row/column (JSON, CSV, INSERT)
+- [x] Find & replace in results (Ctrl+F, regex support)
+- [x] NULL value display customization (text, style, color)
+- [x] Binary data preview (hex view, base64, text)
+- [x] Image preview for BLOB/BYTEA (auto-detect PNG/JPEG/GIF/WebP/BMP)
+
+**Files created:**
+- `src/types/grid.ts` - Type definitions
+- `src/stores/grid.ts` - Zustand store with persistence
+- `src/lib/format-utils.ts` - Date/number/JSON formatting
+- `src/lib/binary-utils.ts` - Binary detection and hex view
+- `src/components/data-grid/ColumnVisibilityPopover.tsx`
+- `src/components/data-grid/ColumnHeaderMenu.tsx`
+- `src/components/data-grid/CellContextMenu.tsx`
+- `src/components/data-grid/ColumnStatisticsDialog.tsx`
+- `src/components/data-grid/FindReplaceBar.tsx`
+- `src/components/data-grid/BinaryPreviewDialog.tsx`
+- `src/components/data-grid/ConditionalFormatDialog.tsx`
+- `src/components/settings/GridSettingsTab.tsx`
 
 ---
 

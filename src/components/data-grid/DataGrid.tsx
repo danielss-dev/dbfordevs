@@ -36,11 +36,25 @@ import {
 import { cn, formatTimestamp } from "@/lib/utils";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import type { QueryResult, ColumnInfo } from "@/types";
-import { useCRUDStore, useUIStore, useSchemaStore } from "@/stores";
+import { useCRUDStore, useUIStore, useSchemaStore, useGridStore } from "@/stores";
 import { EditableCell } from "./EditableCell";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
 import { ExportMenu } from "./ExportMenu";
 import { ImportButton } from "./ImportButton";
+import { ColumnVisibilityPopover } from "./ColumnVisibilityPopover";
+import { ColumnHeaderMenu, ColumnHeaderContextMenu } from "./ColumnHeaderMenu";
+import { ColumnStatisticsDialog } from "./ColumnStatisticsDialog";
+import { FindReplaceBar } from "./FindReplaceBar";
+import { BinaryPreviewDialog } from "./BinaryPreviewDialog";
+import {
+  getNullDisplay,
+  getConditionalStyle,
+  conditionalStyleToCss,
+  formatNumber,
+  isNegativeNumber,
+  formatJson,
+  isBinaryType,
+} from "@/lib/format-utils";
 
 // Shared utility to generate consistent row IDs
 export function generateRowId(row: Record<string, unknown>, columns: ColumnInfo[]): string {
@@ -178,6 +192,67 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
   const { setRightPanelTab } = useUIStore();
   const { getSchema } = useSchemaStore();
 
+  // Grid store for enhanced features
+  const {
+    gridPreferences,
+    defaultRowHeight,
+    nullDisplay,
+    numberFormat,
+    jsonDisplay,
+    conditionalRules,
+    openFindReplace,
+    openBinaryPreviewDialog,
+    resetGridPreferences,
+  } = useGridStore();
+
+  // Generate table key for preferences
+  const tableKey = useMemo(
+    () => connectionId && tableName ? `${connectionId}:${tableName}` : "",
+    [connectionId, tableName]
+  );
+
+  // Reset grid preferences when component mounts or tableKey changes
+  // This ensures each grid view starts with default configuration
+  useEffect(() => {
+    if (tableKey) {
+      resetGridPreferences(tableKey);
+    }
+  }, [tableKey, resetGridPreferences]);
+
+  // Get row height based on preferences
+  const rowHeightPx = useMemo(() => {
+    const prefs = gridPreferences[tableKey];
+    const mode = prefs?.rowHeight?.mode || defaultRowHeight.mode;
+    const heights = { compact: 28, default: 36, comfortable: 44, custom: 36 };
+    return heights[mode] || 36;
+  }, [gridPreferences, tableKey, defaultRowHeight.mode]);
+
+  // Get column visibility from grid preferences (for TanStack Table)
+  const columnVisibility = useMemo(() => {
+    const prefs = gridPreferences[tableKey];
+    if (!prefs) return {};
+    const visibility: Record<string, boolean> = {};
+    Object.entries(prefs.columns).forEach(([colName, colConfig]) => {
+      visibility[colName] = colConfig.visible;
+    });
+    return visibility;
+  }, [gridPreferences, tableKey]);
+
+  // Get column pinning from grid preferences (for TanStack Table)
+  // Always include "rowNumber" at the start of left-pinned columns
+  const columnPinning = useMemo(() => {
+    const prefs = gridPreferences[tableKey];
+    const left: string[] = ["rowNumber"]; // rowNumber is always first on left
+    const right: string[] = [];
+    if (prefs) {
+      Object.entries(prefs.columns).forEach(([colName, colConfig]) => {
+        if (colConfig.pinned === "left") left.push(colName);
+        else if (colConfig.pinned === "right") right.push(colName);
+      });
+    }
+    return { left, right };
+  }, [gridPreferences, tableKey]);
+
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -201,19 +276,28 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     }));
   }, [data.columns, connectionId, tableName, getSchema]);
 
-  // Handle Cmd+F / Ctrl+F to focus search
+  // Handle Cmd+F / Ctrl+F to focus search, Cmd+H for find/replace
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
         e.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
+        if (e.shiftKey) {
+          // Ctrl+Shift+F opens find replace bar
+          openFindReplace();
+        } else {
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "h") {
+        e.preventDefault();
+        openFindReplace();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [openFindReplace]);
 
   // Helper to create a SelectedRow object with full context
   const createSelectedRow = useCallback((row: Record<string, unknown>) => ({
@@ -332,42 +416,48 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
         const currentFilter = columnFilters[col.name];
 
         return (
-          <div className="flex items-center gap-1.5 w-full h-full">
-            <button
-              className="flex items-center gap-2 hover:text-foreground transition-all group flex-1 py-0.5"
-              onClick={() => column.toggleSorting(sorted === "asc")}
-            >
-              <div className={cn(
-                "flex items-center gap-1.5 transition-all",
-                sorted ? "opacity-100" : "opacity-70 group-hover:opacity-100"
-              )}>
-                <span className={cn(
-                  "transition-colors",
-                  sorted ? "text-primary" : "text-muted-foreground group-hover:text-foreground/70"
+          <ColumnHeaderContextMenu
+            column={column}
+            columnInfo={col}
+            tableKey={tableKey}
+            data={tableData}
+          >
+            <div className="flex items-center gap-1.5 w-full h-full group">
+              <button
+                className="flex items-center gap-2 hover:text-foreground transition-all flex-1 py-0.5"
+                onClick={() => column.toggleSorting(sorted === "asc")}
+              >
+                <div className={cn(
+                  "flex items-center gap-1.5 transition-all",
+                  sorted ? "opacity-100" : "opacity-70 group-hover:opacity-100"
                 )}>
-                  {getTypeIcon(col.dataType)}
-                </span>
+                  <span className={cn(
+                    "transition-colors",
+                    sorted ? "text-primary" : "text-muted-foreground group-hover:text-foreground/70"
+                  )}>
+                    {getTypeIcon(col.dataType)}
+                  </span>
+                  <span className={cn(
+                    "font-semibold tracking-tight text-xs uppercase transition-colors",
+                    sorted ? "text-primary" : "text-foreground/70 group-hover:text-foreground"
+                  )}>
+                    {col.name}
+                  </span>
+                </div>
                 <span className={cn(
-                  "font-semibold tracking-tight text-xs uppercase transition-colors",
-                  sorted ? "text-primary" : "text-foreground/70 group-hover:text-foreground"
+                  "transition-all shrink-0 ml-auto",
+                  sorted ? "opacity-100 text-primary" : "opacity-0 group-hover:opacity-40 text-muted-foreground"
                 )}>
-                  {col.name}
+                  {sorted === "asc" ? (
+                    <ArrowUp className="h-3 w-3" />
+                  ) : sorted === "desc" ? (
+                    <ArrowDown className="h-3 w-3" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3" />
+                  )}
                 </span>
-              </div>
-              <span className={cn(
-                "transition-all shrink-0 ml-auto",
-                sorted ? "opacity-100 text-primary" : "opacity-0 group-hover:opacity-40 text-muted-foreground"
-              )}>
-                {sorted === "asc" ? (
-                  <ArrowUp className="h-3 w-3" />
-                ) : sorted === "desc" ? (
-                  <ArrowDown className="h-3 w-3" />
-                ) : (
-                  <ArrowUpDown className="h-3 w-3" />
-                )}
-              </span>
-            </button>
-            <ColumnFilterPopover
+              </button>
+              <ColumnFilterPopover
               columnId={col.name}
               columnName={col.name}
               dataType={col.dataType}
@@ -380,7 +470,14 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                 }
               }}
             />
-          </div>
+              <ColumnHeaderMenu
+                column={column}
+                columnInfo={col}
+                tableKey={tableKey}
+                data={tableData}
+              />
+            </div>
+          </ColumnHeaderContextMenu>
         );
       },
       filterFn: customColumnFilter,
@@ -459,18 +556,55 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
         }
 
         if (displayValue === null || displayValue === undefined) {
+          const nullConfig = getNullDisplay(nullDisplay);
           return (
             <span className={cn(
-              "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-border/50",
-              isModified ? "bg-amber-500/10 text-amber-500" : "bg-muted text-muted-foreground/60"
+              nullConfig.className,
+              isModified && "bg-amber-500/10 text-amber-500 border-amber-500/30"
             )}>
-              NULL
+              {nullConfig.text}
             </span>
           );
         }
 
+        // Apply conditional formatting
+        const conditionalStyle = getConditionalStyle(displayValue, colId, conditionalRules);
+        const cellStyle = conditionalStyleToCss(conditionalStyle);
+
         let content: React.ReactNode;
-        if (typeof displayValue === "string") {
+
+        // Check if this is a binary column or looks like binary data
+        const isBinaryColumn = isBinaryType(col.dataType);
+        const looksLikeBinary = typeof displayValue === "string" && (
+          // Base64 PNG/JPEG/GIF patterns
+          displayValue.startsWith("iVBORw") || // PNG
+          displayValue.startsWith("/9j/") ||    // JPEG
+          displayValue.startsWith("R0lGOD") ||  // GIF
+          displayValue.startsWith("UklGR") ||   // WebP (RIFF)
+          // Hex patterns
+          displayValue.startsWith("\\x") ||
+          displayValue.startsWith("0x") ||
+          // Long base64 strings (likely binary)
+          (/^[A-Za-z0-9+/]+=*$/.test(displayValue) && displayValue.length > 50)
+        );
+
+        if ((isBinaryColumn || looksLikeBinary) && typeof displayValue === "string") {
+          const truncated = displayValue.length > 30
+            ? displayValue.slice(0, 30) + "..."
+            : displayValue;
+          content = (
+            <button
+              className="font-mono text-[11px] text-[hsl(var(--primary))] hover:text-[hsl(var(--primary)/0.8)] hover:underline transition-colors cursor-pointer truncate block max-w-[200px] text-left"
+              title="Click to view binary data"
+              onClick={(e) => {
+                e.stopPropagation();
+                openBinaryPreviewDialog(displayValue);
+              }}
+            >
+              {truncated}
+            </button>
+          );
+        } else if (typeof displayValue === "string") {
           // Try to format as timestamp
           const timestampData = formatTimestamp(displayValue);
           if (timestampData) {
@@ -507,9 +641,14 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
             content = <span className="text-xs text-[hsl(var(--text-secondary))] whitespace-nowrap">{displayValue}</span>;
           }
         } else if (typeof displayValue === "number") {
+          const formattedNum = formatNumber(displayValue, numberFormat);
+          const isNegative = numberFormat.negativeColor && isNegativeNumber(displayValue);
           content = (
-            <span className="font-mono text-xs tabular-nums text-[hsl(var(--text-primary))]">
-              {displayValue.toLocaleString()}
+            <span className={cn(
+              "font-mono text-xs tabular-nums text-[hsl(var(--text-primary))]",
+              isNegative && "text-red-500"
+            )} style={cellStyle}>
+              {formattedNum}
             </span>
           );
         } else if (typeof displayValue === "boolean") {
@@ -524,19 +663,18 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
             </span>
           );
         } else if (typeof displayValue === "object") {
-          // Handle JSON/object values
-          let jsonStr: string;
-          try {
-            jsonStr = JSON.stringify(displayValue);
-          } catch {
-            jsonStr = "[Object]";
-          }
+          // Handle JSON/object values using grid store settings
+          const { text: jsonText } = formatJson(displayValue, jsonDisplay);
           content = (
             <span
-              className="font-mono text-[11px] text-[hsl(var(--text-dim))] hover:text-[hsl(var(--text-secondary))] transition-colors cursor-help truncate block max-w-[200px]"
+              className={cn(
+                "font-mono text-[11px] text-[hsl(var(--text-dim))] hover:text-[hsl(var(--text-secondary))] transition-colors cursor-help truncate block max-w-[200px]",
+                jsonDisplay === "pretty" && "whitespace-pre-wrap"
+              )}
               title={JSON.stringify(displayValue, null, 2)}
+              style={cellStyle}
             >
-              {jsonStr}
+              {jsonText}
             </span>
           );
         } else {
@@ -667,6 +805,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       },
       columnFilters: tanstackFilters,
       globalFilter,
+      columnVisibility,
+      columnPinning,
     },
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, filterValue) => {
@@ -713,6 +853,31 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
 
   return (
     <div className="flex h-full flex-col bg-[hsl(var(--background))] relative overflow-hidden">
+      {/* Find & Replace Bar */}
+      <FindReplaceBar
+        columns={columnsWithPK}
+        data={tableData}
+        onReplace={(columnId, rowIndex, _oldValue, newValue) => {
+          const rowData = tableData[rowIndex];
+          if (!rowData) return;
+
+          const pkColumns = columnsWithPK.filter(c => c.isPrimaryKey);
+          const primaryKey: Record<string, unknown> = {};
+          pkColumns.forEach(c => {
+            primaryKey[c.name] = rowData[c.name];
+          });
+
+          addPendingChange({
+            id: crypto.randomUUID(),
+            tableName: tableName || "unknown",
+            type: "update",
+            originalData: rowData,
+            newData: { ...rowData, [columnId]: newValue },
+            primaryKey,
+          });
+        }}
+      />
+
       {/* Table Area */}
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse text-sm">
@@ -723,6 +888,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                   const isNumeric = header.column.id.toLowerCase().includes("id") ||
                                   header.column.id.toLowerCase().includes("count") ||
                                   header.column.id.toLowerCase().includes("amount");
+                  const isPinned = header.column.getIsPinned();
 
                   return (
                     <th
@@ -732,10 +898,21 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                         "hover:bg-muted/50",
                         isNumeric ? "text-right" : "text-left",
                         header.column.id === "rowNumber"
-                          ? "p-0 w-12 text-center bg-muted/20 border-r border-border/30"
-                          : "min-w-[120px] border-r border-border/20 last:border-r-0"
+                          ? "p-0 w-12 text-center bg-muted/20 border-r border-border/30 sticky left-0 z-30 bg-[hsl(var(--table-header-bg))]"
+                          : "min-w-[120px] border-r border-border/20 last:border-r-0",
+                        header.column.id !== "rowNumber" && isPinned && "sticky z-20 bg-[hsl(var(--table-header-bg))]",
+                        header.column.id !== "rowNumber" && isPinned === "left" && "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]",
+                        header.column.id !== "rowNumber" && isPinned === "right" && "right-0 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                       )}
-                      style={{ width: header.getSize() }}
+                      style={{
+                        width: header.getSize(),
+                        left: header.column.id === "rowNumber"
+                          ? 0
+                          : isPinned === "left"
+                            ? `${header.getStart("left") + 48}px` // 48px = row number column width
+                            : undefined,
+                        right: isPinned === "right" ? `${header.column.getAfter("right")}px` : undefined,
+                      }}
                     >
                       {header.isPlaceholder
                         ? null
@@ -768,13 +945,14 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                 <tr
                   key={row.id}
                   className={cn(
-                    "transition-all cursor-pointer group h-9",
+                    "transition-all cursor-pointer group",
                     idx % 2 === 0 ? "bg-[hsl(var(--table-row-odd))]" : "bg-[hsl(var(--table-row-even))]",
                     "hover:bg-[hsl(var(--table-row-hover))]",
                     row.getIsSelected() && "bg-primary/15 hover:bg-primary/20 ring-1 ring-inset ring-primary/30",
                     isPendingDelete && "opacity-40 grayscale line-through decoration-destructive/70 decoration-2",
                     isPendingInsert && "bg-success/10 hover:bg-success/15 ring-1 ring-inset ring-success/30"
                   )}
+                  style={{ height: `${rowHeightPx}px` }}
                   onClick={() => {
                     onRowClick?.(row.original);
                   }}
@@ -783,6 +961,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                     const isNumeric = cell.column.id.toLowerCase().includes("id") ||
                                     cell.column.id.toLowerCase().includes("count") ||
                                     cell.column.id.toLowerCase().includes("amount");
+                    const isPinned = cell.column.getIsPinned();
 
                     return (
                       <td
@@ -791,10 +970,21 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                           "px-3 py-1.5 transition-colors",
                           isNumeric ? "text-right" : "text-left",
                           cell.column.id === "rowNumber"
-                            ? "p-0 w-12 text-center border-r border-border/20"
+                            ? "p-0 w-12 text-center border-r border-border/20 sticky left-0 z-20 bg-[hsl(var(--background))]"
                             : "border-r border-[hsl(var(--border)/0.15)] last:border-r-0",
-                          editingCell?.rowId === row.id && editingCell?.columnId === cell.column.id && "p-0 bg-background ring-2 ring-primary/50"
+                          editingCell?.rowId === row.id && editingCell?.columnId === cell.column.id && "p-0 bg-background ring-2 ring-primary/50",
+                          cell.column.id !== "rowNumber" && isPinned && "sticky z-10 bg-[hsl(var(--background))]",
+                          cell.column.id !== "rowNumber" && isPinned === "left" && "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]",
+                          cell.column.id !== "rowNumber" && isPinned === "right" && "right-0 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                         )}
+                        style={{
+                          left: cell.column.id === "rowNumber"
+                            ? 0
+                            : isPinned === "left"
+                              ? `${cell.column.getStart("left") + 48}px` // 48px = row number column width
+                              : undefined,
+                          right: isPinned === "right" ? `${cell.column.getAfter("right")}px` : undefined,
+                        }}
                         onDoubleClick={() => {
                           if (cell.column.id !== "rowNumber") {
                             setEditingCell({ rowId: row.id, columnId: cell.column.id });
@@ -846,6 +1036,11 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
             />
           )}
           <ExportMenu tableName={tableName} />
+
+          {/* Column Visibility */}
+          {tableKey && (
+            <ColumnVisibilityPopover tableKey={tableKey} columns={columnsWithPK} />
+          )}
 
           {/* Status Text */}
           <div className="flex items-center gap-1 text-muted-foreground/80">
@@ -925,6 +1120,10 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
           </div>
         </div>
       </div>
+
+      {/* Dialogs */}
+      <ColumnStatisticsDialog columns={columnsWithPK} data={tableData} />
+      <BinaryPreviewDialog />
     </div>
   );
 }

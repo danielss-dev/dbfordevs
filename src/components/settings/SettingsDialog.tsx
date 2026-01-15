@@ -38,9 +38,11 @@ import {
   Bot,
   Download,
   RefreshCw,
+  Table,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAIStore } from "@/lib/ai/store";
+import { GridSettingsTab } from "./GridSettingsTab";
 
 interface SettingRowProps {
   label: string;
@@ -204,7 +206,7 @@ function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabP
   );
 }
 
-type TabValue = "general" | "ai" | "editor" | "appearance" | "keybindings" | "advanced" | "about";
+type TabValue = "general" | "ai" | "editor" | "datagrid" | "appearance" | "keybindings" | "advanced" | "about";
 
 interface TabConfig {
   value: TabValue;
@@ -216,6 +218,7 @@ const TABS: TabConfig[] = [
   { value: "general", label: "General", icon: <User className="h-4 w-4" /> },
   { value: "ai", label: "AI Assistant", icon: <Bot className="h-4 w-4" /> },
   { value: "editor", label: "Editor", icon: <Code className="h-4 w-4" /> },
+  { value: "datagrid", label: "Data Grid", icon: <Table className="h-4 w-4" /> },
   { value: "appearance", label: "Appearance", icon: <Sun className="h-4 w-4" /> },
   { value: "keybindings", label: "Keybindings", icon: <Keyboard className="h-4 w-4" /> },
   { value: "advanced", label: "Advanced", icon: <Settings className="h-4 w-4" /> },
@@ -247,6 +250,14 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Use Tabs", description: "Use tabs instead of spaces.", keywords: ["tabs", "spaces", "indent"], tabValue: "editor" },
   { label: "Indent Style", description: "How clauses are indented.", keywords: ["indent", "style", "tabular"], tabValue: "editor" },
   { label: "Dense Operators", description: "Remove spaces around operators.", keywords: ["dense", "operators", "compact"], tabValue: "editor" },
+  // Data Grid
+  { label: "Row Height", description: "Default height for rows in the data grid.", keywords: ["row", "height", "grid", "display", "compact"], tabValue: "datagrid" },
+  { label: "Date Format", description: "How dates are displayed in cells.", keywords: ["date", "format", "iso", "locale", "time"], tabValue: "datagrid" },
+  { label: "Number Format", description: "How numeric values are displayed.", keywords: ["number", "format", "decimal", "thousands", "separator"], tabValue: "datagrid" },
+  { label: "NULL Display", description: "How NULL values are shown.", keywords: ["null", "display", "empty", "badge"], tabValue: "datagrid" },
+  { label: "JSON Display", description: "How JSON objects are shown in cells.", keywords: ["json", "display", "collapsed", "pretty"], tabValue: "datagrid" },
+  { label: "Conditional Formatting", description: "Highlight cells based on their values.", keywords: ["conditional", "format", "highlight", "color", "rules"], tabValue: "datagrid" },
+  { label: "Binary Data", description: "Preview options for binary data.", keywords: ["binary", "hex", "image", "blob"], tabValue: "datagrid" },
   // Appearance
   { label: "Theme", description: "Switch between light, dark, or system theme.", keywords: ["theme", "light", "dark", "system", "color"], tabValue: "appearance" },
   { label: "Enable Animations", description: "Enable smooth animations throughout the interface.", keywords: ["animation", "animations", "smooth", "motion", "transition", "effects"], tabValue: "appearance" },
@@ -804,6 +815,9 @@ export function SettingsDialog() {
                       </div>
                     </div>
                   )}
+
+                  {/* Data Grid Tab */}
+                  {activeTab === "datagrid" && <GridSettingsTab />}
 
                   {/* Appearance Tab */}
                   {activeTab === "appearance" && (
