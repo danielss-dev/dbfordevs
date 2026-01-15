@@ -11,7 +11,10 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea, Badge } from "@/components/ui";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 import { useQueryStore } from "@/stores";
+import { useToast } from "@/hooks/useToast";
 import { QueryHistoryDropdownItem } from "./QueryHistoryDropdownItem";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeTextFile } from "@tauri-apps/plugin-fs";
 
 interface QueryHistoryDropdownProps {
   connectionId: string;
@@ -26,9 +29,9 @@ export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistory
     toggleFavorite,
     deleteHistoryEntry,
     exportHistory,
-    clearHistoryForConnection,
     getHistoryStats,
   } = useQueryStore();
+  const { toast } = useToast();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
@@ -79,19 +82,38 @@ export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistory
     [connectionId, deleteHistoryEntry]
   );
 
-  const handleExport = (format: "json" | "csv") => {
-    const data = exportHistory(connectionId, format);
-    const blob = new Blob([data], {
-      type: format === "json" ? "application/json" : "text/csv",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `query-history-${connectionId}.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleExport = async (e: React.MouseEvent, format: "json" | "csv") => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      const data = exportHistory(connectionId, format);
+
+      // Use Tauri save dialog
+      const filePath = await save({
+        defaultPath: `query-history.${format}`,
+        filters: [
+          {
+            name: format === "json" ? "JSON" : "CSV",
+            extensions: [format],
+          },
+        ],
+      });
+
+      if (filePath) {
+        await writeTextFile(filePath, data);
+        toast({
+          title: "Export successful",
+          description: `Query history exported to ${filePath}`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Failed to export history",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -132,7 +154,7 @@ export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistory
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={() => handleExport("json")}
+                  onClick={(e) => handleExport(e, "json")}
                   disabled={connectionHistory.length === 0}
                 >
                   <Download className="h-3 w-3" />
@@ -146,13 +168,27 @@ export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistory
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={() => clearHistoryForConnection(connectionId)}
-                  disabled={connectionHistory.length === 0}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Only clear non-favorite queries
+                    const nonFavoriteCount = connectionHistory.filter(h => !h.isFavorite).length;
+                    connectionHistory
+                      .filter(h => !h.isFavorite)
+                      .forEach(h => deleteHistoryEntry(connectionId, h.id));
+                    toast({
+                      title: "History cleared",
+                      description: nonFavoriteCount > 0
+                        ? `${nonFavoriteCount} queries deleted. Favorites preserved.`
+                        : "No non-favorite queries to delete",
+                    });
+                  }}
+                  disabled={connectionHistory.filter(h => !h.isFavorite).length === 0}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Clear all history</TooltipContent>
+              <TooltipContent>Clear history (keeps favorites)</TooltipContent>
             </Tooltip>
           </div>
         </DropdownMenuLabel>
