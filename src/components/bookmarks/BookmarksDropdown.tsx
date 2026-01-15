@@ -70,16 +70,15 @@ export function BookmarksDropdown({
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8">
               <Bookmark className="h-3.5 w-3.5" />
-              Bookmarks
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent>
           {hasBookmarks
-            ? `${connectionBookmarks.length} bookmark${connectionBookmarks.length === 1 ? "" : "s"}`
-            : "Save and manage query bookmarks"}
+            ? `Bookmarks (${connectionBookmarks.length})`
+            : "Bookmarks"}
         </TooltipContent>
       </Tooltip>
 

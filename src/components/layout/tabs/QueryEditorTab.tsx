@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, TreeDeciduous, Code } from "lucide-react";
+import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, TreeDeciduous } from "lucide-react";
 import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore, usePreviewStore, useExplainStore } from "@/stores";
 import { useUIStore } from "@/stores/ui";
@@ -305,6 +305,9 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           </div>
         )}
 
+        {/* Spacer to push toolbar icons to the right */}
+        <div className="flex-1" />
+
         {connectionId && (
           <QueryHistoryDropdown
             connectionId={connectionId}
@@ -323,44 +326,22 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="sm"
+                size="icon"
                 variant="outline"
                 onClick={handleRefreshSchemas}
                 disabled={isRefreshing}
-                className="gap-2"
+                className="h-8 w-8"
               >
                 {isRefreshing ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Refreshing...
-                  </>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <>
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    Refresh Schema
-                  </>
+                  <RefreshCw className="h-3.5 w-3.5" />
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Refresh table schemas from database</TooltipContent>
+            <TooltipContent>Refresh Schema</TooltipContent>
           </Tooltip>
         )}
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => sqlEditorRef.current?.format()}
-              disabled={!content.trim()}
-              className="gap-2"
-            >
-              <Code className="h-3.5 w-3.5" />
-              Format
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Format SQL (Shift+Alt+F)</TooltipContent>
-        </Tooltip>
       </div>
 
       {/* Editor Area */}
