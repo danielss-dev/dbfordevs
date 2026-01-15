@@ -9,4 +9,6 @@ export * from "./updater";
 export * from "./bookmarks";
 export * from "./users";
 export * from "./grid";
+export * from "./views";
+export * from "./indexes";
 

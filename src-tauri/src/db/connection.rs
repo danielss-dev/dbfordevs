@@ -1,10 +1,11 @@
 use crate::error::AppResult;
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
-    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseUser,
-    ExplainResult, IndexInfo, NewTableDefinition, PermissionRequest, PreviewResult, QueryResult,
-    RoleMembershipRequest, TableInfo, TableProperties, TableReferenceInfo, TableRelationship,
-    TableSchema, TestConnectionResult,
+    CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
+    DatabaseUser, ExplainResult, IndexInfo, NewTableDefinition, NewViewDefinition,
+    PermissionRequest, PreviewResult, QueryResult, RoleMembershipRequest, StandaloneIndexInfo,
+    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
+    TestConnectionResult, ViewInfo,
 };
 use async_trait::async_trait;
 use sqlx::{PgPool, MySqlPool, SqlitePool};
@@ -149,6 +150,55 @@ pub trait DatabaseDriver: Send + Sync {
     /// Revoke a role from a user
     async fn revoke_role(&self, pool: PoolRef<'_>, request: &RoleMembershipRequest)
         -> AppResult<()>;
+
+    // ============ View Management Methods ============
+
+    /// Get list of views in the database
+    async fn get_views(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<ViewInfo>>;
+
+    /// Get view DDL/definition
+    async fn get_view_ddl(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<String>;
+
+    /// Create a new view
+    async fn create_view(
+        &self,
+        pool: PoolRef<'_>,
+        view_def: &NewViewDefinition,
+    ) -> AppResult<QueryResult>;
+
+    /// Drop a view
+    async fn drop_view(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<QueryResult>;
+
+    // ============ Index Management Methods ============
+
+    /// Get all indexes across all tables (standalone listing)
+    async fn get_all_indexes(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<StandaloneIndexInfo>>;
+
+    /// Get index DDL
+    async fn get_index_ddl(&self, pool: PoolRef<'_>, index_name: &str, table_name: Option<&str>) -> AppResult<String>;
+
+    /// Create a new index
+    async fn create_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_def: &CreateIndexDefinition,
+    ) -> AppResult<QueryResult>;
+
+    /// Drop an index
+    async fn drop_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        table_name: Option<&str>,
+    ) -> AppResult<QueryResult>;
 }
 
 /// Factory function to get the appropriate driver for a database type

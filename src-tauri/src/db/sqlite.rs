@@ -3,11 +3,12 @@ use crate::db::{DatabaseDriver, PoolRef};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
-    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseType,
-    DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo,
-    NewTableDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
-    RoleMembershipRequest, StatementPreview, StatementType, TableInfo, TableProperties,
-    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, WarningSeverity,
+    CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
+    DatabaseType, DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo,
+    IndexInfo, NewTableDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
+    QueryResult, RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType,
+    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
+    TestConnectionResult, ViewInfo, WarningSeverity,
 };
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -1744,6 +1745,316 @@ impl DatabaseDriver for SqliteDriver {
 
     async fn revoke_role(&self, _pool: PoolRef<'_>, _request: &RoleMembershipRequest) -> AppResult<()> {
         Err(AppError::QueryError("SQLite does not support user management".to_string()))
+    }
+
+    // ============ View Management Methods ============
+
+    async fn get_views(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<ViewInfo>> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let sql = r#"
+            SELECT
+                name,
+                sql as definition
+            FROM sqlite_master
+            WHERE type = 'view'
+            ORDER BY name
+        "#;
+
+        let rows = sqlx::query(sql)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get views: {}", e)))?;
+
+        let views = rows
+            .iter()
+            .map(|row| ViewInfo {
+                name: row.get::<String, _>("name"),
+                schema: None,
+                definition: row.get::<Option<String>, _>("definition"),
+                is_updatable: false, // SQLite views are not directly updatable
+                check_option: None,
+            })
+            .collect();
+
+        Ok(views)
+    }
+
+    async fn get_view_ddl(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let sql = "SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?";
+
+        let row = sqlx::query(sql)
+            .bind(view_name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get view DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("View '{}' not found", view_name)))?;
+
+        let ddl: String = row.get("sql");
+        Ok(format!("{};", ddl))
+    }
+
+    async fn create_view(
+        &self,
+        pool: PoolRef<'_>,
+        view_def: &NewViewDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // SQLite doesn't support OR REPLACE, so we need to DROP first if replacing
+        if view_def.or_replace {
+            let drop_sql = format!(
+                "DROP VIEW IF EXISTS {}",
+                escape_sqlite_identifier(&view_def.name)
+            );
+            sqlx::query(&drop_sql)
+                .execute(pool)
+                .await
+                .map_err(|e| AppError::QueryError(format!("Failed to drop existing view: {}", e)))?;
+        }
+
+        let sql = format!(
+            "CREATE VIEW {} AS\n{}",
+            escape_sqlite_identifier(&view_def.name),
+            view_def.definition.trim()
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create view: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_view(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP VIEW IF EXISTS {}",
+            escape_sqlite_identifier(view_name)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop view: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Index Management Methods ============
+
+    async fn get_all_indexes(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<StandaloneIndexInfo>> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        // Get all indexes from sqlite_master
+        let sql = r#"
+            SELECT
+                m.name as index_name,
+                m.tbl_name as table_name,
+                m.sql
+            FROM sqlite_master m
+            WHERE m.type = 'index'
+              AND m.name NOT LIKE 'sqlite_%'
+            ORDER BY m.tbl_name, m.name
+        "#;
+
+        let rows = sqlx::query(sql)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get indexes: {}", e)))?;
+
+        let mut indexes = Vec::new();
+
+        for row in rows {
+            let index_name: String = row.get("index_name");
+            let table_name: String = row.get("table_name");
+            let sql_def: Option<String> = row.get("sql");
+
+            // Get columns for this index using PRAGMA
+            let pragma_sql = format!("PRAGMA index_info({})", escape_sqlite_identifier(&index_name));
+            let col_rows = sqlx::query(&pragma_sql)
+                .fetch_all(pool)
+                .await
+                .unwrap_or_default();
+
+            let columns: Vec<String> = col_rows
+                .iter()
+                .map(|r| r.get::<String, _>("name"))
+                .collect();
+
+            // Check if it's a unique index from the DDL
+            let is_unique = sql_def
+                .as_ref()
+                .map(|s| s.to_uppercase().contains("UNIQUE"))
+                .unwrap_or(false);
+
+            indexes.push(StandaloneIndexInfo {
+                name: index_name,
+                schema: None,
+                table_name,
+                columns,
+                is_unique,
+                is_primary: false, // SQLite doesn't expose this through sqlite_master for auto PK indexes
+                index_type: None,
+            });
+        }
+
+        Ok(indexes)
+    }
+
+    async fn get_index_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let sql = "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?";
+
+        let row = sqlx::query(sql)
+            .bind(index_name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get index DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Index '{}' not found", index_name)))?;
+
+        let ddl: Option<String> = row.get("sql");
+        Ok(format!("{};", ddl.unwrap_or_else(|| format!("-- Auto-generated index: {}", index_name))))
+    }
+
+    async fn create_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_def: &CreateIndexDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let unique = if index_def.is_unique { "UNIQUE " } else { "" };
+
+        // Generate index name if not provided
+        let index_name = index_def.name.clone().unwrap_or_else(|| {
+            format!(
+                "idx_{}_{}",
+                index_def.table_name,
+                index_def.columns.join("_")
+            )
+        });
+
+        let columns = index_def
+            .columns
+            .iter()
+            .map(|c| escape_sqlite_identifier(c))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let where_clause = index_def
+            .where_clause
+            .as_ref()
+            .filter(|w| !w.is_empty())
+            .map(|w| format!(" WHERE {}", w))
+            .unwrap_or_default();
+
+        let sql = format!(
+            "CREATE {}INDEX {} ON {}({}){}",
+            unique,
+            escape_sqlite_identifier(&index_name),
+            escape_sqlite_identifier(&index_def.table_name),
+            columns,
+            where_clause
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP INDEX IF EXISTS {}",
+            escape_sqlite_identifier(index_name)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
     }
 }
 

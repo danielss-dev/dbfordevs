@@ -4,11 +4,12 @@ use crate::models::DatabaseType;
 use crate::error::{AppError, AppResult};
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
-    CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole, DatabaseUser,
-    ExplainResult, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo, NewTableDefinition,
-    PermissionRequest, PlanNode, PreviewResult, QueryResult, RoleMembershipRequest,
-    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
-    TableRelationship, TableSchema, TestConnectionResult,
+    CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
+    DatabaseUser, ExplainResult, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo, NewTableDefinition,
+    NewViewDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
+    RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType, TableInfo,
+    TableProperties, TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult,
+    ViewInfo,
 };
 use async_trait::async_trait;
 use deadpool::managed::{Manager, Pool, RecycleResult};
@@ -1517,7 +1518,8 @@ impl DatabaseDriver for OracleDriver {
             .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
 
         tokio::task::spawn_blocking(move || {
-            let sql = r#"
+            // First try DBA views (requires DBA privileges)
+            let dba_sql = r#"
                 SELECT
                     u.username,
                     CASE WHEN EXISTS (
@@ -1533,7 +1535,54 @@ impl DatabaseDriver for OracleDriver {
                 ORDER BY u.username
             "#;
 
-            let mut stmt = conn.inner().statement(sql).build()
+            let dba_result = conn.inner().statement(dba_sql).build();
+
+            if let Ok(mut stmt) = dba_result {
+                if let Ok(rows) = stmt.query(&[]) {
+                    let mut users = Vec::new();
+                    for row_result in rows {
+                        if let Ok(row) = row_result {
+                            let roles_str: Option<String> = row.get(3).ok();
+                            let roles: Vec<String> = roles_str
+                                .map(|s| s.split(',').map(|r| r.to_string()).collect())
+                                .unwrap_or_default();
+
+                            users.push(DatabaseUser {
+                                name: row.get::<_, String>(0).unwrap_or_default(),
+                                host: None,
+                                is_superuser: row.get::<_, i32>(1).unwrap_or(0) == 1,
+                                can_login: row.get::<_, i32>(2).unwrap_or(0) == 1,
+                                roles,
+                            });
+                        }
+                    }
+                    if !users.is_empty() {
+                        return Ok(users);
+                    }
+                }
+            }
+
+            // Fallback to ALL_USERS for non-DBA users
+            let fallback_sql = r#"
+                SELECT
+                    u.username,
+                    0 as is_superuser,
+                    1 as can_login
+                FROM all_users u
+                WHERE u.username NOT IN (
+                    'SYS', 'SYSTEM', 'OUTLN', 'DIP', 'ORACLE_OCM', 'DBSNMP', 'APPQOSSYS',
+                    'WMSYS', 'EXFSYS', 'CTXSYS', 'XDB', 'ANONYMOUS', 'ORDSYS', 'ORDDATA',
+                    'ORDPLUGINS', 'SI_INFORMTN_SCHEMA', 'MDSYS', 'OLAPSYS', 'MDDATA',
+                    'SPATIAL_WFS_ADMIN_USR', 'SPATIAL_CSW_ADMIN_USR', 'LBACSYS', 'APEX_PUBLIC_USER',
+                    'APEX_040000', 'APEX_040200', 'FLOWS_FILES', 'OWBSYS', 'OWBSYS_AUDIT',
+                    'GSMADMIN_INTERNAL', 'GSMUSER', 'SYSBACKUP', 'SYSDG', 'SYSKM', 'SYSRAC',
+                    'AUDSYS', 'GSMCATUSER', 'XS$NULL', 'GGSYS', 'DBSFWUSER', 'REMOTE_SCHEDULER_AGENT',
+                    'OJVMSYS', 'DVF', 'DVSYS'
+                )
+                ORDER BY u.username
+            "#;
+
+            let mut stmt = conn.inner().statement(fallback_sql).build()
                 .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
 
             let rows = stmt.query(&[])
@@ -1542,17 +1591,12 @@ impl DatabaseDriver for OracleDriver {
             let mut users = Vec::new();
             for row_result in rows {
                 let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to fetch row: {}", e)))?;
-                let roles_str: Option<String> = row.get(3).ok();
-                let roles: Vec<String> = roles_str
-                    .map(|s| s.split(',').map(|r| r.to_string()).collect())
-                    .unwrap_or_default();
-
                 users.push(DatabaseUser {
                     name: row.get::<_, String>(0).unwrap_or_default(),
                     host: None,
-                    is_superuser: row.get::<_, i32>(1).unwrap_or(0) == 1,
-                    can_login: row.get::<_, i32>(2).unwrap_or(0) == 1,
-                    roles,
+                    is_superuser: false,
+                    can_login: true,
+                    roles: Vec::new(),
                 });
             }
 
@@ -1665,7 +1709,8 @@ impl DatabaseDriver for OracleDriver {
             .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
 
         tokio::task::spawn_blocking(move || {
-            let sql = r#"
+            // First try DBA views (requires DBA privileges)
+            let dba_sql = r#"
                 SELECT
                     r.role,
                     CASE WHEN r.oracle_maintained = 'Y' THEN 1 ELSE 0 END as is_system_role,
@@ -1676,7 +1721,44 @@ impl DatabaseDriver for OracleDriver {
                 ORDER BY r.role
             "#;
 
-            let mut stmt = conn.inner().statement(sql).build()
+            let dba_result = conn.inner().statement(dba_sql).build();
+
+            if let Ok(mut stmt) = dba_result {
+                if let Ok(rows) = stmt.query(&[]) {
+                    let mut roles = Vec::new();
+                    for row_result in rows {
+                        if let Ok(row) = row_result {
+                            let members_str: Option<String> = row.get(2).ok();
+                            let members: Vec<String> = members_str
+                                .map(|s| s.split(',').map(|r| r.to_string()).collect())
+                                .unwrap_or_default();
+
+                            roles.push(DatabaseRole {
+                                name: row.get::<_, String>(0).unwrap_or_default(),
+                                is_system_role: row.get::<_, i32>(1).unwrap_or(0) == 1,
+                                members,
+                            });
+                        }
+                    }
+                    if !roles.is_empty() {
+                        return Ok(roles);
+                    }
+                }
+            }
+
+            // Fallback: Use USER_ROLE_PRIVS to show roles granted to the current user
+            // and SESSION_ROLES for currently active roles
+            let fallback_sql = r#"
+                SELECT DISTINCT
+                    granted_role as role,
+                    CASE WHEN granted_role IN ('DBA', 'CONNECT', 'RESOURCE', 'SELECT_CATALOG_ROLE',
+                        'EXECUTE_CATALOG_ROLE', 'DELETE_CATALOG_ROLE', 'EXP_FULL_DATABASE',
+                        'IMP_FULL_DATABASE', 'RECOVERY_CATALOG_OWNER') THEN 1 ELSE 0 END as is_system_role
+                FROM user_role_privs
+                ORDER BY role
+            "#;
+
+            let mut stmt = conn.inner().statement(fallback_sql).build()
                 .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
 
             let rows = stmt.query(&[])
@@ -1685,15 +1767,10 @@ impl DatabaseDriver for OracleDriver {
             let mut roles = Vec::new();
             for row_result in rows {
                 let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to fetch row: {}", e)))?;
-                let members_str: Option<String> = row.get(2).ok();
-                let members: Vec<String> = members_str
-                    .map(|s| s.split(',').map(|r| r.to_string()).collect())
-                    .unwrap_or_default();
-
                 roles.push(DatabaseRole {
                     name: row.get::<_, String>(0).unwrap_or_default(),
                     is_system_role: row.get::<_, i32>(1).unwrap_or(0) == 1,
-                    members,
+                    members: Vec::new(),
                 });
             }
 
@@ -1936,6 +2013,394 @@ impl DatabaseDriver for OracleDriver {
             conn.inner().execute(&sql, &[])
                 .map_err(|e| AppError::QueryError(format!("Failed to revoke role: {}", e)))?;
             Ok(())
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    // ============ View Management Methods ============
+
+    async fn get_views(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<ViewInfo>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        // Oracle uses the username as the default schema
+        let schema = config.username.clone().unwrap_or_default().to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = "
+                SELECT
+                    view_name,
+                    text_length
+                FROM all_views
+                WHERE owner = :1
+                ORDER BY view_name
+            ";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[&schema])
+                .map_err(|e| AppError::QueryError(format!("Failed to execute query: {}", e)))?;
+
+            let mut views = Vec::new();
+            for row_result in rows {
+                let row = row_result
+                    .map_err(|e| AppError::QueryError(format!("Failed to fetch row: {}", e)))?;
+
+                let name: String = row.get(0)
+                    .map_err(|e| AppError::QueryError(format!("Failed to get view_name: {}", e)))?;
+
+                views.push(ViewInfo {
+                    name,
+                    schema: Some(schema.clone()),
+                    definition: None, // Don't load full definition in list
+                    is_updatable: false,
+                    check_option: None,
+                });
+            }
+
+            Ok(views)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_view_ddl(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        // Parse schema.view_name format
+        let (schema, name) = if view_name.contains('.') {
+            let parts: Vec<&str> = view_name.splitn(2, '.').collect();
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            (String::new(), view_name.to_string())
+        };
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            // First try DBMS_METADATA
+            let ddl_sql = if schema.is_empty() {
+                format!("SELECT DBMS_METADATA.GET_DDL('VIEW', '{}') FROM DUAL", name)
+            } else {
+                format!("SELECT DBMS_METADATA.GET_DDL('VIEW', '{}', '{}') FROM DUAL", name, schema)
+            };
+
+            match conn.inner().query_row_as::<String>(&ddl_sql, &[]) {
+                Ok(ddl) => Ok(format!("{};", ddl.trim())),
+                Err(_) => {
+                    // Fallback: get view text directly
+                    let sql = if schema.is_empty() {
+                        format!("SELECT text FROM user_views WHERE view_name = '{}'", name)
+                    } else {
+                        format!("SELECT text FROM all_views WHERE owner = '{}' AND view_name = '{}'", schema, name)
+                    };
+
+                    let text: String = conn.inner().query_row_as(&sql, &[])
+                        .map_err(|e| AppError::QueryError(format!("Failed to get view: {}", e)))?;
+
+                    let owner = if schema.is_empty() { "".to_string() } else { format!("{}.", schema) };
+                    Ok(format!("CREATE OR REPLACE VIEW {}{} AS\n{};", owner, name, text.trim()))
+                }
+            }
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn create_view(
+        &self,
+        pool: PoolRef<'_>,
+        view_def: &NewViewDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let schema_prefix = view_def
+            .schema
+            .as_ref()
+            .map(|s| format!("{}.", s))
+            .unwrap_or_default();
+
+        let or_replace = if view_def.or_replace { "OR REPLACE " } else { "" };
+
+        let check_option = view_def
+            .check_option
+            .as_ref()
+            .filter(|c| *c != "NONE" && !c.is_empty())
+            .map(|_| "\nWITH CHECK OPTION")
+            .unwrap_or_default();
+
+        let sql = format!(
+            "CREATE {}VIEW {}{} AS\n{}{}",
+            or_replace,
+            schema_prefix,
+            view_def.name,
+            view_def.definition.trim(),
+            check_option
+        );
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to create view: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn drop_view(&self, pool: PoolRef<'_>, view_name: &str) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let view_name = view_name.to_string();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!("DROP VIEW {}", view_name);
+
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to drop view: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    // ============ Index Management Methods ============
+
+    async fn get_all_indexes(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<StandaloneIndexInfo>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        // Oracle uses the username as the default schema
+        let schema = config.username.clone().unwrap_or_default().to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = "
+                SELECT
+                    i.index_name,
+                    i.table_name,
+                    i.uniqueness,
+                    i.index_type,
+                    LISTAGG(ic.column_name, ',') WITHIN GROUP (ORDER BY ic.column_position) as columns
+                FROM all_indexes i
+                JOIN all_ind_columns ic ON i.index_name = ic.index_name AND i.owner = ic.index_owner
+                WHERE i.owner = :1
+                GROUP BY i.index_name, i.table_name, i.uniqueness, i.index_type
+                ORDER BY i.table_name, i.index_name
+            ";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[&schema])
+                .map_err(|e| AppError::QueryError(format!("Failed to execute query: {}", e)))?;
+
+            let mut indexes = Vec::new();
+            for row_result in rows {
+                let row = row_result
+                    .map_err(|e| AppError::QueryError(format!("Failed to fetch row: {}", e)))?;
+
+                let name: String = row.get(0)
+                    .map_err(|e| AppError::QueryError(format!("Failed to get index_name: {}", e)))?;
+                let table_name: String = row.get(1)
+                    .map_err(|e| AppError::QueryError(format!("Failed to get table_name: {}", e)))?;
+                let uniqueness: String = row.get(2).unwrap_or_default();
+                let index_type: Option<String> = row.get(3).ok();
+                let columns_str: String = row.get(4).unwrap_or_default();
+
+                let columns: Vec<String> = columns_str.split(',').map(|s| s.to_string()).collect();
+
+                indexes.push(StandaloneIndexInfo {
+                    name,
+                    schema: Some(schema.clone()),
+                    table_name,
+                    columns,
+                    is_unique: uniqueness == "UNIQUE",
+                    is_primary: false, // Oracle doesn't easily expose this in all_indexes
+                    index_type,
+                });
+            }
+
+            Ok(indexes)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_index_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        // Parse schema.index_name format
+        let (schema, name) = if index_name.contains('.') {
+            let parts: Vec<&str> = index_name.splitn(2, '.').collect();
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            (String::new(), index_name.to_string())
+        };
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let ddl_sql = if schema.is_empty() {
+                format!("SELECT DBMS_METADATA.GET_DDL('INDEX', '{}') FROM DUAL", name)
+            } else {
+                format!("SELECT DBMS_METADATA.GET_DDL('INDEX', '{}', '{}') FROM DUAL", name, schema)
+            };
+
+            let ddl: String = conn.inner().query_row_as(&ddl_sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to get index DDL: {}", e)))?;
+
+            Ok(format!("{};", ddl.trim()))
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn create_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_def: &CreateIndexDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let schema_prefix = index_def
+            .schema
+            .as_ref()
+            .map(|s| format!("{}.", s))
+            .unwrap_or_default();
+
+        let unique = if index_def.is_unique { "UNIQUE " } else { "" };
+
+        // Generate index name if not provided
+        let index_name = index_def.name.clone().unwrap_or_else(|| {
+            format!(
+                "IDX_{}_{}",
+                index_def.table_name,
+                index_def.columns.join("_")
+            )
+        });
+
+        let columns = index_def.columns.join(", ");
+
+        let sql = format!(
+            "CREATE {}INDEX {} ON {}{}({})",
+            unique,
+            index_name,
+            schema_prefix,
+            index_def.table_name,
+            columns
+        );
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to create index: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn drop_index(
+        &self,
+        pool: PoolRef<'_>,
+        index_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let index_name = index_name.to_string();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!("DROP INDEX {}", index_name);
+
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to drop index: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
         })
         .await
         .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?

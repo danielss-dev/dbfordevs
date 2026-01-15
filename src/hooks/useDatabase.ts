@@ -28,6 +28,12 @@ import type {
   CreateRoleRequest,
   PermissionRequest,
   RoleMembershipRequest,
+  // View management types
+  ViewInfo,
+  NewViewDefinition,
+  // Index management types
+  StandaloneIndexInfo,
+  CreateIndexDefinition,
 } from "@/types";
 
 /**
@@ -997,6 +1003,176 @@ export function useDatabase() {
     [setExecuting, setQueryError]
   );
 
+  // ============================================
+  // View Management Methods
+  // ============================================
+
+  /**
+   * Get all views for a connection
+   */
+  const getViews = useCallback(
+    async (connectionId: string): Promise<ViewInfo[]> => {
+      try {
+        const views = await invoke<ViewInfo[]>("get_views", { connectionId });
+        return views;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Get DDL for a view
+   */
+  const getViewDdl = useCallback(
+    async (connectionId: string, viewName: string): Promise<string | null> => {
+      try {
+        const ddl = await invoke<string>("get_view_ddl", { connectionId, viewName });
+        return ddl;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new view
+   */
+  const createView = useCallback(
+    async (connectionId: string, viewDefinition: NewViewDefinition): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("create_view", {
+          connectionId,
+          viewDefinition,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Drop a view
+   */
+  const dropView = useCallback(
+    async (connectionId: string, viewName: string): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("drop_view", { connectionId, viewName });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  // ============================================
+  // Index Management Methods
+  // ============================================
+
+  /**
+   * Get all indexes for a connection
+   */
+  const getAllIndexes = useCallback(
+    async (connectionId: string): Promise<StandaloneIndexInfo[]> => {
+      try {
+        const indexes = await invoke<StandaloneIndexInfo[]>("get_all_indexes", { connectionId });
+        return indexes;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Get DDL for an index
+   */
+  const getIndexDdl = useCallback(
+    async (connectionId: string, indexName: string, tableName?: string): Promise<string | null> => {
+      try {
+        const ddl = await invoke<string>("get_index_ddl", { connectionId, indexName, tableName });
+        return ddl;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new index
+   */
+  const createIndex = useCallback(
+    async (connectionId: string, indexDefinition: CreateIndexDefinition): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("create_index", {
+          connectionId,
+          indexDefinition,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Drop an index
+   */
+  const dropIndex = useCallback(
+    async (connectionId: string, indexName: string, tableName?: string): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("drop_index", { connectionId, indexName, tableName });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
   return {
     testConnection,
     saveConnection,
@@ -1040,6 +1216,16 @@ export function useDatabase() {
     revokePermission,
     grantRole,
     revokeRole,
+    // View management
+    getViews,
+    getViewDdl,
+    createView,
+    dropView,
+    // Index management
+    getAllIndexes,
+    getIndexDdl,
+    createIndex,
+    dropIndex,
   };
 }
 
