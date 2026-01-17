@@ -615,3 +615,13 @@
 .no-transition * {
   transition: none !important;
 }
+
+/* Tree guide lines */
+.tree-guide {
+  @apply absolute top-0 bottom-0 w-px pointer-events-none bg-sidebar-border/30;
+  transition: background-color 150ms ease;
+}
+
+.group\/tree:hover > .tree-guide {
+  @apply bg-sidebar-border/50;
+}
