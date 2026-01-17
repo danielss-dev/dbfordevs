@@ -302,17 +302,17 @@ Support queries returning multiple result sets.
 
 ### 11. Database Object Management
 
-**Status:** Partial (Views, Indexes, Users/Roles implemented)
+**Status:** Implemented
 **Impact:** Low
 **Effort:** High
 
 **Implementation Tasks:**
 - [x] Create/Edit/Drop Views
 - [x] Create/Edit/Drop Indexes
-- [ ] Create/Edit/Drop Stored Procedures
-- [ ] Create/Edit/Drop Functions
-- [ ] Create/Edit/Drop Triggers
-- [ ] Create/Edit/Drop Sequences
+- [x] Create/Edit/Drop Stored Procedures
+- [x] Create/Edit/Drop Functions
+- [x] Create/Edit/Drop Triggers
+- [x] Create/Edit/Drop Sequences
 - [x] User/Role management
 - [x] Permission management
 

@@ -34,6 +34,18 @@ import type {
   // Index management types
   StandaloneIndexInfo,
   CreateIndexDefinition,
+  // Procedure management types
+  ProcedureInfo,
+  NewProcedureDefinition,
+  // Function management types
+  FunctionInfo,
+  NewFunctionDefinition,
+  // Trigger management types
+  TriggerInfo,
+  NewTriggerDefinition,
+  // Sequence management types
+  SequenceInfo,
+  NewSequenceDefinition,
 } from "@/types";
 
 /**
@@ -1173,6 +1185,346 @@ export function useDatabase() {
     [setExecuting, setQueryError]
   );
 
+  // ============================================
+  // Stored Procedure Management Methods
+  // ============================================
+
+  /**
+   * Get all stored procedures for a connection
+   */
+  const getProcedures = useCallback(
+    async (connectionId: string): Promise<ProcedureInfo[]> => {
+      try {
+        const procedures = await invoke<ProcedureInfo[]>("get_procedures", { connectionId });
+        return procedures;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Get DDL for a stored procedure
+   */
+  const getProcedureDdl = useCallback(
+    async (connectionId: string, procedureName: string): Promise<string | null> => {
+      try {
+        const ddl = await invoke<string>("get_procedure_ddl", { connectionId, procedureName });
+        return ddl;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new stored procedure
+   */
+  const createProcedure = useCallback(
+    async (connectionId: string, procedureDefinition: NewProcedureDefinition): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("create_procedure", {
+          connectionId,
+          procedureDefinition,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Drop a stored procedure
+   */
+  const dropProcedure = useCallback(
+    async (connectionId: string, procedureName: string): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("drop_procedure", { connectionId, procedureName });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  // ============================================
+  // Function Management Methods
+  // ============================================
+
+  /**
+   * Get all functions for a connection
+   */
+  const getFunctions = useCallback(
+    async (connectionId: string): Promise<FunctionInfo[]> => {
+      try {
+        const functions = await invoke<FunctionInfo[]>("get_functions", { connectionId });
+        return functions;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Get DDL for a function
+   */
+  const getFunctionDdl = useCallback(
+    async (connectionId: string, functionName: string): Promise<string | null> => {
+      try {
+        const ddl = await invoke<string>("get_function_ddl", { connectionId, functionName });
+        return ddl;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new function
+   */
+  const createFunction = useCallback(
+    async (connectionId: string, functionDefinition: NewFunctionDefinition): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("create_function", {
+          connectionId,
+          functionDefinition,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Drop a function
+   */
+  const dropFunction = useCallback(
+    async (connectionId: string, functionName: string): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("drop_function", { connectionId, functionName });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  // ============================================
+  // Trigger Management Methods
+  // ============================================
+
+  /**
+   * Get all triggers for a connection
+   */
+  const getTriggers = useCallback(
+    async (connectionId: string): Promise<TriggerInfo[]> => {
+      try {
+        const triggers = await invoke<TriggerInfo[]>("get_triggers", { connectionId });
+        return triggers;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Get DDL for a trigger
+   */
+  const getTriggerDdl = useCallback(
+    async (connectionId: string, triggerName: string, tableName?: string): Promise<string | null> => {
+      try {
+        const ddl = await invoke<string>("get_trigger_ddl", { connectionId, triggerName, tableName });
+        return ddl;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new trigger
+   */
+  const createTrigger = useCallback(
+    async (connectionId: string, triggerDefinition: NewTriggerDefinition): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("create_trigger", {
+          connectionId,
+          triggerDefinition,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Drop a trigger
+   */
+  const dropTrigger = useCallback(
+    async (connectionId: string, triggerName: string, tableName?: string): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("drop_trigger", { connectionId, triggerName, tableName });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  // ============================================
+  // Sequence Management Methods
+  // ============================================
+
+  /**
+   * Get all sequences for a connection
+   */
+  const getSequences = useCallback(
+    async (connectionId: string): Promise<SequenceInfo[]> => {
+      try {
+        const sequences = await invoke<SequenceInfo[]>("get_sequences", { connectionId });
+        return sequences;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return [];
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Get DDL for a sequence
+   */
+  const getSequenceDdl = useCallback(
+    async (connectionId: string, sequenceName: string): Promise<string | null> => {
+      try {
+        const ddl = await invoke<string>("get_sequence_ddl", { connectionId, sequenceName });
+        return ddl;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      }
+    },
+    [setQueryError]
+  );
+
+  /**
+   * Create a new sequence
+   */
+  const createSequence = useCallback(
+    async (connectionId: string, sequenceDefinition: NewSequenceDefinition): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("create_sequence", {
+          connectionId,
+          sequenceDefinition,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Drop a sequence
+   */
+  const dropSequence = useCallback(
+    async (connectionId: string, sequenceName: string): Promise<QueryResult | null> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        const result = await invoke<QueryResult>("drop_sequence", { connectionId, sequenceName });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return null;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
   return {
     testConnection,
     saveConnection,
@@ -1226,6 +1578,26 @@ export function useDatabase() {
     getIndexDdl,
     createIndex,
     dropIndex,
+    // Procedure management
+    getProcedures,
+    getProcedureDdl,
+    createProcedure,
+    dropProcedure,
+    // Function management
+    getFunctions,
+    getFunctionDdl,
+    createFunction,
+    dropFunction,
+    // Trigger management
+    getTriggers,
+    getTriggerDdl,
+    createTrigger,
+    dropTrigger,
+    // Sequence management
+    getSequences,
+    getSequenceDdl,
+    createSequence,
+    dropSequence,
   };
 }
 

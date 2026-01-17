@@ -1,15 +1,16 @@
-use crate::db::common::{parse_cte_statement_type, quote_identifier, CteParserConfig};
+use crate::db::common::{parse_cte_statement_type, quote_identifier, quote_identifier_single, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::models::DatabaseType;
 use crate::error::{AppError, AppResult};
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
     CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
-    DatabaseUser, ExplainResult, ExtendedColumnInfo, ForeignKeyInfo, IndexInfo, NewTableDefinition,
-    NewViewDefinition, PermissionRequest, PlanNode, PreviewResult, QueryResult,
-    RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType, TableInfo,
-    TableProperties, TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult,
-    ViewInfo,
+    DatabaseUser, ExplainResult, ExtendedColumnInfo, ForeignKeyInfo, FunctionInfo, IndexInfo,
+    NewFunctionDefinition, NewProcedureDefinition, NewSequenceDefinition, NewTableDefinition,
+    NewTriggerDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
+    ProcedureInfo, QueryResult, RoleMembershipRequest, SequenceInfo, StandaloneIndexInfo,
+    StatementPreview, StatementType, TableInfo, TableProperties, TableReferenceInfo,
+    TableRelationship, TableSchema, TestConnectionResult, TriggerInfo, ViewInfo,
 };
 use async_trait::async_trait;
 use deadpool::managed::{Manager, Pool, RecycleResult};
@@ -2394,6 +2395,695 @@ impl DatabaseDriver for OracleDriver {
 
             conn.inner().execute(&sql, &[])
                 .map_err(|e| AppError::QueryError(format!("Failed to drop index: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    // ============ Stored Procedure Management Methods ============
+
+    async fn get_procedures(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<ProcedureInfo>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let schema = config.username.clone().unwrap_or_default().to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = "
+                SELECT object_name as name
+                FROM all_objects
+                WHERE owner = :1 AND object_type = 'PROCEDURE'
+                ORDER BY object_name
+            ";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[&schema])
+                .map_err(|e| AppError::QueryError(format!("Failed to get procedures: {}", e)))?;
+
+            let mut procedures = Vec::new();
+            for row_result in rows {
+                let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to read row: {}", e)))?;
+                let name: String = row.get(0).map_err(|e| AppError::QueryError(format!("Failed to get name: {}", e)))?;
+                procedures.push(ProcedureInfo {
+                    name,
+                    schema: Some(schema.clone()),
+                    language: Some("PL/SQL".to_string()),
+                    parameter_count: None,
+                });
+            }
+
+            Ok(procedures)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_procedure_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let procedure_name = procedure_name.to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = "SELECT DBMS_METADATA.GET_DDL('PROCEDURE', :1) FROM DUAL";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let row = stmt.query_row(&[&procedure_name])
+                .map_err(|e| AppError::QueryError(format!("Procedure '{}' not found: {}", procedure_name, e)))?;
+
+            let ddl: String = row.get(0)
+                .map_err(|e| AppError::QueryError(format!("Failed to get DDL: {}", e)))?;
+
+            Ok(ddl)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn create_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_def: &NewProcedureDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let definition = procedure_def.definition.clone();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            conn.inner().execute(&definition, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to create procedure: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn drop_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let procedure_name = procedure_name.to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!(
+                "DROP PROCEDURE {}",
+                quote_identifier_single(&procedure_name, &DatabaseType::Oracle)
+            );
+
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to drop procedure: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    // ============ Function Management Methods ============
+
+    async fn get_functions(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<FunctionInfo>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let schema = config.username.clone().unwrap_or_default().to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = "
+                SELECT object_name as name
+                FROM all_objects
+                WHERE owner = :1 AND object_type = 'FUNCTION'
+                ORDER BY object_name
+            ";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[&schema])
+                .map_err(|e| AppError::QueryError(format!("Failed to get functions: {}", e)))?;
+
+            let mut functions = Vec::new();
+            for row_result in rows {
+                let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to read row: {}", e)))?;
+                let name: String = row.get(0).map_err(|e| AppError::QueryError(format!("Failed to get name: {}", e)))?;
+                functions.push(FunctionInfo {
+                    name,
+                    schema: Some(schema.clone()),
+                    language: Some("PL/SQL".to_string()),
+                    return_type: None,
+                    parameter_count: None,
+                });
+            }
+
+            Ok(functions)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_function_ddl(&self, pool: PoolRef<'_>, function_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let function_name = function_name.to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = "SELECT DBMS_METADATA.GET_DDL('FUNCTION', :1) FROM DUAL";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let row = stmt.query_row(&[&function_name])
+                .map_err(|e| AppError::QueryError(format!("Function '{}' not found: {}", function_name, e)))?;
+
+            let ddl: String = row.get(0)
+                .map_err(|e| AppError::QueryError(format!("Failed to get DDL: {}", e)))?;
+
+            Ok(ddl)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn create_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_def: &NewFunctionDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let definition = function_def.definition.clone();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            conn.inner().execute(&definition, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to create function: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn drop_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let function_name = function_name.to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!(
+                "DROP FUNCTION {}",
+                quote_identifier_single(&function_name, &DatabaseType::Oracle)
+            );
+
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to drop function: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    // ============ Trigger Management Methods ============
+
+    async fn get_triggers(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<TriggerInfo>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let schema = config.username.clone().unwrap_or_default().to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = "
+                SELECT
+                    trigger_name,
+                    table_name,
+                    trigger_type,
+                    triggering_event,
+                    status
+                FROM all_triggers
+                WHERE owner = :1
+                ORDER BY trigger_name
+            ";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[&schema])
+                .map_err(|e| AppError::QueryError(format!("Failed to get triggers: {}", e)))?;
+
+            let mut triggers = Vec::new();
+            for row_result in rows {
+                let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to read row: {}", e)))?;
+                let name: String = row.get(0).map_err(|e| AppError::QueryError(format!("Failed to get name: {}", e)))?;
+                let table_name: String = row.get(1).unwrap_or_default();
+                let trigger_type: Option<String> = row.get(2).ok();
+                let event: Option<String> = row.get(3).ok();
+                let status: String = row.get(4).unwrap_or_else(|_| "ENABLED".to_string());
+
+                // Parse timing from trigger_type (e.g., "BEFORE EACH ROW")
+                let timing = trigger_type.as_ref().map(|t| {
+                    if t.contains("BEFORE") {
+                        "BEFORE".to_string()
+                    } else if t.contains("AFTER") {
+                        "AFTER".to_string()
+                    } else if t.contains("INSTEAD OF") {
+                        "INSTEAD OF".to_string()
+                    } else {
+                        t.clone()
+                    }
+                });
+
+                triggers.push(TriggerInfo {
+                    name,
+                    schema: Some(schema.clone()),
+                    table_name,
+                    timing,
+                    event,
+                    enabled: status == "ENABLED",
+                });
+            }
+
+            Ok(triggers)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_trigger_ddl(&self, pool: PoolRef<'_>, trigger_name: &str, _table_name: Option<&str>) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let trigger_name = trigger_name.to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = "SELECT DBMS_METADATA.GET_DDL('TRIGGER', :1) FROM DUAL";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let row = stmt.query_row(&[&trigger_name])
+                .map_err(|e| AppError::QueryError(format!("Trigger '{}' not found: {}", trigger_name, e)))?;
+
+            let ddl: String = row.get(0)
+                .map_err(|e| AppError::QueryError(format!("Failed to get DDL: {}", e)))?;
+
+            Ok(ddl)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn create_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_def: &NewTriggerDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let definition = trigger_def.definition.clone();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            conn.inner().execute(&definition, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to create trigger: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn drop_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let trigger_name = trigger_name.to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!(
+                "DROP TRIGGER {}",
+                quote_identifier_single(&trigger_name, &DatabaseType::Oracle)
+            );
+
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to drop trigger: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    // ============ Sequence Management Methods ============
+
+    async fn get_sequences(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<SequenceInfo>> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let schema = config.username.clone().unwrap_or_default().to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            // Filter out identity column sequences (ISEQ$$_*) and other system sequences
+            let sql = "
+                SELECT
+                    sequence_name,
+                    last_number,
+                    increment_by,
+                    min_value,
+                    max_value,
+                    cycle_flag
+                FROM all_sequences
+                WHERE sequence_owner = :1
+                  AND sequence_name NOT LIKE 'ISEQ$$%'
+                  AND sequence_name NOT LIKE 'SYS_%'
+                ORDER BY sequence_name
+            ";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let rows = stmt.query(&[&schema])
+                .map_err(|e| AppError::QueryError(format!("Failed to get sequences: {}", e)))?;
+
+            let mut sequences = Vec::new();
+            for row_result in rows {
+                let row = row_result.map_err(|e| AppError::QueryError(format!("Failed to read row: {}", e)))?;
+                let name: String = row.get(0).map_err(|e| AppError::QueryError(format!("Failed to get name: {}", e)))?;
+                let last_number: Option<i64> = row.get(1).ok();
+                let increment_by: Option<i64> = row.get(2).ok();
+                let min_value: Option<i64> = row.get(3).ok();
+                let max_value: Option<i64> = row.get(4).ok();
+                let cycle_flag: String = row.get(5).unwrap_or_else(|_| "N".to_string());
+
+                sequences.push(SequenceInfo {
+                    name,
+                    schema: Some(schema.clone()),
+                    current_value: last_number,
+                    increment_by,
+                    min_value,
+                    max_value,
+                    cycle: cycle_flag == "Y",
+                });
+            }
+
+            Ok(sequences)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn get_sequence_ddl(&self, pool: PoolRef<'_>, sequence_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let sequence_name = sequence_name.to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        // Generate DDL manually by querying sequence metadata
+        // This is more reliable than DBMS_METADATA.GET_DDL which has issues with identity sequences
+        tokio::task::spawn_blocking(move || {
+            let sql = "
+                SELECT
+                    sequence_owner,
+                    sequence_name,
+                    min_value,
+                    max_value,
+                    increment_by,
+                    cycle_flag,
+                    order_flag,
+                    cache_size,
+                    last_number
+                FROM all_sequences
+                WHERE sequence_name = :1
+            ";
+
+            let mut stmt = conn.inner().statement(sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            let row = stmt.query_row(&[&sequence_name])
+                .map_err(|e| AppError::QueryError(format!("Sequence '{}' not found: {}", sequence_name, e)))?;
+
+            let owner: String = row.get(0).unwrap_or_default();
+            let name: String = row.get(1).unwrap_or_default();
+            let min_value: i64 = row.get(2).unwrap_or(1);
+            let max_value: i64 = row.get(3).unwrap_or(i64::MAX);
+            let increment_by: i64 = row.get(4).unwrap_or(1);
+            let cycle_flag: String = row.get(5).unwrap_or_else(|_| "N".to_string());
+            let order_flag: String = row.get(6).unwrap_or_else(|_| "N".to_string());
+            let cache_size: i64 = row.get(7).unwrap_or(20);
+            let start_with: i64 = row.get(8).unwrap_or(1);
+
+            let cycle_clause = if cycle_flag == "Y" { "CYCLE" } else { "NOCYCLE" };
+            let order_clause = if order_flag == "Y" { "ORDER" } else { "NOORDER" };
+            let cache_clause = if cache_size > 0 { format!("CACHE {}", cache_size) } else { "NOCACHE".to_string() };
+
+            let ddl = format!(
+                "CREATE SEQUENCE \"{}\".\"{}\"
+  START WITH {}
+  INCREMENT BY {}
+  MINVALUE {}
+  MAXVALUE {}
+  {}
+  {}
+  {};",
+                owner, name, start_with, increment_by, min_value, max_value,
+                cache_clause, cycle_clause, order_clause
+            );
+
+            Ok(ddl)
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn create_sequence(
+        &self,
+        pool: PoolRef<'_>,
+        sequence_def: &NewSequenceDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let mut parts = vec![format!("CREATE SEQUENCE {}", sequence_def.name.to_uppercase())];
+
+        if let Some(start_value) = sequence_def.start_value {
+            parts.push(format!("START WITH {}", start_value));
+        }
+        if let Some(increment) = sequence_def.increment_by {
+            parts.push(format!("INCREMENT BY {}", increment));
+        }
+        if let Some(min) = sequence_def.min_value {
+            parts.push(format!("MINVALUE {}", min));
+        }
+        if let Some(max) = sequence_def.max_value {
+            parts.push(format!("MAXVALUE {}", max));
+        }
+        if sequence_def.cycle {
+            parts.push("CYCLE".to_string());
+        } else {
+            parts.push("NOCYCLE".to_string());
+        }
+
+        let sql = parts.join(" ");
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to create sequence: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+
+    async fn drop_sequence(
+        &self,
+        pool: PoolRef<'_>,
+        sequence_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+        let sequence_name = sequence_name.to_uppercase();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        tokio::task::spawn_blocking(move || {
+            let sql = format!(
+                "DROP SEQUENCE {}",
+                quote_identifier_single(&sequence_name, &DatabaseType::Oracle)
+            );
+
+            conn.inner().execute(&sql, &[])
+                .map_err(|e| AppError::QueryError(format!("Failed to drop sequence: {}", e)))?;
 
             Ok(QueryResult {
                 columns: vec![],

@@ -297,3 +297,100 @@ pub struct CreateIndexDefinition {
     pub where_clause: Option<String>,
 }
 
+// ============ Stored Procedure Types ============
+
+/// Information about a stored procedure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcedureInfo {
+    pub name: String,
+    pub schema: Option<String>,
+    pub language: Option<String>,
+    pub parameter_count: Option<i32>,
+}
+
+/// Definition for creating a new stored procedure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewProcedureDefinition {
+    pub name: String,
+    pub schema: Option<String>,
+    pub definition: String,
+    pub or_replace: bool,
+}
+
+// ============ Function Types ============
+
+/// Information about a database function
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FunctionInfo {
+    pub name: String,
+    pub schema: Option<String>,
+    pub language: Option<String>,
+    pub return_type: Option<String>,
+    pub parameter_count: Option<i32>,
+}
+
+/// Definition for creating a new function
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewFunctionDefinition {
+    pub name: String,
+    pub schema: Option<String>,
+    pub definition: String,
+    pub or_replace: bool,
+}
+
+// ============ Trigger Types ============
+
+/// Information about a database trigger
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TriggerInfo {
+    pub name: String,
+    pub schema: Option<String>,
+    pub table_name: String,
+    pub timing: Option<String>,        // BEFORE, AFTER, INSTEAD OF
+    pub event: Option<String>,         // INSERT, UPDATE, DELETE
+    pub enabled: bool,
+}
+
+/// Definition for creating a new trigger
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewTriggerDefinition {
+    pub name: String,
+    pub schema: Option<String>,
+    pub definition: String,
+    pub or_replace: bool,
+}
+
+// ============ Sequence Types ============
+
+/// Information about a database sequence
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SequenceInfo {
+    pub name: String,
+    pub schema: Option<String>,
+    pub current_value: Option<i64>,
+    pub increment_by: Option<i64>,
+    pub min_value: Option<i64>,
+    pub max_value: Option<i64>,
+    pub cycle: bool,
+}
+
+/// Definition for creating a new sequence
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewSequenceDefinition {
+    pub name: String,
+    pub schema: Option<String>,
+    pub start_value: Option<i64>,
+    pub increment_by: Option<i64>,
+    pub min_value: Option<i64>,
+    pub max_value: Option<i64>,
+    pub cycle: bool,
+}
+

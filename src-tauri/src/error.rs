@@ -28,6 +28,9 @@ pub enum AppError {
     #[allow(dead_code)]
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Not supported: {0}")]
+    NotSupported(String),
 }
 
 // Implement serialize for Tauri command returns

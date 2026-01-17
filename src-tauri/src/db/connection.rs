@@ -2,10 +2,11 @@ use crate::error::AppResult;
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
     CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
-    DatabaseUser, ExplainResult, IndexInfo, NewTableDefinition, NewViewDefinition,
-    PermissionRequest, PreviewResult, QueryResult, RoleMembershipRequest, StandaloneIndexInfo,
-    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
-    TestConnectionResult, ViewInfo,
+    DatabaseUser, ExplainResult, FunctionInfo, IndexInfo, NewFunctionDefinition,
+    NewProcedureDefinition, NewSequenceDefinition, NewTableDefinition, NewTriggerDefinition,
+    NewViewDefinition, PermissionRequest, PreviewResult, ProcedureInfo, QueryResult,
+    RoleMembershipRequest, SequenceInfo, StandaloneIndexInfo, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, TriggerInfo, ViewInfo,
 };
 use async_trait::async_trait;
 use sqlx::{PgPool, MySqlPool, SqlitePool};
@@ -198,6 +199,115 @@ pub trait DatabaseDriver: Send + Sync {
         pool: PoolRef<'_>,
         index_name: &str,
         table_name: Option<&str>,
+    ) -> AppResult<QueryResult>;
+
+    // ============ Stored Procedure Management Methods ============
+
+    /// Get all stored procedures in the database
+    async fn get_procedures(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<ProcedureInfo>>;
+
+    /// Get DDL for a stored procedure
+    async fn get_procedure_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<String>;
+
+    /// Create a new stored procedure
+    async fn create_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_def: &NewProcedureDefinition,
+    ) -> AppResult<QueryResult>;
+
+    /// Drop a stored procedure
+    async fn drop_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<QueryResult>;
+
+    // ============ Function Management Methods ============
+
+    /// Get all functions in the database
+    async fn get_functions(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<FunctionInfo>>;
+
+    /// Get DDL for a function
+    async fn get_function_ddl(&self, pool: PoolRef<'_>, function_name: &str) -> AppResult<String>;
+
+    /// Create a new function
+    async fn create_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_def: &NewFunctionDefinition,
+    ) -> AppResult<QueryResult>;
+
+    /// Drop a function
+    async fn drop_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_name: &str,
+    ) -> AppResult<QueryResult>;
+
+    // ============ Trigger Management Methods ============
+
+    /// Get all triggers in the database
+    async fn get_triggers(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<TriggerInfo>>;
+
+    /// Get DDL for a trigger
+    async fn get_trigger_ddl(&self, pool: PoolRef<'_>, trigger_name: &str, table_name: Option<&str>) -> AppResult<String>;
+
+    /// Create a new trigger
+    async fn create_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_def: &NewTriggerDefinition,
+    ) -> AppResult<QueryResult>;
+
+    /// Drop a trigger
+    async fn drop_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_name: &str,
+        table_name: Option<&str>,
+    ) -> AppResult<QueryResult>;
+
+    // ============ Sequence Management Methods ============
+
+    /// Get all sequences in the database
+    async fn get_sequences(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<SequenceInfo>>;
+
+    /// Get DDL for a sequence
+    async fn get_sequence_ddl(&self, pool: PoolRef<'_>, sequence_name: &str) -> AppResult<String>;
+
+    /// Create a new sequence
+    async fn create_sequence(
+        &self,
+        pool: PoolRef<'_>,
+        sequence_def: &NewSequenceDefinition,
+    ) -> AppResult<QueryResult>;
+
+    /// Drop a sequence
+    async fn drop_sequence(
+        &self,
+        pool: PoolRef<'_>,
+        sequence_name: &str,
     ) -> AppResult<QueryResult>;
 }
 
