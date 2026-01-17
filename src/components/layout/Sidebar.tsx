@@ -50,6 +50,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
+import { ConnectionFilterBar } from "@/components/connections/ConnectionFilterBar";
+import { GroupManagerDialog } from "@/components/connections/GroupManagerDialog";
+import { AssignGroupDialog } from "@/components/connections/AssignGroupDialog";
+import { ConnectionGroupItem } from "./ConnectionGroupItem";
 import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo, DatabaseType } from "@/types";
@@ -160,6 +164,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     openChangePasswordDialog,
     openCreateRoleDialog,
     openManagePermissionsDialog,
+    openAssignGroupDialog,
   } = useUIStore();
   const { tablesByConnection, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
   const {
@@ -2113,6 +2118,11 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
             Properties
           </ContextMenuItem>
           <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => openAssignGroupDialog(connection.id)} className="gap-2">
+            <FolderTree className="h-4 w-4" />
+            Assign to Group...
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem
             onSelect={handleDelete}
             className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -2346,9 +2356,17 @@ export function Sidebar() {
     sidebarWidth,
     setShowConnectionModal,
     openSettingsWithTab,
+    setShowGroupManagerDialog,
   } = useUIStore();
-  const { connections } = useConnectionsStore();
+  const {
+    connections,
+    groups,
+    getFilteredConnections,
+    toggleGroupCollapse,
+  } = useConnectionsStore();
   const { loadConnections } = useDatabase();
+
+  const filteredConnections = getFilteredConnections();
 
   useEffect(() => {
     loadConnections();
@@ -2381,6 +2399,19 @@ export function Sidebar() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
+                onClick={() => setShowGroupManagerDialog(true)}
+              >
+                <FolderTree className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Manage Groups</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
                 onClick={() => setShowConnectionModal(true)}
               >
                 <Plus className="h-4 w-4" />
@@ -2391,9 +2422,12 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Filter Bar */}
+      <ConnectionFilterBar />
+
       {/* Connections List */}
       <ScrollArea className="flex-1 px-2 py-3">
-        <div className="space-y-1">
+        <div className="space-y-2">
           {connections.length === 0 ? (
             <div className="py-12 text-center animate-fade-in">
               <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
@@ -2410,14 +2444,69 @@ export function Sidebar() {
                 Add Connection
               </Button>
             </div>
-          ) : (
-            connections.map((conn, index) => (
+          ) : groups.length === 0 ? (
+            // No groups - show flat list
+            filteredConnections.map((conn, index) => (
               <div key={conn.id} className={cn(
                 index > 0 && "mt-1 pt-1 border-t border-sidebar-border/50"
               )}>
                 <ConnectionItem connection={conn} />
               </div>
             ))
+          ) : (
+            // Grouped rendering
+            <>
+              {/* Render each group */}
+              {groups
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .map((group) => {
+                  const groupConnections = filteredConnections.filter(
+                    (c) => c.groupId === group.id
+                  );
+                  // Hide empty groups when filtering
+                  if (groupConnections.length === 0) return null;
+                  return (
+                    <ConnectionGroupItem
+                      key={group.id}
+                      group={group}
+                      count={groupConnections.length}
+                      isCollapsed={group.isCollapsed}
+                      onToggleCollapse={() => toggleGroupCollapse(group.id)}
+                    >
+                      {groupConnections.map((conn) => (
+                        <ConnectionItem key={conn.id} connection={conn} />
+                      ))}
+                    </ConnectionGroupItem>
+                  );
+                })}
+
+              {/* Ungrouped connections */}
+              {(() => {
+                const ungroupedConnections = filteredConnections.filter(
+                  (c) => !c.groupId
+                );
+                if (ungroupedConnections.length === 0) return null;
+                return (
+                  <div className="space-y-0.5">
+                    {groups.length > 0 && (
+                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                        Ungrouped
+                      </div>
+                    )}
+                    {ungroupedConnections.map((conn) => (
+                      <ConnectionItem key={conn.id} connection={conn} />
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Show message if no results after filtering */}
+              {filteredConnections.length === 0 && connections.length > 0 && (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground">No connections match your filters</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </ScrollArea>
@@ -2442,6 +2531,10 @@ export function Sidebar() {
           </Tooltip>
         </div>
       </div>
+
+      {/* Group Management Dialogs */}
+      <GroupManagerDialog />
+      <AssignGroupDialog />
     </aside>
   );
 }
