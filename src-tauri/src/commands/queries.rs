@@ -26,8 +26,8 @@ fn quote_single_identifier(identifier: &str, db_type: &DatabaseType) -> String {
             // Oracle uses double quotes
             format!("\"{}\"", identifier.replace('"', "\"\""))
         }
-        DatabaseType::Redis => {
-            // Redis doesn't use SQL identifiers, but return as-is for completeness
+        DatabaseType::Redis | DatabaseType::MongoDB => {
+            // Redis and MongoDB don't use SQL identifiers, but return as-is for completeness
             identifier.to_string()
         }
     }
@@ -58,8 +58,8 @@ fn format_sql_value(v: &serde_json::Value, db_type: &DatabaseType) -> String {
                     // Oracle doesn't have a native boolean type, use 1/0
                     if *b { "1".to_string() } else { "0".to_string() }
                 }
-                DatabaseType::Redis => {
-                    // Redis doesn't use SQL booleans
+                DatabaseType::Redis | DatabaseType::MongoDB => {
+                    // Redis and MongoDB don't use SQL booleans
                     if *b { "true".to_string() } else { "false".to_string() }
                 }
             }

@@ -6,6 +6,7 @@ export interface DatabaseFeatureSupport {
   triggers: boolean;
   sequences: boolean;
   isRedis: boolean;
+  isMongoDB: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         triggers: true,
         sequences: true,
         isRedis: false,
+        isMongoDB: false,
       };
 
     case "mysql":
@@ -32,6 +34,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         triggers: true,
         sequences: false, // MySQL uses AUTO_INCREMENT instead of sequences
         isRedis: false,
+        isMongoDB: false,
       };
 
     case "sqlite":
@@ -41,6 +44,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         triggers: true,
         sequences: false, // SQLite uses AUTOINCREMENT
         isRedis: false,
+        isMongoDB: false,
       };
 
     case "oracle":
@@ -50,6 +54,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         triggers: true,
         sequences: true,
         isRedis: false,
+        isMongoDB: false,
       };
 
     case "mssql":
@@ -59,6 +64,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         triggers: true,
         sequences: true,
         isRedis: false,
+        isMongoDB: false,
       };
 
     case "redis":
@@ -68,6 +74,17 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         triggers: false,
         sequences: false,
         isRedis: true,
+        isMongoDB: false,
+      };
+
+    case "mongodb":
+      return {
+        procedures: false,
+        functions: false,
+        triggers: false,
+        sequences: false,
+        isRedis: false,
+        isMongoDB: true,
       };
 
     default:
@@ -78,6 +95,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         triggers: false,
         sequences: false,
         isRedis: false,
+        isMongoDB: false,
       };
   }
 }

@@ -12,10 +12,32 @@ import {
   Loader2,
   RefreshCw,
   LayoutGrid,
+  Trash2,
+  Eye,
+  Copy,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
-import { useRedis } from "@/hooks";
+import {
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui";
+import { useRedis, useToast } from "@/hooks";
 import { useRedisStore, useQueryStore } from "@/stores";
 import type { RedisKeyType, Tab } from "@/types";
 
@@ -130,11 +152,15 @@ interface RedisConnectionContentProps {
 }
 
 export function RedisConnectionContent({ connectionId }: RedisConnectionContentProps) {
-  const { scanKeys, getServerInfo } = useRedis();
+  const { scanKeys, getServerInfo, deleteKey } = useRedis();
   const { addTab, tabs, setActiveTab } = useQueryStore();
   const { keysByConnection, loadingKeys } = useRedisStore();
+  const { toast } = useToast();
 
   const keys = keysByConnection[connectionId] || [];
+
+  // Dialog states
+  const [deleteKeyDialog, setDeleteKeyDialog] = useState<string | null>(null);
 
   // Group keys by type
   const groupedKeys = keys.reduce<Record<RedisKeyType, typeof keys>>(
@@ -222,94 +248,244 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
     }
   };
 
+  const handleCopyKeyName = (key: string) => {
+    navigator.clipboard.writeText(key);
+    toast({
+      title: "Copied",
+      description: `"${key}" copied to clipboard.`,
+    });
+  };
+
+  const handleDeleteKey = async (key: string) => {
+    const success = await deleteKey(connectionId, key);
+    if (success) {
+      toast({
+        title: "Key deleted",
+        description: `Key "${key}" has been deleted.`,
+      });
+      // Refresh keys
+      scanKeys(connectionId, "*", 100, 0, false);
+    } else {
+      toast({
+        title: "Failed to delete key",
+        description: `Could not delete key "${key}".`,
+        variant: "destructive",
+      });
+    }
+    setDeleteKeyDialog(null);
+  };
+
   return (
     <>
       {/* Browser - Full data view */}
-      <TreeItem
-        label="Browser"
-        icon={<LayoutGrid className="h-3.5 w-3.5 text-muted-foreground" />}
-        level={1}
-        onClick={handleOpenBrowser}
-      />
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <TreeItem
+              label="Browser"
+              icon={<LayoutGrid className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={1}
+              onClick={handleOpenBrowser}
+            />
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onSelect={handleOpenBrowser} className="gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Open Browser
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
       {/* Keys Section */}
-      <TreeItem
-        label="Keys"
-        icon={<Hash className="h-3.5 w-3.5 text-muted-foreground" />}
-        level={1}
-        defaultOpen={true}
-        count={keys.length}
-        rightElement={
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRefreshKeys();
-                }}
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", loadingKeys && "animate-spin")} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Refresh keys</TooltipContent>
-          </Tooltip>
-        }
-      >
-        {loadingKeys ? (
-          <div className="ml-8 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Loading...</span>
-          </div>
-        ) : (
-          Object.entries(groupedKeys).map(([type, typeKeys]) => (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
             <TreeItem
-              key={type}
-              label={KEY_TYPE_LABELS[type as RedisKeyType]}
-              icon={KEY_TYPE_ICONS[type as RedisKeyType]}
-              level={2}
-              count={typeKeys.length}
-              defaultOpen={false}
+              label="Keys"
+              icon={<Hash className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={1}
+              defaultOpen={true}
+              count={keys.length}
+              rightElement={
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRefreshKeys();
+                      }}
+                    >
+                      <RefreshCw className={cn("h-3.5 w-3.5", loadingKeys && "animate-spin")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Refresh keys</TooltipContent>
+                </Tooltip>
+              }
             >
-              {typeKeys.slice(0, 50).map((keyInfo) => (
-                <TreeItem
-                  key={keyInfo.key}
-                  label={keyInfo.key}
-                  icon={KEY_TYPE_ICONS[keyInfo.keyType]}
-                  level={3}
-                  onClick={() => handleKeyClick(keyInfo.key)}
-                />
-              ))}
-              {typeKeys.length > 50 && (
-                <div className="ml-12 py-1 text-xs text-muted-foreground">
-                  + {typeKeys.length - 50} more
+              {loadingKeys ? (
+                <div className="ml-8 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Loading...</span>
                 </div>
+              ) : (
+                Object.entries(groupedKeys).map(([type, typeKeys]) => (
+                  <ContextMenu key={type}>
+                    <ContextMenuTrigger asChild>
+                      <div>
+                        <TreeItem
+                          label={KEY_TYPE_LABELS[type as RedisKeyType]}
+                          icon={KEY_TYPE_ICONS[type as RedisKeyType]}
+                          level={2}
+                          count={typeKeys.length}
+                          defaultOpen={false}
+                        >
+                          {typeKeys.slice(0, 50).map((keyInfo) => (
+                            <ContextMenu key={keyInfo.key}>
+                              <ContextMenuTrigger asChild>
+                                <div>
+                                  <TreeItem
+                                    label={keyInfo.key}
+                                    icon={KEY_TYPE_ICONS[keyInfo.keyType]}
+                                    level={3}
+                                    onClick={() => handleKeyClick(keyInfo.key)}
+                                    rightElement={
+                                      keyInfo.ttl !== undefined && keyInfo.ttl > 0 ? (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                              <Clock className="h-3 w-3" />
+                                              <span>{keyInfo.ttl}s</span>
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent>TTL: {keyInfo.ttl} seconds</TooltipContent>
+                                        </Tooltip>
+                                      ) : undefined
+                                    }
+                                  />
+                                </div>
+                              </ContextMenuTrigger>
+                              <ContextMenuContent className="w-48">
+                                <ContextMenuItem
+                                  onSelect={() => handleKeyClick(keyInfo.key)}
+                                  className="gap-2"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  View Value
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  onSelect={() => handleCopyKeyName(keyInfo.key)}
+                                  className="gap-2"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                  Copy Key Name
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  onSelect={() => setDeleteKeyDialog(keyInfo.key)}
+                                  className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete Key
+                                </ContextMenuItem>
+                              </ContextMenuContent>
+                            </ContextMenu>
+                          ))}
+                          {typeKeys.length > 50 && (
+                            <div className="ml-12 py-1 text-xs text-muted-foreground">
+                              + {typeKeys.length - 50} more
+                            </div>
+                          )}
+                        </TreeItem>
+                      </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-48">
+                      <ContextMenuItem onSelect={handleRefreshKeys} className="gap-2">
+                        <RefreshCw className="h-4 w-4" />
+                        Refresh Keys
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                ))
+              )}
+              {!loadingKeys && keys.length === 0 && (
+                <div className="ml-8 py-2 text-xs text-muted-foreground">No keys found</div>
               )}
             </TreeItem>
-          ))
-        )}
-        {!loadingKeys && keys.length === 0 && (
-          <div className="ml-8 py-2 text-xs text-muted-foreground">No keys found</div>
-        )}
-      </TreeItem>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onSelect={handleRefreshKeys} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh Keys
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
       {/* CLI Section */}
-      <TreeItem
-        label="CLI"
-        icon={<Terminal className="h-3.5 w-3.5 text-muted-foreground" />}
-        level={1}
-        onClick={handleOpenCli}
-      />
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <TreeItem
+              label="CLI"
+              icon={<Terminal className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={1}
+              onClick={handleOpenCli}
+            />
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onSelect={handleOpenCli} className="gap-2">
+            <Terminal className="h-4 w-4" />
+            Open CLI
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
       {/* Server Info Section */}
-      <TreeItem
-        label="Server Info"
-        icon={<ServerCog className="h-3.5 w-3.5 text-muted-foreground" />}
-        level={1}
-        onClick={handleOpenServerInfo}
-      />
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <TreeItem
+              label="Server Info"
+              icon={<ServerCog className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={1}
+              onClick={handleOpenServerInfo}
+            />
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onSelect={handleOpenServerInfo} className="gap-2">
+            <ServerCog className="h-4 w-4" />
+            View Server Info
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {/* Delete Key Confirmation Dialog */}
+      <AlertDialog open={!!deleteKeyDialog} onOpenChange={() => setDeleteKeyDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Key</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the key "{deleteKeyDialog}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteKeyDialog && handleDeleteKey(deleteKeyDialog)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Key
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -50,6 +50,11 @@ oracle = { version = "0.6", features = ["chrono"] }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 deadpool-redis = "0.18"
 
+# MongoDB driver
+mongodb = "3"
+bson = { version = "2", features = ["chrono-0_4"] }
+urlencoding = "2"
+
 # CSV parsing
 csv = "1.3"
 

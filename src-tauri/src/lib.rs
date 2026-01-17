@@ -6,7 +6,7 @@ pub mod oracle_client;
 mod ssh;
 mod storage;
 
-use commands::{connections, functions, import, indexes, oracle, procedures, queries, redis, sequences, tables, triggers, users, utils, views};
+use commands::{connections, functions, import, indexes, mongodb, oracle, procedures, queries, redis, sequences, tables, triggers, users, utils, views};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -143,6 +143,30 @@ pub fn run() {
             redis::redis_flush_db,
             redis::redis_pubsub_channels,
             redis::redis_pubsub_publish,
+            // MongoDB commands
+            mongodb::mongodb_list_databases,
+            mongodb::mongodb_get_database_stats,
+            mongodb::mongodb_drop_database,
+            mongodb::mongodb_list_collections,
+            mongodb::mongodb_get_collection_stats,
+            mongodb::mongodb_create_collection,
+            mongodb::mongodb_drop_collection,
+            mongodb::mongodb_rename_collection,
+            mongodb::mongodb_find_documents,
+            mongodb::mongodb_insert_document,
+            mongodb::mongodb_insert_documents,
+            mongodb::mongodb_update_document,
+            mongodb::mongodb_update_documents,
+            mongodb::mongodb_delete_document,
+            mongodb::mongodb_delete_documents,
+            mongodb::mongodb_get_document_by_id,
+            mongodb::mongodb_replace_document,
+            mongodb::mongodb_list_indexes,
+            mongodb::mongodb_create_index,
+            mongodb::mongodb_drop_index,
+            mongodb::mongodb_aggregate,
+            mongodb::mongodb_get_server_info,
+            mongodb::mongodb_run_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -392,46 +392,64 @@ Support queries returning multiple result sets.
 
 ### 15. MongoDB Driver
 
-**Status:** Types defined, not implemented
+**Status:** Implemented
 **Impact:** High
 **Effort:** High
 
 **Implementation Tasks:**
-- [ ] Add `mongodb` Rust crate dependency
-- [ ] Implement `DatabaseDriver` trait for MongoDB
-- [ ] Collection listing (equivalent to tables)
-- [ ] Document querying with MongoDB query syntax
-- [ ] Document CRUD operations
-- [ ] Index management
-- [ ] Aggregation pipeline support
-- [ ] Schema inference for documents
-- [ ] Connection string parsing
-- [ ] Authentication (SCRAM, X.509)
+- [x] Add `mongodb` Rust crate dependency
+- [x] Implement `DatabaseDriver` trait for MongoDB
+- [x] Collection listing (equivalent to tables)
+- [x] Document querying with MongoDB query syntax
+- [x] Document CRUD operations
+- [x] Index management
+- [x] Aggregation pipeline support
+- [x] Schema inference for documents
+- [x] Connection string parsing (standard and Atlas SRV)
+- [x] Authentication (SCRAM-SHA-256)
+
+**Files Created:**
+- `src-tauri/src/db/mongodb.rs` - Core MongoDB driver (~1100 lines)
+- `src-tauri/src/commands/mongodb.rs` - 25+ Tauri commands
+- `src/types/mongodb.ts` - TypeScript interfaces
+- `src/stores/mongodb.ts` - Zustand store
+- `src/hooks/useMongoDB.ts` - React hook wrapper
+- `src/components/mongodb/` - UI components (MongoConnectionContent, MongoBrowser, MongoDocumentViewer, MongoDocumentEditor, MongoShell, MongoServerInfo)
+
+**Features Implemented:**
+- Database and collection browsing with tree view
+- Document browser with filter, sort, and pagination
+- Document CRUD operations (view, insert, edit, delete)
+- Index management (list, create, drop)
+- Aggregation pipeline support
+- MongoDB Shell for raw command execution
+- Server info dashboard with connection and storage stats
+- Support for both `mongodb://` and `mongodb+srv://` (Atlas) connection strings
 
 ---
 
 ### 16. Redis Driver
 
-**Status:** Types defined, not implemented
+**Status:** Implemented
 **Impact:** Medium
 **Effort:** Medium
 
 **Implementation Tasks:**
-- [ ] Add `redis` Rust crate dependency
-- [ ] Key listing with pattern matching
-- [ ] Key type detection
-- [ ] Value viewing/editing per type:
-  - [ ] Strings
-  - [ ] Lists
-  - [ ] Sets
-  - [ ] Sorted Sets
-  - [ ] Hashes
-  - [ ] Streams
-- [ ] TTL management
-- [ ] Key deletion
-- [ ] Redis CLI mode
-- [ ] Pub/Sub viewer
-- [ ] Memory usage statistics
+- [x] Add `redis` Rust crate dependency
+- [x] Key listing with pattern matching
+- [x] Key type detection
+- [x] Value viewing/editing per type:
+  - [x] Strings
+  - [x] Lists
+  - [x] Sets
+  - [x] Sorted Sets
+  - [x] Hashes
+  - [x] Streams
+- [x] TTL management
+- [x] Key deletion
+- [x] Redis CLI mode
+- [x] Pub/Sub viewer
+- [x] Memory usage statistics
 
 ---
 
@@ -795,10 +813,10 @@ Location: `src-tauri/src/commands/queries.rs:142`
 | ~~P2~~ | ~~Table Creation UI~~ | ~~High~~ | ~~Medium~~ | **Implemented** |
 | ~~P2~~ | ~~Query Bookmarks~~ | ~~Medium~~ | ~~Low~~ | **Implemented** |
 | P2 | Global Schema Search | Medium | Low | Partial |
-| P2 | MongoDB Driver | High | High | Not Started |
+| ~~P2~~ | ~~MongoDB Driver~~ | ~~High~~ | ~~High~~ | **Implemented** |
 | P3 | Customizable Keybindings | Medium | Low | Not Started |
 | P3 | E2E Tests | High | High | Not Started |
-| P4 | Redis Driver | Medium | Medium | Not Started |
+| ~~P4~~ | ~~Redis Driver~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 | ~~P4~~ | ~~Oracle Driver~~ | ~~Medium~~ | ~~High~~ | **Implemented** |
 | ~~P2~~ | ~~View Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 | ~~P2~~ | ~~Index Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
@@ -826,16 +844,18 @@ Location: `src-tauri/src/commands/queries.rs:142`
 - ✅ Query History Enhancements
 - ✅ Data Grid Enhancements
 
-### v0.4.0 - Query Intelligence
+### v0.4.0 - NoSQL Support ✅ RELEASED
+- ✅ MongoDB Driver (full implementation)
+- ✅ Redis Driver (full implementation)
+- ✅ Document Viewer/Editor
+- ✅ MongoDB Shell & Aggregation Pipeline
+- ✅ Redis CLI & Pub/Sub
+
+### v0.5.0 - Query Intelligence
 - Query Validation
 - Performance Warnings
 - Global Schema Search
 - Parameterized Queries Improvement
-
-### v0.5.0 - NoSQL Support
-- MongoDB Driver
-- Redis Driver
-- Document Viewer
 
 ### v0.6.0 - Advanced Features
 - Stored Procedures Management
@@ -852,4 +872,4 @@ Location: `src-tauri/src/commands/queries.rs:142`
 ---
 
 *Last updated: January 17, 2026*
-*Generated from codebase analysis - v0.3.5*
+*Generated from codebase analysis - v0.4.0*

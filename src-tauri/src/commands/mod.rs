@@ -2,6 +2,7 @@ pub mod connections;
 pub mod functions;
 pub mod import;
 pub mod indexes;
+pub mod mongodb;
 pub mod oracle;
 pub mod procedures;
 pub mod queries;
