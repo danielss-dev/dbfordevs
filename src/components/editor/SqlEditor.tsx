@@ -5,6 +5,12 @@ import { createSqlCompletionProvider } from "./sql-completion-provider";
 import { registerCustomThemes, getMonacoTheme } from "./monaco-themes";
 import { formatSql, mapDatabaseTypeToDialect, type SqlFormatterOptions } from "@/lib/sql-formatter";
 import type { TableInfo, TableSchema } from "@/types";
+import { useThemesStore } from "@/stores/themes";
+
+/**
+ * Built-in theme IDs for SqlEditor
+ */
+type BuiltInEditorTheme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher" | "solarized-dark" | "solarized-light" | "one-dark" | "high-contrast";
 
 interface SqlEditorProps {
   value: string;
@@ -16,7 +22,7 @@ interface SqlEditorProps {
   onFormat?: () => void;
   tables?: TableInfo[];
   schemas?: Record<string, TableSchema>;
-  theme?: "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher";
+  theme?: BuiltInEditorTheme | `custom:${string}`;
   databaseType?: string;
   formatterOptions?: SqlFormatterOptions;
   readOnly?: boolean;
@@ -109,6 +115,12 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
 
   // Determine Monaco theme based on app theme
   const monacoTheme = useMemo(() => {
+    // For custom themes, look up the base theme
+    if (theme?.startsWith("custom:")) {
+      const customThemeId = theme.replace("custom:", "");
+      const customTheme = useThemesStore.getState().getThemeById(customThemeId);
+      return getMonacoTheme(theme, customTheme?.baseTheme);
+    }
     return getMonacoTheme(theme);
   }, [theme]);
 

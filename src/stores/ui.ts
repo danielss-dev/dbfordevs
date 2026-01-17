@@ -2,17 +2,29 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PendingChange } from "@/types";
 import type { KeywordCaseOption, IndentStyle } from "@/lib/sql-formatter";
+import { applyCustomTheme, removeCustomTheme } from "@/lib/themes/utils";
+import { useThemesStore } from "./themes";
 
 /**
- * Theme type - all built-in themes:
+ * Built-in theme IDs
+ */
+type BuiltInTheme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher" | "solarized-dark" | "solarized-light" | "one-dark" | "high-contrast";
+
+/**
+ * Theme type - built-in themes or custom theme reference (custom:${id})
  * - "light": Default light theme
  * - "dark": Default dark theme
  * - "system": Follows OS preference
  * - "nordic-dark": Arctic, north-bluish dark theme based on Nord
  * - "nordic-light": Arctic, north-bluish light theme based on Nord
  * - "slasher": Near-black with orange accents
+ * - "solarized-dark": Warm, precision-crafted dark theme
+ * - "solarized-light": Warm, precision-crafted light theme
+ * - "one-dark": Atom-inspired dark theme
+ * - "high-contrast": WCAG AAA compliant accessibility theme
+ * - "custom:${id}": Custom theme by ID
  */
-type Theme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher";
+type Theme = BuiltInTheme | `custom:${string}`;
 type AppStyle = "developer" | "web";
 
 interface EditorSettings {
@@ -232,8 +244,36 @@ export const useUIStore = create<UIState>()(
       setTheme: (theme) => {
         const root = document.documentElement;
 
+        // Check if it's a custom theme
+        if (theme.startsWith("custom:")) {
+          const customThemeId = theme.replace("custom:", "");
+          const customTheme = useThemesStore.getState().getThemeById(customThemeId);
+
+          if (customTheme) {
+            applyCustomTheme(customTheme);
+            set({ theme });
+            return;
+          } else {
+            // Custom theme not found, fall back to dark
+            console.warn(`Custom theme ${customThemeId} not found, falling back to dark`);
+            theme = "dark" as Theme;
+          }
+        }
+
+        // Remove custom theme if switching to built-in
+        removeCustomTheme();
+
         // Remove all theme classes
-        root.classList.remove("dark", "theme-nordic-dark", "theme-nordic-light", "theme-slasher");
+        root.classList.remove(
+          "dark",
+          "theme-nordic-dark",
+          "theme-nordic-light",
+          "theme-slasher",
+          "theme-solarized-dark",
+          "theme-solarized-light",
+          "theme-one-dark",
+          "theme-high-contrast"
+        );
 
         // Apply theme-specific class
         if (theme === "nordic-dark") {
@@ -242,6 +282,14 @@ export const useUIStore = create<UIState>()(
           root.classList.add("theme-nordic-light");
         } else if (theme === "slasher") {
           root.classList.add("theme-slasher");
+        } else if (theme === "solarized-dark") {
+          root.classList.add("theme-solarized-dark");
+        } else if (theme === "solarized-light") {
+          root.classList.add("theme-solarized-light");
+        } else if (theme === "one-dark") {
+          root.classList.add("theme-one-dark");
+        } else if (theme === "high-contrast") {
+          root.classList.add("theme-high-contrast");
         } else if (theme === "system") {
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           root.classList.toggle("dark", prefersDark);
