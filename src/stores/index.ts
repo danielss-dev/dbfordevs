@@ -17,4 +17,5 @@ export * from "./triggers";
 export * from "./sequences";
 export * from "./redis";
 export * from "./mongodb";
+export * from "./themes";
 

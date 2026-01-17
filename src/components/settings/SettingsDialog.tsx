@@ -13,11 +13,12 @@ import {
   Input,
   Checkbox,
 } from "@/components/ui";
-import { useUIStore, useUpdaterStore, useQueryStore } from "@/stores";
+import { useUIStore, useUpdaterStore, useQueryStore, useThemesStore } from "@/stores";
 import { useToast } from "@/hooks/useToast";
 import { open } from "@tauri-apps/plugin-shell";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState, useMemo } from "react";
+import { ThemeManagerDialog } from "@/components/themes";
 import {
   Monitor,
   Moon,
@@ -40,6 +41,9 @@ import {
   RefreshCw,
   Table,
   Zap,
+  Eye,
+  Palette,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAIStore } from "@/lib/ai/store";
@@ -291,10 +295,12 @@ export function SettingsDialog() {
     settingsDialogTab,
   } = useUIStore();
   const { toast } = useToast();
+  const { customThemes } = useThemesStore();
   const [version, setVersion] = useState<string>("");
   const [activeTab, setActiveTab] = useState<TabValue>(settingsDialogTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [showThemeManager, setShowThemeManager] = useState(false);
 
   useEffect(() => {
     getVersion().then(setVersion).catch(console.error);
@@ -323,9 +329,9 @@ export function SettingsDialog() {
   }, [showSettingsDialog, searchOpen]);
 
   const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme as "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher");
+    setTheme(newTheme as any);
 
-    // Get label from built-in themes
+    // Get label from built-in themes or custom themes
     const builtInLabels: Record<string, string> = {
       system: "System",
       light: "Light",
@@ -333,9 +339,20 @@ export function SettingsDialog() {
       "nordic-dark": "Nordic Dark",
       "nordic-light": "Nordic Light",
       slasher: "Slasher",
+      "solarized-dark": "Solarized Dark",
+      "solarized-light": "Solarized Light",
+      "one-dark": "One Dark",
+      "high-contrast": "High Contrast",
     };
 
-    const label = builtInLabels[newTheme] || newTheme;
+    let label = builtInLabels[newTheme];
+
+    // Check if it's a custom theme
+    if (newTheme.startsWith("custom:")) {
+      const customThemeId = newTheme.replace("custom:", "");
+      const customTheme = customThemes.find((t) => t.id === customThemeId);
+      label = customTheme?.name || "Custom Theme";
+    }
 
     toast({
       title: "Theme updated",
@@ -403,6 +420,7 @@ export function SettingsDialog() {
   }, [searchQuery, filteredTabs, activeTab]);
 
   return (
+    <>
     <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
       <DialogContent className="max-w-5xl gap-0 p-0 overflow-hidden sm:rounded-xl h-[700px]">
         <div className="flex h-full w-full flex-col overflow-hidden">
@@ -835,7 +853,7 @@ export function SettingsDialog() {
                           description="Choose a color theme for the interface."
                         >
                           <Select value={theme} onValueChange={handleThemeChange}>
-                            <SelectTrigger className="w-44">
+                            <SelectTrigger className="w-48">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -860,14 +878,34 @@ export function SettingsDialog() {
                               {/* Nordic Themes */}
                               <SelectItem value="nordic-dark">
                                 <div className="flex items-center gap-2">
-                                  <Moon className="h-4 w-4 text-primary" />
+                                  <Moon className="h-4 w-4 text-[#88C0D0]" />
                                   <span>Nordic Dark</span>
                                 </div>
                               </SelectItem>
                               <SelectItem value="nordic-light">
                                 <div className="flex items-center gap-2">
-                                  <Sun className="h-4 w-4 text-primary" />
+                                  <Sun className="h-4 w-4 text-[#5E81AC]" />
                                   <span>Nordic Light</span>
+                                </div>
+                              </SelectItem>
+                              {/* Solarized Themes */}
+                              <SelectItem value="solarized-dark">
+                                <div className="flex items-center gap-2">
+                                  <Moon className="h-4 w-4 text-[#268bd2]" />
+                                  <span>Solarized Dark</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="solarized-light">
+                                <div className="flex items-center gap-2">
+                                  <Sun className="h-4 w-4 text-[#b58900]" />
+                                  <span>Solarized Light</span>
+                                </div>
+                              </SelectItem>
+                              {/* One Dark Theme */}
+                              <SelectItem value="one-dark">
+                                <div className="flex items-center gap-2">
+                                  <Palette className="h-4 w-4 text-[#61afef]" />
+                                  <span>One Dark</span>
                                 </div>
                               </SelectItem>
                               {/* Slasher Theme */}
@@ -877,6 +915,34 @@ export function SettingsDialog() {
                                   <span>Slasher</span>
                                 </div>
                               </SelectItem>
+                              {/* High Contrast Theme */}
+                              <SelectItem value="high-contrast">
+                                <div className="flex items-center gap-2">
+                                  <Eye className="h-4 w-4 text-yellow-400" />
+                                  <span>High Contrast</span>
+                                </div>
+                              </SelectItem>
+                              {/* Custom Themes */}
+                              {customThemes.length > 0 && (
+                                <>
+                                  <Separator className="my-1" />
+                                  <div className="px-2 py-1 text-xs text-muted-foreground">
+                                    Custom Themes
+                                  </div>
+                                  {customThemes.map((t) => (
+                                    <SelectItem key={t.id} value={`custom:${t.id}`}>
+                                      <div className="flex items-center gap-2">
+                                        {t.baseTheme === "dark" ? (
+                                          <Moon className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                          <Sun className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <span>{t.name}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </>
+                              )}
                             </SelectContent>
                           </Select>
                         </SettingRow>
@@ -892,6 +958,50 @@ export function SettingsDialog() {
                             }
                           />
                         </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Custom Themes"
+                          description="Create, import, and manage custom color themes."
+                        >
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowThemeManager(true)}
+                          >
+                            <Wrench className="h-4 w-4 mr-2" />
+                            Manage Themes
+                          </Button>
+                        </SettingRow>
+                        {customThemes.length > 0 && (
+                          <>
+                            <Separator />
+                            <div className="py-3 px-1">
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Your custom themes ({customThemes.length}):
+                              </p>
+                              <div className="flex flex-wrap gap-1">
+                                {customThemes.slice(0, 5).map((t) => (
+                                  <span
+                                    key={t.id}
+                                    className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-muted"
+                                  >
+                                    {t.baseTheme === "dark" ? (
+                                      <Moon className="h-3 w-3 mr-1 text-muted-foreground" />
+                                    ) : (
+                                      <Sun className="h-3 w-3 mr-1 text-muted-foreground" />
+                                    )}
+                                    {t.name}
+                                  </span>
+                                ))}
+                                {customThemes.length > 5 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    +{customThemes.length - 5} more
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1151,5 +1261,12 @@ export function SettingsDialog() {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Theme Manager Dialog */}
+    <ThemeManagerDialog
+      open={showThemeManager}
+      onOpenChange={setShowThemeManager}
+    />
+    </>
   );
 }

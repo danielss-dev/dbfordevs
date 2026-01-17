@@ -10,6 +10,9 @@ export * from "./redis";
 // Re-export MongoDB types
 export * from "./mongodb";
 
+// Re-export theme types
+export * from "./theme";
+
 // Database types
 export type DatabaseType =
   | "postgresql"

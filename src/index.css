@@ -380,6 +380,321 @@
     --db-cassandra: #4CC8E8;
   }
 
+  /* Solarized Dark Theme - Warm, precision-crafted dark theme */
+  /* Based on https://ethanschoonover.com/solarized/ */
+  .theme-solarized-dark {
+    /* Background colors - Base03/Base02 */
+    --background: 192 100% 7%;
+    --foreground: 44 10% 65%;
+
+    /* Card colors - Base02 */
+    --card: 192 81% 10%;
+    --card-foreground: 44 10% 65%;
+
+    /* Popover colors */
+    --popover: 192 81% 10%;
+    --popover-foreground: 44 10% 65%;
+
+    /* Primary - Blue */
+    --primary: 205 69% 49%;
+    --primary-foreground: 192 100% 7%;
+
+    /* Secondary - Base01 */
+    --secondary: 194 25% 24%;
+    --secondary-foreground: 44 10% 65%;
+
+    /* Muted colors */
+    --muted: 194 25% 18%;
+    --muted-foreground: 186 8% 55%;
+
+    /* Accent - Cyan */
+    --accent: 175 59% 40%;
+    --accent-foreground: 192 100% 7%;
+
+    /* Destructive - Red */
+    --destructive: 1 71% 52%;
+    --destructive-foreground: 44 10% 65%;
+
+    /* Border and input */
+    --border: 192 81% 14%;
+    --input: 192 81% 14%;
+    --ring: 205 69% 49%;
+
+    /* Semantic colors */
+    --success: 68 100% 30%;
+    --warning: 45 100% 35%;
+    --info: 175 59% 40%;
+
+    /* Table Specifics */
+    --table-header-bg: 192 100% 5%;
+    --table-row-odd: 192 100% 7%;
+    --table-row-even: 192 81% 10%;
+    --table-row-hover: 192 81% 14%;
+
+    /* Text Hierarchy */
+    --text-primary: 44 10% 65%;
+    --text-secondary: 186 8% 55%;
+    --text-dim: 194 14% 40%;
+
+    /* Sidebar */
+    --sidebar-background: 192 100% 5%;
+    --sidebar-foreground: 44 10% 65%;
+    --sidebar-primary: 205 69% 49%;
+    --sidebar-primary-foreground: 192 100% 7%;
+    --sidebar-accent: 192 81% 12%;
+    --sidebar-accent-foreground: 44 10% 65%;
+    --sidebar-border: 192 81% 12%;
+    --sidebar-ring: 205 69% 49%;
+
+    /* Database Icon Colors */
+    --db-postgresql: #6B8DD6;
+    --db-mysql: #6BA0C2;
+    --db-mariadb: #5DBDAD;
+    --db-sqlite: #6EB0D9;
+    --db-mssql: #E85450;
+    --db-oracle: #FF5544;
+    --db-mongodb: #5FBD68;
+    --db-redis: #FF6B60;
+    --db-cockroachdb: #8B7CF6;
+    --db-cassandra: #35B5D6;
+  }
+
+  /* Solarized Light Theme - Warm, precision-crafted light theme */
+  .theme-solarized-light {
+    /* Background colors - Base3/Base2 */
+    --background: 44 87% 94%;
+    --foreground: 192 81% 14%;
+
+    /* Card colors - Base2 */
+    --card: 44 100% 96%;
+    --card-foreground: 192 81% 14%;
+
+    /* Popover colors */
+    --popover: 44 100% 96%;
+    --popover-foreground: 192 81% 14%;
+
+    /* Primary - Blue */
+    --primary: 205 69% 49%;
+    --primary-foreground: 44 87% 94%;
+
+    /* Secondary - Base2 */
+    --secondary: 44 87% 88%;
+    --secondary-foreground: 192 81% 14%;
+
+    /* Muted colors */
+    --muted: 44 87% 90%;
+    --muted-foreground: 194 14% 40%;
+
+    /* Accent - Cyan */
+    --accent: 175 59% 40%;
+    --accent-foreground: 44 87% 94%;
+
+    /* Destructive - Red */
+    --destructive: 1 71% 52%;
+    --destructive-foreground: 44 87% 94%;
+
+    /* Border and input */
+    --border: 44 50% 80%;
+    --input: 44 50% 80%;
+    --ring: 205 69% 49%;
+
+    /* Semantic colors */
+    --success: 68 100% 30%;
+    --warning: 45 100% 35%;
+    --info: 175 59% 40%;
+
+    /* Table Specifics */
+    --table-header-bg: 44 87% 90%;
+    --table-row-odd: 44 87% 94%;
+    --table-row-even: 44 100% 96%;
+    --table-row-hover: 44 87% 88%;
+
+    /* Text Hierarchy */
+    --text-primary: 192 81% 14%;
+    --text-secondary: 194 14% 40%;
+    --text-dim: 186 8% 55%;
+
+    /* Sidebar */
+    --sidebar-background: 44 87% 92%;
+    --sidebar-foreground: 192 81% 14%;
+    --sidebar-primary: 205 69% 49%;
+    --sidebar-primary-foreground: 44 87% 94%;
+    --sidebar-accent: 44 87% 86%;
+    --sidebar-accent-foreground: 192 81% 14%;
+    --sidebar-border: 44 50% 80%;
+    --sidebar-ring: 205 69% 49%;
+
+    /* Database Icon Colors - Solarized Light (original brand colors) */
+    --db-postgresql: #4169E1;
+    --db-mysql: #4479A1;
+    --db-mariadb: #003545;
+    --db-sqlite: #003B57;
+    --db-mssql: #CC2927;
+    --db-oracle: #F80000;
+    --db-mongodb: #47A248;
+    --db-redis: #FF4438;
+    --db-cockroachdb: #6933FF;
+    --db-cassandra: #1287B1;
+  }
+
+  /* One Dark Theme - Atom-inspired dark theme */
+  /* Based on Atom One Dark */
+  .theme-one-dark {
+    /* Background colors */
+    --background: 220 13% 18%;
+    --foreground: 220 14% 71%;
+
+    /* Card colors */
+    --card: 220 13% 21%;
+    --card-foreground: 220 14% 71%;
+
+    /* Popover colors */
+    --popover: 220 13% 21%;
+    --popover-foreground: 220 14% 71%;
+
+    /* Primary - Blue */
+    --primary: 207 82% 66%;
+    --primary-foreground: 220 13% 18%;
+
+    /* Secondary */
+    --secondary: 220 13% 26%;
+    --secondary-foreground: 220 14% 71%;
+
+    /* Muted colors */
+    --muted: 220 13% 24%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent - Cyan */
+    --accent: 187 47% 55%;
+    --accent-foreground: 220 13% 18%;
+
+    /* Destructive - Red */
+    --destructive: 355 65% 65%;
+    --destructive-foreground: 220 14% 71%;
+
+    /* Border and input */
+    --border: 220 13% 26%;
+    --input: 220 13% 26%;
+    --ring: 207 82% 66%;
+
+    /* Semantic colors */
+    --success: 95 38% 62%;
+    --warning: 39 67% 69%;
+    --info: 187 47% 55%;
+
+    /* Table Specifics */
+    --table-header-bg: 220 13% 16%;
+    --table-row-odd: 220 13% 18%;
+    --table-row-even: 220 13% 21%;
+    --table-row-hover: 220 13% 26%;
+
+    /* Text Hierarchy */
+    --text-primary: 220 14% 71%;
+    --text-secondary: 220 9% 55%;
+    --text-dim: 220 9% 40%;
+
+    /* Sidebar */
+    --sidebar-background: 220 13% 15%;
+    --sidebar-foreground: 220 14% 71%;
+    --sidebar-primary: 207 82% 66%;
+    --sidebar-primary-foreground: 220 13% 18%;
+    --sidebar-accent: 220 13% 22%;
+    --sidebar-accent-foreground: 220 14% 71%;
+    --sidebar-border: 220 13% 22%;
+    --sidebar-ring: 207 82% 66%;
+
+    /* Database Icon Colors - One Dark */
+    --db-postgresql: #61AFEF;
+    --db-mysql: #56B6C2;
+    --db-mariadb: #56B6C2;
+    --db-sqlite: #61AFEF;
+    --db-mssql: #E06C75;
+    --db-oracle: #E06C75;
+    --db-mongodb: #98C379;
+    --db-redis: #E06C75;
+    --db-cockroachdb: #C678DD;
+    --db-cassandra: #56B6C2;
+  }
+
+  /* High Contrast Theme - WCAG AAA compliant (7:1 contrast ratio) */
+  /* Accessibility-focused theme for users with visual impairments */
+  .theme-high-contrast {
+    /* Pure black background with pure white text */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+
+    /* Card colors */
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
+
+    /* Popover colors */
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Primary - High contrast yellow */
+    --primary: 50 100% 50%;
+    --primary-foreground: 0 0% 0%;
+
+    /* Secondary */
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted colors */
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 75%;
+
+    /* Accent - High contrast cyan */
+    --accent: 180 100% 45%;
+    --accent-foreground: 0 0% 0%;
+
+    /* Destructive - High contrast red */
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border and input - High visibility */
+    --border: 0 0% 40%;
+    --input: 0 0% 20%;
+    --ring: 50 100% 50%;
+
+    /* Semantic colors - High contrast versions */
+    --success: 120 100% 40%;
+    --warning: 50 100% 50%;
+    --info: 180 100% 45%;
+
+    /* Table Specifics */
+    --table-header-bg: 0 0% 8%;
+    --table-row-odd: 0 0% 0%;
+    --table-row-even: 0 0% 5%;
+    --table-row-hover: 0 0% 15%;
+
+    /* Text Hierarchy - High contrast */
+    --text-primary: 0 0% 100%;
+    --text-secondary: 0 0% 85%;
+    --text-dim: 0 0% 70%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 3%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 50 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 30%;
+    --sidebar-ring: 50 100% 50%;
+
+    /* Database Icon Colors - High Contrast (bright, distinguishable colors) */
+    --db-postgresql: #6B9FFF;
+    --db-mysql: #00D4FF;
+    --db-mariadb: #00FFCC;
+    --db-sqlite: #80D4FF;
+    --db-mssql: #FF6B6B;
+    --db-oracle: #FF4444;
+    --db-mongodb: #6BFF6B;
+    --db-redis: #FF8080;
+    --db-cockroachdb: #CC80FF;
+    --db-cassandra: #40E0D0;
+  }
+
 }
 
 @layer base {

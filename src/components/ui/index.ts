@@ -26,3 +26,5 @@ export * from "./skeleton";
 export { ResizeHandle } from "./resize-handle";
 export { Progress } from "./progress";
 export { DateTimePicker, DatePicker, TimePicker } from "./date-time-picker";
+export { HSLColorPicker } from "./hsl-color-picker";
+export { ColorPicker, PRESET_COLORS } from "./color-picker";
