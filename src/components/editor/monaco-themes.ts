@@ -95,15 +95,60 @@ export function registerCustomThemes(monaco: typeof Monaco) {
       "editor.foldBackground": "#f0f0f0",
     },
   });
+
+  // Slasher theme - near-black with orange accents
+  monaco.editor.defineTheme("dbfordevs-slasher", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [
+      { token: "keyword", foreground: "f97316", fontStyle: "bold" },
+      { token: "keyword.sql", foreground: "f97316", fontStyle: "bold" },
+      { token: "string", foreground: "fbbf24" },
+      { token: "string.sql", foreground: "fbbf24" },
+      { token: "number", foreground: "a78bfa" },
+      { token: "number.sql", foreground: "a78bfa" },
+      { token: "comment", foreground: "6b7280", fontStyle: "italic" },
+      { token: "comment.sql", foreground: "6b7280", fontStyle: "italic" },
+      { token: "operator", foreground: "e5e5e5" },
+      { token: "operator.sql", foreground: "e5e5e5" },
+      { token: "identifier", foreground: "d4d4d4" },
+      { token: "identifier.sql", foreground: "d4d4d4" },
+      { token: "type", foreground: "c084fc" },
+      { token: "predefined.sql", foreground: "c084fc" },
+    ],
+    colors: {
+      "editor.background": "#1a1a1a",
+      "editor.foreground": "#ebebeb",
+      "editor.lineHighlightBackground": "#262626",
+      "editor.selectionBackground": "#f9731640",
+      "editorLineNumber.foreground": "#525252",
+      "editorLineNumber.activeForeground": "#f97316",
+      "editorCursor.foreground": "#f97316",
+      "editor.inactiveSelectionBackground": "#f9731620",
+      "editorWidget.background": "#212121",
+      "editorWidget.border": "#333333",
+      "editorSuggestWidget.background": "#212121",
+      "editorSuggestWidget.border": "#333333",
+      "editorSuggestWidget.foreground": "#ebebeb",
+      "editorSuggestWidget.selectedBackground": "#f9731630",
+      "editorSuggestWidget.highlightForeground": "#f97316",
+      "scrollbarSlider.background": "#52525233",
+      "scrollbarSlider.hoverBackground": "#52525280",
+      "scrollbarSlider.activeBackground": "#525252",
+      "editorGutter.background": "#1a1a1a",
+      "editorGutter.foldingControlForeground": "#525252",
+      "editor.foldBackground": "#262626",
+    },
+  });
 }
 
 /**
  * Get the Monaco theme name based on the app's current theme setting
  *
- * @param appTheme - The current app theme (light/dark/system/nordic-dark/nordic-light)
+ * @param appTheme - The current app theme (light/dark/system/nordic-dark/nordic-light/slasher)
  */
 export function getMonacoTheme(
-  appTheme: "light" | "dark" | "system" | "nordic-dark" | "nordic-light"
+  appTheme: "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher"
 ): string {
   // Handle Nordic themes
   if (appTheme === "nordic-dark") {
@@ -111,6 +156,11 @@ export function getMonacoTheme(
   }
   if (appTheme === "nordic-light") {
     return "dbfordevs-light";
+  }
+
+  // Handle Slasher theme
+  if (appTheme === "slasher") {
+    return "dbfordevs-slasher";
   }
 
   // Handle system theme

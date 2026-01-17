@@ -10,8 +10,9 @@ import type { KeywordCaseOption, IndentStyle } from "@/lib/sql-formatter";
  * - "system": Follows OS preference
  * - "nordic-dark": Arctic, north-bluish dark theme based on Nord
  * - "nordic-light": Arctic, north-bluish light theme based on Nord
+ * - "slasher": Near-black with orange accents
  */
-type Theme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light";
+type Theme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher";
 type AppStyle = "developer" | "web";
 
 interface EditorSettings {
@@ -220,13 +221,15 @@ export const useUIStore = create<UIState>()(
         const root = document.documentElement;
 
         // Remove all theme classes
-        root.classList.remove("dark", "theme-nordic-dark", "theme-nordic-light");
+        root.classList.remove("dark", "theme-nordic-dark", "theme-nordic-light", "theme-slasher");
 
         // Apply theme-specific class
         if (theme === "nordic-dark") {
           root.classList.add("theme-nordic-dark");
         } else if (theme === "nordic-light") {
           root.classList.add("theme-nordic-light");
+        } else if (theme === "slasher") {
+          root.classList.add("theme-slasher");
         } else if (theme === "system") {
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           root.classList.toggle("dark", prefersDark);

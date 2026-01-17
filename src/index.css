@@ -302,6 +302,84 @@
     --db-cassandra: #1287B1;
   }
 
+  /* Slasher Theme - Near-black with orange accents */
+  .theme-slasher {
+    /* Background colors - Near-black */
+    --background: 0 0% 10%;
+    --foreground: 0 0% 92%;
+
+    /* Card colors - Slightly elevated */
+    --card: 0 0% 13%;
+    --card-foreground: 0 0% 92%;
+
+    /* Popover colors */
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 92%;
+
+    /* Primary - Orange accent */
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Dark gray */
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 92%;
+
+    /* Muted colors */
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 55%;
+
+    /* Accent - Subtle orange tint */
+    --accent: 24 30% 18%;
+    --accent-foreground: 0 0% 92%;
+
+    /* Destructive - Bright red */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border and input */
+    --border: 0 0% 20%;
+    --input: 0 0% 18%;
+    --ring: 24 95% 53%;
+
+    /* Semantic colors - Purple/Yellow indicators */
+    --success: 142 71% 45%;
+    --warning: 45 93% 58%;
+    --info: 270 60% 60%;
+
+    /* Table Specifics */
+    --table-header-bg: 0 0% 8%;
+    --table-row-odd: 0 0% 10%;
+    --table-row-even: 0 0% 12%;
+    --table-row-hover: 24 30% 15%;
+
+    /* Text Hierarchy */
+    --text-primary: 0 0% 92%;
+    --text-secondary: 0 0% 65%;
+    --text-dim: 0 0% 45%;
+
+    /* Sidebar - Darker than main */
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 24 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 92%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 24 95% 53%;
+
+    /* Database Icon Colors - Slasher (warm-tinted for visibility) */
+    --db-postgresql: #6B8DD6;
+    --db-mysql: #6BA0C2;
+    --db-mariadb: #5DBDAD;
+    --db-sqlite: #6EB0D9;
+    --db-mssql: #F06560;
+    --db-oracle: #FF6B4A;
+    --db-mongodb: #6FCF78;
+    --db-redis: #FF7B70;
+    --db-cockroachdb: #9B7CFF;
+    --db-cassandra: #4CC8E8;
+  }
+
 }
 
 @layer base {
