@@ -34,6 +34,29 @@ function App() {
     }
   }, []);
 
+  // Disable native context menu on non-editable elements (allow custom context menus)
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      // Allow native context menu on editable elements
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable ||
+        target.closest(".monaco-editor")
+      ) {
+        return;
+      }
+
+      // Prevent native context menu to allow custom context menus
+      e.preventDefault();
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu);
+    return () => document.removeEventListener("contextmenu", handleContextMenu);
+  }, []);
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex h-screen flex-col overflow-hidden">

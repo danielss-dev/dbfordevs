@@ -23,6 +23,8 @@ export function useKeyboardShortcuts() {
     activeTabId,
     addTab,
     removeTab,
+    closeAllTabs,
+    togglePinTab,
   } = useQueryStore();
 
   const activeConnection = useConnectionsStore(selectActiveConnection);
@@ -97,6 +99,20 @@ export function useKeyboardShortcuts() {
       if (isMod && isShift && e.key.toLowerCase() === "d") {
         e.preventDefault();
         setShowDiffModal(true);
+      }
+
+      // Mod + Shift + P: Pin/Unpin Current Tab
+      if (isMod && isShift && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        if (activeTabId) {
+          togglePinTab(activeTabId);
+        }
+      }
+
+      // Mod + Shift + W: Close All Tabs
+      if (isMod && isShift && e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        closeAllTabs();
       }
 
       // Mod + Alt + F: Focus Find and Replace in Editor
@@ -264,6 +280,8 @@ export function useKeyboardShortcuts() {
     toggleRightPanelTab,
     addTab,
     removeTab,
+    closeAllTabs,
+    togglePinTab,
     toggleSidebar,
     removePendingChange,
   ]);

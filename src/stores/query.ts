@@ -45,6 +45,11 @@ interface QueryState {
   cleanupOldHistory: () => void;
   getHistoryStats: (connectionId: string) => QueryHistoryStats;
   exportHistory: (connectionId: string, format: 'json' | 'csv') => string;
+  // Tab context menu actions
+  closeOtherTabs: (id: string) => void;
+  closeTabsToRight: (id: string) => void;
+  closeAllTabs: () => void;
+  togglePinTab: (id: string) => void;
 }
 
 // Default history settings
@@ -319,6 +324,99 @@ export const useQueryStore = create<QueryState>()(
 
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   },
+
+  closeOtherTabs: (id) =>
+    set((state) => {
+      const targetTab = state.tabs.find((t) => t.id === id);
+      if (!targetTab) return state;
+
+      // Keep the target tab and any pinned tabs
+      const newTabs = state.tabs.filter((t) => t.id === id || t.isPinned);
+
+      // Clean up results for closed tabs
+      const newResults = { ...state.results };
+      const closedTabIds = state.tabs
+        .filter((t) => t.id !== id && !t.isPinned)
+        .map((t) => t.id);
+      closedTabIds.forEach((tabId) => delete newResults[tabId]);
+
+      return {
+        tabs: newTabs,
+        results: newResults,
+        activeTabId: id,
+      };
+    }),
+
+  closeTabsToRight: (id) =>
+    set((state) => {
+      const targetIndex = state.tabs.findIndex((t) => t.id === id);
+      if (targetIndex === -1) return state;
+
+      // Keep tabs at index <= targetIndex, plus any pinned tabs to the right
+      const newTabs = state.tabs.filter(
+        (t, index) => index <= targetIndex || t.isPinned
+      );
+
+      // Clean up results for closed tabs
+      const newResults = { ...state.results };
+      const closedTabIds = state.tabs
+        .filter((t, index) => index > targetIndex && !t.isPinned)
+        .map((t) => t.id);
+      closedTabIds.forEach((tabId) => delete newResults[tabId]);
+
+      // Update active tab if needed
+      let newActiveTabId = state.activeTabId;
+      if (newActiveTabId && closedTabIds.includes(newActiveTabId)) {
+        newActiveTabId = id;
+      }
+
+      return {
+        tabs: newTabs,
+        results: newResults,
+        activeTabId: newActiveTabId,
+      };
+    }),
+
+  closeAllTabs: () =>
+    set((state) => {
+      // Keep only pinned tabs
+      const newTabs = state.tabs.filter((t) => t.isPinned);
+
+      // Clean up results for closed tabs
+      const newResults = { ...state.results };
+      const closedTabIds = state.tabs.filter((t) => !t.isPinned).map((t) => t.id);
+      closedTabIds.forEach((tabId) => delete newResults[tabId]);
+
+      // Update active tab
+      const newActiveTabId = newTabs.length > 0 ? newTabs[0].id : null;
+
+      return {
+        tabs: newTabs,
+        results: newResults,
+        activeTabId: newActiveTabId,
+      };
+    }),
+
+  togglePinTab: (id) =>
+    set((state) => {
+      const targetTab = state.tabs.find((t) => t.id === id);
+      if (!targetTab) return state;
+
+      const newIsPinned = !targetTab.isPinned;
+
+      // Update the tab's pinned state
+      const updatedTabs = state.tabs.map((t) =>
+        t.id === id ? { ...t, isPinned: newIsPinned } : t
+      );
+
+      // Reorder tabs: pinned tabs go to the start
+      const pinnedTabs = updatedTabs.filter((t) => t.isPinned);
+      const unpinnedTabs = updatedTabs.filter((t) => !t.isPinned);
+
+      return {
+        tabs: [...pinnedTabs, ...unpinnedTabs],
+      };
+    }),
     }),
     {
       name: "query-store",

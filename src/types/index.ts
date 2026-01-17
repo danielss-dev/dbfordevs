@@ -248,6 +248,7 @@ export interface Tab {
   connectionId: string;
   content?: string;
   tableName?: string; // Full table identifier for "table", "properties", and "diagram" types
+  isPinned?: boolean; // Pinned tabs appear first and cannot be accidentally closed
 }
 
 export interface PendingChange {

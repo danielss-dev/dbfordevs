@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Table,
   Terminal,
+  Pin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -29,6 +30,7 @@ import { useQueryStore, useConnectionsStore, selectActiveConnection } from "@/st
 import { TablePropertiesTab, TableDiagramTab } from "@/components/table";
 import { QueryEditorTab } from "./tabs/QueryEditorTab";
 import { TableViewerTab } from "./tabs/TableViewerTab";
+import { TabContextMenu } from "./TabContextMenu";
 import type { Tab } from "@/types";
 import { useAnime } from "@/hooks/useAnime";
 
@@ -58,7 +60,8 @@ function TabItem({ tab, isActive, onClose, onClick }: {
       role="button"
       tabIndex={0}
       className={cn(
-        "group relative flex items-center gap-2 px-4 py-2 text-sm transition-all duration-150 cursor-pointer outline-none",
+        "group relative flex items-center gap-2 text-sm transition-all duration-150 cursor-pointer outline-none",
+        tab.isPinned ? "px-3 py-2" : "px-4 py-2",
         isActive
           ? "bg-background text-foreground"
           : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
@@ -79,6 +82,10 @@ function TabItem({ tab, isActive, onClose, onClick }: {
       {!isActive && (
         <div className="absolute bottom-0 left-0 right-0 h-px bg-border/50" />
       )}
+      {/* Pin icon for pinned tabs */}
+      {tab.isPinned && (
+        <Pin className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+      )}
       <span className={cn(
         "transition-colors shrink-0",
         isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground/70"
@@ -86,24 +93,28 @@ function TabItem({ tab, isActive, onClose, onClick }: {
         {getIcon()}
       </span>
       <span className={cn(
-        "max-w-[120px] truncate transition-colors",
+        "truncate transition-colors",
+        tab.isPinned ? "max-w-[80px]" : "max-w-[120px]",
         isActive ? "font-semibold" : "font-medium"
       )}>
         {tab.title}
       </span>
-      <button
-        className={cn(
-          "ml-1 rounded-md p-0.5 transition-all duration-150 shrink-0",
-          "opacity-0 group-hover:opacity-100",
-          "hover:bg-destructive/10 hover:text-destructive"
-        )}
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-      >
-        <X className="h-3 w-3" />
-      </button>
+      {/* Close button - hidden for pinned tabs */}
+      {!tab.isPinned && (
+        <button
+          className={cn(
+            "ml-1 rounded-md p-0.5 transition-all duration-150 shrink-0",
+            "opacity-0 group-hover:opacity-100",
+            "hover:bg-destructive/10 hover:text-destructive"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
     </div>
   );
 }
@@ -244,13 +255,14 @@ export function MainContent() {
           <ScrollArea ref={scrollRef} className="flex-1 h-full" scrollHideDelay={100}>
             <div className="flex h-full items-center">
               {tabs.map((tab) => (
-                <TabItem
-                  key={tab.id}
-                  tab={tab}
-                  isActive={tab.id === activeTabId}
-                  onClick={() => setActiveTab(tab.id)}
-                  onClose={() => removeTab(tab.id)}
-                />
+                <TabContextMenu key={tab.id} tab={tab}>
+                  <TabItem
+                    tab={tab}
+                    isActive={tab.id === activeTabId}
+                    onClick={() => setActiveTab(tab.id)}
+                    onClose={() => removeTab(tab.id)}
+                  />
+                </TabContextMenu>
               ))}
             </div>
             <ScrollBar orientation="horizontal" className="h-1.5" />
