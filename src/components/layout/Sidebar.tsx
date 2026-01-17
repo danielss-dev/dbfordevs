@@ -2501,9 +2501,7 @@ export function Sidebar() {
                 return (
                   <div className="space-y-0.5">
                     {groups.length > 0 && (
-                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                        Ungrouped
-                      </div>
+                      <div className="mx-2 my-1.5 border-t border-border" />
                     )}
                     {ungroupedConnections.map((conn) => (
                       <ConnectionItem key={conn.id} connection={conn} />
