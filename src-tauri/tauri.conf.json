@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "dbfordevs",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "identifier": "com.dbfordevs.app",
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -14,7 +14,7 @@
       "endpoints": [
         "https://github.com/danielss-dev/dbfordevs/releases/latest/download/latest.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1QkQwQTcxNDhERDNCQzEKUldUQk85MUljUXE5eGFzMCsxYlhGeWpjb244eFdrVlV0Z01jY3djNnBaNUZnR2d1RjlRMUw3TEgK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVCMERFQUJCNTkwNEREMUYKUldRZjNRUlp1K29OVzh5aVBZV28zR01Ea2pzWWxvZGRwVFdWdnM5VTJvTmVMS3B4ZHVETVlzcHgK",
       "windows": {
         "installMode": "passive"
       }
