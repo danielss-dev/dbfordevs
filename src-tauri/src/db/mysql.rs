@@ -5,10 +5,12 @@ use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
     CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
     DatabaseType, DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo,
-    IndexInfo, NewTableDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
-    QueryResult, RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType,
-    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
-    TestConnectionResult, ColumnInfo, ViewInfo, WarningSeverity,
+    FunctionInfo, IndexInfo, NewFunctionDefinition, NewProcedureDefinition, NewSequenceDefinition,
+    NewTableDefinition, NewTriggerDefinition, NewViewDefinition, PermissionRequest, PlanNode,
+    PreviewResult, ProcedureInfo, QueryResult, RoleMembershipRequest, SequenceInfo,
+    StandaloneIndexInfo, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, ColumnInfo,
+    TriggerInfo, ViewInfo, WarningSeverity,
 };
 use async_trait::async_trait;
 use sqlx::{mysql::MySqlPool, Row, Column, TypeInfo};
@@ -2518,6 +2520,422 @@ impl DatabaseDriver for MySqlDriver {
             affected_rows: Some(result.rows_affected()),
             execution_time_ms: start.elapsed().as_millis() as u64,
         })
+    }
+
+    // ============ Stored Procedure Management Methods ============
+
+    async fn get_procedures(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<ProcedureInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let database = &config.database;
+
+        let sql = r#"
+            SELECT
+                ROUTINE_NAME as name,
+                ROUTINE_SCHEMA as `schema`,
+                EXTERNAL_LANGUAGE as language,
+                (SELECT COUNT(*) FROM information_schema.PARAMETERS p
+                 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA
+                   AND p.SPECIFIC_NAME = r.ROUTINE_NAME
+                   AND p.PARAMETER_MODE IS NOT NULL) as parameter_count
+            FROM information_schema.ROUTINES r
+            WHERE ROUTINE_SCHEMA = ?
+              AND ROUTINE_TYPE = 'PROCEDURE'
+            ORDER BY ROUTINE_NAME
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(database)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get procedures: {}", e)))?;
+
+        let procedures = rows
+            .iter()
+            .map(|row| ProcedureInfo {
+                name: decode_string(row, "name"),
+                schema: row.try_get::<String, _>("schema").ok(),
+                language: row.try_get::<String, _>("language").ok(),
+                parameter_count: row.try_get::<i64, _>("parameter_count").ok().map(|c| c as i32),
+            })
+            .collect();
+
+        Ok(procedures)
+    }
+
+    async fn get_procedure_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let sql = format!("SHOW CREATE PROCEDURE {}", quote_identifier_single(procedure_name, &DatabaseType::MySQL));
+
+        let row = sqlx::query(&sql)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get procedure DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Procedure '{}' not found", procedure_name)))?;
+
+        // The DDL is in the "Create Procedure" column
+        let ddl: String = row.try_get(2)
+            .unwrap_or_else(|_| row.try_get::<String, _>("Create Procedure").unwrap_or_default());
+
+        Ok(ddl)
+    }
+
+    async fn create_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_def: &NewProcedureDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = &procedure_def.definition;
+
+        let result = sqlx::query(sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create procedure: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP PROCEDURE IF EXISTS {}",
+            quote_identifier_single(procedure_name, &DatabaseType::MySQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop procedure: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Function Management Methods ============
+
+    async fn get_functions(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<FunctionInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let database = &config.database;
+
+        let sql = r#"
+            SELECT
+                ROUTINE_NAME as name,
+                ROUTINE_SCHEMA as `schema`,
+                EXTERNAL_LANGUAGE as language,
+                DTD_IDENTIFIER as return_type,
+                (SELECT COUNT(*) FROM information_schema.PARAMETERS p
+                 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA
+                   AND p.SPECIFIC_NAME = r.ROUTINE_NAME
+                   AND p.PARAMETER_MODE IS NOT NULL) as parameter_count
+            FROM information_schema.ROUTINES r
+            WHERE ROUTINE_SCHEMA = ?
+              AND ROUTINE_TYPE = 'FUNCTION'
+            ORDER BY ROUTINE_NAME
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(database)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get functions: {}", e)))?;
+
+        let functions = rows
+            .iter()
+            .map(|row| FunctionInfo {
+                name: decode_string(row, "name"),
+                schema: row.try_get::<String, _>("schema").ok(),
+                language: row.try_get::<String, _>("language").ok(),
+                return_type: row.try_get::<String, _>("return_type").ok(),
+                parameter_count: row.try_get::<i64, _>("parameter_count").ok().map(|c| c as i32),
+            })
+            .collect();
+
+        Ok(functions)
+    }
+
+    async fn get_function_ddl(&self, pool: PoolRef<'_>, function_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let sql = format!("SHOW CREATE FUNCTION {}", quote_identifier_single(function_name, &DatabaseType::MySQL));
+
+        let row = sqlx::query(&sql)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get function DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Function '{}' not found", function_name)))?;
+
+        // The DDL is in the "Create Function" column
+        let ddl: String = row.try_get(2)
+            .unwrap_or_else(|_| row.try_get::<String, _>("Create Function").unwrap_or_default());
+
+        Ok(ddl)
+    }
+
+    async fn create_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_def: &NewFunctionDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = &function_def.definition;
+
+        let result = sqlx::query(sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create function: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP FUNCTION IF EXISTS {}",
+            quote_identifier_single(function_name, &DatabaseType::MySQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop function: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Trigger Management Methods ============
+
+    async fn get_triggers(
+        &self,
+        pool: PoolRef<'_>,
+        config: &ConnectionConfig,
+    ) -> AppResult<Vec<TriggerInfo>> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let database = &config.database;
+
+        let sql = r#"
+            SELECT
+                TRIGGER_NAME as name,
+                TRIGGER_SCHEMA as `schema`,
+                EVENT_OBJECT_TABLE as table_name,
+                ACTION_TIMING as timing,
+                EVENT_MANIPULATION as event,
+                1 as enabled
+            FROM information_schema.TRIGGERS
+            WHERE TRIGGER_SCHEMA = ?
+            ORDER BY TRIGGER_NAME
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(database)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get triggers: {}", e)))?;
+
+        let triggers = rows
+            .iter()
+            .map(|row| TriggerInfo {
+                name: decode_string(row, "name"),
+                schema: row.try_get::<String, _>("schema").ok(),
+                table_name: decode_string(row, "table_name"),
+                timing: row.try_get::<String, _>("timing").ok(),
+                event: row.try_get::<String, _>("event").ok(),
+                enabled: true, // MySQL triggers are always enabled (no disable option)
+            })
+            .collect();
+
+        Ok(triggers)
+    }
+
+    async fn get_trigger_ddl(&self, pool: PoolRef<'_>, trigger_name: &str, _table_name: Option<&str>) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let sql = format!("SHOW CREATE TRIGGER {}", quote_identifier_single(trigger_name, &DatabaseType::MySQL));
+
+        let row = sqlx::query(&sql)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get trigger DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Trigger '{}' not found", trigger_name)))?;
+
+        // The DDL is in the "SQL Original Statement" column
+        let ddl: String = row.try_get(2)
+            .unwrap_or_else(|_| row.try_get::<String, _>("SQL Original Statement").unwrap_or_default());
+
+        Ok(ddl)
+    }
+
+    async fn create_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_def: &NewTriggerDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = &trigger_def.definition;
+
+        let result = sqlx::query(sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create trigger: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::MySql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP TRIGGER IF EXISTS {}",
+            quote_identifier_single(trigger_name, &DatabaseType::MySQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop trigger: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Sequence Management Methods ============
+    // MySQL does not support sequences - uses AUTO_INCREMENT instead
+
+    async fn get_sequences(
+        &self,
+        _pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<SequenceInfo>> {
+        Err(AppError::NotSupported("MySQL does not support sequences. Use AUTO_INCREMENT columns instead.".to_string()))
+    }
+
+    async fn get_sequence_ddl(&self, _pool: PoolRef<'_>, _sequence_name: &str) -> AppResult<String> {
+        Err(AppError::NotSupported("MySQL does not support sequences. Use AUTO_INCREMENT columns instead.".to_string()))
+    }
+
+    async fn create_sequence(
+        &self,
+        _pool: PoolRef<'_>,
+        _sequence_def: &NewSequenceDefinition,
+    ) -> AppResult<QueryResult> {
+        Err(AppError::NotSupported("MySQL does not support sequences. Use AUTO_INCREMENT columns instead.".to_string()))
+    }
+
+    async fn drop_sequence(
+        &self,
+        _pool: PoolRef<'_>,
+        _sequence_name: &str,
+    ) -> AppResult<QueryResult> {
+        Err(AppError::NotSupported("MySQL does not support sequences. Use AUTO_INCREMENT columns instead.".to_string()))
     }
 }
 

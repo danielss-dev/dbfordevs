@@ -544,3 +544,76 @@ export interface CreateIndexDefinition {
   whereClause?: string;
 }
 
+// Stored Procedure types
+
+export interface ProcedureInfo {
+  name: string;
+  schema?: string;
+  language?: string;
+  parameterCount?: number;
+}
+
+export interface NewProcedureDefinition {
+  name: string;
+  schema?: string;
+  definition: string;
+  orReplace: boolean;
+}
+
+// Function types
+
+export interface FunctionInfo {
+  name: string;
+  schema?: string;
+  language?: string;
+  returnType?: string;
+  parameterCount?: number;
+}
+
+export interface NewFunctionDefinition {
+  name: string;
+  schema?: string;
+  definition: string;
+  orReplace: boolean;
+}
+
+// Trigger types
+
+export interface TriggerInfo {
+  name: string;
+  schema?: string;
+  tableName: string;
+  timing?: string;       // BEFORE, AFTER, INSTEAD OF
+  event?: string;        // INSERT, UPDATE, DELETE
+  enabled: boolean;
+}
+
+export interface NewTriggerDefinition {
+  name: string;
+  schema?: string;
+  definition: string;
+  orReplace: boolean;
+}
+
+// Sequence types
+
+export interface SequenceInfo {
+  name: string;
+  schema?: string;
+  currentValue?: number;
+  incrementBy?: number;
+  minValue?: number;
+  maxValue?: number;
+  cycle: boolean;
+}
+
+export interface NewSequenceDefinition {
+  name: string;
+  schema?: string;
+  startValue?: number;
+  incrementBy?: number;
+  minValue?: number;
+  maxValue?: number;
+  cycle: boolean;
+}
+

@@ -6,7 +6,7 @@ pub mod oracle_client;
 mod ssh;
 mod storage;
 
-use commands::{connections, import, indexes, oracle, queries, tables, users, utils, views};
+use commands::{connections, functions, import, indexes, oracle, procedures, queries, sequences, tables, triggers, users, utils, views};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -89,6 +89,26 @@ pub fn run() {
             indexes::get_index_ddl,
             indexes::create_index,
             indexes::drop_index,
+            // Stored procedure management commands
+            procedures::get_procedures,
+            procedures::get_procedure_ddl,
+            procedures::create_procedure,
+            procedures::drop_procedure,
+            // Function management commands
+            functions::get_functions,
+            functions::get_function_ddl,
+            functions::create_function,
+            functions::drop_function,
+            // Trigger management commands
+            triggers::get_triggers,
+            triggers::get_trigger_ddl,
+            triggers::create_trigger,
+            triggers::drop_trigger,
+            // Sequence management commands
+            sequences::get_sequences,
+            sequences::get_sequence_ddl,
+            sequences::create_sequence,
+            sequences::drop_sequence,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

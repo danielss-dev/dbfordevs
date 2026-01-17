@@ -24,6 +24,10 @@ import {
   KeyRound,
   Eye,
   ListTree,
+  Code2,
+  FunctionSquare,
+  Zap,
+  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -47,9 +51,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
-import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore } from "@/stores";
+import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
-import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo } from "@/types";
+import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo, DatabaseType } from "@/types";
+import { getDatabaseFeatureSupport } from "@/lib/database-features";
 import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
@@ -157,6 +162,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   } = useUsersStore();
   const { viewsByConnection, setViews } = useViewsStore();
   const { indexesByConnection, setIndexes } = useIndexesStore();
+  const { proceduresByConnection, setProcedures } = useProceduresStore();
+  const { functionsByConnection, setFunctions } = useFunctionsStore();
+  const { triggersByConnection, setTriggers } = useTriggersStore();
+  const { sequencesByConnection, setSequences } = useSequencesStore();
   const {
     connect,
     disconnect,
@@ -177,6 +186,18 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     getAllIndexes,
     getIndexDdl,
     dropIndex,
+    getProcedures,
+    getProcedureDdl,
+    dropProcedure,
+    getFunctions,
+    getFunctionDdl,
+    dropFunction,
+    getTriggers,
+    getTriggerDdl,
+    dropTrigger,
+    getSequences,
+    getSequenceDdl,
+    dropSequence,
   } = useDatabase();
   const { toast } = useToast();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
@@ -201,6 +222,25 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   // Indexes section state
   const [isLoadingIndexes, setIsLoadingIndexes] = useState(false);
   const [indexToDrop, setIndexToDrop] = useState<{ name: string; tableName?: string } | null>(null);
+
+  // Procedures section state
+  const [isLoadingProcedures, setIsLoadingProcedures] = useState(false);
+  const [procedureToDrop, setProcedureToDrop] = useState<string | null>(null);
+
+  // Functions section state
+  const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
+  const [functionToDrop, setFunctionToDrop] = useState<string | null>(null);
+
+  // Triggers section state
+  const [isLoadingTriggers, setIsLoadingTriggers] = useState(false);
+  const [triggerToDrop, setTriggerToDrop] = useState<string | null>(null);
+
+  // Sequences section state
+  const [isLoadingSequences, setIsLoadingSequences] = useState(false);
+  const [sequenceToDrop, setSequenceToDrop] = useState<string | null>(null);
+
+  // Get database feature support
+  const featureSupport = getDatabaseFeatureSupport(connection.databaseType as DatabaseType);
 
   // MSSQL-specific state for showing all databases
   const isMssql = connection.databaseType === "mssql";
@@ -756,6 +796,286 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     }
   };
 
+  // Procedures section handlers
+  const handleProceduresClick = async () => {
+    if (connection.connected && !proceduresByConnection[connection.id] && !isLoadingProcedures) {
+      setIsLoadingProcedures(true);
+      try {
+        const procedures = await getProcedures(connection.id);
+        setProcedures(connection.id, procedures);
+      } catch (error) {
+        console.error("Failed to load procedures:", error);
+        showErrorToast("Failed to load procedures", error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsLoadingProcedures(false);
+      }
+    }
+  };
+
+  const loadConnectionProcedures = async () => {
+    setIsLoadingProcedures(true);
+    try {
+      const procedures = await getProcedures(connection.id);
+      setProcedures(connection.id, procedures);
+    } catch (error) {
+      console.error("Failed to load procedures:", error);
+      showErrorToast("Failed to load procedures", error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingProcedures(false);
+    }
+  };
+
+  const handleCopyProcedureDdl = async (procedureName: string) => {
+    try {
+      const ddl = await getProcedureDdl(connection.id, procedureName);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          showInfoToast("DDL Copied", "Procedure definition copied to clipboard.");
+        } else {
+          throw new Error("Failed to copy to clipboard");
+        }
+      } else {
+        showErrorToast("Copy Failed", "Could not get DDL for this procedure.");
+      }
+    } catch (error) {
+      showErrorToast("Copy Failed", error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const confirmProcedureDrop = async () => {
+    if (!procedureToDrop) return;
+    try {
+      const result = await dropProcedure(connection.id, procedureToDrop);
+      if (result) {
+        await loadConnectionProcedures();
+        toast({
+          title: "Procedure dropped",
+          description: `Procedure "${procedureToDrop}" has been dropped successfully.`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to drop procedure",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setProcedureToDrop(null);
+    }
+  };
+
+  // Functions section handlers
+  const handleFunctionsClick = async () => {
+    if (connection.connected && !functionsByConnection[connection.id] && !isLoadingFunctions) {
+      setIsLoadingFunctions(true);
+      try {
+        const functions = await getFunctions(connection.id);
+        setFunctions(connection.id, functions);
+      } catch (error) {
+        console.error("Failed to load functions:", error);
+        showErrorToast("Failed to load functions", error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsLoadingFunctions(false);
+      }
+    }
+  };
+
+  const loadConnectionFunctions = async () => {
+    setIsLoadingFunctions(true);
+    try {
+      const functions = await getFunctions(connection.id);
+      setFunctions(connection.id, functions);
+    } catch (error) {
+      console.error("Failed to load functions:", error);
+      showErrorToast("Failed to load functions", error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingFunctions(false);
+    }
+  };
+
+  const handleCopyFunctionDdl = async (functionName: string) => {
+    try {
+      const ddl = await getFunctionDdl(connection.id, functionName);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          showInfoToast("DDL Copied", "Function definition copied to clipboard.");
+        } else {
+          throw new Error("Failed to copy to clipboard");
+        }
+      } else {
+        showErrorToast("Copy Failed", "Could not get DDL for this function.");
+      }
+    } catch (error) {
+      showErrorToast("Copy Failed", error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const confirmFunctionDrop = async () => {
+    if (!functionToDrop) return;
+    try {
+      const result = await dropFunction(connection.id, functionToDrop);
+      if (result) {
+        await loadConnectionFunctions();
+        toast({
+          title: "Function dropped",
+          description: `Function "${functionToDrop}" has been dropped successfully.`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to drop function",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setFunctionToDrop(null);
+    }
+  };
+
+  // Triggers section handlers
+  const handleTriggersClick = async () => {
+    if (connection.connected && !triggersByConnection[connection.id] && !isLoadingTriggers) {
+      setIsLoadingTriggers(true);
+      try {
+        const triggers = await getTriggers(connection.id);
+        setTriggers(connection.id, triggers);
+      } catch (error) {
+        console.error("Failed to load triggers:", error);
+        showErrorToast("Failed to load triggers", error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsLoadingTriggers(false);
+      }
+    }
+  };
+
+  const loadConnectionTriggers = async () => {
+    setIsLoadingTriggers(true);
+    try {
+      const triggers = await getTriggers(connection.id);
+      setTriggers(connection.id, triggers);
+    } catch (error) {
+      console.error("Failed to load triggers:", error);
+      showErrorToast("Failed to load triggers", error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingTriggers(false);
+    }
+  };
+
+  const handleCopyTriggerDdl = async (triggerName: string) => {
+    try {
+      const ddl = await getTriggerDdl(connection.id, triggerName);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          showInfoToast("DDL Copied", "Trigger definition copied to clipboard.");
+        } else {
+          throw new Error("Failed to copy to clipboard");
+        }
+      } else {
+        showErrorToast("Copy Failed", "Could not get DDL for this trigger.");
+      }
+    } catch (error) {
+      showErrorToast("Copy Failed", error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const confirmTriggerDrop = async () => {
+    if (!triggerToDrop) return;
+    try {
+      const result = await dropTrigger(connection.id, triggerToDrop);
+      if (result) {
+        await loadConnectionTriggers();
+        toast({
+          title: "Trigger dropped",
+          description: `Trigger "${triggerToDrop}" has been dropped successfully.`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to drop trigger",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setTriggerToDrop(null);
+    }
+  };
+
+  // Sequences section handlers
+  const handleSequencesClick = async () => {
+    if (connection.connected && !sequencesByConnection[connection.id] && !isLoadingSequences) {
+      setIsLoadingSequences(true);
+      try {
+        const sequences = await getSequences(connection.id);
+        setSequences(connection.id, sequences);
+      } catch (error) {
+        console.error("Failed to load sequences:", error);
+        showErrorToast("Failed to load sequences", error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsLoadingSequences(false);
+      }
+    }
+  };
+
+  const loadConnectionSequences = async () => {
+    setIsLoadingSequences(true);
+    try {
+      const sequences = await getSequences(connection.id);
+      setSequences(connection.id, sequences);
+    } catch (error) {
+      console.error("Failed to load sequences:", error);
+      showErrorToast("Failed to load sequences", error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingSequences(false);
+    }
+  };
+
+  const handleCopySequenceDdl = async (sequenceName: string) => {
+    try {
+      const ddl = await getSequenceDdl(connection.id, sequenceName);
+      if (ddl) {
+        const success = await copyToClipboard(ddl);
+        if (success) {
+          showInfoToast("DDL Copied", "Sequence definition copied to clipboard.");
+        } else {
+          throw new Error("Failed to copy to clipboard");
+        }
+      } else {
+        showErrorToast("Copy Failed", "Could not get DDL for this sequence.");
+      }
+    } catch (error) {
+      showErrorToast("Copy Failed", error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const confirmSequenceDrop = async () => {
+    if (!sequenceToDrop) return;
+    try {
+      const result = await dropSequence(connection.id, sequenceToDrop);
+      if (result) {
+        await loadConnectionSequences();
+        toast({
+          title: "Sequence dropped",
+          description: `Sequence "${sequenceToDrop}" has been dropped successfully.`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to drop sequence",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setSequenceToDrop(null);
+    }
+  };
+
   // Get views and indexes for this connection
   const connectionViews = viewsByConnection[connection.id] || [];
   const connectionIndexes = indexesByConnection[connection.id] || [];
@@ -770,6 +1090,12 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     return acc;
   }, {});
   const indexTableNames = Object.keys(indexesByTable).sort();
+
+  // Get procedures, functions, triggers, and sequences for this connection
+  const connectionProcedures = proceduresByConnection[connection.id] || [];
+  const connectionFunctions = functionsByConnection[connection.id] || [];
+  const connectionTriggers = triggersByConnection[connection.id] || [];
+  const connectionSequences = sequencesByConnection[connection.id] || [];
 
   const confirmTableDelete = async () => {
     if (!tableToDrop) return;
@@ -1479,6 +1805,262 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
+
+                  {/* Stored Procedures section (conditionally rendered based on database support) */}
+                  {featureSupport.procedures && (
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div>
+                          <TreeItem
+                            label="Stored Procedures"
+                            icon={<Code2 className="h-3.5 w-3.5 text-muted-foreground" />}
+                            onClick={handleProceduresClick}
+                            defaultOpen={false}
+                          >
+                            {isLoadingProcedures ? (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading procedures...</span>
+                              </div>
+                            ) : connectionProcedures.length > 0 ? (
+                              connectionProcedures.map((proc) => (
+                                <ContextMenu key={proc.name}>
+                                  <ContextMenuTrigger asChild>
+                                    <div>
+                                      <TreeItem
+                                        label={proc.name}
+                                        icon={<Code2 className="h-3.5 w-3.5 text-muted-foreground" />}
+                                        level={1}
+                                      />
+                                    </div>
+                                  </ContextMenuTrigger>
+                                  <ContextMenuContent className="w-48">
+                                    <ContextMenuItem onSelect={() => handleCopyProcedureDdl(proc.name)} className="gap-2">
+                                      <Copy className="h-4 w-4" />
+                                      Copy DDL
+                                    </ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      onSelect={() => setProcedureToDrop(proc.name)}
+                                      className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Drop Procedure
+                                    </ContextMenuItem>
+                                  </ContextMenuContent>
+                                </ContextMenu>
+                              ))
+                            ) : proceduresByConnection[connection.id] ? (
+                              <div className="ml-6 py-2 text-xs text-muted-foreground">No procedures found</div>
+                            ) : (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading procedures...</span>
+                              </div>
+                            )}
+                          </TreeItem>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem onSelect={loadConnectionProcedures} className="gap-2">
+                          <RefreshCw className={cn("h-4 w-4", isLoadingProcedures && "animate-spin")} />
+                          Refresh
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  )}
+
+                  {/* Functions section (conditionally rendered based on database support) */}
+                  {featureSupport.functions && (
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div>
+                          <TreeItem
+                            label="Functions"
+                            icon={<FunctionSquare className="h-3.5 w-3.5 text-muted-foreground" />}
+                            onClick={handleFunctionsClick}
+                            defaultOpen={false}
+                          >
+                            {isLoadingFunctions ? (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading functions...</span>
+                              </div>
+                            ) : connectionFunctions.length > 0 ? (
+                              connectionFunctions.map((func) => (
+                                <ContextMenu key={func.name}>
+                                  <ContextMenuTrigger asChild>
+                                    <div>
+                                      <TreeItem
+                                        label={func.name}
+                                        icon={<FunctionSquare className="h-3.5 w-3.5 text-muted-foreground" />}
+                                        level={1}
+                                      />
+                                    </div>
+                                  </ContextMenuTrigger>
+                                  <ContextMenuContent className="w-48">
+                                    <ContextMenuItem onSelect={() => handleCopyFunctionDdl(func.name)} className="gap-2">
+                                      <Copy className="h-4 w-4" />
+                                      Copy DDL
+                                    </ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      onSelect={() => setFunctionToDrop(func.name)}
+                                      className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Drop Function
+                                    </ContextMenuItem>
+                                  </ContextMenuContent>
+                                </ContextMenu>
+                              ))
+                            ) : functionsByConnection[connection.id] ? (
+                              <div className="ml-6 py-2 text-xs text-muted-foreground">No functions found</div>
+                            ) : (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading functions...</span>
+                              </div>
+                            )}
+                          </TreeItem>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem onSelect={loadConnectionFunctions} className="gap-2">
+                          <RefreshCw className={cn("h-4 w-4", isLoadingFunctions && "animate-spin")} />
+                          Refresh
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  )}
+
+                  {/* Triggers section (conditionally rendered based on database support) */}
+                  {featureSupport.triggers && (
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div>
+                          <TreeItem
+                            label="Triggers"
+                            icon={<Zap className="h-3.5 w-3.5 text-muted-foreground" />}
+                            onClick={handleTriggersClick}
+                            defaultOpen={false}
+                          >
+                            {isLoadingTriggers ? (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading triggers...</span>
+                              </div>
+                            ) : connectionTriggers.length > 0 ? (
+                              connectionTriggers.map((trigger) => (
+                                <ContextMenu key={trigger.name}>
+                                  <ContextMenuTrigger asChild>
+                                    <div>
+                                      <TreeItem
+                                        label={trigger.name}
+                                        icon={<Zap className="h-3.5 w-3.5 text-muted-foreground" />}
+                                        level={1}
+                                      />
+                                    </div>
+                                  </ContextMenuTrigger>
+                                  <ContextMenuContent className="w-48">
+                                    <ContextMenuItem onSelect={() => handleCopyTriggerDdl(trigger.name)} className="gap-2">
+                                      <Copy className="h-4 w-4" />
+                                      Copy DDL
+                                    </ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      onSelect={() => setTriggerToDrop(trigger.name)}
+                                      className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Drop Trigger
+                                    </ContextMenuItem>
+                                  </ContextMenuContent>
+                                </ContextMenu>
+                              ))
+                            ) : triggersByConnection[connection.id] ? (
+                              <div className="ml-6 py-2 text-xs text-muted-foreground">No triggers found</div>
+                            ) : (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading triggers...</span>
+                              </div>
+                            )}
+                          </TreeItem>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem onSelect={loadConnectionTriggers} className="gap-2">
+                          <RefreshCw className={cn("h-4 w-4", isLoadingTriggers && "animate-spin")} />
+                          Refresh
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  )}
+
+                  {/* Sequences section (conditionally rendered based on database support) */}
+                  {featureSupport.sequences && (
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div>
+                          <TreeItem
+                            label="Sequences"
+                            icon={<Hash className="h-3.5 w-3.5 text-muted-foreground" />}
+                            onClick={handleSequencesClick}
+                            defaultOpen={false}
+                          >
+                            {isLoadingSequences ? (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading sequences...</span>
+                              </div>
+                            ) : connectionSequences.length > 0 ? (
+                              connectionSequences.map((seq) => (
+                                <ContextMenu key={seq.name}>
+                                  <ContextMenuTrigger asChild>
+                                    <div>
+                                      <TreeItem
+                                        label={seq.name}
+                                        icon={<Hash className="h-3.5 w-3.5 text-muted-foreground" />}
+                                        level={1}
+                                      />
+                                    </div>
+                                  </ContextMenuTrigger>
+                                  <ContextMenuContent className="w-48">
+                                    <ContextMenuItem onSelect={() => handleCopySequenceDdl(seq.name)} className="gap-2">
+                                      <Copy className="h-4 w-4" />
+                                      Copy DDL
+                                    </ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      onSelect={() => setSequenceToDrop(seq.name)}
+                                      className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Drop Sequence
+                                    </ContextMenuItem>
+                                  </ContextMenuContent>
+                                </ContextMenu>
+                              ))
+                            ) : sequencesByConnection[connection.id] ? (
+                              <div className="ml-6 py-2 text-xs text-muted-foreground">No sequences found</div>
+                            ) : (
+                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading sequences...</span>
+                              </div>
+                            )}
+                          </TreeItem>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem onSelect={loadConnectionSequences} className="gap-2">
+                          <RefreshCw className={cn("h-4 w-4", isLoadingSequences && "animate-spin")} />
+                          Refresh
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  )}
                 </>
               )}
             </TreeItem>
@@ -1655,6 +2237,90 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Drop Index
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Drop Procedure Confirmation Dialog */}
+      <AlertDialog open={!!procedureToDrop} onOpenChange={(open) => !open && setProcedureToDrop(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop Procedure</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the procedure "{procedureToDrop}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmProcedureDrop}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop Procedure
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Drop Function Confirmation Dialog */}
+      <AlertDialog open={!!functionToDrop} onOpenChange={(open) => !open && setFunctionToDrop(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop Function</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the function "{functionToDrop}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmFunctionDrop}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop Function
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Drop Trigger Confirmation Dialog */}
+      <AlertDialog open={!!triggerToDrop} onOpenChange={(open) => !open && setTriggerToDrop(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop Trigger</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the trigger "{triggerToDrop}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmTriggerDrop}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop Trigger
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Drop Sequence Confirmation Dialog */}
+      <AlertDialog open={!!sequenceToDrop} onOpenChange={(open) => !open && setSequenceToDrop(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop Sequence</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the sequence "{sequenceToDrop}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmSequenceDrop}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop Sequence
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

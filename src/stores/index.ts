@@ -11,4 +11,8 @@ export * from "./users";
 export * from "./grid";
 export * from "./views";
 export * from "./indexes";
+export * from "./procedures";
+export * from "./functions";
+export * from "./triggers";
+export * from "./sequences";
 

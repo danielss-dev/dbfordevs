@@ -5,10 +5,12 @@ use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
     CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
     DatabaseType, DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo,
-    IndexInfo, NewTableDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
-    QueryResult, RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType,
-    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
-    TestConnectionResult, ColumnInfo, ViewInfo, WarningSeverity,
+    FunctionInfo, IndexInfo, NewFunctionDefinition, NewProcedureDefinition, NewSequenceDefinition,
+    NewTableDefinition, NewTriggerDefinition, NewViewDefinition, PermissionRequest, PlanNode,
+    PreviewResult, ProcedureInfo, QueryResult, RoleMembershipRequest, SequenceInfo,
+    StandaloneIndexInfo, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, ColumnInfo,
+    TriggerInfo, ViewInfo, WarningSeverity,
 };
 use async_trait::async_trait;
 use sqlx::{postgres::PgPool, Row, Column, ValueRef, TypeInfo};
@@ -3254,6 +3256,661 @@ impl DatabaseDriver for PostgresDriver {
             .execute(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to drop index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Stored Procedure Management Methods ============
+
+    async fn get_procedures(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<ProcedureInfo>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let schema = "public";
+
+        // Query pg_proc for stored procedures (prokind = 'p' for procedures in PG 11+)
+        let sql = r#"
+            SELECT
+                p.proname as name,
+                n.nspname as schema,
+                l.lanname as language,
+                p.pronargs as parameter_count
+            FROM pg_catalog.pg_proc p
+            JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+            JOIN pg_catalog.pg_language l ON l.oid = p.prolang
+            WHERE n.nspname = $1
+              AND p.prokind = 'p'
+            ORDER BY p.proname
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(schema)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get procedures: {}", e)))?;
+
+        let procedures = rows
+            .iter()
+            .map(|row| ProcedureInfo {
+                name: row.get::<String, _>("name"),
+                schema: row.get::<Option<String>, _>("schema"),
+                language: row.get::<Option<String>, _>("language"),
+                parameter_count: row.get::<Option<i32>, _>("parameter_count"),
+            })
+            .collect();
+
+        Ok(procedures)
+    }
+
+    async fn get_procedure_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Parse schema.procedure_name format
+        let (schema, name) = if procedure_name.contains('.') {
+            let parts: Vec<&str> = procedure_name.splitn(2, '.').collect();
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            ("public".to_string(), procedure_name.to_string())
+        };
+
+        // Use pg_get_functiondef to get the complete DDL
+        let sql = r#"
+            SELECT pg_get_functiondef(p.oid) as ddl
+            FROM pg_catalog.pg_proc p
+            JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = $1
+              AND p.proname = $2
+              AND p.prokind = 'p'
+            LIMIT 1
+        "#;
+
+        let row = sqlx::query(sql)
+            .bind(&schema)
+            .bind(&name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get procedure DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Procedure '{}' not found", procedure_name)))?;
+
+        let ddl: String = row.get("ddl");
+        Ok(ddl)
+    }
+
+    async fn create_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_def: &NewProcedureDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // The definition should be the complete CREATE PROCEDURE statement
+        let sql = &procedure_def.definition;
+
+        let result = sqlx::query(sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create procedure: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP PROCEDURE IF EXISTS {}",
+            quote_identifier(procedure_name, &DatabaseType::PostgreSQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop procedure: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Function Management Methods ============
+
+    async fn get_functions(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<FunctionInfo>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let schema = "public";
+
+        // Query pg_proc for functions (prokind = 'f' for normal functions, 'w' for window functions)
+        let sql = r#"
+            SELECT
+                p.proname as name,
+                n.nspname as schema,
+                l.lanname as language,
+                pg_catalog.pg_get_function_result(p.oid) as return_type,
+                p.pronargs as parameter_count
+            FROM pg_catalog.pg_proc p
+            JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+            JOIN pg_catalog.pg_language l ON l.oid = p.prolang
+            WHERE n.nspname = $1
+              AND p.prokind IN ('f', 'w')
+            ORDER BY p.proname
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(schema)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get functions: {}", e)))?;
+
+        let functions = rows
+            .iter()
+            .map(|row| FunctionInfo {
+                name: row.get::<String, _>("name"),
+                schema: row.get::<Option<String>, _>("schema"),
+                language: row.get::<Option<String>, _>("language"),
+                return_type: row.get::<Option<String>, _>("return_type"),
+                parameter_count: row.get::<Option<i32>, _>("parameter_count"),
+            })
+            .collect();
+
+        Ok(functions)
+    }
+
+    async fn get_function_ddl(&self, pool: PoolRef<'_>, function_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Parse schema.function_name format
+        let (schema, name) = if function_name.contains('.') {
+            let parts: Vec<&str> = function_name.splitn(2, '.').collect();
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            ("public".to_string(), function_name.to_string())
+        };
+
+        // Use pg_get_functiondef to get the complete DDL
+        let sql = r#"
+            SELECT pg_get_functiondef(p.oid) as ddl
+            FROM pg_catalog.pg_proc p
+            JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = $1
+              AND p.proname = $2
+              AND p.prokind IN ('f', 'w')
+            LIMIT 1
+        "#;
+
+        let row = sqlx::query(sql)
+            .bind(&schema)
+            .bind(&name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get function DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Function '{}' not found", function_name)))?;
+
+        let ddl: String = row.get("ddl");
+        Ok(ddl)
+    }
+
+    async fn create_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_def: &NewFunctionDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // The definition should be the complete CREATE FUNCTION statement
+        let sql = &function_def.definition;
+
+        let result = sqlx::query(sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create function: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP FUNCTION IF EXISTS {}",
+            quote_identifier(function_name, &DatabaseType::PostgreSQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop function: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Trigger Management Methods ============
+
+    async fn get_triggers(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<TriggerInfo>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let schema = "public";
+
+        let sql = r#"
+            SELECT
+                t.tgname as name,
+                n.nspname as schema,
+                c.relname as table_name,
+                CASE
+                    WHEN t.tgtype & 2 = 2 THEN 'BEFORE'
+                    WHEN t.tgtype & 64 = 64 THEN 'INSTEAD OF'
+                    ELSE 'AFTER'
+                END as timing,
+                CONCAT_WS(' OR ',
+                    CASE WHEN t.tgtype & 4 = 4 THEN 'INSERT' END,
+                    CASE WHEN t.tgtype & 8 = 8 THEN 'DELETE' END,
+                    CASE WHEN t.tgtype & 16 = 16 THEN 'UPDATE' END,
+                    CASE WHEN t.tgtype & 32 = 32 THEN 'TRUNCATE' END
+                ) as event,
+                t.tgenabled != 'D' as enabled
+            FROM pg_catalog.pg_trigger t
+            JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = $1
+              AND NOT t.tgisinternal
+            ORDER BY t.tgname
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(schema)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get triggers: {}", e)))?;
+
+        let triggers = rows
+            .iter()
+            .map(|row| TriggerInfo {
+                name: row.get::<String, _>("name"),
+                schema: row.get::<Option<String>, _>("schema"),
+                table_name: row.get::<String, _>("table_name"),
+                timing: row.get::<Option<String>, _>("timing"),
+                event: row.get::<Option<String>, _>("event"),
+                enabled: row.get::<bool, _>("enabled"),
+            })
+            .collect();
+
+        Ok(triggers)
+    }
+
+    async fn get_trigger_ddl(&self, pool: PoolRef<'_>, trigger_name: &str, _table_name: Option<&str>) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Parse schema.trigger_name format
+        let (schema, name) = if trigger_name.contains('.') {
+            let parts: Vec<&str> = trigger_name.splitn(2, '.').collect();
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            ("public".to_string(), trigger_name.to_string())
+        };
+
+        // Use pg_get_triggerdef to get the DDL
+        let sql = r#"
+            SELECT pg_get_triggerdef(t.oid, true) as ddl
+            FROM pg_catalog.pg_trigger t
+            JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = $1
+              AND t.tgname = $2
+            LIMIT 1
+        "#;
+
+        let row = sqlx::query(sql)
+            .bind(&schema)
+            .bind(&name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get trigger DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Trigger '{}' not found", trigger_name)))?;
+
+        let ddl: String = row.get("ddl");
+        Ok(format!("{};\n", ddl))
+    }
+
+    async fn create_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_def: &NewTriggerDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // The definition should be the complete CREATE TRIGGER statement
+        let sql = &trigger_def.definition;
+
+        let result = sqlx::query(sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create trigger: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_name: &str,
+        table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // In PostgreSQL, DROP TRIGGER requires the table name
+        let table = table_name.ok_or_else(|| {
+            AppError::QueryError("Table name is required to drop a trigger in PostgreSQL".to_string())
+        })?;
+
+        let sql = format!(
+            "DROP TRIGGER IF EXISTS {} ON {}",
+            quote_identifier_single(trigger_name, &DatabaseType::PostgreSQL),
+            quote_identifier(table, &DatabaseType::PostgreSQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop trigger: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Sequence Management Methods ============
+
+    async fn get_sequences(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<SequenceInfo>> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let schema = "public";
+
+        let sql = r#"
+            SELECT
+                s.sequencename as name,
+                s.schemaname as schema,
+                s.last_value as current_value,
+                s.increment_by,
+                s.min_value,
+                s.max_value,
+                s.cycle as is_cycle
+            FROM pg_catalog.pg_sequences s
+            WHERE s.schemaname = $1
+            ORDER BY s.sequencename
+        "#;
+
+        let rows = sqlx::query(sql)
+            .bind(schema)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get sequences: {}", e)))?;
+
+        let sequences = rows
+            .iter()
+            .map(|row| SequenceInfo {
+                name: row.get::<String, _>("name"),
+                schema: row.get::<Option<String>, _>("schema"),
+                current_value: row.get::<Option<i64>, _>("current_value"),
+                increment_by: row.get::<Option<i64>, _>("increment_by"),
+                min_value: row.get::<Option<i64>, _>("min_value"),
+                max_value: row.get::<Option<i64>, _>("max_value"),
+                cycle: row.get::<bool, _>("is_cycle"),
+            })
+            .collect();
+
+        Ok(sequences)
+    }
+
+    async fn get_sequence_ddl(&self, pool: PoolRef<'_>, sequence_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        // Parse schema.sequence_name format
+        let (schema, name) = if sequence_name.contains('.') {
+            let parts: Vec<&str> = sequence_name.splitn(2, '.').collect();
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            ("public".to_string(), sequence_name.to_string())
+        };
+
+        let sql = r#"
+            SELECT
+                s.sequencename,
+                s.schemaname,
+                s.start_value,
+                s.increment_by,
+                s.min_value,
+                s.max_value,
+                s.cache_size,
+                s.cycle
+            FROM pg_catalog.pg_sequences s
+            WHERE s.schemaname = $1
+              AND s.sequencename = $2
+            LIMIT 1
+        "#;
+
+        let row = sqlx::query(sql)
+            .bind(&schema)
+            .bind(&name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get sequence DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Sequence '{}' not found", sequence_name)))?;
+
+        let seq_schema: String = row.get("schemaname");
+        let seq_name: String = row.get("sequencename");
+        let start_value: i64 = row.get("start_value");
+        let increment_by: i64 = row.get("increment_by");
+        let min_value: i64 = row.get("min_value");
+        let max_value: i64 = row.get("max_value");
+        let cache_size: i64 = row.get("cache_size");
+        let cycle: bool = row.get("cycle");
+
+        let cycle_str = if cycle { "CYCLE" } else { "NO CYCLE" };
+
+        let ddl = format!(
+            "CREATE SEQUENCE {}.{}\n    START WITH {}\n    INCREMENT BY {}\n    MINVALUE {}\n    MAXVALUE {}\n    CACHE {}\n    {};",
+            quote_identifier_single(&seq_schema, &DatabaseType::PostgreSQL),
+            quote_identifier_single(&seq_name, &DatabaseType::PostgreSQL),
+            start_value,
+            increment_by,
+            min_value,
+            max_value,
+            cache_size,
+            cycle_str
+        );
+
+        Ok(ddl)
+    }
+
+    async fn create_sequence(
+        &self,
+        pool: PoolRef<'_>,
+        sequence_def: &NewSequenceDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let schema_prefix = sequence_def
+            .schema
+            .as_ref()
+            .map(|s| format!("{}.", quote_identifier_single(s, &DatabaseType::PostgreSQL)))
+            .unwrap_or_default();
+
+        let mut parts = vec![format!(
+            "CREATE SEQUENCE {}{}",
+            schema_prefix,
+            quote_identifier_single(&sequence_def.name, &DatabaseType::PostgreSQL)
+        )];
+
+        if let Some(start_value) = sequence_def.start_value {
+            parts.push(format!("START WITH {}", start_value));
+        }
+        if let Some(increment) = sequence_def.increment_by {
+            parts.push(format!("INCREMENT BY {}", increment));
+        }
+        if let Some(min) = sequence_def.min_value {
+            parts.push(format!("MINVALUE {}", min));
+        }
+        if let Some(max) = sequence_def.max_value {
+            parts.push(format!("MAXVALUE {}", max));
+        }
+        if sequence_def.cycle {
+            parts.push("CYCLE".to_string());
+        } else {
+            parts.push("NO CYCLE".to_string());
+        }
+
+        let sql = parts.join(" ");
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create sequence: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_sequence(
+        &self,
+        pool: PoolRef<'_>,
+        sequence_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP SEQUENCE IF EXISTS {}",
+            quote_identifier(sequence_name, &DatabaseType::PostgreSQL)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop sequence: {}", e)))?;
 
         Ok(QueryResult {
             columns: vec![],

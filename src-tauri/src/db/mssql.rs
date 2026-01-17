@@ -5,10 +5,12 @@ use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
     CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
     DatabaseType, DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo,
-    IndexInfo, NewTableDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
-    QueryResult, RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType,
-    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
-    TestConnectionResult, ViewInfo, WarningSeverity,
+    FunctionInfo, IndexInfo, NewFunctionDefinition, NewProcedureDefinition, NewSequenceDefinition,
+    NewTableDefinition, NewTriggerDefinition, NewViewDefinition, PermissionRequest, PlanNode,
+    PreviewResult, ProcedureInfo, QueryResult, RoleMembershipRequest, SequenceInfo,
+    StandaloneIndexInfo, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, TriggerInfo, ViewInfo,
+    WarningSeverity,
 };
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -2907,6 +2909,607 @@ ORDER BY ic.key_ordinal;
 
         let result = Query::new(&sql).execute(&mut *client).await
             .map_err(|e| AppError::QueryError(format!("Failed to drop index: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Stored Procedure Management Methods ============
+
+    async fn get_procedures(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<ProcedureInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let sql = r#"
+            SELECT
+                p.name as name,
+                SCHEMA_NAME(p.schema_id) as [schema],
+                (SELECT COUNT(*) FROM sys.parameters WHERE object_id = p.object_id) as parameter_count
+            FROM sys.procedures p
+            ORDER BY p.name
+        "#;
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let rows = Query::new(sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get procedures: {}", e)))?
+            .into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch procedures: {}", e)))?;
+
+        let procedures = rows
+            .iter()
+            .map(|row| ProcedureInfo {
+                name: row.get::<&str, _>("name").unwrap_or("").to_string(),
+                schema: row.get::<&str, _>("schema").map(|s| s.to_string()),
+                language: Some("T-SQL".to_string()),
+                parameter_count: row.get::<i32, _>("parameter_count"),
+            })
+            .collect();
+
+        Ok(procedures)
+    }
+
+    async fn get_procedure_ddl(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let sql = format!(
+            "SELECT OBJECT_DEFINITION(OBJECT_ID('[{}]')) as definition",
+            procedure_name.replace('\'', "''")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let rows = Query::new(&sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get procedure DDL: {}", e)))?
+            .into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch procedure DDL: {}", e)))?;
+
+        let row = rows.first()
+            .ok_or_else(|| AppError::QueryError(format!("Procedure '{}' not found", procedure_name)))?;
+
+        let ddl: &str = row.get("definition")
+            .ok_or_else(|| AppError::QueryError("DDL is null".to_string()))?;
+
+        Ok(ddl.to_string())
+    }
+
+    async fn create_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_def: &NewProcedureDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&procedure_def.definition).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create procedure: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_procedure(
+        &self,
+        pool: PoolRef<'_>,
+        procedure_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP PROCEDURE IF EXISTS [{}]",
+            procedure_name.replace(']', "]]")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop procedure: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Function Management Methods ============
+
+    async fn get_functions(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<FunctionInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let sql = r#"
+            SELECT
+                o.name as name,
+                SCHEMA_NAME(o.schema_id) as [schema],
+                TYPE_NAME(r.user_type_id) as return_type,
+                (SELECT COUNT(*) FROM sys.parameters WHERE object_id = o.object_id AND parameter_id > 0) as parameter_count
+            FROM sys.objects o
+            LEFT JOIN sys.parameters r ON r.object_id = o.object_id AND r.parameter_id = 0
+            WHERE o.type IN ('FN', 'IF', 'TF', 'FS', 'FT')
+            ORDER BY o.name
+        "#;
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let rows = Query::new(sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get functions: {}", e)))?
+            .into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch functions: {}", e)))?;
+
+        let functions = rows
+            .iter()
+            .map(|row| FunctionInfo {
+                name: row.get::<&str, _>("name").unwrap_or("").to_string(),
+                schema: row.get::<&str, _>("schema").map(|s| s.to_string()),
+                language: Some("T-SQL".to_string()),
+                return_type: row.get::<&str, _>("return_type").map(|s| s.to_string()),
+                parameter_count: row.get::<i32, _>("parameter_count"),
+            })
+            .collect();
+
+        Ok(functions)
+    }
+
+    async fn get_function_ddl(&self, pool: PoolRef<'_>, function_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let sql = format!(
+            "SELECT OBJECT_DEFINITION(OBJECT_ID('[{}]')) as definition",
+            function_name.replace('\'', "''")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let rows = Query::new(&sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get function DDL: {}", e)))?
+            .into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch function DDL: {}", e)))?;
+
+        let row = rows.first()
+            .ok_or_else(|| AppError::QueryError(format!("Function '{}' not found", function_name)))?;
+
+        let ddl: &str = row.get("definition")
+            .ok_or_else(|| AppError::QueryError("DDL is null".to_string()))?;
+
+        Ok(ddl.to_string())
+    }
+
+    async fn create_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_def: &NewFunctionDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&function_def.definition).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create function: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_function(
+        &self,
+        pool: PoolRef<'_>,
+        function_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP FUNCTION IF EXISTS [{}]",
+            function_name.replace(']', "]]")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop function: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Trigger Management Methods ============
+
+    async fn get_triggers(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<TriggerInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let sql = r#"
+            SELECT
+                t.name as name,
+                SCHEMA_NAME(o.schema_id) as [schema],
+                OBJECT_NAME(t.parent_id) as table_name,
+                CASE
+                    WHEN t.is_instead_of_trigger = 1 THEN 'INSTEAD OF'
+                    ELSE 'AFTER'
+                END as timing,
+                STUFF((
+                    SELECT ', ' +
+                        CASE te.type
+                            WHEN 1 THEN 'INSERT'
+                            WHEN 2 THEN 'UPDATE'
+                            WHEN 3 THEN 'DELETE'
+                        END
+                    FROM sys.trigger_events te
+                    WHERE te.object_id = t.object_id
+                    FOR XML PATH('')
+                ), 1, 2, '') as event,
+                CASE WHEN t.is_disabled = 0 THEN 1 ELSE 0 END as enabled
+            FROM sys.triggers t
+            JOIN sys.objects o ON o.object_id = t.parent_id
+            WHERE t.parent_class = 1
+            ORDER BY t.name
+        "#;
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let rows = Query::new(sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get triggers: {}", e)))?
+            .into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch triggers: {}", e)))?;
+
+        let triggers = rows
+            .iter()
+            .map(|row| TriggerInfo {
+                name: row.get::<&str, _>("name").unwrap_or("").to_string(),
+                schema: row.get::<&str, _>("schema").map(|s| s.to_string()),
+                table_name: row.get::<&str, _>("table_name").unwrap_or("").to_string(),
+                timing: row.get::<&str, _>("timing").map(|s| s.to_string()),
+                event: row.get::<&str, _>("event").map(|s| s.to_string()),
+                enabled: row.get::<i32, _>("enabled").map_or(true, |v| v == 1),
+            })
+            .collect();
+
+        Ok(triggers)
+    }
+
+    async fn get_trigger_ddl(&self, pool: PoolRef<'_>, trigger_name: &str, _table_name: Option<&str>) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let sql = format!(
+            "SELECT OBJECT_DEFINITION(OBJECT_ID('[{}]')) as definition",
+            trigger_name.replace('\'', "''")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let rows = Query::new(&sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get trigger DDL: {}", e)))?
+            .into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch trigger DDL: {}", e)))?;
+
+        let row = rows.first()
+            .ok_or_else(|| AppError::QueryError(format!("Trigger '{}' not found", trigger_name)))?;
+
+        let ddl: &str = row.get("definition")
+            .ok_or_else(|| AppError::QueryError("DDL is null".to_string()))?;
+
+        Ok(ddl.to_string())
+    }
+
+    async fn create_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_def: &NewTriggerDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&trigger_def.definition).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create trigger: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP TRIGGER IF EXISTS [{}]",
+            trigger_name.replace(']', "]]")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop trigger: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Sequence Management Methods ============
+
+    async fn get_sequences(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<SequenceInfo>> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let sql = r#"
+            SELECT
+                s.name as name,
+                SCHEMA_NAME(s.schema_id) as [schema],
+                CAST(s.current_value as bigint) as current_value,
+                CAST(s.increment as bigint) as increment_by,
+                CAST(s.minimum_value as bigint) as min_value,
+                CAST(s.maximum_value as bigint) as max_value,
+                s.is_cycling as cycle
+            FROM sys.sequences s
+            ORDER BY s.name
+        "#;
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let rows = Query::new(sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get sequences: {}", e)))?
+            .into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch sequences: {}", e)))?;
+
+        let sequences = rows
+            .iter()
+            .map(|row| SequenceInfo {
+                name: row.get::<&str, _>("name").unwrap_or("").to_string(),
+                schema: row.get::<&str, _>("schema").map(|s| s.to_string()),
+                current_value: row.get::<i64, _>("current_value"),
+                increment_by: row.get::<i64, _>("increment_by"),
+                min_value: row.get::<i64, _>("min_value"),
+                max_value: row.get::<i64, _>("max_value"),
+                cycle: row.get::<bool, _>("cycle").unwrap_or(false),
+            })
+            .collect();
+
+        Ok(sequences)
+    }
+
+    async fn get_sequence_ddl(&self, pool: PoolRef<'_>, sequence_name: &str) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let sql = format!(r#"
+            SELECT
+                s.name,
+                SCHEMA_NAME(s.schema_id) as schema_name,
+                TYPE_NAME(s.user_type_id) as data_type,
+                s.start_value,
+                s.increment,
+                s.minimum_value,
+                s.maximum_value,
+                s.is_cycling,
+                s.cache_size
+            FROM sys.sequences s
+            WHERE s.name = '{}'
+        "#, sequence_name.replace('\'', "''"));
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let rows = Query::new(&sql).query(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to get sequence DDL: {}", e)))?
+            .into_first_result().await
+            .map_err(|e| AppError::QueryError(format!("Failed to fetch sequence DDL: {}", e)))?;
+
+        let row = rows.first()
+            .ok_or_else(|| AppError::QueryError(format!("Sequence '{}' not found", sequence_name)))?;
+
+        let name: &str = row.get("name").unwrap_or(sequence_name);
+        let schema_name: &str = row.get("schema_name").unwrap_or("dbo");
+        let data_type: &str = row.get("data_type").unwrap_or("bigint");
+        let start_value: i64 = row.get("start_value").unwrap_or(1);
+        let increment: i64 = row.get("increment").unwrap_or(1);
+        let min_value: i64 = row.get("minimum_value").unwrap_or(i64::MIN);
+        let max_value: i64 = row.get("maximum_value").unwrap_or(i64::MAX);
+        let is_cycling: bool = row.get("is_cycling").unwrap_or(false);
+        let cache_size: Option<i32> = row.get("cache_size");
+
+        let cycle_str = if is_cycling { "CYCLE" } else { "NO CYCLE" };
+        let cache_str = match cache_size {
+            Some(0) => "NO CACHE".to_string(),
+            Some(size) => format!("CACHE {}", size),
+            None => "".to_string(),
+        };
+
+        let ddl = format!(
+            "CREATE SEQUENCE [{}].[{}]\n    AS {}\n    START WITH {}\n    INCREMENT BY {}\n    MINVALUE {}\n    MAXVALUE {}\n    {}\n    {};",
+            schema_name, name, data_type, start_value, increment, min_value, max_value, cycle_str, cache_str
+        );
+
+        Ok(ddl)
+    }
+
+    async fn create_sequence(
+        &self,
+        pool: PoolRef<'_>,
+        sequence_def: &NewSequenceDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let schema = sequence_def.schema.as_deref().unwrap_or("dbo");
+
+        let mut parts = vec![format!(
+            "CREATE SEQUENCE [{}].[{}]",
+            schema.replace(']', "]]"),
+            sequence_def.name.replace(']', "]]")
+        )];
+
+        if let Some(start_value) = sequence_def.start_value {
+            parts.push(format!("START WITH {}", start_value));
+        }
+        if let Some(increment) = sequence_def.increment_by {
+            parts.push(format!("INCREMENT BY {}", increment));
+        }
+        if let Some(min) = sequence_def.min_value {
+            parts.push(format!("MINVALUE {}", min));
+        }
+        if let Some(max) = sequence_def.max_value {
+            parts.push(format!("MAXVALUE {}", max));
+        }
+        if sequence_def.cycle {
+            parts.push("CYCLE".to_string());
+        } else {
+            parts.push("NO CYCLE".to_string());
+        }
+
+        let sql = parts.join(" ");
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create sequence: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_sequence(
+        &self,
+        pool: PoolRef<'_>,
+        sequence_name: &str,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP SEQUENCE IF EXISTS [{}]",
+            sequence_name.replace(']', "]]")
+        );
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let result = Query::new(&sql).execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop sequence: {}", e)))?;
 
         Ok(QueryResult {
             columns: vec![],

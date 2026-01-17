@@ -5,10 +5,12 @@ use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ColumnInfo, ConnectionConfig, ConstraintInfo,
     CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
     DatabaseType, DatabaseUser, ExplainResult, ExplainWarning, ExtendedColumnInfo, ForeignKeyInfo,
-    IndexInfo, NewTableDefinition, NewViewDefinition, PermissionRequest, PlanNode, PreviewResult,
-    QueryResult, RoleMembershipRequest, StandaloneIndexInfo, StatementPreview, StatementType,
-    TableInfo, TableProperties, TableReferenceInfo, TableRelationship, TableSchema,
-    TestConnectionResult, ViewInfo, WarningSeverity,
+    FunctionInfo, IndexInfo, NewFunctionDefinition, NewProcedureDefinition, NewSequenceDefinition,
+    NewTableDefinition, NewTriggerDefinition, NewViewDefinition, PermissionRequest, PlanNode,
+    PreviewResult, ProcedureInfo, QueryResult, RoleMembershipRequest, SequenceInfo,
+    StandaloneIndexInfo, StatementPreview, StatementType, TableInfo, TableProperties,
+    TableReferenceInfo, TableRelationship, TableSchema, TestConnectionResult, TriggerInfo, ViewInfo,
+    WarningSeverity,
 };
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -2055,6 +2057,254 @@ impl DatabaseDriver for SqliteDriver {
             affected_rows: Some(result.rows_affected()),
             execution_time_ms: start.elapsed().as_millis() as u64,
         })
+    }
+
+    // ============ Stored Procedure Management Methods ============
+    // SQLite does not support stored procedures
+
+    async fn get_procedures(
+        &self,
+        _pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<ProcedureInfo>> {
+        Err(AppError::NotSupported("SQLite does not support stored procedures".to_string()))
+    }
+
+    async fn get_procedure_ddl(
+        &self,
+        _pool: PoolRef<'_>,
+        _procedure_name: &str,
+    ) -> AppResult<String> {
+        Err(AppError::NotSupported("SQLite does not support stored procedures".to_string()))
+    }
+
+    async fn create_procedure(
+        &self,
+        _pool: PoolRef<'_>,
+        _procedure_def: &NewProcedureDefinition,
+    ) -> AppResult<QueryResult> {
+        Err(AppError::NotSupported("SQLite does not support stored procedures".to_string()))
+    }
+
+    async fn drop_procedure(
+        &self,
+        _pool: PoolRef<'_>,
+        _procedure_name: &str,
+    ) -> AppResult<QueryResult> {
+        Err(AppError::NotSupported("SQLite does not support stored procedures".to_string()))
+    }
+
+    // ============ Function Management Methods ============
+    // SQLite does not support user-defined functions through SQL
+
+    async fn get_functions(
+        &self,
+        _pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<FunctionInfo>> {
+        Err(AppError::NotSupported("SQLite does not support user-defined functions through SQL".to_string()))
+    }
+
+    async fn get_function_ddl(&self, _pool: PoolRef<'_>, _function_name: &str) -> AppResult<String> {
+        Err(AppError::NotSupported("SQLite does not support user-defined functions through SQL".to_string()))
+    }
+
+    async fn create_function(
+        &self,
+        _pool: PoolRef<'_>,
+        _function_def: &NewFunctionDefinition,
+    ) -> AppResult<QueryResult> {
+        Err(AppError::NotSupported("SQLite does not support user-defined functions through SQL".to_string()))
+    }
+
+    async fn drop_function(
+        &self,
+        _pool: PoolRef<'_>,
+        _function_name: &str,
+    ) -> AppResult<QueryResult> {
+        Err(AppError::NotSupported("SQLite does not support user-defined functions through SQL".to_string()))
+    }
+
+    // ============ Trigger Management Methods ============
+
+    async fn get_triggers(
+        &self,
+        pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<TriggerInfo>> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let sql = r#"
+            SELECT
+                name,
+                tbl_name as table_name,
+                sql as definition
+            FROM sqlite_master
+            WHERE type = 'trigger'
+            ORDER BY name
+        "#;
+
+        let rows = sqlx::query(sql)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get triggers: {}", e)))?;
+
+        let triggers = rows
+            .iter()
+            .map(|row| {
+                let name: String = row.get("name");
+                let table_name: String = row.get("table_name");
+                let definition: Option<String> = row.get("definition");
+
+                // Parse timing and event from the definition
+                let (timing, event) = if let Some(def) = &definition {
+                    let upper = def.to_uppercase();
+                    let timing = if upper.contains("BEFORE") {
+                        Some("BEFORE".to_string())
+                    } else if upper.contains("AFTER") {
+                        Some("AFTER".to_string())
+                    } else if upper.contains("INSTEAD OF") {
+                        Some("INSTEAD OF".to_string())
+                    } else {
+                        None
+                    };
+                    let event = if upper.contains("INSERT") {
+                        Some("INSERT".to_string())
+                    } else if upper.contains("UPDATE") {
+                        Some("UPDATE".to_string())
+                    } else if upper.contains("DELETE") {
+                        Some("DELETE".to_string())
+                    } else {
+                        None
+                    };
+                    (timing, event)
+                } else {
+                    (None, None)
+                };
+
+                TriggerInfo {
+                    name,
+                    schema: None,
+                    table_name,
+                    timing,
+                    event,
+                    enabled: true, // SQLite triggers are always enabled
+                }
+            })
+            .collect();
+
+        Ok(triggers)
+    }
+
+    async fn get_trigger_ddl(&self, pool: PoolRef<'_>, trigger_name: &str, _table_name: Option<&str>) -> AppResult<String> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let sql = "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?";
+
+        let row = sqlx::query(sql)
+            .bind(trigger_name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to get trigger DDL: {}", e)))?
+            .ok_or_else(|| AppError::QueryError(format!("Trigger '{}' not found", trigger_name)))?;
+
+        let ddl: String = row.get("sql");
+        Ok(format!("{};\n", ddl))
+    }
+
+    async fn create_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_def: &NewTriggerDefinition,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = &trigger_def.definition;
+
+        let result = sqlx::query(sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to create trigger: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    async fn drop_trigger(
+        &self,
+        pool: PoolRef<'_>,
+        trigger_name: &str,
+        _table_name: Option<&str>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Sqlite(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for SQLite driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let sql = format!(
+            "DROP TRIGGER IF EXISTS {}",
+            escape_sqlite_identifier(trigger_name)
+        );
+
+        let result = sqlx::query(&sql)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop trigger: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    // ============ Sequence Management Methods ============
+    // SQLite does not support sequences - uses AUTOINCREMENT instead
+
+    async fn get_sequences(
+        &self,
+        _pool: PoolRef<'_>,
+        _config: &ConnectionConfig,
+    ) -> AppResult<Vec<SequenceInfo>> {
+        Err(AppError::NotSupported("SQLite does not support sequences. Use AUTOINCREMENT columns instead.".to_string()))
+    }
+
+    async fn get_sequence_ddl(&self, _pool: PoolRef<'_>, _sequence_name: &str) -> AppResult<String> {
+        Err(AppError::NotSupported("SQLite does not support sequences. Use AUTOINCREMENT columns instead.".to_string()))
+    }
+
+    async fn create_sequence(
+        &self,
+        _pool: PoolRef<'_>,
+        _sequence_def: &NewSequenceDefinition,
+    ) -> AppResult<QueryResult> {
+        Err(AppError::NotSupported("SQLite does not support sequences. Use AUTOINCREMENT columns instead.".to_string()))
+    }
+
+    async fn drop_sequence(
+        &self,
+        _pool: PoolRef<'_>,
+        _sequence_name: &str,
+    ) -> AppResult<QueryResult> {
+        Err(AppError::NotSupported("SQLite does not support sequences. Use AUTOINCREMENT columns instead.".to_string()))
     }
 }
 
