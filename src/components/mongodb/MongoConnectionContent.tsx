@@ -1,0 +1,550 @@
+import { useState, useEffect } from "react";
+import {
+  Database,
+  FolderClosed,
+  FolderOpen,
+  File,
+  Terminal,
+  ServerCog,
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  LayoutGrid,
+  Trash2,
+  Eye,
+  Copy,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui";
+import { useMongoDB, useToast } from "@/hooks";
+import { useMongoDBStore, useQueryStore } from "@/stores";
+import type { Tab } from "@/types";
+
+interface TreeItemProps {
+  label: string;
+  icon: React.ReactNode;
+  children?: React.ReactNode;
+  level?: number;
+  onClick?: () => void;
+  isActive?: boolean;
+  rightElement?: React.ReactNode;
+  defaultOpen?: boolean;
+  count?: number;
+}
+
+function TreeItem({
+  label,
+  icon,
+  children,
+  level = 0,
+  onClick,
+  isActive,
+  rightElement,
+  defaultOpen = false,
+  count,
+}: TreeItemProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const hasChildren = Boolean(children);
+
+  return (
+    <div className="group/tree relative">
+      {level > 0 && (
+        <div
+          className="tree-guide"
+          style={{ left: `${(level - 1) * 16 + 18}px` }}
+        />
+      )}
+      <div
+        className={cn(
+          "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
+          "hover:bg-sidebar-accent/60",
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+        )}
+        style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: "8px" }}
+      >
+        <button
+          className="flex flex-1 items-center gap-2 overflow-hidden"
+          onClick={() => {
+            if (hasChildren) setIsOpen(!isOpen);
+            onClick?.();
+          }}
+        >
+          {hasChildren ? (
+            <ChevronRight
+              className={cn(
+                "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+                isOpen && "rotate-90",
+                isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
+              )}
+            />
+          ) : (
+            <span className="w-3.5 shrink-0" />
+          )}
+          <span
+            className={cn(
+              "shrink-0 flex items-center justify-center w-5 h-5 rounded bg-sidebar-accent/30",
+              isActive ? "text-sidebar-accent-foreground bg-sidebar-accent/50" : ""
+            )}
+          >
+            {icon}
+          </span>
+          <span className="truncate flex-1 text-left">{label}</span>
+          {count !== undefined && (
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              {count}
+            </span>
+          )}
+        </button>
+        {rightElement && (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            {rightElement}
+          </div>
+        )}
+      </div>
+      {isOpen && children && <div className="animate-slide-down">{children}</div>}
+    </div>
+  );
+}
+
+interface MongoConnectionContentProps {
+  connectionId: string;
+}
+
+export function MongoConnectionContent({ connectionId }: MongoConnectionContentProps) {
+  const { listDatabases, listCollections, getServerInfo, dropDatabase, dropCollection } = useMongoDB();
+  const { addTab, tabs, setActiveTab } = useQueryStore();
+  const { toast } = useToast();
+  const {
+    databasesByConnection,
+    collectionsByDb,
+    loadingDatabases,
+    loadingCollections,
+    selectedDatabaseByConnection,
+    setSelectedDatabase,
+  } = useMongoDBStore();
+
+  const databases = databasesByConnection[connectionId] || [];
+  const selectedDb = selectedDatabaseByConnection[connectionId];
+
+  // Dialog states
+  const [dropDbDialog, setDropDbDialog] = useState<string | null>(null);
+  const [dropCollDialog, setDropCollDialog] = useState<{ db: string; coll: string } | null>(null);
+
+  // Load databases on mount
+  useEffect(() => {
+    listDatabases(connectionId);
+    getServerInfo(connectionId);
+  }, [connectionId]);
+
+  const handleRefreshDatabases = () => {
+    listDatabases(connectionId);
+  };
+
+  const handleRefreshCollections = (dbName: string) => {
+    listCollections(connectionId, dbName);
+  };
+
+  const handleDatabaseClick = async (dbName: string) => {
+    setSelectedDatabase(connectionId, dbName);
+    const key = `${connectionId}:${dbName}`;
+    if (!collectionsByDb[key]) {
+      await listCollections(connectionId, dbName);
+    }
+  };
+
+  const handleCollectionClick = (dbName: string, collectionName: string) => {
+    const tabId = `mongodb-browser-${connectionId}-${dbName}-${collectionName}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: collectionName.length > 20 ? collectionName.substring(0, 17) + "..." : collectionName,
+        type: "mongodb-browser",
+        connectionId,
+        mongoDatabase: dbName,
+        mongoCollection: collectionName,
+      } as Tab);
+    }
+  };
+
+  const handleOpenShell = () => {
+    const tabId = `mongodb-shell-${connectionId}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: "Shell",
+        type: "mongodb-shell",
+        connectionId,
+      } as Tab);
+    }
+  };
+
+  const handleOpenServerInfo = () => {
+    const tabId = `mongodb-info-${connectionId}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: "Server Info",
+        type: "mongodb-info",
+        connectionId,
+      } as Tab);
+    }
+  };
+
+  const handleOpenAggregation = (dbName: string, collectionName: string) => {
+    const tabId = `mongodb-aggregation-${connectionId}-${dbName}-${collectionName}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: `Aggregate: ${collectionName}`,
+        type: "mongodb-aggregation",
+        connectionId,
+        mongoDatabase: dbName,
+        mongoCollection: collectionName,
+      } as Tab);
+    }
+  };
+
+  const handleDropDatabase = async (dbName: string) => {
+    const success = await dropDatabase(connectionId, dbName);
+    if (success) {
+      toast({
+        title: "Database dropped",
+        description: `Database "${dbName}" has been dropped.`,
+      });
+      listDatabases(connectionId);
+    } else {
+      toast({
+        title: "Failed to drop database",
+        description: `Could not drop database "${dbName}".`,
+        variant: "destructive",
+      });
+    }
+    setDropDbDialog(null);
+  };
+
+  const handleDropCollection = async (dbName: string, collName: string) => {
+    const success = await dropCollection(connectionId, dbName, collName);
+    if (success) {
+      toast({
+        title: "Collection dropped",
+        description: `Collection "${collName}" has been dropped.`,
+      });
+      listCollections(connectionId, dbName);
+    } else {
+      toast({
+        title: "Failed to drop collection",
+        description: `Could not drop collection "${collName}".`,
+        variant: "destructive",
+      });
+    }
+    setDropCollDialog(null);
+  };
+
+  const handleCopyName = (name: string) => {
+    navigator.clipboard.writeText(name);
+    toast({
+      title: "Copied",
+      description: `"${name}" copied to clipboard.`,
+    });
+  };
+
+  return (
+    <>
+      {/* Databases Section */}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <TreeItem
+              label="Databases"
+              icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={0}
+              defaultOpen={true}
+              count={databases.length}
+              rightElement={
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRefreshDatabases();
+                      }}
+                    >
+                      <RefreshCw className={cn("h-3.5 w-3.5", loadingDatabases && "animate-spin")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Refresh databases</TooltipContent>
+                </Tooltip>
+              }
+            >
+              {loadingDatabases ? (
+                <div className="ml-8 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                databases.map((db) => {
+                  const collections = collectionsByDb[`${connectionId}:${db.name}`] || [];
+                  const isExpanded = selectedDb === db.name;
+
+                  return (
+                    <ContextMenu key={db.name}>
+                      <ContextMenuTrigger asChild>
+                        <div>
+                          <TreeItem
+                            label={db.name}
+                            icon={
+                              isExpanded ? (
+                                <FolderOpen className="h-3.5 w-3.5 text-yellow-500" />
+                              ) : (
+                                <FolderClosed className="h-3.5 w-3.5 text-yellow-500" />
+                              )
+                            }
+                            level={1}
+                            count={db.collectionCount}
+                            defaultOpen={isExpanded}
+                            onClick={() => handleDatabaseClick(db.name)}
+                          >
+                            {loadingCollections ? (
+                              <div className="ml-12 flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Loading...</span>
+                              </div>
+                            ) : (
+                              collections.map((coll) => (
+                                <ContextMenu key={coll.name}>
+                                  <ContextMenuTrigger asChild>
+                                    <div>
+                                      <TreeItem
+                                        label={coll.name}
+                                        icon={<File className="h-3.5 w-3.5 text-green-500" />}
+                                        level={2}
+                                        count={coll.documentCount}
+                                        onClick={() => handleCollectionClick(db.name, coll.name)}
+                                        rightElement={
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-5 w-5 p-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenAggregation(db.name, coll.name);
+                                                }}
+                                              >
+                                                <LayoutGrid className="h-3 w-3" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Aggregation Pipeline</TooltipContent>
+                                          </Tooltip>
+                                        }
+                                      />
+                                    </div>
+                                  </ContextMenuTrigger>
+                                  <ContextMenuContent className="w-48">
+                                    <ContextMenuItem
+                                      onSelect={() => handleCollectionClick(db.name, coll.name)}
+                                      className="gap-2"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                      Browse Documents
+                                    </ContextMenuItem>
+                                    <ContextMenuItem
+                                      onSelect={() => handleOpenAggregation(db.name, coll.name)}
+                                      className="gap-2"
+                                    >
+                                      <LayoutGrid className="h-4 w-4" />
+                                      Aggregation Pipeline
+                                    </ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      onSelect={() => handleCopyName(coll.name)}
+                                      className="gap-2"
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                      Copy Name
+                                    </ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      onSelect={() => setDropCollDialog({ db: db.name, coll: coll.name })}
+                                      className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Drop Collection
+                                    </ContextMenuItem>
+                                  </ContextMenuContent>
+                                </ContextMenu>
+                              ))
+                            )}
+                            {!loadingCollections && collections.length === 0 && (
+                              <div className="ml-12 py-1 text-xs text-muted-foreground">No collections</div>
+                            )}
+                          </TreeItem>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem
+                          onSelect={() => handleRefreshCollections(db.name)}
+                          className="gap-2"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          Refresh Collections
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          onSelect={() => handleCopyName(db.name)}
+                          className="gap-2"
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy Name
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          onSelect={() => setDropDbDialog(db.name)}
+                          className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Drop Database
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  );
+                })
+              )}
+              {!loadingDatabases && databases.length === 0 && (
+                <div className="ml-8 py-2 text-xs text-muted-foreground">No databases found</div>
+              )}
+            </TreeItem>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onSelect={handleRefreshDatabases} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh Databases
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {/* Shell Section */}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <TreeItem
+              label="Shell"
+              icon={<Terminal className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={0}
+              onClick={handleOpenShell}
+            />
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onSelect={handleOpenShell} className="gap-2">
+            <Terminal className="h-4 w-4" />
+            Open Shell
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {/* Server Info Section */}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <TreeItem
+              label="Server Info"
+              icon={<ServerCog className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={0}
+              onClick={handleOpenServerInfo}
+            />
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onSelect={handleOpenServerInfo} className="gap-2">
+            <ServerCog className="h-4 w-4" />
+            View Server Info
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {/* Drop Database Confirmation Dialog */}
+      <AlertDialog open={!!dropDbDialog} onOpenChange={() => setDropDbDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop Database</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the database "{dropDbDialog}"? This action cannot be undone
+              and will permanently delete all collections and documents in this database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => dropDbDialog && handleDropDatabase(dropDbDialog)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop Database
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Drop Collection Confirmation Dialog */}
+      <AlertDialog open={!!dropCollDialog} onOpenChange={() => setDropCollDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Drop Collection</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to drop the collection "{dropCollDialog?.coll}"? This action cannot
+              be undone and will permanently delete all documents in this collection.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => dropCollDialog && handleDropCollection(dropCollDialog.db, dropCollDialog.coll)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Drop Collection
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}

@@ -9,6 +9,7 @@ use tokio::sync::RwLock;
 
 // Re-export pool types from driver modules
 pub use crate::db::mssql::MssqlPool;
+pub use crate::db::mongodb::MongoPool;
 pub use crate::db::oracle::OraclePool;
 pub use crate::db::redis::RedisPool;
 
@@ -20,6 +21,7 @@ pub enum ConnectionPool {
     Mssql(MssqlPool),
     Oracle(OraclePool),
     Redis(RedisPool),
+    MongoDB(MongoPool),
 }
 
 /// Manages active database connections
@@ -129,6 +131,12 @@ impl ConnectionManager {
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to Redis: {}", e)))?;
                 (ConnectionPool::Redis(pool), connection_string)
             }
+            DatabaseType::MongoDB => {
+                let connection_string = super::mongodb::build_mongodb_connection_string(&tunnel_config);
+                let pool = super::mongodb::create_mongodb_pool(&connection_string).await
+                    .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MongoDB: {}", e)))?;
+                (ConnectionPool::MongoDB(pool), connection_string)
+            }
         };
 
         self.connection_strings.insert(connection_id.clone(), connection_string);
@@ -152,6 +160,9 @@ impl ConnectionManager {
                 }
                 ConnectionPool::Redis(p) => {
                     p.close();
+                }
+                ConnectionPool::MongoDB(_p) => {
+                    // MongoDB Client drop handles cleanup automatically
                 }
             }
         }
@@ -183,6 +194,7 @@ impl ConnectionManager {
             ConnectionPool::Mssql(p) => Ok(PoolRef::Mssql(p)),
             ConnectionPool::Oracle(p) => Ok(PoolRef::Oracle(p)),
             ConnectionPool::Redis(p) => Ok(PoolRef::Redis(p)),
+            ConnectionPool::MongoDB(p) => Ok(PoolRef::MongoDB(p)),
         }
     }
 
@@ -252,6 +264,7 @@ fn get_default_port(db_type: &DatabaseType) -> u16 {
         DatabaseType::CockroachDB => 26257,
         DatabaseType::Oracle => 1521,
         DatabaseType::Redis => 6379,
+        DatabaseType::MongoDB => 27017,
     }
 }
 

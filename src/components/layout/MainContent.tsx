@@ -32,6 +32,7 @@ import { QueryEditorTab } from "./tabs/QueryEditorTab";
 import { TableViewerTab } from "./tabs/TableViewerTab";
 import { TabContextMenu } from "./TabContextMenu";
 import { RedisValueViewer, RedisCLI, RedisServerInfo, RedisBrowser } from "@/components/redis";
+import { MongoBrowser, MongoDocumentViewer, MongoShell, MongoServerInfo } from "@/components/mongodb";
 import type { Tab } from "@/types";
 import { useAnime } from "@/hooks/useAnime";
 
@@ -59,6 +60,16 @@ function TabItem({ tab, isActive, onClose, onClick }: {
         return <Info className="h-3.5 w-3.5" />;
       case "redis-browser":
         return <Table className="h-3.5 w-3.5" />;
+      case "mongodb-browser":
+        return <Table className="h-3.5 w-3.5" />;
+      case "mongodb-document":
+        return <Code className="h-3.5 w-3.5" />;
+      case "mongodb-shell":
+        return <Terminal className="h-3.5 w-3.5" />;
+      case "mongodb-info":
+        return <Info className="h-3.5 w-3.5" />;
+      case "mongodb-aggregation":
+        return <Network className="h-3.5 w-3.5" />;
       default:
         return <Code className="h-3.5 w-3.5" />;
     }
@@ -132,6 +143,7 @@ function EmptyState() {
   const { addTab, tabs, setActiveTab } = useQueryStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const isRedis = activeConnection?.databaseType === "redis";
+  const isMongoDB = activeConnection?.databaseType === "mongodb";
 
   const handleNewQuery = () => {
     if (!activeConnection) return;
@@ -162,6 +174,23 @@ function EmptyState() {
     }
   };
 
+  const handleOpenMongoShell = () => {
+    if (!activeConnection) return;
+
+    const tabId = `mongodb-shell-${activeConnection.id}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: "Shell",
+        type: "mongodb-shell",
+        connectionId: activeConnection.id,
+      } as Tab);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col items-center justify-center text-muted-foreground animate-fade-in">
       <div className="relative mb-6">
@@ -175,6 +204,8 @@ function EmptyState() {
         {activeConnection
           ? isRedis
             ? "Start by opening the CLI or selecting a key from the sidebar"
+            : isMongoDB
+            ? "Start by opening the Shell or selecting a collection from the sidebar"
             : "Start by opening a new query or selecting a table from the sidebar"
           : "Select a connection from the sidebar to get started"}
       </p>
@@ -183,6 +214,11 @@ function EmptyState() {
           <Button onClick={handleOpenCli} size="lg">
             <Terminal className="mr-2 h-4 w-4" />
             Open CLI
+          </Button>
+        ) : isMongoDB ? (
+          <Button onClick={handleOpenMongoShell} size="lg">
+            <Terminal className="mr-2 h-4 w-4" />
+            Open Shell
           </Button>
         ) : (
           <Button onClick={handleNewQuery} size="lg">
@@ -272,6 +308,23 @@ export function MainContent() {
           id: tabId,
           title: "CLI",
           type: "redis-cli",
+          connectionId: activeConnection.id,
+        } as Tab);
+      }
+      return;
+    }
+
+    // For MongoDB connections, open a Shell tab instead of a Query tab
+    if (activeConnection.databaseType === "mongodb") {
+      const tabId = `mongodb-shell-${activeConnection.id}`;
+      const existingTab = tabs.find((t) => t.id === tabId);
+      if (existingTab) {
+        setActiveTab(tabId);
+      } else {
+        addTab({
+          id: tabId,
+          title: "Shell",
+          type: "mongodb-shell",
           connectionId: activeConnection.id,
         } as Tab);
       }
@@ -396,6 +449,20 @@ export function MainContent() {
             <RedisServerInfo connectionId={activeTab.connectionId} />
           ) : activeTab.type === "redis-browser" ? (
             <RedisBrowser connectionId={activeTab.connectionId} />
+          ) : activeTab.type === "mongodb-browser" && activeTab.mongoDatabase && activeTab.mongoCollection ? (
+            <MongoBrowser
+              connectionId={activeTab.connectionId}
+              database={activeTab.mongoDatabase}
+              collection={activeTab.mongoCollection}
+            />
+          ) : activeTab.type === "mongodb-document" && activeTab.mongoDatabase && activeTab.mongoCollection && activeTab.mongoDocumentId ? (
+            <MongoDocumentViewer
+              document={JSON.parse(activeTab.mongoDocumentId)}
+            />
+          ) : activeTab.type === "mongodb-shell" ? (
+            <MongoShell connectionId={activeTab.connectionId} />
+          ) : activeTab.type === "mongodb-info" ? (
+            <MongoServerInfo connectionId={activeTab.connectionId} />
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               <div className="text-center">

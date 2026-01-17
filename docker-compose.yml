@@ -196,6 +196,26 @@ services:
         echo "Redis init complete!"
     restart: "no"
 
+  # MongoDB - Port 27017
+  mongodb:
+    image: mongo:7
+    container_name: dbfordevs-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: mongodb
+      MONGO_INITDB_DATABASE: testdb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongodb-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   postgres_data:
   mysql_data:
@@ -204,3 +224,4 @@ volumes:
   cockroach_data:
   oracle_data:
   redis_data:
+  mongodb_data:

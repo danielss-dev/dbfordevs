@@ -7,6 +7,7 @@ export { useCRUD } from "./useCRUD";
 export { useAnime, useAnimeOnMount } from "./useAnime";
 export { useUpdater } from "./useUpdater";
 export { useRedis } from "./useRedis";
+export { useMongoDB } from "./useMongoDB";
 export type { UseAsyncOperationOptions, UseAsyncOperationResult } from "./useAsyncOperation";
 export type { UpdaterState } from "./useUpdater";
 

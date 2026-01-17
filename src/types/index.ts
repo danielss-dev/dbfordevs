@@ -7,6 +7,9 @@ export * from "./grid";
 // Re-export Redis types
 export * from "./redis";
 
+// Re-export MongoDB types
+export * from "./mongodb";
+
 // Database types
 export type DatabaseType =
   | "postgresql"
@@ -280,11 +283,14 @@ export interface ValidationResult {
 export interface Tab {
   id: string;
   title: string;
-  type: "query" | "table" | "schema" | "properties" | "diagram" | "redis-key" | "redis-cli" | "redis-pubsub" | "redis-info" | "redis-browser";
+  type: "query" | "table" | "schema" | "properties" | "diagram" | "redis-key" | "redis-cli" | "redis-pubsub" | "redis-info" | "redis-browser" | "mongodb-browser" | "mongodb-document" | "mongodb-aggregation" | "mongodb-shell" | "mongodb-info";
   connectionId: string;
   content?: string;
   tableName?: string; // Full table identifier for "table", "properties", and "diagram" types
   redisKey?: string; // Redis key name for "redis-key" type
+  mongoDatabase?: string; // MongoDB database name for mongo tabs
+  mongoCollection?: string; // MongoDB collection name for mongo tabs
+  mongoDocumentId?: string; // MongoDB document ID for document view
   isPinned?: boolean; // Pinned tabs appear first and cannot be accidentally closed
 }
 

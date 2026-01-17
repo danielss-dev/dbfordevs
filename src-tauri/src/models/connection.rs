@@ -11,6 +11,7 @@ pub enum DatabaseType {
     CockroachDB,
     Oracle,
     Redis,
+    MongoDB,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
