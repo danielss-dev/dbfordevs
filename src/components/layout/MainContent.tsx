@@ -87,6 +87,13 @@ function TabItem({ tab, isActive, onClose, onClick }: {
           : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
       )}
       onClick={onClick}
+      onMouseDown={(e) => {
+        // Middle-click to close tab (but not pinned tabs)
+        if (e.button === 1 && !tab.isPinned) {
+          e.preventDefault();
+          onClose();
+        }
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
