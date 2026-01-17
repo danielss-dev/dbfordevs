@@ -2,6 +2,16 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.7] - 2026-01-17
+
+
+### Added
+- **feat**: implement tab context menu and pinning functionality
+- **feat**: implement database object management for procedures, functions, triggers, and sequences (#57)
+- **feat**: update default capabilities to include additional API URLs
+
+### Changed
+- UI improvments (#58)
 ## [0.3.6] - 2026-01-15
 
 
