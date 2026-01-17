@@ -1,4 +1,4 @@
-use crate::db::common::{parse_cte_statement_type, quote_identifier, CteParserConfig};
+use crate::db::common::{parse_cte_statement_type, quote_identifier, quote_identifier_single, CteParserConfig};
 use crate::db::{DatabaseDriver, PoolRef};
 use crate::models::DatabaseType;
 use crate::error::{AppError, AppResult};
@@ -2537,7 +2537,10 @@ impl DatabaseDriver for OracleDriver {
             .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
 
         tokio::task::spawn_blocking(move || {
-            let sql = format!("DROP PROCEDURE {}", procedure_name);
+            let sql = format!(
+                "DROP PROCEDURE {}",
+                quote_identifier_single(&procedure_name, &DatabaseType::Oracle)
+            );
 
             conn.inner().execute(&sql, &[])
                 .map_err(|e| AppError::QueryError(format!("Failed to drop procedure: {}", e)))?;
@@ -2680,7 +2683,10 @@ impl DatabaseDriver for OracleDriver {
             .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
 
         tokio::task::spawn_blocking(move || {
-            let sql = format!("DROP FUNCTION {}", function_name);
+            let sql = format!(
+                "DROP FUNCTION {}",
+                quote_identifier_single(&function_name, &DatabaseType::Oracle)
+            );
 
             conn.inner().execute(&sql, &[])
                 .map_err(|e| AppError::QueryError(format!("Failed to drop function: {}", e)))?;
@@ -2848,7 +2854,10 @@ impl DatabaseDriver for OracleDriver {
             .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
 
         tokio::task::spawn_blocking(move || {
-            let sql = format!("DROP TRIGGER {}", trigger_name);
+            let sql = format!(
+                "DROP TRIGGER {}",
+                quote_identifier_single(&trigger_name, &DatabaseType::Oracle)
+            );
 
             conn.inner().execute(&sql, &[])
                 .map_err(|e| AppError::QueryError(format!("Failed to drop trigger: {}", e)))?;
@@ -3068,7 +3077,10 @@ impl DatabaseDriver for OracleDriver {
             .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
 
         tokio::task::spawn_blocking(move || {
-            let sql = format!("DROP SEQUENCE {}", sequence_name);
+            let sql = format!(
+                "DROP SEQUENCE {}",
+                quote_identifier_single(&sequence_name, &DatabaseType::Oracle)
+            );
 
             conn.inner().execute(&sql, &[])
                 .map_err(|e| AppError::QueryError(format!("Failed to drop sequence: {}", e)))?;
