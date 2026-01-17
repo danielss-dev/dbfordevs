@@ -16,7 +16,7 @@ interface SqlEditorProps {
   onFormat?: () => void;
   tables?: TableInfo[];
   schemas?: Record<string, TableSchema>;
-  theme?: "light" | "dark" | "system" | "nordic-dark" | "nordic-light";
+  theme?: "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher";
   databaseType?: string;
   formatterOptions?: SqlFormatterOptions;
   readOnly?: boolean;

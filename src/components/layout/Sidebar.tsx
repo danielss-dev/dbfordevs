@@ -6,7 +6,6 @@ import {
   Plus,
   Settings,
   ChevronRight,
-  ChevronDown,
   Loader2,
   Pencil,
   Trash2,
@@ -72,14 +71,14 @@ interface TreeItemProps {
   defaultOpen?: boolean;
 }
 
-function TreeItem({ 
-  label, 
-  icon, 
-  children, 
-  level = 0, 
-  onClick, 
-  isActive, 
-  isConnected, 
+function TreeItem({
+  label,
+  icon,
+  children,
+  level = 0,
+  onClick,
+  isActive,
+  isConnected,
   rightElement,
   defaultOpen = false
 }: TreeItemProps) {
@@ -87,17 +86,25 @@ function TreeItem({
   const hasChildren = Boolean(children);
 
   return (
-    <div className="relative">
+    <div className="group/tree relative">
+      {/* Indentation guide lines for nested items */}
+      {level > 0 && (
+        <div
+          className="tree-guide"
+          style={{ left: `${(level - 1) * 16 + 18}px` }}
+        />
+      )}
+      {/* Active indicator bar */}
       {isActive && level === 0 && (
         <div className="absolute left-0 top-1 bottom-1 w-0.5 bg-primary rounded-full z-10" />
       )}
       <div
         className={cn(
-          "group flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm transition-all duration-200",
-          "hover:bg-sidebar-accent/50",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-          level > 0 && "ml-4"
+          "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
+          "hover:bg-sidebar-accent/60",
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
         )}
+        style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: '8px' }}
       >
         <button
           className="flex flex-1 items-center gap-2 overflow-hidden"
@@ -107,18 +114,19 @@ function TreeItem({
           }}
         >
           {hasChildren ? (
-            <span className={cn(
-              "transition-transform duration-200",
-              isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
-            )}>
-              {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            </span>
+            <ChevronRight
+              className={cn(
+                "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+                isOpen && "rotate-90",
+                isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
+              )}
+            />
           ) : (
-            <span className="w-3.5" />
+            <span className="w-3.5 shrink-0" />
           )}
           <span className={cn(
-            "shrink-0 transition-colors",
-            isActive ? "text-sidebar-accent-foreground" : ""
+            "shrink-0 flex items-center justify-center w-5 h-5 rounded bg-sidebar-accent/30",
+            isActive ? "text-sidebar-accent-foreground bg-sidebar-accent/50" : ""
           )}>{icon}</span>
           <span className="truncate flex-1 text-left">{label}</span>
           {isConnected !== undefined && (
@@ -135,7 +143,7 @@ function TreeItem({
         )}
       </div>
       {isOpen && children && (
-        <div className="ml-2 animate-slide-down">{children}</div>
+        <div className="animate-slide-down">{children}</div>
       )}
     </div>
   );
@@ -1262,9 +1270,12 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                       )}
                                       onClick={() => handleDatabaseToggle(db.name)}
                                     >
-                                      <span className="text-muted-foreground">
-                                        {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                                      </span>
+                                      <ChevronRight
+                                        className={cn(
+                                          "h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-muted-foreground",
+                                          isExpanded && "rotate-90"
+                                        )}
+                                      />
                                       <Database className={cn("h-3.5 w-3.5", db.isCurrent ? "text-primary" : "text-muted-foreground")} />
                                       <span className="truncate flex-1 text-left">{db.name}</span>
                                       {db.isCurrent && (
@@ -2400,8 +2411,12 @@ export function Sidebar() {
               </Button>
             </div>
           ) : (
-            connections.map((conn) => (
-              <ConnectionItem key={conn.id} connection={conn} />
+            connections.map((conn, index) => (
+              <div key={conn.id} className={cn(
+                index > 0 && "mt-1 pt-1 border-t border-sidebar-border/50"
+              )}>
+                <ConnectionItem connection={conn} />
+              </div>
             ))
           )}
         </div>

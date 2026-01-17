@@ -39,6 +39,7 @@ import {
   Download,
   RefreshCw,
   Table,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAIStore } from "@/lib/ai/store";
@@ -322,7 +323,7 @@ export function SettingsDialog() {
   }, [showSettingsDialog, searchOpen]);
 
   const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme as "light" | "dark" | "system" | "nordic-dark" | "nordic-light");
+    setTheme(newTheme as "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher");
 
     // Get label from built-in themes
     const builtInLabels: Record<string, string> = {
@@ -331,6 +332,7 @@ export function SettingsDialog() {
       dark: "Dark",
       "nordic-dark": "Nordic Dark",
       "nordic-light": "Nordic Light",
+      slasher: "Slasher",
     };
 
     const label = builtInLabels[newTheme] || newTheme;
@@ -866,6 +868,13 @@ export function SettingsDialog() {
                                 <div className="flex items-center gap-2">
                                   <Sun className="h-4 w-4 text-primary" />
                                   <span>Nordic Light</span>
+                                </div>
+                              </SelectItem>
+                              {/* Slasher Theme */}
+                              <SelectItem value="slasher">
+                                <div className="flex items-center gap-2">
+                                  <Zap className="h-4 w-4 text-orange-500" />
+                                  <span>Slasher</span>
                                 </div>
                               </SelectItem>
                             </SelectContent>
