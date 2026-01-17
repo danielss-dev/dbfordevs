@@ -291,7 +291,7 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
             <TreeItem
               label="Databases"
               icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={1}
+              level={0}
               defaultOpen={true}
               count={databases.length}
               rightElement={
@@ -336,7 +336,7 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
                                 <FolderClosed className="h-3.5 w-3.5 text-yellow-500" />
                               )
                             }
-                            level={2}
+                            level={1}
                             count={db.collectionCount}
                             defaultOpen={isExpanded}
                             onClick={() => handleDatabaseClick(db.name)}
@@ -354,7 +354,7 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
                                       <TreeItem
                                         label={coll.name}
                                         icon={<File className="h-3.5 w-3.5 text-green-500" />}
-                                        level={3}
+                                        level={2}
                                         count={coll.documentCount}
                                         onClick={() => handleCollectionClick(db.name, coll.name)}
                                         rightElement={
@@ -469,7 +469,7 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
             <TreeItem
               label="Shell"
               icon={<Terminal className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={1}
+              level={0}
               onClick={handleOpenShell}
             />
           </div>
@@ -489,7 +489,7 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
             <TreeItem
               label="Server Info"
               icon={<ServerCog className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={1}
+              level={0}
               onClick={handleOpenServerInfo}
             />
           </div>
