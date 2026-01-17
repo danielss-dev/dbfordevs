@@ -24,6 +24,7 @@ npm-debug.log*
 
 # Tauri
 src-tauri/target/
+.tauri_signing_key
 
 # Coverage
 coverage/
