@@ -1,6 +1,6 @@
 [package]
 name = "dbfordevs"
-version = "0.3.9"
+version = "0.3.10"
 description = "A modern cross-platform database management application for developers"
 authors = ["Daniels"]
 license = "MIT"
