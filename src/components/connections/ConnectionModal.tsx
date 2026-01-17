@@ -300,9 +300,11 @@ export function ConnectionModal() {
   };
 
   const isMssql = formData.databaseType === "mssql";
+  const isRedis = formData.databaseType === "redis";
   // MSSQL allows connecting without a specific database (defaults to master, shows all databases)
-  const canTest = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : (isMssql || formData.database.trim()));
-  const canSave = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : (isMssql || formData.database.trim()));
+  // Redis doesn't use database name (uses numeric index 0-15, default 0)
+  const canTest = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : (isMssql || isRedis || formData.database.trim()));
+  const canSave = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : (isMssql || isRedis || formData.database.trim()));
 
   // Get status indicators for tabs
   const getSslStatus = () => {
@@ -344,7 +346,7 @@ export function ConnectionModal() {
         ) : (
           <div className="flex-1 overflow-y-auto">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className={cn("grid w-full", isSqlite ? "grid-cols-1" : "grid-cols-4")}>
+              <TabsList className={cn("grid w-full", isSqlite ? "grid-cols-1" : isRedis ? "grid-cols-2" : "grid-cols-4")}>
                 <TabsTrigger value="general" className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
                   General
@@ -355,24 +357,29 @@ export function ConnectionModal() {
                       <Server className="h-4 w-4" />
                       Connection
                     </TabsTrigger>
-                    <TabsTrigger value="ssl" className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      SSL
-                      {getSslStatus() && (
-                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
-                          {getSslStatus()}
-                        </span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="ssh" className="flex items-center gap-2">
-                      <Terminal className="h-4 w-4" />
-                      SSH
-                      {getSshStatus() && (
-                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
-                          on
-                        </span>
-                      )}
-                    </TabsTrigger>
+                    {/* Hide SSL/SSH tabs for Redis - simpler connection model */}
+                    {!isRedis && (
+                      <>
+                        <TabsTrigger value="ssl" className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          SSL
+                          {getSslStatus() && (
+                            <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
+                              {getSslStatus()}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="ssh" className="flex items-center gap-2">
+                          <Terminal className="h-4 w-4" />
+                          SSH
+                          {getSshStatus() && (
+                            <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+                              on
+                            </span>
+                          )}
+                        </TabsTrigger>
+                      </>
+                    )}
                   </>
                 )}
               </TabsList>
@@ -564,22 +571,25 @@ export function ConnectionModal() {
                               />
                             </FormField>
                           </div>
-                          <FormField
-                            label="Database Name"
-                            htmlFor="database"
-                            hint={isMssql
-                              ? "Leave empty to connect to 'master' and browse all databases"
-                              : "The name of the database to connect to"}
-                            required={!isMssql}
-                          >
-                            <Input
-                              id="database"
-                              placeholder={isMssql ? "master (optional)" : "mydb"}
-                              value={formData.database}
-                              onChange={(e) => setFormData({ ...formData, database: e.target.value })}
-                              className="transition-colors"
-                            />
-                          </FormField>
+                          {/* Database Name - hidden for Redis */}
+                          {!isRedis && (
+                            <FormField
+                              label="Database Name"
+                              htmlFor="database"
+                              hint={isMssql
+                                ? "Leave empty to connect to 'master' and browse all databases"
+                                : "The name of the database to connect to"}
+                              required={!isMssql}
+                            >
+                              <Input
+                                id="database"
+                                placeholder={isMssql ? "master (optional)" : "mydb"}
+                                value={formData.database}
+                                onChange={(e) => setFormData({ ...formData, database: e.target.value })}
+                                className="transition-colors"
+                              />
+                            </FormField>
+                          )}
                         </div>
 
                         {/* Authentication */}
@@ -588,35 +598,53 @@ export function ConnectionModal() {
                             <Key className="h-4 w-4" />
                             <span>Authentication</span>
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                              label="Username"
-                              htmlFor="username"
-                              hint={`Default: ${defaults.username}`}
-                            >
-                              <Input
-                                id="username"
-                                placeholder={defaults.username}
-                                value={formData.username || ""}
-                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                className="transition-colors"
-                              />
-                            </FormField>
+                          {isRedis ? (
+                            /* Redis only needs password (optional) */
                             <FormField
                               label="Password"
                               htmlFor="password"
-                              hint={isEditMode ? "Leave empty to keep existing" : "Your database password"}
+                              hint="Leave empty if Redis has no password configured"
                             >
                               <Input
                                 id="password"
                                 type="password"
-                                placeholder={isEditMode ? "••••••••" : "Password"}
+                                placeholder="Password (optional)"
                                 value={formData.password || ""}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                 className="transition-colors"
                               />
                             </FormField>
-                          </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                              <FormField
+                                label="Username"
+                                htmlFor="username"
+                                hint={`Default: ${defaults.username}`}
+                              >
+                                <Input
+                                  id="username"
+                                  placeholder={defaults.username}
+                                  value={formData.username || ""}
+                                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                  className="transition-colors"
+                                />
+                              </FormField>
+                              <FormField
+                                label="Password"
+                                htmlFor="password"
+                                hint={isEditMode ? "Leave empty to keep existing" : "Your database password"}
+                              >
+                                <Input
+                                  id="password"
+                                  type="password"
+                                  placeholder={isEditMode ? "••••••••" : "Password"}
+                                  value={formData.password || ""}
+                                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                  className="transition-colors"
+                                />
+                              </FormField>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
@@ -624,7 +652,7 @@ export function ConnectionModal() {
                 )}
 
                 {/* SSL Tab */}
-                {!isSqlite && (
+                {!isSqlite && !isRedis && (
                   <TabsContent value="ssl" className="mt-0 space-y-6">
                     <FormField
                       label="SSL Mode"
@@ -706,7 +734,7 @@ export function ConnectionModal() {
                 )}
 
                 {/* SSH Tab */}
-                {!isSqlite && (
+                {!isSqlite && !isRedis && (
                   <TabsContent value="ssh" className="mt-0 space-y-6">
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <input

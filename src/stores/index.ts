@@ -15,4 +15,5 @@ export * from "./procedures";
 export * from "./functions";
 export * from "./triggers";
 export * from "./sequences";
+export * from "./redis";
 

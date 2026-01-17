@@ -31,6 +31,7 @@ import { TablePropertiesTab, TableDiagramTab } from "@/components/table";
 import { QueryEditorTab } from "./tabs/QueryEditorTab";
 import { TableViewerTab } from "./tabs/TableViewerTab";
 import { TabContextMenu } from "./TabContextMenu";
+import { RedisValueViewer, RedisCLI, RedisServerInfo, RedisBrowser } from "@/components/redis";
 import type { Tab } from "@/types";
 import { useAnime } from "@/hooks/useAnime";
 
@@ -50,6 +51,14 @@ function TabItem({ tab, isActive, onClose, onClick }: {
         return <Info className="h-3.5 w-3.5" />;
       case "diagram":
         return <Network className="h-3.5 w-3.5" />;
+      case "redis-key":
+        return <Table className="h-3.5 w-3.5" />;
+      case "redis-cli":
+        return <Terminal className="h-3.5 w-3.5" />;
+      case "redis-info":
+        return <Info className="h-3.5 w-3.5" />;
+      case "redis-browser":
+        return <Table className="h-3.5 w-3.5" />;
       default:
         return <Code className="h-3.5 w-3.5" />;
     }
@@ -120,8 +129,9 @@ function TabItem({ tab, isActive, onClose, onClick }: {
 }
 
 function EmptyState() {
-  const { addTab } = useQueryStore();
+  const { addTab, tabs, setActiveTab } = useQueryStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
+  const isRedis = activeConnection?.databaseType === "redis";
 
   const handleNewQuery = () => {
     if (!activeConnection) return;
@@ -135,6 +145,23 @@ function EmptyState() {
     });
   };
 
+  const handleOpenCli = () => {
+    if (!activeConnection) return;
+
+    const tabId = `redis-cli-${activeConnection.id}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: "CLI",
+        type: "redis-cli",
+        connectionId: activeConnection.id,
+      } as Tab);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col items-center justify-center text-muted-foreground animate-fade-in">
       <div className="relative mb-6">
@@ -146,14 +173,23 @@ function EmptyState() {
       <h2 className="mb-2 text-xl font-semibold text-foreground">No tabs open</h2>
       <p className="mb-6 text-sm max-w-sm text-center">
         {activeConnection
-          ? "Start by opening a new query or selecting a table from the sidebar"
+          ? isRedis
+            ? "Start by opening the CLI or selecting a key from the sidebar"
+            : "Start by opening a new query or selecting a table from the sidebar"
           : "Select a connection from the sidebar to get started"}
       </p>
       {activeConnection && (
-        <Button onClick={handleNewQuery} size="lg">
-          <Plus className="mr-2 h-4 w-4" />
-          New Query
-        </Button>
+        isRedis ? (
+          <Button onClick={handleOpenCli} size="lg">
+            <Terminal className="mr-2 h-4 w-4" />
+            Open CLI
+          </Button>
+        ) : (
+          <Button onClick={handleNewQuery} size="lg">
+            <Plus className="mr-2 h-4 w-4" />
+            New Query
+          </Button>
+        )
       )}
     </div>
   );
@@ -224,6 +260,23 @@ export function MainContent() {
 
   const handleNewTab = () => {
     if (!activeConnection) return;
+
+    // For Redis connections, open a CLI tab instead of a Query tab
+    if (activeConnection.databaseType === "redis") {
+      const tabId = `redis-cli-${activeConnection.id}`;
+      const existingTab = tabs.find((t) => t.id === tabId);
+      if (existingTab) {
+        setActiveTab(tabId);
+      } else {
+        addTab({
+          id: tabId,
+          title: "CLI",
+          type: "redis-cli",
+          connectionId: activeConnection.id,
+        } as Tab);
+      }
+      return;
+    }
 
     addTab({
       id: crypto.randomUUID(),
@@ -335,6 +388,14 @@ export function MainContent() {
             <TablePropertiesTab tab={activeTab} />
           ) : activeTab.type === "diagram" ? (
             <TableDiagramTab tab={activeTab} />
+          ) : activeTab.type === "redis-key" && activeTab.redisKey ? (
+            <RedisValueViewer connectionId={activeTab.connectionId} keyName={activeTab.redisKey} />
+          ) : activeTab.type === "redis-cli" ? (
+            <RedisCLI connectionId={activeTab.connectionId} />
+          ) : activeTab.type === "redis-info" ? (
+            <RedisServerInfo connectionId={activeTab.connectionId} />
+          ) : activeTab.type === "redis-browser" ? (
+            <RedisBrowser connectionId={activeTab.connectionId} />
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               <div className="text-center">

@@ -5,6 +5,7 @@ mod mysql;
 mod sqlite;
 pub mod mssql;
 pub mod oracle;
+pub mod redis;
 pub mod common;
 
 pub use connection::*;
@@ -14,4 +15,5 @@ pub use mysql::MySqlDriver;
 pub use sqlite::SqliteDriver;
 pub use mssql::MssqlDriver;
 pub use oracle::OracleDriver;
+pub use redis::RedisDriver;
 

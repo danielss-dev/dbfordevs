@@ -1,0 +1,184 @@
+# Redis Sample Data for dbfordevs
+# This script demonstrates all 6 Redis data types
+
+# ============================================
+# STRING - Simple key-value pairs
+# ============================================
+SET user:1:name "John Doe"
+SET user:1:email "john@example.com"
+SET user:2:name "Jane Smith"
+SET user:2:email "jane@example.com"
+SET app:version "1.0.0"
+SET app:environment "development"
+SET counter:visits 0
+SET config:max_connections "100"
+SET session:abc123 "user_id=1&expires=1735689600"
+SETEX cache:homepage 3600 "<html>Welcome to the homepage</html>"
+
+# ============================================
+# LIST - Ordered collections (queues, stacks)
+# ============================================
+RPUSH notifications:user:1 "Welcome to the app!"
+RPUSH notifications:user:1 "Your profile has been updated"
+RPUSH notifications:user:1 "New feature available"
+
+RPUSH queue:emails "email:1"
+RPUSH queue:emails "email:2"
+RPUSH queue:emails "email:3"
+
+RPUSH logs:app "2024-01-15 10:00:00 - Application started"
+RPUSH logs:app "2024-01-15 10:00:01 - Database connected"
+RPUSH logs:app "2024-01-15 10:00:02 - Cache initialized"
+RPUSH logs:app "2024-01-15 10:01:00 - User login: john@example.com"
+RPUSH logs:app "2024-01-15 10:02:30 - API request: GET /users"
+
+RPUSH recent:products "product:laptop"
+RPUSH recent:products "product:phone"
+RPUSH recent:products "product:tablet"
+RPUSH recent:products "product:headphones"
+
+# ============================================
+# SET - Unique unordered collections
+# ============================================
+SADD tags:popular "javascript"
+SADD tags:popular "python"
+SADD tags:popular "rust"
+SADD tags:popular "typescript"
+SADD tags:popular "go"
+
+SADD users:online "user:1"
+SADD users:online "user:2"
+SADD users:online "user:5"
+SADD users:online "user:8"
+
+SADD roles:admin "user:1"
+SADD roles:admin "user:3"
+
+SADD roles:moderator "user:2"
+SADD roles:moderator "user:4"
+SADD roles:moderator "user:5"
+
+SADD features:enabled "dark_mode"
+SADD features:enabled "notifications"
+SADD features:enabled "api_v2"
+SADD features:enabled "export_csv"
+
+# ============================================
+# HASH - Field-value pairs (objects)
+# ============================================
+HSET product:1 name "Laptop Pro 15"
+HSET product:1 price "1299.99"
+HSET product:1 stock "45"
+HSET product:1 category "electronics"
+HSET product:1 brand "TechCorp"
+
+HSET product:2 name "Wireless Mouse"
+HSET product:2 price "29.99"
+HSET product:2 stock "200"
+HSET product:2 category "accessories"
+HSET product:2 brand "PeripheralCo"
+
+HSET product:3 name "Mechanical Keyboard"
+HSET product:3 price "149.99"
+HSET product:3 stock "78"
+HSET product:3 category "accessories"
+HSET product:3 brand "KeyMaster"
+
+HSET user:profile:1 username "johndoe"
+HSET user:profile:1 display_name "John Doe"
+HSET user:profile:1 bio "Software developer and Redis enthusiast"
+HSET user:profile:1 location "San Francisco, CA"
+HSET user:profile:1 website "https://johndoe.dev"
+HSET user:profile:1 followers "1250"
+HSET user:profile:1 following "340"
+
+HSET settings:app theme "dark"
+HSET settings:app language "en"
+HSET settings:app timezone "America/Los_Angeles"
+HSET settings:app notifications_enabled "true"
+
+# ============================================
+# SORTED SET (ZSET) - Scored sorted collections
+# ============================================
+ZADD leaderboard:global 15000 "player:alice"
+ZADD leaderboard:global 12500 "player:bob"
+ZADD leaderboard:global 11000 "player:charlie"
+ZADD leaderboard:global 9500 "player:diana"
+ZADD leaderboard:global 8000 "player:eve"
+ZADD leaderboard:global 7500 "player:frank"
+ZADD leaderboard:global 6000 "player:grace"
+
+ZADD popularity:articles 350 "article:how-to-use-redis"
+ZADD popularity:articles 280 "article:getting-started-guide"
+ZADD popularity:articles 195 "article:advanced-patterns"
+ZADD popularity:articles 150 "article:performance-tuning"
+ZADD popularity:articles 120 "article:security-best-practices"
+
+ZADD priority:tasks 1 "task:critical-bug-fix"
+ZADD priority:tasks 2 "task:security-patch"
+ZADD priority:tasks 3 "task:feature-request"
+ZADD priority:tasks 5 "task:documentation"
+ZADD priority:tasks 10 "task:nice-to-have"
+
+ZADD trending:searches 500 "redis tutorial"
+ZADD trending:searches 420 "database comparison"
+ZADD trending:searches 380 "caching strategies"
+ZADD trending:searches 290 "nosql vs sql"
+ZADD trending:searches 210 "redis vs memcached"
+
+# ============================================
+# STREAM - Append-only log data structure
+# ============================================
+XADD events:user * action "login" user_id "1" ip "192.168.1.100"
+XADD events:user * action "page_view" user_id "1" page "/dashboard"
+XADD events:user * action "click" user_id "1" element "settings_btn"
+XADD events:user * action "page_view" user_id "2" page "/products"
+XADD events:user * action "purchase" user_id "2" product_id "1" amount "1299.99"
+
+XADD logs:system * level "info" service "api" message "Request processed successfully"
+XADD logs:system * level "info" service "worker" message "Job completed: email_send"
+XADD logs:system * level "warning" service "api" message "Rate limit approaching for user:5"
+XADD logs:system * level "error" service "payment" message "Payment gateway timeout"
+XADD logs:system * level "info" service "api" message "New user registered: user:10"
+
+XADD orders:stream * order_id "ORD-001" customer "user:1" total "1329.98" status "completed"
+XADD orders:stream * order_id "ORD-002" customer "user:2" total "29.99" status "processing"
+XADD orders:stream * order_id "ORD-003" customer "user:1" total "149.99" status "shipped"
+
+# ============================================
+# Additional keys with TTL for demonstration
+# ============================================
+SET temp:session:xyz789 "active"
+EXPIRE temp:session:xyz789 7200
+
+SET cache:api:users "[{\"id\":1,\"name\":\"John Doe\",\"email\":\"john@example.com\"},{\"id\":2,\"name\":\"Jane Smith\",\"email\":\"jane@example.com\"}]"
+EXPIRE cache:api:users 300
+
+# ============================================
+# JSON Objects - Cached API responses
+# ============================================
+SET cache:user:1 "{\"id\":1,\"username\":\"johndoe\",\"email\":\"john@example.com\",\"profile\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"avatar\":\"https://api.example.com/avatars/1.jpg\",\"bio\":\"Software developer\"},\"settings\":{\"theme\":\"dark\",\"notifications\":true,\"language\":\"en\"},\"createdAt\":\"2024-01-15T10:30:00Z\",\"lastLogin\":\"2024-06-20T14:22:15Z\"}"
+EXPIRE cache:user:1 3600
+
+SET cache:user:2 "{\"id\":2,\"username\":\"janesmith\",\"email\":\"jane@example.com\",\"profile\":{\"firstName\":\"Jane\",\"lastName\":\"Smith\",\"avatar\":\"https://api.example.com/avatars/2.jpg\",\"bio\":\"Product manager\"},\"settings\":{\"theme\":\"light\",\"notifications\":false,\"language\":\"en\"},\"createdAt\":\"2024-02-20T08:15:00Z\",\"lastLogin\":\"2024-06-21T09:45:30Z\"}"
+EXPIRE cache:user:2 3600
+
+SET cache:product:laptop "{\"id\":\"prod_001\",\"name\":\"Laptop Pro 15\",\"description\":\"High-performance laptop for professionals\",\"price\":{\"amount\":1299.99,\"currency\":\"USD\"},\"inventory\":{\"inStock\":true,\"quantity\":45,\"warehouse\":\"WH-001\"},\"specs\":{\"cpu\":\"Intel i7-12700H\",\"ram\":\"32GB DDR5\",\"storage\":\"1TB NVMe SSD\",\"display\":\"15.6 inch 4K\"},\"categories\":[\"electronics\",\"computers\",\"laptops\"],\"tags\":[\"professional\",\"high-performance\",\"portable\"],\"rating\":{\"average\":4.7,\"count\":284},\"createdAt\":\"2024-01-10T00:00:00Z\"}"
+EXPIRE cache:product:laptop 1800
+
+SET cache:order:ORD-001 "{\"orderId\":\"ORD-001\",\"customer\":{\"id\":1,\"name\":\"John Doe\",\"email\":\"john@example.com\"},\"items\":[{\"productId\":\"prod_001\",\"name\":\"Laptop Pro 15\",\"quantity\":1,\"price\":1299.99},{\"productId\":\"prod_002\",\"name\":\"Wireless Mouse\",\"quantity\":1,\"price\":29.99}],\"shipping\":{\"method\":\"express\",\"address\":{\"street\":\"123 Main St\",\"city\":\"San Francisco\",\"state\":\"CA\",\"zip\":\"94102\",\"country\":\"USA\"},\"trackingNumber\":\"1Z999AA10123456784\"},\"payment\":{\"method\":\"credit_card\",\"last4\":\"4242\",\"status\":\"completed\"},\"totals\":{\"subtotal\":1329.98,\"tax\":119.70,\"shipping\":15.00,\"total\":1464.68},\"status\":\"shipped\",\"createdAt\":\"2024-06-15T14:30:00Z\",\"updatedAt\":\"2024-06-16T09:00:00Z\"}"
+EXPIRE cache:order:ORD-001 7200
+
+SET cache:api:weather "{\"location\":{\"city\":\"San Francisco\",\"country\":\"USA\",\"coordinates\":{\"lat\":37.7749,\"lng\":-122.4194}},\"current\":{\"temperature\":18,\"feelsLike\":16,\"humidity\":72,\"windSpeed\":15,\"windDirection\":\"NW\",\"condition\":\"Partly Cloudy\",\"icon\":\"partly-cloudy\"},\"forecast\":[{\"day\":\"Monday\",\"high\":20,\"low\":14,\"condition\":\"Sunny\"},{\"day\":\"Tuesday\",\"high\":19,\"low\":13,\"condition\":\"Cloudy\"},{\"day\":\"Wednesday\",\"high\":17,\"low\":12,\"condition\":\"Rain\"}],\"updatedAt\":\"2024-06-21T12:00:00Z\"}"
+EXPIRE cache:api:weather 900
+
+SET cache:dashboard:stats "{\"users\":{\"total\":15420,\"active\":3280,\"newToday\":45,\"growth\":12.5},\"orders\":{\"total\":8930,\"pending\":124,\"processing\":89,\"completed\":8650,\"revenue\":{\"today\":12450.00,\"month\":385000.00,\"year\":4250000.00}},\"products\":{\"total\":1250,\"inStock\":1180,\"outOfStock\":70,\"lowStock\":45},\"performance\":{\"avgResponseTime\":145,\"uptime\":99.98,\"errorRate\":0.02},\"lastUpdated\":\"2024-06-21T15:30:00Z\"}"
+EXPIRE cache:dashboard:stats 60
+
+SET api:config "{\"version\":\"2.1.0\",\"environment\":\"production\",\"features\":{\"darkMode\":true,\"betaFeatures\":false,\"maintenance\":false},\"limits\":{\"rateLimit\":1000,\"maxUploadSize\":10485760,\"maxConnections\":100},\"endpoints\":{\"api\":\"https://api.example.com\",\"cdn\":\"https://cdn.example.com\",\"websocket\":\"wss://ws.example.com\"}}"
+
+SET rate_limit:user:1 "45"
+EXPIRE rate_limit:user:1 60
+
+# Print confirmation
+ECHO "Sample data loaded successfully!"

@@ -10,6 +10,7 @@ use tokio::sync::RwLock;
 // Re-export pool types from driver modules
 pub use crate::db::mssql::MssqlPool;
 pub use crate::db::oracle::OraclePool;
+pub use crate::db::redis::RedisPool;
 
 /// Enum to hold different database pool types
 pub enum ConnectionPool {
@@ -18,6 +19,7 @@ pub enum ConnectionPool {
     Sqlite(SqlitePool),
     Mssql(MssqlPool),
     Oracle(OraclePool),
+    Redis(RedisPool),
 }
 
 /// Manages active database connections
@@ -121,6 +123,12 @@ impl ConnectionManager {
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to Oracle: {}", e)))?;
                 (ConnectionPool::Oracle(pool), connection_string)
             }
+            DatabaseType::Redis => {
+                let connection_string = super::redis::build_redis_connection_string(&tunnel_config);
+                let pool = super::redis::create_redis_pool(&connection_string).await
+                    .map_err(|e| AppError::ConnectionError(format!("Failed to connect to Redis: {}", e)))?;
+                (ConnectionPool::Redis(pool), connection_string)
+            }
         };
 
         self.connection_strings.insert(connection_id.clone(), connection_string);
@@ -140,6 +148,9 @@ impl ConnectionManager {
                     p.close();
                 }
                 ConnectionPool::Oracle(p) => {
+                    p.close();
+                }
+                ConnectionPool::Redis(p) => {
                     p.close();
                 }
             }
@@ -171,6 +182,7 @@ impl ConnectionManager {
             ConnectionPool::Sqlite(p) => Ok(PoolRef::Sqlite(p)),
             ConnectionPool::Mssql(p) => Ok(PoolRef::Mssql(p)),
             ConnectionPool::Oracle(p) => Ok(PoolRef::Oracle(p)),
+            ConnectionPool::Redis(p) => Ok(PoolRef::Redis(p)),
         }
     }
 
@@ -239,6 +251,7 @@ fn get_default_port(db_type: &DatabaseType) -> u16 {
         DatabaseType::SQLite => 0, // Not used for SQLite
         DatabaseType::CockroachDB => 26257,
         DatabaseType::Oracle => 1521,
+        DatabaseType::Redis => 6379,
     }
 }
 

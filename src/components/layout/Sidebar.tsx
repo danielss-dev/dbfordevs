@@ -54,6 +54,7 @@ import { ConnectionFilterBar } from "@/components/connections/ConnectionFilterBa
 import { GroupManagerDialog } from "@/components/connections/GroupManagerDialog";
 import { AssignGroupDialog } from "@/components/connections/AssignGroupDialog";
 import { ConnectionGroupItem } from "./ConnectionGroupItem";
+import { RedisConnectionContent } from "@/components/redis";
 import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo, DatabaseType } from "@/types";
@@ -1232,8 +1233,13 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
             >
               {connection.connected && (
                 <>
+                  {/* Redis: Show Redis-specific content */}
+                  {featureSupport.isRedis && (
+                    <RedisConnectionContent connectionId={connection.id} />
+                  )}
+
                   {/* MSSQL: Show "Databases" node with expandable databases containing tables */}
-                  {isMssql && (
+                  {!featureSupport.isRedis && isMssql && (
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
                         <div>
@@ -1385,8 +1391,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                     </ContextMenu>
                   )}
 
-                  {/* For non-MSSQL databases, show Schemas tree */}
-                  {!isMssql && (
+                  {/* For non-MSSQL databases (excluding Redis), show Schemas tree */}
+                  {!featureSupport.isRedis && !isMssql && (
                 <ContextMenu>
                   <ContextMenuTrigger asChild>
                     <div>

@@ -6,7 +6,7 @@ pub mod oracle_client;
 mod ssh;
 mod storage;
 
-use commands::{connections, functions, import, indexes, oracle, procedures, queries, sequences, tables, triggers, users, utils, views};
+use commands::{connections, functions, import, indexes, oracle, procedures, queries, redis, sequences, tables, triggers, users, utils, views};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -109,6 +109,40 @@ pub fn run() {
             sequences::get_sequence_ddl,
             sequences::create_sequence,
             sequences::drop_sequence,
+            // Redis commands
+            redis::redis_scan_keys,
+            redis::redis_get_key_info,
+            redis::redis_delete_key,
+            redis::redis_delete_keys,
+            redis::redis_set_ttl,
+            redis::redis_rename_key,
+            redis::redis_get_string,
+            redis::redis_set_string,
+            redis::redis_get_list,
+            redis::redis_list_push,
+            redis::redis_list_set,
+            redis::redis_list_remove,
+            redis::redis_get_set,
+            redis::redis_get_set_full,
+            redis::redis_set_add,
+            redis::redis_set_remove,
+            redis::redis_get_hash,
+            redis::redis_get_hash_full,
+            redis::redis_hash_set,
+            redis::redis_hash_delete,
+            redis::redis_get_zset,
+            redis::redis_zset_add,
+            redis::redis_zset_remove,
+            redis::redis_zset_update_score,
+            redis::redis_get_stream,
+            redis::redis_stream_add,
+            redis::redis_stream_delete,
+            redis::redis_execute_command,
+            redis::redis_get_info,
+            redis::redis_get_memory_stats,
+            redis::redis_flush_db,
+            redis::redis_pubsub_channels,
+            redis::redis_pubsub_publish,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
