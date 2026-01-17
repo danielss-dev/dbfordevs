@@ -94,7 +94,22 @@ export const useConnectionsStore = create<ConnectionsState>()(
       showUngrouped: true,
 
       // ========== Connection Actions ==========
-      setConnections: (connections) => set({ connections }),
+      setConnections: (connections) =>
+        set((state) => {
+          // Preserve groupId and tagIds from existing connections when loading from backend
+          const existingMap = new Map(
+            state.connections.map((c) => [c.id, { groupId: c.groupId, tagIds: c.tagIds }])
+          );
+          const mergedConnections = connections.map((conn) => {
+            const existing = existingMap.get(conn.id);
+            return {
+              ...conn,
+              groupId: conn.groupId ?? existing?.groupId ?? null,
+              tagIds: conn.tagIds ?? existing?.tagIds ?? [],
+            };
+          });
+          return { connections: mergedConnections };
+        }),
 
       addConnection: (connection) =>
         set((state) => ({
