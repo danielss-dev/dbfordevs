@@ -603,16 +603,33 @@ Location: `src-tauri/src/commands/queries.rs:142`
 
 ### 25. Dark Mode Improvements
 
-**Status:** Functional
+**Status:** Implemented
 **Impact:** Low
 **Effort:** Low
 
 **Implementation Tasks:**
-- [ ] More theme variants
-- [ ] Custom theme creator
-- [ ] Theme import/export
-- [ ] Syntax highlighting theme sync
-- [ ] High contrast mode
+- [x] More theme variants (Solarized Dark/Light, One Dark, High Contrast)
+- [x] Custom theme creator UI with live preview
+- [x] Theme import/export (JSON format)
+- [x] Syntax highlighting theme sync (Monaco editor)
+- [x] High contrast mode (WCAG AAA compliant)
+
+**Files created:**
+- `src/types/theme.ts` - Theme type definitions and default color constants
+- `src/stores/themes.ts` - Custom themes Zustand store with persistence
+- `src/lib/themes/utils.ts` - Theme application utilities (CSS injection)
+- `src/lib/themes/validation.ts` - Theme validation functions
+- `src/lib/themes/monaco-generator.ts` - Monaco theme generation
+- `src/components/themes/ThemeManagerDialog.tsx` - Theme management dialog
+- `src/components/themes/ThemeEditor.tsx` - Color editing panel with collapsible sections
+- `src/components/themes/ThemePreview.tsx` - Live theme preview component
+- `src/components/ui/hsl-color-picker.tsx` - HSL color picker with hex support
+
+**Files modified:**
+- `src/index.css` - Added 4 new theme CSS classes (~300 lines)
+- `src/stores/ui.ts` - Extended Theme type to support `custom:${id}` format
+- `src/components/editor/monaco-themes.ts` - Added 4 Monaco themes
+- `src/components/settings/SettingsDialog.tsx` - Theme manager integration
 
 ---
 
@@ -823,6 +840,7 @@ Location: `src-tauri/src/commands/queries.rs:142`
 | ~~P2~~ | ~~User/Role Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 | ~~P2~~ | ~~Query History Enhancements~~ | ~~Medium~~ | ~~Low~~ | **Implemented** |
 | ~~P2~~ | ~~Data Grid Enhancements~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
+| ~~P3~~ | ~~Dark Mode Improvements~~ | ~~Low~~ | ~~Low~~ | **Implemented** |
 
 ---
 
@@ -871,5 +889,5 @@ Location: `src-tauri/src/commands/queries.rs:142`
 
 ---
 
-*Last updated: January 17, 2026*
+*Last updated: January 18, 2026*
 *Generated from codebase analysis - v0.4.0*
