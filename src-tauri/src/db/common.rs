@@ -23,6 +23,10 @@ pub fn quote_identifier_single(identifier: &str, db_type: &DatabaseType) -> Stri
             // PostgreSQL, SQLite, CockroachDB, and Oracle use double quotes
             format!("\"{}\"", identifier.replace('"', "\"\""))
         }
+        DatabaseType::Redis => {
+            // Redis doesn't use SQL identifiers
+            identifier.to_string()
+        }
     }
 }
 

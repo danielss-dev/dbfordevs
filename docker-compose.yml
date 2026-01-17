@@ -164,6 +164,38 @@ services:
         echo "Init complete!"
     restart: "no"
 
+  # Redis - Port 6379
+  redis:
+    image: redis:7-alpine
+    container_name: dbfordevs-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis Init - loads sample data after Redis is ready
+  redis-init:
+    image: redis:7-alpine
+    container_name: dbfordevs-redis-init
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./docker/redis-init:/init
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Loading Redis sample data..."
+        redis-cli -h redis < /init/01-sample-data.redis
+        echo "Redis init complete!"
+    restart: "no"
+
 volumes:
   postgres_data:
   mysql_data:
@@ -171,3 +203,4 @@ volumes:
   mssql_data:
   cockroach_data:
   oracle_data:
+  redis_data:

@@ -5,6 +5,7 @@ export interface DatabaseFeatureSupport {
   functions: boolean;
   triggers: boolean;
   sequences: boolean;
+  isRedis: boolean;
 }
 
 /**
@@ -20,6 +21,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         functions: true,
         triggers: true,
         sequences: true,
+        isRedis: false,
       };
 
     case "mysql":
@@ -29,6 +31,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         functions: true,
         triggers: true,
         sequences: false, // MySQL uses AUTO_INCREMENT instead of sequences
+        isRedis: false,
       };
 
     case "sqlite":
@@ -37,6 +40,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         functions: false, // SQLite doesn't support user-defined SQL functions
         triggers: true,
         sequences: false, // SQLite uses AUTOINCREMENT
+        isRedis: false,
       };
 
     case "oracle":
@@ -45,6 +49,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         functions: true,
         triggers: true,
         sequences: true,
+        isRedis: false,
       };
 
     case "mssql":
@@ -53,6 +58,16 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         functions: true,
         triggers: true,
         sequences: true,
+        isRedis: false,
+      };
+
+    case "redis":
+      return {
+        procedures: false,
+        functions: false,
+        triggers: false,
+        sequences: false,
+        isRedis: true,
       };
 
     default:
@@ -62,6 +77,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         functions: false,
         triggers: false,
         sequences: false,
+        isRedis: false,
       };
   }
 }

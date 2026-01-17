@@ -5,6 +5,7 @@ pub mod indexes;
 pub mod oracle;
 pub mod procedures;
 pub mod queries;
+pub mod redis;
 pub mod sequences;
 pub mod tables;
 pub mod triggers;

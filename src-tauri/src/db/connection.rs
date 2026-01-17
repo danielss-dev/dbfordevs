@@ -10,7 +10,7 @@ use crate::models::{
 };
 use async_trait::async_trait;
 use sqlx::{PgPool, MySqlPool, SqlitePool};
-use super::manager::{MssqlPool, OraclePool};
+use super::manager::{MssqlPool, OraclePool, RedisPool};
 
 pub enum PoolRef<'a> {
     Postgres(&'a PgPool),
@@ -18,6 +18,7 @@ pub enum PoolRef<'a> {
     Sqlite(&'a SqlitePool),
     Mssql(&'a MssqlPool),
     Oracle(&'a OraclePool),
+    Redis(&'a RedisPool),
 }
 
 impl Clone for PoolRef<'_> {
@@ -28,6 +29,7 @@ impl Clone for PoolRef<'_> {
             PoolRef::Sqlite(p) => PoolRef::Sqlite(*p),
             PoolRef::Mssql(p) => PoolRef::Mssql(*p),
             PoolRef::Oracle(p) => PoolRef::Oracle(*p),
+            PoolRef::Redis(p) => PoolRef::Redis(*p),
         }
     }
 }
@@ -321,6 +323,7 @@ pub fn get_driver(config: &ConnectionConfig) -> Box<dyn DatabaseDriver> {
         DatabaseType::SQLite => Box::new(super::SqliteDriver),
         DatabaseType::MSSQL => Box::new(super::MssqlDriver),
         DatabaseType::Oracle => Box::new(super::OracleDriver),
+        DatabaseType::Redis => Box::new(super::RedisDriver),
         // MariaDB is MySQL-compatible, reuse MySQL driver
         DatabaseType::MariaDB => Box::new(super::MySqlDriver),
         // CockroachDB is PostgreSQL-compatible, reuse PostgreSQL driver

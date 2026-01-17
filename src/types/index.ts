@@ -4,6 +4,9 @@ export * from "./import";
 // Re-export grid types
 export * from "./grid";
 
+// Re-export Redis types
+export * from "./redis";
+
 // Database types
 export type DatabaseType =
   | "postgresql"
@@ -277,10 +280,11 @@ export interface ValidationResult {
 export interface Tab {
   id: string;
   title: string;
-  type: "query" | "table" | "schema" | "properties" | "diagram";
+  type: "query" | "table" | "schema" | "properties" | "diagram" | "redis-key" | "redis-cli" | "redis-pubsub" | "redis-info" | "redis-browser";
   connectionId: string;
   content?: string;
   tableName?: string; // Full table identifier for "table", "properties", and "diagram" types
+  redisKey?: string; // Redis key name for "redis-key" type
   isPinned?: boolean; // Pinned tabs appear first and cannot be accidentally closed
 }
 
