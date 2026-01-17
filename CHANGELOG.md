@@ -2,6 +2,17 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.9] - 2026-01-17
+
+
+### Added
+- **feat**: update icon assets for improved visual consistency
+- **feat**: implement MongoDB support with connection management and UI components
+- **feat**: add new database icon and update various icon assets
+- **feat**: add Redis support with connection management and UI components (#61)
+
+### Changed
+- **refactor**: adjust tree item levels in MongoDB and Redis connection components
 ## [0.3.8] - 2026-01-17
 
 
