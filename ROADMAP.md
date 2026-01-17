@@ -344,17 +344,31 @@ Support queries returning multiple result sets.
 
 ### 13. Connection Groups & Tags
 
-**Status:** Not Implemented
+**Status:** Implemented
 **Impact:** Low
 **Effort:** Low
 
 **Implementation Tasks:**
-- [ ] Group connections by environment (dev/staging/prod)
-- [ ] Custom tags/labels
-- [ ] Color coding
-- [ ] Collapse/expand groups
-- [ ] Filter by group/tag
-- [ ] Bulk operations on groups
+- [x] Group connections by environment (dev/staging/prod)
+- [x] Custom tags/labels
+- [x] Color coding
+- [x] Collapse/expand groups
+- [x] Filter by group/tag
+- [x] Bulk operations on groups
+
+**Files created:**
+- `src/components/ui/color-picker.tsx` - Color palette picker
+- `src/components/ui/tag-badge.tsx` - Colored tag badge component
+- `src/components/connections/ConnectionFilterBar.tsx` - Search and filter UI
+- `src/components/connections/GroupManagerDialog.tsx` - Group CRUD dialog
+- `src/components/connections/AssignGroupDialog.tsx` - Assign group/tags to connection
+- `src/components/layout/ConnectionGroupItem.tsx` - Collapsible group container
+
+**Files modified:**
+- `src/types/index.ts` - Added ConnectionGroup, ConnectionTag interfaces
+- `src/stores/connections.ts` - Extended with groups, tags, filters, migration
+- `src/stores/ui.ts` - Added dialog state management
+- `src/components/layout/Sidebar.tsx` - Integrated grouped rendering
 
 ---
 
@@ -837,5 +851,5 @@ Location: `src-tauri/src/commands/queries.rs:142`
 
 ---
 
-*Last updated: January 16, 2026*
+*Last updated: January 17, 2026*
 *Generated from codebase analysis - v0.3.5*

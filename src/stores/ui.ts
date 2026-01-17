@@ -98,6 +98,10 @@ interface UIState {
   managingPermissionsGrantee: string | null;
   managingPermissionsGranteeHost: string | null;
   managingPermissionsConnectionId: string | null;
+  // Connection group management dialog states
+  showGroupManagerDialog: boolean;
+  showAssignGroupDialog: boolean;
+  assigningGroupConnectionId: string | null;
 
   // Actions
   setTheme: (theme: Theme) => void;
@@ -146,6 +150,10 @@ interface UIState {
   openCreateRoleDialog: (connectionId: string) => void;
   setShowManagePermissionsDialog: (show: boolean) => void;
   openManagePermissionsDialog: (connectionId: string, grantee: string, host?: string) => void;
+  // Connection group management dialog actions
+  setShowGroupManagerDialog: (show: boolean) => void;
+  setShowAssignGroupDialog: (show: boolean) => void;
+  openAssignGroupDialog: (connectionId: string) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -216,6 +224,10 @@ export const useUIStore = create<UIState>()(
       managingPermissionsGrantee: null,
       managingPermissionsGranteeHost: null,
       managingPermissionsConnectionId: null,
+      // Connection group management dialog initial states
+      showGroupManagerDialog: false,
+      showAssignGroupDialog: false,
+      assigningGroupConnectionId: null,
 
       setTheme: (theme) => {
         const root = document.documentElement;
@@ -477,6 +489,22 @@ export const useUIStore = create<UIState>()(
           managingPermissionsConnectionId: connectionId,
           managingPermissionsGrantee: grantee,
           managingPermissionsGranteeHost: host ?? null,
+        }),
+
+      // Connection group management dialog actions
+      setShowGroupManagerDialog: (show) =>
+        set({ showGroupManagerDialog: show }),
+
+      setShowAssignGroupDialog: (show) =>
+        set((state) => ({
+          showAssignGroupDialog: show,
+          assigningGroupConnectionId: show ? state.assigningGroupConnectionId : null,
+        })),
+
+      openAssignGroupDialog: (connectionId) =>
+        set({
+          showAssignGroupDialog: true,
+          assigningGroupConnectionId: connectionId,
         }),
     }),
     {

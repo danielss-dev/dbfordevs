@@ -68,7 +68,40 @@ export interface ConnectionInfo {
   host?: string;
   database: string;
   connected: boolean;
+  groupId?: string | null;   // Reference to ConnectionGroup
+  tagIds?: string[];         // Array of ConnectionTag IDs
 }
+
+// Connection Group for organizing connections by environment
+export interface ConnectionGroup {
+  id: string;
+  name: string;
+  color: string;           // Hex color (e.g., "#EF4444")
+  description?: string;
+  sortOrder: number;
+  isCollapsed: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Connection Tag for labeling connections
+export interface ConnectionTag {
+  id: string;
+  name: string;
+  color: string;           // Hex color for badge display
+  createdAt: number;
+}
+
+// Predefined environment presets for quick group creation
+export type EnvironmentType = 'development' | 'staging' | 'production' | 'testing' | 'custom';
+
+export const ENVIRONMENT_PRESETS: Record<EnvironmentType, { name: string; color: string }> = {
+  development: { name: 'Development', color: '#22C55E' },
+  staging: { name: 'Staging', color: '#F59E0B' },
+  production: { name: 'Production', color: '#EF4444' },
+  testing: { name: 'Testing', color: '#8B5CF6' },
+  custom: { name: 'Custom', color: '#6B7280' },
+};
 
 export interface TestConnectionResult {
   success: boolean;
