@@ -10,3 +10,4 @@ export { RedisCLI } from "./RedisCLI";
 export { RedisServerInfo } from "./RedisServerInfo";
 export { RedisConnectionContent } from "./RedisConnectionContent";
 export { RedisBrowser } from "./RedisBrowser";
+export { RedisAIHelper, RedisAIButton } from "./RedisAIHelper";

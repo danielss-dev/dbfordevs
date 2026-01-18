@@ -20,7 +20,23 @@ import type {
   AIStorageMetadata,
   TokenUsage,
   SessionUsageStats,
+  AIContextConfig,
+  ManualContextEntry,
+  ContextTemplate,
+  EnhancedTableInfo,
+  ContextSizeInfo,
+  ValidationConfig,
+  ValidationResult,
+  ChatTemplate,
+  MongoContext,
+  RedisContext,
 } from "./types";
+import {
+  DEFAULT_CONTEXT_CONFIG,
+  buildEnhancedContext,
+  calculateContextSize,
+} from "./context-builder";
+import { validateQuery as runValidation } from "./validation";
 import { AVAILABLE_MODELS, DEFAULT_MODELS } from "./types";
 import { calculateCost, aiChatStream } from "./api";
 import * as api from "./api";
@@ -158,6 +174,24 @@ interface AIState {
   tableDropdownOpen: boolean;
   tableDropdownFilter: string;
 
+  // Enhanced context state (Phase 1)
+  contextConfig: AIContextConfig;
+  manualContextEntries: ManualContextEntry[];
+  contextTemplates: ContextTemplate[];
+  enhancedTables: EnhancedTableInfo[];
+  contextPanelOpen: boolean;
+
+  // Validation state (Phase 2)
+  validationConfig: ValidationConfig;
+  lastValidationResult: ValidationResult | null;
+
+  // Chat templates state (Phase 3)
+  chatTemplates: ChatTemplate[];
+
+  // NoSQL context state (Phase 4)
+  mongoContext?: MongoContext;
+  redisContext?: RedisContext;
+
   // Actions
   setPanelOpen: (open: boolean) => void;
   togglePanel: () => void;
@@ -185,6 +219,31 @@ interface AIState {
   // Table reference actions
   openTableDropdown: (filter: string) => void;
   closeTableDropdown: () => void;
+
+  // Context enhancement actions (Phase 1)
+  updateContextConfig: (config: Partial<AIContextConfig>) => void;
+  addManualContextEntry: (entry: Omit<ManualContextEntry, 'id' | 'addedAt'>) => void;
+  removeManualContextEntry: (id: string) => void;
+  saveContextTemplate: (name: string, description: string) => void;
+  applyContextTemplate: (templateId: string) => void;
+  deleteContextTemplate: (templateId: string) => void;
+  fetchEnhancedTables: (tableNames: string[]) => Promise<void>;
+  setContextPanelOpen: (open: boolean) => void;
+  toggleContextPanel: () => void;
+  estimateContextSize: () => ContextSizeInfo;
+
+  // Validation actions (Phase 2)
+  updateValidationConfig: (config: Partial<ValidationConfig>) => void;
+  validateQuery: (sql: string) => ValidationResult;
+
+  // Chat template actions (Phase 3)
+  createSessionFromTemplate: (templateId: string) => void;
+  saveChatAsTemplate: (name: string, description: string) => void;
+  deleteChatTemplate: (templateId: string) => void;
+
+  // NoSQL context actions (Phase 4)
+  setMongoContext: (context: MongoContext | undefined) => void;
+  setRedisContext: (context: RedisContext | undefined) => void;
 
   // Computed helpers
   getCurrentProvider: () => AIProviderType;
@@ -226,6 +285,96 @@ export const useAIStore = create<AIState>()(
       },
       tableDropdownOpen: false,
       tableDropdownFilter: "",
+
+      // Enhanced context state
+      contextConfig: DEFAULT_CONTEXT_CONFIG,
+      manualContextEntries: [],
+      contextTemplates: [
+        // Built-in templates
+        {
+          id: "minimal",
+          name: "Minimal",
+          description: "Only table names and columns",
+          includeForeignKeys: false,
+          includeIndexes: false,
+          includeSampleData: false,
+          sampleDataRows: 0,
+          isBuiltIn: true,
+        },
+        {
+          id: "standard",
+          name: "Standard",
+          description: "Tables, columns, and relationships",
+          includeForeignKeys: true,
+          includeIndexes: false,
+          includeSampleData: false,
+          sampleDataRows: 0,
+          isBuiltIn: true,
+        },
+        {
+          id: "comprehensive",
+          name: "Comprehensive",
+          description: "Full schema with indexes and sample data",
+          includeForeignKeys: true,
+          includeIndexes: true,
+          includeSampleData: true,
+          sampleDataRows: 3,
+          isBuiltIn: true,
+        },
+      ],
+      enhancedTables: [],
+      contextPanelOpen: false,
+
+      // Validation state
+      validationConfig: {
+        enableSyntaxCheck: true,
+        enableSemanticCheck: true,
+        enablePerformanceWarnings: true,
+        enableSecurityWarnings: true,
+        blockDangerousQueries: false,
+      },
+      lastValidationResult: null,
+
+      // Chat templates
+      chatTemplates: [
+        {
+          id: "query-builder",
+          name: "Query Builder",
+          description: "Step-by-step SQL construction",
+          starterPrompts: [
+            "Help me build a query to...",
+            "I need to join these tables...",
+            "Create a report showing...",
+          ],
+          isBuiltIn: true,
+        },
+        {
+          id: "query-optimization",
+          name: "Query Optimization",
+          description: "Analyze and improve queries",
+          starterPrompts: [
+            "Analyze this query for performance...",
+            "How can I optimize this query?",
+            "Suggest indexes for this query...",
+          ],
+          isBuiltIn: true,
+        },
+        {
+          id: "data-exploration",
+          name: "Data Exploration",
+          description: "Understand your data",
+          starterPrompts: [
+            "What data is in this table?",
+            "Show me the relationships between tables...",
+            "Summarize the data distribution...",
+          ],
+          isBuiltIn: true,
+        },
+      ],
+
+      // NoSQL context
+      mongoContext: undefined,
+      redisContext: undefined,
 
       // Panel actions
       setPanelOpen: (open: boolean) => set({ panelOpen: open }),
@@ -642,6 +791,166 @@ export const useAIStore = create<AIState>()(
       closeTableDropdown: () =>
         set({ tableDropdownOpen: false, tableDropdownFilter: "" }),
 
+      // Context enhancement actions (Phase 1)
+      updateContextConfig: (config: Partial<AIContextConfig>) =>
+        set((state) => ({
+          contextConfig: { ...state.contextConfig, ...config },
+        })),
+
+      addManualContextEntry: (entry: Omit<ManualContextEntry, 'id' | 'addedAt'>) =>
+        set((state) => ({
+          manualContextEntries: [
+            ...state.manualContextEntries,
+            {
+              ...entry,
+              id: crypto.randomUUID(),
+              addedAt: new Date(),
+            },
+          ],
+        })),
+
+      removeManualContextEntry: (id: string) =>
+        set((state) => ({
+          manualContextEntries: state.manualContextEntries.filter((e) => e.id !== id),
+        })),
+
+      saveContextTemplate: (name: string, description: string) => {
+        const { contextConfig } = get();
+        const newTemplate: ContextTemplate = {
+          id: crypto.randomUUID(),
+          name,
+          description,
+          includeForeignKeys: contextConfig.includeForeignKeys,
+          includeIndexes: contextConfig.includeIndexes,
+          includeSampleData: contextConfig.includeSampleData,
+          sampleDataRows: contextConfig.sampleDataRows,
+          isBuiltIn: false,
+        };
+        set((state) => ({
+          contextTemplates: [...state.contextTemplates, newTemplate],
+        }));
+      },
+
+      applyContextTemplate: (templateId: string) => {
+        const template = get().contextTemplates.find((t) => t.id === templateId);
+        if (template) {
+          set({
+            contextConfig: {
+              includeForeignKeys: template.includeForeignKeys,
+              includeIndexes: template.includeIndexes,
+              includeSampleData: template.includeSampleData,
+              sampleDataRows: template.sampleDataRows,
+              maxTablesInContext: get().contextConfig.maxTablesInContext,
+            },
+          });
+        }
+      },
+
+      deleteContextTemplate: (templateId: string) =>
+        set((state) => ({
+          contextTemplates: state.contextTemplates.filter(
+            (t) => t.id !== templateId && !t.isBuiltIn
+          ),
+        })),
+
+      fetchEnhancedTables: async (tableNames: string[]) => {
+        const { context, contextConfig } = get();
+        if (!context.connectionId) return;
+
+        try {
+          const enhanced = await buildEnhancedContext(
+            context.connectionId,
+            tableNames,
+            contextConfig
+          );
+          set({ enhancedTables: enhanced });
+        } catch (error) {
+          console.error("[AI Store] Failed to fetch enhanced tables:", error);
+        }
+      },
+
+      setContextPanelOpen: (open: boolean) => set({ contextPanelOpen: open }),
+
+      toggleContextPanel: () =>
+        set((state) => ({ contextPanelOpen: !state.contextPanelOpen })),
+
+      estimateContextSize: () => {
+        const { enhancedTables, manualContextEntries } = get();
+        return calculateContextSize(enhancedTables, manualContextEntries);
+      },
+
+      // Validation actions (Phase 2)
+      updateValidationConfig: (config: Partial<ValidationConfig>) =>
+        set((state) => ({
+          validationConfig: { ...state.validationConfig, ...config },
+        })),
+
+      validateQuery: (sql: string) => {
+        const { context, validationConfig } = get();
+        const result = runValidation(sql, context.tables, validationConfig);
+        set({ lastValidationResult: result });
+        return result;
+      },
+
+      // Chat template actions (Phase 3)
+      createSessionFromTemplate: (templateId: string) => {
+        const template = get().chatTemplates.find((t) => t.id === templateId);
+        if (!template) return;
+
+        const newSession: AIChatSession = {
+          id: crypto.randomUUID(),
+          title: template.name,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          messages: [],
+          isFavorite: false,
+          connectionId: get().context.connectionId,
+          databaseType: get().context.databaseType,
+        };
+
+        set((state) => ({
+          chatSessions: [newSession, ...state.chatSessions],
+          activeChatSessionId: newSession.id,
+        }));
+      },
+
+      saveChatAsTemplate: (name: string, description: string) => {
+        const session = get().getActiveSession();
+        if (!session || session.messages.length === 0) return;
+
+        // Extract user prompts as starter prompts
+        const starterPrompts = session.messages
+          .filter((m) => m.role === "user")
+          .slice(0, 3)
+          .map((m) => m.content);
+
+        const newTemplate: ChatTemplate = {
+          id: crypto.randomUUID(),
+          name,
+          description,
+          starterPrompts,
+          isBuiltIn: false,
+        };
+
+        set((state) => ({
+          chatTemplates: [...state.chatTemplates, newTemplate],
+        }));
+      },
+
+      deleteChatTemplate: (templateId: string) =>
+        set((state) => ({
+          chatTemplates: state.chatTemplates.filter(
+            (t) => t.id !== templateId && !t.isBuiltIn
+          ),
+        })),
+
+      // NoSQL context actions (Phase 4)
+      setMongoContext: (context: MongoContext | undefined) =>
+        set({ mongoContext: context }),
+
+      setRedisContext: (context: RedisContext | undefined) =>
+        set({ redisContext: context }),
+
       // Computed helpers
       getCurrentProvider: () => {
         const provider = get().settings.aiProvider as string;
@@ -702,6 +1011,13 @@ export const useAIStore = create<AIState>()(
           ...session,
           messages: session.messages.slice(-50), // Max 50 messages per session
         })),
+        // Context and validation config (Phase 1 & 2)
+        contextConfig: state.contextConfig,
+        manualContextEntries: state.manualContextEntries,
+        contextTemplates: state.contextTemplates.filter(t => !t.isBuiltIn), // Only persist custom templates
+        validationConfig: state.validationConfig,
+        // Chat templates (Phase 3)
+        chatTemplates: state.chatTemplates.filter(t => !t.isBuiltIn), // Only persist custom templates
         // Keep legacy fields during migration
         _legacy_messages: state._legacy_messages,
         _legacy_queryHistory: state._legacy_queryHistory,

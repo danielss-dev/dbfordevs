@@ -18,6 +18,118 @@ export interface ColumnInfo {
   isPrimaryKey: boolean;
 }
 
+// Enhanced context with relationships and indexes
+export interface TableRelationshipInfo {
+  type: 'outgoing' | 'incoming';
+  foreignKeyColumn: string;
+  referencedTable: string;
+  referencedColumn: string;
+  constraintName?: string;
+}
+
+export interface TableIndexInfo {
+  name: string;
+  columns: string[];
+  isUnique: boolean;
+  isPrimary: boolean;
+}
+
+export interface EnhancedTableInfo extends TableInfo {
+  relationships?: TableRelationshipInfo[];
+  indexes?: TableIndexInfo[];
+  sampleData?: Record<string, unknown>[];
+}
+
+export interface AIContextConfig {
+  includeForeignKeys: boolean;
+  includeIndexes: boolean;
+  includeSampleData: boolean;
+  sampleDataRows: number;
+  maxTablesInContext: number;
+}
+
+export interface ManualContextEntry {
+  id: string;
+  type: 'table' | 'custom';
+  tableName?: string;
+  customText?: string;
+  addedAt: Date;
+}
+
+export interface ContextTemplate {
+  id: string;
+  name: string;
+  description: string;
+  includeForeignKeys: boolean;
+  includeIndexes: boolean;
+  includeSampleData: boolean;
+  sampleDataRows: number;
+  isBuiltIn: boolean;
+}
+
+export interface ContextSizeInfo {
+  estimatedTokens: number;
+  tableCount: number;
+  relationshipCount: number;
+  indexCount: number;
+  sampleRowCount: number;
+}
+
+// Validation types for Phase 2
+export type ValidationSeverity = 'error' | 'warning' | 'info';
+export type ValidationCategory = 'syntax' | 'semantic' | 'performance' | 'security';
+
+export interface ValidationIssue {
+  id: string;
+  severity: ValidationSeverity;
+  category: ValidationCategory;
+  message: string;
+  suggestion?: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  issues: ValidationIssue[];
+}
+
+export interface ValidationConfig {
+  enableSyntaxCheck: boolean;
+  enableSemanticCheck: boolean;
+  enablePerformanceWarnings: boolean;
+  enableSecurityWarnings: boolean;
+  blockDangerousQueries: boolean;
+}
+
+// Chat template types for Phase 3
+export interface ChatTemplate {
+  id: string;
+  name: string;
+  description: string;
+  starterPrompts: string[];
+  isBuiltIn: boolean;
+}
+
+export type ExportFormat = 'markdown' | 'json';
+
+export interface ExportOptions {
+  includeTimestamps: boolean;
+  includeUsageStats: boolean;
+  sqlOnly: boolean;
+}
+
+// NoSQL context types for Phase 4
+export interface MongoContext {
+  database: string;
+  collections: { name: string; sampleDoc?: unknown }[];
+  selectedCollection?: string;
+}
+
+export interface RedisContext {
+  keyPatterns: string[];
+  dataTypes: Record<string, number>;
+  selectedKey?: { key: string; type: string };
+}
+
 /** Request for SQL generation */
 export interface GenerateSQLRequest {
   prompt: string;

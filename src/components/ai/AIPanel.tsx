@@ -11,6 +11,9 @@ import {
   Coins,
   Maximize2,
   Minimize2,
+  Database,
+  Download,
+  LayoutTemplate,
 } from "lucide-react";
 import {
   Button,
@@ -30,6 +33,10 @@ import { ChatMessage } from "./ChatMessage";
 import { AIInput } from "./AIInput";
 import { AISettingsDialog } from "./AISettingsDialog";
 import { ChatHistoryPanel } from "./ChatHistoryPanel";
+import { AIContextPanel } from "./AIContextPanel";
+import { ContextConfigDialog } from "./ContextConfigDialog";
+import { ChatExportDialog } from "./ChatExportDialog";
+import { ChatTemplateSelector } from "./ChatTemplateSelector";
 
 export function AIPanel() {
   const {
@@ -55,6 +62,8 @@ export function AIPanel() {
     createNewChatSession,
     panelExpanded,
     togglePanelExpanded,
+    contextPanelOpen,
+    toggleContextPanel,
   } = useAIStore();
 
   const activeSession = getActiveSession();
@@ -70,6 +79,9 @@ export function AIPanel() {
   const currentQuery = activeTab?.type === "query" ? activeTab.content : undefined;
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showContextConfig, setShowContextConfig] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentProvider = getCurrentProvider();
@@ -169,11 +181,39 @@ export function AIPanel() {
             <Button
               variant="ghost"
               size="icon"
+              className={cn("h-8 w-8", contextPanelOpen && "bg-violet-500/10 text-violet-500")}
+              onClick={toggleContextPanel}
+              title="Context Panel"
+            >
+              <Database className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-8 w-8"
               onClick={toggleHistoryPanel}
               title="Chat History"
             >
               <History className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setShowExport(true)}
+              title="Export Chat"
+              disabled={!activeSession || activeSession.messages.length === 0}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setShowTemplates(true)}
+              title="Chat Templates"
+            >
+              <LayoutTemplate className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -309,10 +349,16 @@ export function AIPanel() {
             open={historyPanelOpen}
             onOpenChange={setHistoryPanelOpen}
           />
+
+          {/* Context Panel - positioned absolutely within AI panel */}
+          <AIContextPanel onOpenConfig={() => setShowContextConfig(true)} />
         </div>
       </div>
 
       <AISettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      <ContextConfigDialog open={showContextConfig} onOpenChange={setShowContextConfig} />
+      <ChatExportDialog open={showExport} onOpenChange={setShowExport} />
+      <ChatTemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />
     </>
   );
 }
