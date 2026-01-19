@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Database,
   FolderClosed,
@@ -45,9 +45,12 @@ interface TreeItemProps {
   level?: number;
   onClick?: () => void;
   isActive?: boolean;
+  isHighlighted?: boolean;
   rightElement?: React.ReactNode;
   defaultOpen?: boolean;
+  forceOpen?: boolean;
   count?: number;
+  itemRef?: React.RefObject<HTMLDivElement>;
 }
 
 function TreeItem({
@@ -57,15 +60,27 @@ function TreeItem({
   level = 0,
   onClick,
   isActive,
+  isHighlighted,
   rightElement,
   defaultOpen = false,
+  forceOpen,
   count,
+  itemRef,
 }: TreeItemProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const hasChildren = Boolean(children);
 
+  // Force open when forceOpen changes to true
+  useEffect(() => {
+    if (forceOpen) {
+      setIsOpen(true);
+    }
+  }, [forceOpen]);
+
+  const effectiveOpen = isOpen || forceOpen;
+
   return (
-    <div className="group/tree relative">
+    <div className="group/tree relative" ref={itemRef}>
       {level > 0 && (
         <div
           className="tree-guide"
@@ -76,7 +91,8 @@ function TreeItem({
         className={cn(
           "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
           "hover:bg-sidebar-accent/60",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+          isHighlighted && "animate-highlight-blink"
         )}
         style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: "8px" }}
       >
@@ -91,7 +107,7 @@ function TreeItem({
             <ChevronRight
               className={cn(
                 "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-                isOpen && "rotate-90",
+                effectiveOpen && "rotate-90",
                 isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
               )}
             />
@@ -119,7 +135,7 @@ function TreeItem({
           </div>
         )}
       </div>
-      {isOpen && children && <div className="animate-slide-down">{children}</div>}
+      {effectiveOpen && children && <div className="animate-slide-down">{children}</div>}
     </div>
   );
 }
@@ -139,14 +155,51 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
     loadingCollections,
     selectedDatabaseByConnection,
     setSelectedDatabase,
+    highlightedItemByConnection,
+    clearHighlightedItem,
   } = useMongoDBStore();
 
   const databases = databasesByConnection[connectionId] || [];
   const selectedDb = selectedDatabaseByConnection[connectionId];
+  const highlightedItem = highlightedItemByConnection[connectionId] || null;
+
+  // Refs for scrolling to highlighted items
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Dialog states
   const [dropDbDialog, setDropDbDialog] = useState<string | null>(null);
   const [dropCollDialog, setDropCollDialog] = useState<{ db: string; coll: string } | null>(null);
+
+  // Scroll to highlighted item when it changes
+  useEffect(() => {
+    if (highlightedItem) {
+      const refKey = highlightedItem.type === "database"
+        ? `db-${highlightedItem.name}`
+        : highlightedItem.type === "collection"
+          ? `coll-${highlightedItem.dbName}-${highlightedItem.name}`
+          : `idx-${highlightedItem.dbName}-${highlightedItem.collName}-${highlightedItem.name}`;
+
+      if (itemRefs.current[refKey]) {
+        // Small delay to allow tree expansion animation
+        setTimeout(() => {
+          itemRefs.current[refKey]?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }, 100);
+
+        // Clear highlight after animation completes
+        setTimeout(() => {
+          clearHighlightedItem(connectionId);
+        }, 2000);
+      }
+    }
+  }, [highlightedItem, connectionId, clearHighlightedItem]);
+
+  // Callback ref for items
+  const setItemRef = useCallback((key: string) => (el: HTMLDivElement | null) => {
+    itemRefs.current[key] = el;
+  }, []);
 
   // Load databases on mount
   useEffect(() => {
@@ -322,15 +375,21 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
                 databases.map((db) => {
                   const collections = collectionsByDb[`${connectionId}:${db.name}`] || [];
                   const isExpanded = selectedDb === db.name;
+                  const shouldForceOpenDb = highlightedItem && (
+                    (highlightedItem.type === "database" && highlightedItem.name === db.name) ||
+                    (highlightedItem.type === "collection" && highlightedItem.dbName === db.name) ||
+                    (highlightedItem.type === "index" && highlightedItem.dbName === db.name)
+                  );
+                  const isDbHighlighted = highlightedItem?.type === "database" && highlightedItem.name === db.name;
 
                   return (
                     <ContextMenu key={db.name}>
                       <ContextMenuTrigger asChild>
-                        <div>
+                        <div ref={setItemRef(`db-${db.name}`)}>
                           <TreeItem
                             label={db.name}
                             icon={
-                              isExpanded ? (
+                              isExpanded || shouldForceOpenDb ? (
                                 <FolderOpen className="h-3.5 w-3.5 text-yellow-500" />
                               ) : (
                                 <FolderClosed className="h-3.5 w-3.5 text-yellow-500" />
@@ -339,6 +398,8 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
                             level={1}
                             count={db.collectionCount}
                             defaultOpen={isExpanded}
+                            forceOpen={shouldForceOpenDb || false}
+                            isHighlighted={isDbHighlighted}
                             onClick={() => handleDatabaseClick(db.name)}
                           >
                             {loadingCollections ? (
@@ -347,15 +408,21 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
                                 <span>Loading...</span>
                               </div>
                             ) : (
-                              collections.map((coll) => (
+                              collections.map((coll) => {
+                                const isCollHighlighted = highlightedItem?.type === "collection" &&
+                                  highlightedItem.dbName === db.name &&
+                                  highlightedItem.name === coll.name;
+
+                                return (
                                 <ContextMenu key={coll.name}>
                                   <ContextMenuTrigger asChild>
-                                    <div>
+                                    <div ref={setItemRef(`coll-${db.name}-${coll.name}`)}>
                                       <TreeItem
                                         label={coll.name}
                                         icon={<File className="h-3.5 w-3.5 text-green-500" />}
                                         level={2}
                                         count={coll.documentCount}
+                                        isHighlighted={isCollHighlighted}
                                         onClick={() => handleCollectionClick(db.name, coll.name)}
                                         rightElement={
                                           <Tooltip>
@@ -411,7 +478,7 @@ export function MongoConnectionContent({ connectionId }: MongoConnectionContentP
                                     </ContextMenuItem>
                                   </ContextMenuContent>
                                 </ContextMenu>
-                              ))
+                              );})
                             )}
                             {!loadingCollections && collections.length === 0 && (
                               <div className="ml-12 py-1 text-xs text-muted-foreground">No collections</div>

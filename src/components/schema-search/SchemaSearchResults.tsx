@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Loader2, History, X, Search } from "lucide-react";
-import { ScrollArea, Button } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { useSchemaSearchStore } from "@/stores";
 import { SchemaSearchResultItem } from "./SchemaSearchResultItem";
 import { SCHEMA_OBJECT_TYPE_LABELS } from "@/types";
@@ -49,13 +49,19 @@ export function SchemaSearchResults({
       function: [],
       trigger: [],
       sequence: [],
+      // Redis
+      "redis-key": [],
+      // MongoDB
+      "mongo-database": [],
+      "mongo-collection": [],
+      "mongo-index": [],
     };
 
     for (const result of filteredResults) {
       groups[result.objectType].push(result);
     }
 
-    // Order: tables first, then columns, then rest
+    // Order: tables first, then columns, then rest, then Redis, then MongoDB
     const order: SchemaObjectType[] = [
       "table",
       "column",
@@ -65,6 +71,12 @@ export function SchemaSearchResults({
       "function",
       "trigger",
       "sequence",
+      // Redis
+      "redis-key",
+      // MongoDB
+      "mongo-database",
+      "mongo-collection",
+      "mongo-index",
     ];
 
     return order
@@ -174,33 +186,31 @@ export function SchemaSearchResults({
 
   // Results grouped by type
   return (
-    <ScrollArea className="max-h-[300px]">
-      <div className="space-y-2 py-1">
-        {groupedResults.map((group) => (
-          <div key={group.objectType}>
-            {/* Group header */}
-            <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider sticky top-0 bg-popover/95 backdrop-blur-sm">
-              {group.label} ({group.results.length})
-            </div>
-
-            {/* Group items */}
-            <div className="space-y-0.5">
-              {group.results.map((result) => {
-                const flatIndex = getFlatIndexForResult(result);
-                return (
-                  <SchemaSearchResultItem
-                    key={result.id}
-                    result={result}
-                    isSelected={flatIndex === selectedIndex}
-                    onClick={() => onResultClick(result)}
-                    onMouseEnter={() => setSelectedIndex(flatIndex)}
-                  />
-                );
-              })}
-            </div>
+    <div className="space-y-2 py-1">
+      {groupedResults.map((group) => (
+        <div key={group.objectType}>
+          {/* Group header */}
+          <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider sticky top-0 bg-popover/95 backdrop-blur-sm">
+            {group.label} ({group.results.length})
           </div>
-        ))}
-      </div>
-    </ScrollArea>
+
+          {/* Group items */}
+          <div className="space-y-0.5">
+            {group.results.map((result) => {
+              const flatIndex = getFlatIndexForResult(result);
+              return (
+                <SchemaSearchResultItem
+                  key={result.id}
+                  result={result}
+                  isSelected={flatIndex === selectedIndex}
+                  onClick={() => onResultClick(result)}
+                  onMouseEnter={() => setSelectedIndex(flatIndex)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

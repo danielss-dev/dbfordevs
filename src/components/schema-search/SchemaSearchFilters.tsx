@@ -8,6 +8,9 @@ import {
   Hash,
   Columns,
   Check,
+  Key,
+  Database,
+  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
@@ -24,6 +27,12 @@ const OBJECT_TYPE_ICONS: Record<SchemaObjectType, React.ComponentType<{ classNam
   function: FunctionSquare,
   trigger: Zap,
   sequence: Hash,
+  // Redis
+  "redis-key": Key,
+  // MongoDB
+  "mongo-database": Database,
+  "mongo-collection": FolderOpen,
+  "mongo-index": ListTree,
 };
 
 /** Display labels for filters */
@@ -36,10 +45,16 @@ const FILTER_LABELS: Record<SchemaObjectType, string> = {
   function: "Functions",
   trigger: "Triggers",
   sequence: "Sequences",
+  // Redis
+  "redis-key": "Keys",
+  // MongoDB
+  "mongo-database": "Databases",
+  "mongo-collection": "Collections",
+  "mongo-index": "Indexes",
 };
 
-/** Order in which filters should be displayed */
-const FILTER_ORDER: SchemaObjectType[] = [
+/** Order in which filters should be displayed - SQL types */
+const SQL_FILTER_ORDER: SchemaObjectType[] = [
   "table",
   "column",
   "view",
@@ -50,15 +65,41 @@ const FILTER_ORDER: SchemaObjectType[] = [
   "sequence",
 ];
 
-interface SchemaSearchFiltersProps {
-  className?: string;
+/** Redis filter types */
+const REDIS_FILTER_ORDER: SchemaObjectType[] = [
+  "redis-key",
+];
+
+/** MongoDB filter types */
+const MONGODB_FILTER_ORDER: SchemaObjectType[] = [
+  "mongo-database",
+  "mongo-collection",
+  "mongo-index",
+];
+
+/** Get filter order based on database type */
+function getFilterOrder(databaseType?: string): SchemaObjectType[] {
+  if (databaseType === "redis") {
+    return REDIS_FILTER_ORDER;
+  }
+  if (databaseType === "mongodb") {
+    return MONGODB_FILTER_ORDER;
+  }
+  return SQL_FILTER_ORDER;
 }
 
-export function SchemaSearchFilters({ className }: SchemaSearchFiltersProps) {
+interface SchemaSearchFiltersProps {
+  className?: string;
+  databaseType?: string;
+}
+
+export function SchemaSearchFilters({ className, databaseType }: SchemaSearchFiltersProps) {
   const { enabledFilters, toggleFilter, selectAll, resetFilters } =
     useSchemaSearchStore();
 
-  const allSelected = enabledFilters.length === FILTER_ORDER.length;
+  const filterOrder = getFilterOrder(databaseType);
+  const relevantFilters = enabledFilters.filter(f => filterOrder.includes(f));
+  const allSelected = relevantFilters.length === filterOrder.length;
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -72,7 +113,7 @@ export function SchemaSearchFilters({ className }: SchemaSearchFiltersProps) {
             variant="ghost"
             size="sm"
             className="h-6 px-2 text-xs"
-            onClick={selectAll}
+            onClick={() => selectAll(filterOrder)}
             disabled={allSelected}
           >
             All
@@ -81,7 +122,7 @@ export function SchemaSearchFilters({ className }: SchemaSearchFiltersProps) {
             variant="ghost"
             size="sm"
             className="h-6 px-2 text-xs"
-            onClick={resetFilters}
+            onClick={() => resetFilters(filterOrder)}
             disabled={allSelected}
           >
             Reset
@@ -90,8 +131,8 @@ export function SchemaSearchFilters({ className }: SchemaSearchFiltersProps) {
       </div>
 
       {/* Filter checkboxes in a grid */}
-      <div className="grid grid-cols-2 gap-1">
-        {FILTER_ORDER.map((objectType) => {
+      <div className={cn("grid gap-1", filterOrder.length <= 2 ? "grid-cols-1" : "grid-cols-2")}>
+        {filterOrder.map((objectType) => {
           const Icon = OBJECT_TYPE_ICONS[objectType];
           const isEnabled = enabledFilters.includes(objectType);
 

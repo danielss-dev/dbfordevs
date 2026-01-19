@@ -38,8 +38,8 @@ interface SchemaSearchState {
   setSearching: (isSearching: boolean) => void;
   toggleFilter: (filter: SchemaObjectType) => void;
   setEnabledFilters: (filters: SchemaObjectType[]) => void;
-  resetFilters: () => void;
-  selectAll: () => void;
+  resetFilters: (filterOrder?: SchemaObjectType[]) => void;
+  selectAll: (filterOrder?: SchemaObjectType[]) => void;
   selectNext: () => void;
   selectPrevious: () => void;
   setSelectedIndex: (index: number) => void;
@@ -63,6 +63,12 @@ const ALL_OBJECT_TYPES: SchemaObjectType[] = [
   "function",
   "trigger",
   "sequence",
+  // Redis
+  "redis-key",
+  // MongoDB
+  "mongo-database",
+  "mongo-collection",
+  "mongo-index",
 ];
 
 const initialState = {
@@ -116,9 +122,21 @@ export const useSchemaSearchStore = create<SchemaSearchState>()(
           enabledFilters: filters.length > 0 ? filters : [...ALL_OBJECT_TYPES],
         }),
 
-      resetFilters: () => set({ enabledFilters: [...ALL_OBJECT_TYPES] }),
+      resetFilters: (filterOrder) => set((state) => {
+        const types = filterOrder || ALL_OBJECT_TYPES;
+        // When resetting, enable all filters from the given order
+        // while preserving any other enabled filters from different database types
+        const otherFilters = state.enabledFilters.filter(f => !types.includes(f));
+        return { enabledFilters: [...otherFilters, ...types] };
+      }),
 
-      selectAll: () => set({ enabledFilters: [...ALL_OBJECT_TYPES] }),
+      selectAll: (filterOrder) => set((state) => {
+        const types = filterOrder || ALL_OBJECT_TYPES;
+        // When selecting all, add all filters from the given order
+        // while preserving any other enabled filters from different database types
+        const otherFilters = state.enabledFilters.filter(f => !types.includes(f));
+        return { enabledFilters: [...otherFilters, ...types] };
+      }),
 
       selectNext: () =>
         set((state) => ({

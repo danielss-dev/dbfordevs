@@ -943,6 +943,23 @@
   animation: scale-in 0.15s ease-out;
 }
 
+/* Highlight blink animation for search navigation */
+@keyframes highlight-blink {
+  0%, 100% {
+    background-color: transparent;
+  }
+  25%, 75% {
+    background-color: hsl(var(--primary) / 0.3);
+  }
+  50% {
+    background-color: hsl(var(--primary) / 0.5);
+  }
+}
+
+.animate-highlight-blink {
+  animation: highlight-blink 1.5s ease-in-out;
+}
+
 /* Status indicator dots */
 .status-dot {
   @apply w-2 h-2 rounded-full;

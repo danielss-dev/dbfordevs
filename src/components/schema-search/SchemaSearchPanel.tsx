@@ -9,8 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSchemaSearchStore, useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
-import { useDatabase } from "@/hooks";
+import { useSchemaSearchStore, useQueryStore, useConnectionsStore, useUIStore, selectActiveConnection } from "@/stores";
+import { useRedisStore } from "@/stores/redis";
+import { useMongoDBStore } from "@/stores/mongodb";
+import { useDatabase, useRedis, useMongoDB } from "@/hooks";
 import { fuzzySearch } from "@/lib/fuzzy-search";
 import { getDatabaseFeatureSupport } from "@/lib/database-features";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
@@ -39,8 +41,9 @@ export function SchemaSearchPanel() {
   } = useSchemaSearchStore();
 
   const { addTab, setActiveTab } = useQueryStore();
-  const { connections } = useConnectionsStore();
+  const { connections, setActiveConnection } = useConnectionsStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
+  const { setRightPanelTab } = useUIStore();
   const {
     getTables,
     getViews,
@@ -50,6 +53,10 @@ export function SchemaSearchPanel() {
     getTriggers,
     getSequences,
   } = useDatabase();
+
+  // Hooks for fetching Redis and MongoDB data
+  const { scanKeys } = useRedis();
+  const { listDatabases, listCollections, listIndexes } = useMongoDB();
 
   // Get only connected connections
   const connectedConnections = useMemo(() => {
@@ -87,6 +94,7 @@ export function SchemaSearchPanel() {
   // Debounce timer ref
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+
   /**
    * Fetch all schema objects for the connection
    */
@@ -95,9 +103,86 @@ export function SchemaSearchPanel() {
 
     const items: SchemaSearchResult[] = [];
     const connId = selectedConnectionId;
+    const dbType = selectedConnection.databaseType;
 
     try {
-      // Fetch tables and their columns
+      // Redis: actively fetch keys
+      if (dbType === "redis") {
+        // Fetch keys from backend (scan with wildcard pattern)
+        const scanResult = await scanKeys(connId, "*", 1000, 0, false);
+        const redisKeys = scanResult?.keys || [];
+
+        for (const keyInfo of redisKeys) {
+          items.push({
+            id: `redis-key-${keyInfo.key}`,
+            objectType: "redis-key",
+            name: keyInfo.key,
+            fullPath: keyInfo.key,
+            connectionId: connId,
+            matchScore: 0,
+            matchIndices: [],
+            metadata: { keyType: keyInfo.keyType, ttl: keyInfo.ttl },
+          });
+        }
+        return items;
+      }
+
+      // MongoDB: actively fetch databases, collections, and indexes
+      if (dbType === "mongodb") {
+        // Fetch databases from backend
+        const mongoDbs = await listDatabases(connId) || [];
+
+        for (const db of mongoDbs) {
+          items.push({
+            id: `mongo-database-${db.name}`,
+            objectType: "mongo-database",
+            name: db.name,
+            fullPath: db.name,
+            connectionId: connId,
+            matchScore: 0,
+            matchIndices: [],
+            metadata: { sizeBytes: db.sizeBytes, isEmpty: db.isEmpty },
+          });
+
+          // Fetch collections for this database
+          const collections = await listCollections(connId, db.name) || [];
+          for (const coll of collections) {
+            const collFullPath = `${db.name}.${coll.name}`;
+            items.push({
+              id: `mongo-collection-${collFullPath}`,
+              objectType: "mongo-collection",
+              name: coll.name,
+              fullPath: collFullPath,
+              parentName: db.name,
+              connectionId: connId,
+              matchScore: 0,
+              matchIndices: [],
+              metadata: { documentCount: coll.documentCount, capped: coll.capped },
+            });
+
+            // Fetch indexes for this collection
+            const indexes = await listIndexes(connId, db.name, coll.name) || [];
+            for (const idx of indexes) {
+              const idxFullPath = `${db.name}.${coll.name}.${idx.name}`;
+              items.push({
+                id: `mongo-index-${idxFullPath}`,
+                objectType: "mongo-index",
+                name: idx.name,
+                fullPath: idxFullPath,
+                parentName: coll.name,
+                schema: db.name,
+                connectionId: connId,
+                matchScore: 0,
+                matchIndices: [],
+                metadata: { keys: idx.keys, unique: idx.unique },
+              });
+            }
+          }
+        }
+        return items;
+      }
+
+      // SQL databases: fetch tables and their columns
       const tables = await getTables(connId);
       for (const table of tables) {
         const fullPath = table.schema ? `${table.schema}.${table.name}` : table.name;
@@ -296,6 +381,10 @@ export function SchemaSearchPanel() {
     getFunctions,
     getTriggers,
     getSequences,
+    scanKeys,
+    listDatabases,
+    listCollections,
+    listIndexes,
   ]);
 
   /**
@@ -467,8 +556,61 @@ export function SchemaSearchPanel() {
         setActiveTab(tabId);
         break;
       }
+      // Redis
+      case "redis-key": {
+        // Switch to the connection and highlight the key (triggers tree expansion + scroll + animation)
+        setActiveConnection(result.connectionId);
+        useRedisStore.getState().setHighlightedKey(result.connectionId, result.name);
+        // Close the search panel
+        setRightPanelTab(null);
+        break;
+      }
+      // MongoDB
+      case "mongo-database": {
+        // Switch to the connection and highlight the database
+        setActiveConnection(result.connectionId);
+        useMongoDBStore.getState().setHighlightedItem(result.connectionId, {
+          type: "database",
+          name: result.name,
+        });
+        // Close the search panel
+        setRightPanelTab(null);
+        break;
+      }
+      case "mongo-collection": {
+        const dbName = result.parentName;
+        if (dbName) {
+          // Switch to the connection and highlight the collection
+          setActiveConnection(result.connectionId);
+          useMongoDBStore.getState().setHighlightedItem(result.connectionId, {
+            type: "collection",
+            dbName,
+            name: result.name,
+          });
+          // Close the search panel
+          setRightPanelTab(null);
+        }
+        break;
+      }
+      case "mongo-index": {
+        const dbName = result.schema;
+        const collName = result.parentName;
+        if (dbName && collName) {
+          // Switch to the connection and highlight the index
+          setActiveConnection(result.connectionId);
+          useMongoDBStore.getState().setHighlightedItem(result.connectionId, {
+            type: "index",
+            dbName,
+            collName,
+            name: result.name,
+          });
+          // Close the search panel
+          setRightPanelTab(null);
+        }
+        break;
+      }
     }
-  }, [addTab, setActiveTab]);
+  }, [addTab, setActiveTab, setActiveConnection, setRightPanelTab]);
 
   /**
    * Handle history item click
@@ -530,7 +672,22 @@ export function SchemaSearchPanel() {
     }
   }, []);
 
-  const activeFilterCount = 8 - enabledFilters.length;
+  // Calculate filter count based on database type
+  const getFilterCount = () => {
+    const dbType = selectedConnection?.databaseType;
+    if (dbType === "redis") {
+      const redisFilters = enabledFilters.filter(f => f === "redis-key");
+      return 1 - redisFilters.length; // 1 filter type for Redis
+    }
+    if (dbType === "mongodb") {
+      const mongoFilters = enabledFilters.filter(f => f.startsWith("mongo-"));
+      return 3 - mongoFilters.length; // 3 filter types for MongoDB
+    }
+    // SQL databases have 8 filter types
+    const sqlFilters = enabledFilters.filter(f => !f.startsWith("redis-") && !f.startsWith("mongo-"));
+    return 8 - sqlFilters.length;
+  };
+  const activeFilterCount = getFilterCount();
 
   // No connected connections
   if (connectedConnections.length === 0) {
@@ -615,7 +772,13 @@ export function SchemaSearchPanel() {
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search tables, columns, views..."
+            placeholder={
+              selectedConnection?.databaseType === "redis"
+                ? "Search keys..."
+                : selectedConnection?.databaseType === "mongodb"
+                  ? "Search databases, collections..."
+                  : "Search tables, columns, views..."
+            }
             className="h-9 pl-9 pr-9"
           />
           {query && (
@@ -635,7 +798,7 @@ export function SchemaSearchPanel() {
       {/* Filters Panel (collapsible) */}
       {showFilters && (
         <div className="px-4 py-3 border-b border-border bg-muted/30">
-          <SchemaSearchFilters />
+          <SchemaSearchFilters databaseType={selectedConnection?.databaseType} />
         </div>
       )}
 

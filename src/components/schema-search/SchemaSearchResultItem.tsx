@@ -7,6 +7,9 @@ import {
   Zap,
   Hash,
   Columns,
+  Key,
+  Database,
+  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { highlightMatches } from "@/lib/fuzzy-search";
@@ -29,6 +32,12 @@ const OBJECT_TYPE_ICONS: Record<SchemaObjectType, React.ComponentType<{ classNam
   function: FunctionSquare,
   trigger: Zap,
   sequence: Hash,
+  // Redis
+  "redis-key": Key,
+  // MongoDB
+  "mongo-database": Database,
+  "mongo-collection": FolderOpen,
+  "mongo-index": ListTree,
 };
 
 /** Colors for each schema object type */
@@ -41,6 +50,12 @@ const OBJECT_TYPE_COLORS: Record<SchemaObjectType, string> = {
   function: "text-cyan-500",
   trigger: "text-yellow-500",
   sequence: "text-red-500",
+  // Redis
+  "redis-key": "text-red-500",
+  // MongoDB
+  "mongo-database": "text-green-500",
+  "mongo-collection": "text-green-600",
+  "mongo-index": "text-green-400",
 };
 
 export function SchemaSearchResultItem({

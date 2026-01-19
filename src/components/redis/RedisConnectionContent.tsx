@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Hash,
   Terminal,
@@ -48,9 +48,12 @@ interface TreeItemProps {
   level?: number;
   onClick?: () => void;
   isActive?: boolean;
+  isHighlighted?: boolean;
   rightElement?: React.ReactNode;
   defaultOpen?: boolean;
+  forceOpen?: boolean;
   count?: number;
+  itemRef?: React.RefObject<HTMLDivElement>;
 }
 
 function TreeItem({
@@ -60,15 +63,27 @@ function TreeItem({
   level = 0,
   onClick,
   isActive,
+  isHighlighted,
   rightElement,
   defaultOpen = false,
+  forceOpen,
   count,
+  itemRef,
 }: TreeItemProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const hasChildren = Boolean(children);
 
+  // Force open when forceOpen changes to true
+  useEffect(() => {
+    if (forceOpen) {
+      setIsOpen(true);
+    }
+  }, [forceOpen]);
+
+  const effectiveOpen = isOpen || forceOpen;
+
   return (
-    <div className="group/tree relative">
+    <div className="group/tree relative" ref={itemRef}>
       {level > 0 && (
         <div
           className="tree-guide"
@@ -79,7 +94,8 @@ function TreeItem({
         className={cn(
           "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
           "hover:bg-sidebar-accent/60",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+          isHighlighted && "animate-highlight-blink"
         )}
         style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: "8px" }}
       >
@@ -94,7 +110,7 @@ function TreeItem({
             <ChevronRight
               className={cn(
                 "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-                isOpen && "rotate-90",
+                effectiveOpen && "rotate-90",
                 isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
               )}
             />
@@ -122,7 +138,7 @@ function TreeItem({
           </div>
         )}
       </div>
-      {isOpen && children && <div className="animate-slide-down">{children}</div>}
+      {effectiveOpen && children && <div className="animate-slide-down">{children}</div>}
     </div>
   );
 }
@@ -154,10 +170,14 @@ interface RedisConnectionContentProps {
 export function RedisConnectionContent({ connectionId }: RedisConnectionContentProps) {
   const { scanKeys, getServerInfo, deleteKey } = useRedis();
   const { addTab, tabs, setActiveTab } = useQueryStore();
-  const { keysByConnection, loadingKeys } = useRedisStore();
+  const { keysByConnection, loadingKeys, highlightedKeyByConnection, clearHighlightedKey } = useRedisStore();
   const { toast } = useToast();
 
   const keys = keysByConnection[connectionId] || [];
+  const highlightedKey = highlightedKeyByConnection[connectionId] || null;
+
+  // Refs for scrolling to highlighted key
+  const keyRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Dialog states
   const [deleteKeyDialog, setDeleteKeyDialog] = useState<string | null>(null);
@@ -172,6 +192,34 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
     },
     {} as Record<RedisKeyType, typeof keys>
   );
+
+  // Find the key type for the highlighted key
+  const highlightedKeyType = highlightedKey
+    ? keys.find(k => k.key === highlightedKey)?.keyType || null
+    : null;
+
+  // Scroll to highlighted key when it changes
+  useEffect(() => {
+    if (highlightedKey && keyRefs.current[highlightedKey]) {
+      // Small delay to allow tree expansion animation
+      setTimeout(() => {
+        keyRefs.current[highlightedKey]?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 100);
+
+      // Clear highlight after animation completes
+      setTimeout(() => {
+        clearHighlightedKey(connectionId);
+      }, 2000);
+    }
+  }, [highlightedKey, connectionId, clearHighlightedKey]);
+
+  // Callback ref for key items
+  const setKeyRef = useCallback((key: string) => (el: HTMLDivElement | null) => {
+    keyRefs.current[key] = el;
+  }, []);
 
   // Load keys on mount
   useEffect(() => {
@@ -342,16 +390,18 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
                           level={1}
                           count={typeKeys.length}
                           defaultOpen={false}
+                          forceOpen={highlightedKeyType === type}
                         >
                           {typeKeys.slice(0, 50).map((keyInfo) => (
                             <ContextMenu key={keyInfo.key}>
                               <ContextMenuTrigger asChild>
-                                <div>
+                                <div ref={setKeyRef(keyInfo.key)}>
                                   <TreeItem
                                     label={keyInfo.key}
                                     icon={KEY_TYPE_ICONS[keyInfo.keyType]}
                                     level={2}
                                     onClick={() => handleKeyClick(keyInfo.key)}
+                                    isHighlighted={highlightedKey === keyInfo.key}
                                     rightElement={
                                       keyInfo.ttl !== undefined && keyInfo.ttl > 0 ? (
                                         <Tooltip>

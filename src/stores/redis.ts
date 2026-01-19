@@ -23,6 +23,9 @@ interface RedisState {
   // Selected key per connection
   selectedKeyByConnection: Record<string, string | null>;
 
+  // Highlighted key per connection (for search navigation with animation)
+  highlightedKeyByConnection: Record<string, string | null>;
+
   // Server info per connection
   serverInfoByConnection: Record<string, RedisServerInfo | null>;
 
@@ -62,6 +65,10 @@ interface RedisState {
   // Actions - Selected key
   setSelectedKey: (connectionId: string, key: string | null) => void;
 
+  // Actions - Highlighted key (for search navigation)
+  setHighlightedKey: (connectionId: string, key: string | null) => void;
+  clearHighlightedKey: (connectionId: string) => void;
+
   // Actions - Server info
   setServerInfo: (connectionId: string, info: RedisServerInfo | null) => void;
 
@@ -96,6 +103,7 @@ export const useRedisStore = create<RedisState>()((set) => ({
   keyPatternByConnection: {},
   typeFilterByConnection: {},
   selectedKeyByConnection: {},
+  highlightedKeyByConnection: {},
   serverInfoByConnection: {},
   pubsubMessagesByConnection: {},
   pubsubChannelsByConnection: {},
@@ -190,6 +198,23 @@ export const useRedisStore = create<RedisState>()((set) => ({
       },
     })),
 
+  // Highlighted key (for search navigation)
+  setHighlightedKey: (connectionId, key) =>
+    set((state) => ({
+      highlightedKeyByConnection: {
+        ...state.highlightedKeyByConnection,
+        [connectionId]: key,
+      },
+    })),
+
+  clearHighlightedKey: (connectionId) =>
+    set((state) => ({
+      highlightedKeyByConnection: {
+        ...state.highlightedKeyByConnection,
+        [connectionId]: null,
+      },
+    })),
+
   // Server info
   setServerInfo: (connectionId, info) =>
     set((state) => ({
@@ -270,6 +295,8 @@ export const useRedisStore = create<RedisState>()((set) => ({
       delete newFilters[connectionId];
       const newSelected = { ...state.selectedKeyByConnection };
       delete newSelected[connectionId];
+      const newHighlighted = { ...state.highlightedKeyByConnection };
+      delete newHighlighted[connectionId];
       const newServerInfo = { ...state.serverInfoByConnection };
       delete newServerInfo[connectionId];
       const newPubSubMessages = { ...state.pubsubMessagesByConnection };
@@ -285,6 +312,7 @@ export const useRedisStore = create<RedisState>()((set) => ({
         keyPatternByConnection: newPatterns,
         typeFilterByConnection: newFilters,
         selectedKeyByConnection: newSelected,
+        highlightedKeyByConnection: newHighlighted,
         serverInfoByConnection: newServerInfo,
         pubsubMessagesByConnection: newPubSubMessages,
         pubsubChannelsByConnection: newPubSubChannels,

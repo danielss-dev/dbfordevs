@@ -12,7 +12,13 @@ export type SchemaObjectType =
   | "procedure"
   | "function"
   | "trigger"
-  | "sequence";
+  | "sequence"
+  // Redis types
+  | "redis-key"
+  // MongoDB types
+  | "mongo-database"
+  | "mongo-collection"
+  | "mongo-index";
 
 /** Display labels for schema object types */
 export const SCHEMA_OBJECT_TYPE_LABELS: Record<SchemaObjectType, string> = {
@@ -24,6 +30,12 @@ export const SCHEMA_OBJECT_TYPE_LABELS: Record<SchemaObjectType, string> = {
   function: "Functions",
   trigger: "Triggers",
   sequence: "Sequences",
+  // Redis
+  "redis-key": "Keys",
+  // MongoDB
+  "mongo-database": "Databases",
+  "mongo-collection": "Collections",
+  "mongo-index": "Indexes",
 };
 
 /** A single search result from the schema search */
