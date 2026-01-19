@@ -216,6 +216,44 @@ services:
       retries: 5
       start_period: 30s
 
+  # Cassandra - Port 9042
+  cassandra:
+    image: cassandra:4.1
+    container_name: dbfordevs-cassandra
+    environment:
+      - CASSANDRA_CLUSTER_NAME=dbfordevs_cluster
+      - MAX_HEAP_SIZE=512M
+      - HEAP_NEWSIZE=100M
+    ports:
+      - "9042:9042"
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # Cassandra Init - loads sample data after Cassandra is ready
+  cassandra-init:
+    image: cassandra:4.1
+    container_name: dbfordevs-cassandra-init
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    volumes:
+      - ./docker/cassandra-init:/init
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Waiting for Cassandra to be ready..."
+        sleep 10
+        echo "Running init script..."
+        cqlsh cassandra -f /init/01-sample-data.cql
+        echo "Cassandra init complete!"
+    restart: "no"
+
 volumes:
   postgres_data:
   mysql_data:
@@ -225,3 +263,4 @@ volumes:
   oracle_data:
   redis_data:
   mongodb_data:
+  cassandra_data:

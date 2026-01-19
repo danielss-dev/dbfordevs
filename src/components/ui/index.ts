@@ -28,3 +28,5 @@ export { Progress } from "./progress";
 export { DateTimePicker, DatePicker, TimePicker } from "./date-time-picker";
 export { HSLColorPicker } from "./hsl-color-picker";
 export { ColorPicker, PRESET_COLORS } from "./color-picker";
+export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./collapsible";
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./card";

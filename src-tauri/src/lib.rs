@@ -6,7 +6,7 @@ pub mod oracle_client;
 mod ssh;
 mod storage;
 
-use commands::{connections, functions, import, indexes, mongodb, oracle, procedures, queries, redis, sequences, tables, triggers, users, utils, views};
+use commands::{cassandra, connections, functions, import, indexes, mongodb, oracle, procedures, queries, redis, sequences, tables, triggers, users, utils, views};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -167,6 +167,17 @@ pub fn run() {
             mongodb::mongodb_aggregate,
             mongodb::mongodb_get_server_info,
             mongodb::mongodb_run_command,
+            // Cassandra commands
+            cassandra::cassandra_list_keyspaces,
+            cassandra::cassandra_create_keyspace,
+            cassandra::cassandra_drop_keyspace,
+            cassandra::cassandra_list_tables,
+            cassandra::cassandra_describe_table,
+            cassandra::cassandra_drop_table,
+            cassandra::cassandra_truncate_table,
+            cassandra::cassandra_execute_cql,
+            cassandra::cassandra_list_indexes,
+            cassandra::cassandra_get_server_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

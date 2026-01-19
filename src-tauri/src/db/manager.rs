@@ -12,6 +12,7 @@ pub use crate::db::mssql::MssqlPool;
 pub use crate::db::mongodb::MongoPool;
 pub use crate::db::oracle::OraclePool;
 pub use crate::db::redis::RedisPool;
+pub use crate::db::cassandra::CassandraPool;
 
 /// Enum to hold different database pool types
 pub enum ConnectionPool {
@@ -22,6 +23,7 @@ pub enum ConnectionPool {
     Oracle(OraclePool),
     Redis(RedisPool),
     MongoDB(MongoPool),
+    Cassandra(CassandraPool),
 }
 
 /// Manages active database connections
@@ -137,6 +139,12 @@ impl ConnectionManager {
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MongoDB: {}", e)))?;
                 (ConnectionPool::MongoDB(pool), connection_string)
             }
+            DatabaseType::Cassandra => {
+                let connection_string = super::cassandra::build_cassandra_connection_string(&tunnel_config);
+                let pool = super::cassandra::create_cassandra_pool(&tunnel_config).await
+                    .map_err(|e| AppError::ConnectionError(format!("Failed to connect to Cassandra: {}", e)))?;
+                (ConnectionPool::Cassandra(pool), connection_string)
+            }
         };
 
         self.connection_strings.insert(connection_id.clone(), connection_string);
@@ -163,6 +171,9 @@ impl ConnectionManager {
                 }
                 ConnectionPool::MongoDB(_p) => {
                     // MongoDB Client drop handles cleanup automatically
+                }
+                ConnectionPool::Cassandra(_p) => {
+                    // Cassandra Session drop handles cleanup automatically
                 }
             }
         }
@@ -195,6 +206,7 @@ impl ConnectionManager {
             ConnectionPool::Oracle(p) => Ok(PoolRef::Oracle(p)),
             ConnectionPool::Redis(p) => Ok(PoolRef::Redis(p)),
             ConnectionPool::MongoDB(p) => Ok(PoolRef::MongoDB(p)),
+            ConnectionPool::Cassandra(p) => Ok(PoolRef::Cassandra(p)),
         }
     }
 
@@ -265,6 +277,7 @@ fn get_default_port(db_type: &DatabaseType) -> u16 {
         DatabaseType::Oracle => 1521,
         DatabaseType::Redis => 6379,
         DatabaseType::MongoDB => 27017,
+        DatabaseType::Cassandra => 9042,
     }
 }
 

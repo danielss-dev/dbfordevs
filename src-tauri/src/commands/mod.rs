@@ -1,3 +1,4 @@
+pub mod cassandra;
 pub mod connections;
 pub mod functions;
 pub mod import;

@@ -48,6 +48,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  ResizeHandle,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { ConnectionFilterBar } from "@/components/connections/ConnectionFilterBar";
@@ -56,6 +57,7 @@ import { AssignGroupDialog } from "@/components/connections/AssignGroupDialog";
 import { ConnectionGroupItem } from "./ConnectionGroupItem";
 import { RedisConnectionContent } from "@/components/redis";
 import { MongoConnectionContent } from "@/components/mongodb";
+import { CassandraConnectionContent } from "@/components/cassandra";
 import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo, DatabaseType } from "@/types";
@@ -1244,8 +1246,13 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                     <MongoConnectionContent connectionId={connection.id} />
                   )}
 
+                  {/* Cassandra: Show Cassandra-specific content */}
+                  {featureSupport.isCassandra && (
+                    <CassandraConnectionContent connectionId={connection.id} />
+                  )}
+
                   {/* MSSQL: Show "Databases" node with expandable databases containing tables */}
-                  {!featureSupport.isRedis && !featureSupport.isMongoDB && isMssql && (
+                  {!featureSupport.isRedis && !featureSupport.isMongoDB && !featureSupport.isCassandra && isMssql && (
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
                         <div>
@@ -1397,8 +1404,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                     </ContextMenu>
                   )}
 
-                  {/* For non-MSSQL databases (excluding Redis and MongoDB), show Schemas tree */}
-                  {!featureSupport.isRedis && !featureSupport.isMongoDB && !isMssql && (
+                  {/* For non-MSSQL databases (excluding Redis, MongoDB, and Cassandra), show Schemas tree */}
+                  {!featureSupport.isRedis && !featureSupport.isMongoDB && !featureSupport.isCassandra && !isMssql && (
                 <ContextMenu>
                   <ContextMenuTrigger asChild>
                     <div>
@@ -2366,6 +2373,7 @@ export function Sidebar() {
   const {
     sidebarOpen,
     sidebarWidth,
+    setSidebarWidth,
     setShowConnectionModal,
     openSettingsWithTab,
     setShowGroupManagerDialog,
@@ -2391,9 +2399,18 @@ export function Sidebar() {
   return (
     <aside
       data-sidebar
-      className="flex h-full flex-col border-r border-sidebar-border bg-sidebar"
+      className="relative flex h-full flex-col border-r border-sidebar-border bg-sidebar"
       style={{ width: sidebarWidth }}
     >
+      {/* Resize Handle */}
+      <ResizeHandle
+        direction="right"
+        currentWidth={sidebarWidth}
+        onResize={setSidebarWidth}
+        minWidth={260}
+        maxWidth={450}
+      />
+
       {/* Header */}
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
         <div className="flex items-center gap-2.5">
