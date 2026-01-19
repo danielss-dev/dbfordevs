@@ -698,46 +698,61 @@ Location: `src-tauri/src/commands/queries.rs:142`
 
 ### 30. AI Context Enhancements
 
-**Status:** Functional
+**Status:** Implemented
 **Impact:** Medium
 **Effort:** Medium
 
 **Implementation Tasks:**
-- [ ] Include foreign key relationships in context
-- [ ] Include indexes in context
-- [ ] Include sample data option
-- [ ] Context size indicator
-- [ ] Manual context editing
-- [ ] Context templates
+- [x] Include foreign key relationships in context
+- [x] Include indexes in context
+- [x] Include sample data option
+- [x] Context size indicator
+- [x] Manual context editing
+- [x] Context templates
+
+**Files created:**
+- `src/lib/ai/context-builder.ts` - Context building with relationships, indexes, sample data
+- `src/lib/ai/types.ts` - Type definitions for context entries
+- `src/components/ai/AIContextPanel.tsx` - Context UI with size indicator and manual editing
+- `src/components/ai/ContextConfigDialog.tsx` - Template management UI
 
 ---
 
 ### 31. AI Query Validation
 
-**Status:** Not Implemented
+**Status:** Implemented
 **Impact:** Medium
 **Effort:** Medium
 
 **Implementation Tasks:**
-- [ ] Syntax validation before execution
-- [ ] Semantic validation (table/column existence)
-- [ ] Performance warnings
-- [ ] Security warnings (DROP, TRUNCATE, etc.)
-- [ ] Suggested improvements
+- [x] Syntax validation before execution
+- [x] Semantic validation (table/column existence)
+- [x] Performance warnings
+- [x] Security warnings (DROP, TRUNCATE, etc.)
+- [x] Suggested improvements
+
+**Files created:**
+- `src/lib/ai/validation.ts` - Full validation engine with syntax, semantic, performance, and security checks
+- `src/components/ai/QueryValidationBadge.tsx` - Interactive validation UI with issue popover
 
 ---
 
 ### 32. AI Chat Export
 
-**Status:** Not Implemented
+**Status:** Partial
 **Impact:** Low
 **Effort:** Low
 
 **Implementation Tasks:**
-- [ ] Export chat history to Markdown
+- [x] Export chat history to Markdown
 - [ ] Export to PDF
 - [ ] Share chat sessions
-- [ ] Chat templates
+- [x] Chat templates
+
+**Files created:**
+- `src/lib/ai/export.ts` - Markdown and JSON export with timestamps, usage stats, SQL-only mode
+- `src/components/ai/ChatExportDialog.tsx` - Export UI with preview, copy, and download
+- `src/components/ai/ChatTemplateSelector.tsx` - Chat template selection UI
 
 ---
 
@@ -841,6 +856,9 @@ Location: `src-tauri/src/commands/queries.rs:142`
 | ~~P2~~ | ~~Query History Enhancements~~ | ~~Medium~~ | ~~Low~~ | **Implemented** |
 | ~~P2~~ | ~~Data Grid Enhancements~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 | ~~P3~~ | ~~Dark Mode Improvements~~ | ~~Low~~ | ~~Low~~ | **Implemented** |
+| ~~P3~~ | ~~AI Context Enhancements~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
+| ~~P3~~ | ~~AI Query Validation~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
+| P4 | AI Chat Export | Low | Low | Partial |
 
 ---
 
@@ -870,8 +888,9 @@ Location: `src-tauri/src/commands/queries.rs:142`
 - ✅ Redis CLI & Pub/Sub
 
 ### v0.5.0 - Query Intelligence
-- Query Validation
-- Performance Warnings
+- ✅ Query Validation (AI-powered)
+- ✅ Performance Warnings
+- ✅ AI Context Enhancements (relationships, indexes, sample data)
 - Global Schema Search
 - Parameterized Queries Improvement
 
@@ -889,5 +908,5 @@ Location: `src-tauri/src/commands/queries.rs:142`
 
 ---
 
-*Last updated: January 18, 2026*
+*Last updated: January 19, 2026*
 *Generated from codebase analysis - v0.4.0*
