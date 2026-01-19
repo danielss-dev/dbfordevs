@@ -2,6 +2,15 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.11] - 2026-01-19
+
+
+### Added
+- **feat**: implement AI context management and NoSQL support (#64)
+- **feat**: introduce Solarized themes for enhanced UI customization (#63)
+
+### Changed
+- Global search (#65)
 ## [0.3.10] - 2026-01-17
 
 
