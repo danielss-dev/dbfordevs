@@ -50,7 +50,7 @@ interface GeneralSettings {
   enableAnimations: boolean;
 }
 
-export type RightPanelTab = "fields" | "changes" | "preview" | "explain" | "ai" | null;
+export type RightPanelTab = "fields" | "changes" | "preview" | "explain" | "ai" | "schema-search" | null;
 
 interface UIState {
   // Theme

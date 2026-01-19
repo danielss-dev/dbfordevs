@@ -21,6 +21,9 @@ interface MongoDBState {
   // Selected collection per connection
   selectedCollectionByConnection: Record<string, string | null>;
 
+  // Highlighted item for search navigation (key = connectionId, value = {type, dbName?, collName?, name})
+  highlightedItemByConnection: Record<string, { type: "database" | "collection" | "index"; dbName?: string; collName?: string; name: string } | null>;
+
   // Documents by collection (key = `${connectionId}:${dbName}:${collectionName}`)
   documentsByCollection: Record<string, unknown[]>;
 
@@ -69,6 +72,10 @@ interface MongoDBState {
   // Actions - Selected database/collection
   setSelectedDatabase: (connectionId: string, dbName: string | null) => void;
   setSelectedCollection: (connectionId: string, collectionName: string | null) => void;
+
+  // Actions - Highlighted item (for search navigation)
+  setHighlightedItem: (connectionId: string, item: { type: "database" | "collection" | "index"; dbName?: string; collName?: string; name: string } | null) => void;
+  clearHighlightedItem: (connectionId: string) => void;
 
   // Actions - Documents
   setDocuments: (connectionId: string, dbName: string, collectionName: string, documents: unknown[], totalCount: number) => void;
@@ -127,6 +134,7 @@ export const useMongoDBStore = create<MongoDBState>()((set) => ({
   collectionsByDb: {},
   selectedDatabaseByConnection: {},
   selectedCollectionByConnection: {},
+  highlightedItemByConnection: {},
   documentsByCollection: {},
   documentCountByCollection: {},
   indexesByCollection: {},
@@ -189,6 +197,23 @@ export const useMongoDBStore = create<MongoDBState>()((set) => ({
       selectedCollectionByConnection: {
         ...state.selectedCollectionByConnection,
         [connectionId]: collectionName,
+      },
+    })),
+
+  // Highlighted item (for search navigation)
+  setHighlightedItem: (connectionId, item) =>
+    set((state) => ({
+      highlightedItemByConnection: {
+        ...state.highlightedItemByConnection,
+        [connectionId]: item,
+      },
+    })),
+
+  clearHighlightedItem: (connectionId) =>
+    set((state) => ({
+      highlightedItemByConnection: {
+        ...state.highlightedItemByConnection,
+        [connectionId]: null,
       },
     })),
 
@@ -375,6 +400,7 @@ export const useMongoDBStore = create<MongoDBState>()((set) => ({
         collectionsByDb: filterByConnectionId(state.collectionsByDb),
         selectedDatabaseByConnection: filterByConnectionId(state.selectedDatabaseByConnection),
         selectedCollectionByConnection: filterByConnectionId(state.selectedCollectionByConnection),
+        highlightedItemByConnection: filterByConnectionId(state.highlightedItemByConnection),
         documentsByCollection: filterByConnectionId(state.documentsByCollection),
         documentCountByCollection: filterByConnectionId(state.documentCountByCollection),
         indexesByCollection: filterByConnectionId(state.indexesByCollection),
