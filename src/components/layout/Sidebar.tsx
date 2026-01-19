@@ -48,6 +48,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  ResizeHandle,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { ConnectionFilterBar } from "@/components/connections/ConnectionFilterBar";
@@ -2372,6 +2373,7 @@ export function Sidebar() {
   const {
     sidebarOpen,
     sidebarWidth,
+    setSidebarWidth,
     setShowConnectionModal,
     openSettingsWithTab,
     setShowGroupManagerDialog,
@@ -2397,9 +2399,18 @@ export function Sidebar() {
   return (
     <aside
       data-sidebar
-      className="flex h-full flex-col border-r border-sidebar-border bg-sidebar"
+      className="relative flex h-full flex-col border-r border-sidebar-border bg-sidebar"
       style={{ width: sidebarWidth }}
     >
+      {/* Resize Handle */}
+      <ResizeHandle
+        direction="right"
+        currentWidth={sidebarWidth}
+        onResize={setSidebarWidth}
+        minWidth={260}
+        maxWidth={450}
+      />
+
       {/* Header */}
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
         <div className="flex items-center gap-2.5">

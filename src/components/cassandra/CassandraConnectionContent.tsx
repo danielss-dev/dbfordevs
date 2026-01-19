@@ -80,7 +80,7 @@ function TreeItem({
   const effectiveOpen = isOpen || forceOpen;
 
   return (
-    <div className="group/tree relative" ref={itemRef}>
+    <div className="group/tree relative min-w-0" ref={itemRef}>
       {level > 0 && (
         <div
           className="tree-guide"
@@ -89,7 +89,7 @@ function TreeItem({
       )}
       <div
         className={cn(
-          "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
+          "group flex w-full items-center gap-1 rounded-md py-1.5 text-sm transition-all duration-200 min-w-0",
           "hover:bg-sidebar-accent/60",
           isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
           isHighlighted && "animate-highlight-blink"
@@ -97,7 +97,7 @@ function TreeItem({
         style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: "8px" }}
       >
         <button
-          className="flex flex-1 items-center gap-2 overflow-hidden"
+          className="flex flex-1 items-center gap-1.5 overflow-hidden min-w-0"
           onClick={() => {
             if (hasChildren) setIsOpen(!isOpen);
             onClick?.();
@@ -116,26 +116,33 @@ function TreeItem({
           )}
           <span
             className={cn(
-              "shrink-0 flex items-center justify-center w-5 h-5 rounded bg-sidebar-accent/30",
-              isActive ? "text-sidebar-accent-foreground bg-sidebar-accent/50" : ""
+              "shrink-0 flex items-center justify-center w-4 h-4 rounded",
+              isActive ? "text-sidebar-accent-foreground" : ""
             )}
           >
             {icon}
           </span>
-          <span className="truncate flex-1 text-left">{label}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate flex-1 text-left min-w-0">{label}</span>
+            </TooltipTrigger>
+            <TooltipContent side="right" align="start">
+              {label}
+            </TooltipContent>
+          </Tooltip>
           {badge && (
-            <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono">
+            <span className="shrink-0 text-[10px] text-muted-foreground/70 font-mono ml-1">
               {badge}
             </span>
           )}
           {count !== undefined && (
-            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            <span className="shrink-0 text-[10px] text-muted-foreground bg-muted/50 px-1 rounded ml-0.5">
               {count}
             </span>
           )}
         </button>
         {rightElement && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
             {rightElement}
           </div>
         )}
