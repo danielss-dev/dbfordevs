@@ -47,6 +47,15 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      // Mod + Shift + F: Toggle Schema Search Panel
+      if (isMod && isShift && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        if (activeConnection?.connected) {
+          toggleRightPanelTab("schema-search");
+        }
+        return;
+      }
+
       // Mod + K: New Connection
       if (isMod && e.key.toLowerCase() === "k") {
         e.preventDefault();

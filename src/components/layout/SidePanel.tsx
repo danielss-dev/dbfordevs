@@ -37,6 +37,7 @@ import { AIInput } from "@/components/ai/AIInput";
 import { AISettingsDialog } from "@/components/ai/AISettingsDialog";
 import { ChatHistoryPanel } from "@/components/ai/ChatHistoryPanel";
 import { ExplainPanel } from "@/components/explain";
+import { SchemaSearchPanel } from "@/components/schema-search";
 
 interface ForeignKeyRef {
   referencesTable: string;
@@ -1823,6 +1824,7 @@ export function SidePanel() {
         {rightPanelTab === "preview" && <QueryPreviewPanel />}
         {rightPanelTab === "explain" && <ExplainPanel />}
         {rightPanelTab === "ai" && <AIAssistantPanel />}
+        {rightPanelTab === "schema-search" && <SchemaSearchPanel />}
       </div>
     </aside>
   );

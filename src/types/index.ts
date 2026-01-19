@@ -13,6 +13,9 @@ export * from "./mongodb";
 // Re-export theme types
 export * from "./theme";
 
+// Re-export schema search types
+export * from "./schema-search";
+
 // Database types
 export type DatabaseType =
   | "postgresql"

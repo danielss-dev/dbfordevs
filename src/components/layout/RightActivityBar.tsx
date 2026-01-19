@@ -1,6 +1,6 @@
-import { Table, Code, Eye, Sparkles } from "lucide-react";
+import { Table, Code, Eye, Sparkles, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUIStore, useCRUDStore, usePreviewStore } from "@/stores";
+import { useUIStore, useCRUDStore, usePreviewStore, useConnectionsStore, selectActiveConnection } from "@/stores";
 import { useAIStore } from "@/lib/ai/store";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
 import type { RightPanelTab } from "@/stores/ui";
@@ -48,10 +48,12 @@ export function RightActivityBar() {
   const { selectedRows, pendingChanges } = useCRUDStore();
   const { isPreviewOpen } = usePreviewStore();
   const { settings: aiSettings } = useAIStore();
+  const activeConnection = useConnectionsStore(selectActiveConnection);
 
   const pendingCount = Object.keys(pendingChanges).length;
   const selectedCount = selectedRows.length;
   const isAIEnabled = aiSettings.aiEnabled ?? true;
+  const isConnected = activeConnection?.connected ?? false;
 
   return (
     <div className="flex flex-col items-center py-2 px-1 border-l border-border bg-muted/30 gap-1">
@@ -84,6 +86,17 @@ export function RightActivityBar() {
         badge={isPreviewOpen ? 1 : undefined}
         onClick={() => toggleRightPanelTab("preview")}
       />
+
+      {/* Schema Search - only show when connected */}
+      {isConnected && (
+        <ActivityBarItem
+          icon={<Search className="h-4 w-4" />}
+          label="Schema Search (Ctrl+Shift+F)"
+          tab="schema-search"
+          isActive={rightPanelTab === "schema-search"}
+          onClick={() => toggleRightPanelTab("schema-search")}
+        />
+      )}
 
       {isAIEnabled && (
         <>
