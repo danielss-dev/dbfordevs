@@ -55,6 +55,9 @@ mongodb = "3"
 bson = { version = "2", features = ["chrono-0_4"] }
 urlencoding = "2"
 
+# Cassandra driver (ScyllaDB compatible)
+scylla = "0.14"
+
 # CSV parsing
 csv = "1.3"
 

@@ -12,6 +12,7 @@ pub enum DatabaseType {
     Oracle,
     Redis,
     MongoDB,
+    Cassandra,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

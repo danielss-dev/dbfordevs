@@ -33,6 +33,7 @@ import { TableViewerTab } from "./tabs/TableViewerTab";
 import { TabContextMenu } from "./TabContextMenu";
 import { RedisValueViewer, RedisCLI, RedisServerInfo, RedisBrowser } from "@/components/redis";
 import { MongoBrowser, MongoDocumentViewer, MongoShell, MongoServerInfo } from "@/components/mongodb";
+import { CassandraBrowser, CassandraShell, CassandraServerInfo } from "@/components/cassandra";
 import type { Tab } from "@/types";
 import { useAnime } from "@/hooks/useAnime";
 
@@ -70,6 +71,12 @@ function TabItem({ tab, isActive, onClose, onClick }: {
         return <Info className="h-3.5 w-3.5" />;
       case "mongodb-aggregation":
         return <Network className="h-3.5 w-3.5" />;
+      case "cassandra-browser":
+        return <Table className="h-3.5 w-3.5" />;
+      case "cassandra-shell":
+        return <Terminal className="h-3.5 w-3.5" />;
+      case "cassandra-info":
+        return <Info className="h-3.5 w-3.5" />;
       default:
         return <Code className="h-3.5 w-3.5" />;
     }
@@ -151,6 +158,7 @@ function EmptyState() {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const isRedis = activeConnection?.databaseType === "redis";
   const isMongoDB = activeConnection?.databaseType === "mongodb";
+  const isCassandra = activeConnection?.databaseType === "cassandra";
 
   const handleNewQuery = () => {
     if (!activeConnection) return;
@@ -198,6 +206,23 @@ function EmptyState() {
     }
   };
 
+  const handleOpenCassandraShell = () => {
+    if (!activeConnection) return;
+
+    const tabId = `cassandra-shell-${activeConnection.id}`;
+    const existingTab = tabs.find((t) => t.id === tabId);
+    if (existingTab) {
+      setActiveTab(tabId);
+    } else {
+      addTab({
+        id: tabId,
+        title: "CQL Shell",
+        type: "cassandra-shell",
+        connectionId: activeConnection.id,
+      } as Tab);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col items-center justify-center text-muted-foreground animate-fade-in">
       <div className="relative mb-6">
@@ -213,6 +238,8 @@ function EmptyState() {
             ? "Start by opening the CLI or selecting a key from the sidebar"
             : isMongoDB
             ? "Start by opening the Shell or selecting a collection from the sidebar"
+            : isCassandra
+            ? "Start by opening the CQL Shell or selecting a table from the sidebar"
             : "Start by opening a new query or selecting a table from the sidebar"
           : "Select a connection from the sidebar to get started"}
       </p>
@@ -226,6 +253,11 @@ function EmptyState() {
           <Button onClick={handleOpenMongoShell} size="lg">
             <Terminal className="mr-2 h-4 w-4" />
             Open Shell
+          </Button>
+        ) : isCassandra ? (
+          <Button onClick={handleOpenCassandraShell} size="lg">
+            <Terminal className="mr-2 h-4 w-4" />
+            Open CQL Shell
           </Button>
         ) : (
           <Button onClick={handleNewQuery} size="lg">
@@ -332,6 +364,23 @@ export function MainContent() {
           id: tabId,
           title: "Shell",
           type: "mongodb-shell",
+          connectionId: activeConnection.id,
+        } as Tab);
+      }
+      return;
+    }
+
+    // For Cassandra connections, open a CQL Shell tab instead of a Query tab
+    if (activeConnection.databaseType === "cassandra") {
+      const tabId = `cassandra-shell-${activeConnection.id}`;
+      const existingTab = tabs.find((t) => t.id === tabId);
+      if (existingTab) {
+        setActiveTab(tabId);
+      } else {
+        addTab({
+          id: tabId,
+          title: "CQL Shell",
+          type: "cassandra-shell",
           connectionId: activeConnection.id,
         } as Tab);
       }
@@ -470,6 +519,16 @@ export function MainContent() {
             <MongoShell connectionId={activeTab.connectionId} />
           ) : activeTab.type === "mongodb-info" ? (
             <MongoServerInfo connectionId={activeTab.connectionId} />
+          ) : activeTab.type === "cassandra-browser" && activeTab.cassandraKeyspace && activeTab.cassandraTable ? (
+            <CassandraBrowser
+              connectionId={activeTab.connectionId}
+              keyspace={activeTab.cassandraKeyspace}
+              table={activeTab.cassandraTable}
+            />
+          ) : activeTab.type === "cassandra-shell" ? (
+            <CassandraShell connectionId={activeTab.connectionId} />
+          ) : activeTab.type === "cassandra-info" ? (
+            <CassandraServerInfo connectionId={activeTab.connectionId} />
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               <div className="text-center">

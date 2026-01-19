@@ -10,6 +10,9 @@ export * from "./redis";
 // Re-export MongoDB types
 export * from "./mongodb";
 
+// Re-export Cassandra types
+export * from "./cassandra";
+
 // Re-export theme types
 export * from "./theme";
 
@@ -289,7 +292,7 @@ export interface ValidationResult {
 export interface Tab {
   id: string;
   title: string;
-  type: "query" | "table" | "schema" | "properties" | "diagram" | "redis-key" | "redis-cli" | "redis-pubsub" | "redis-info" | "redis-browser" | "mongodb-browser" | "mongodb-document" | "mongodb-aggregation" | "mongodb-shell" | "mongodb-info";
+  type: "query" | "table" | "schema" | "properties" | "diagram" | "redis-key" | "redis-cli" | "redis-pubsub" | "redis-info" | "redis-browser" | "mongodb-browser" | "mongodb-document" | "mongodb-aggregation" | "mongodb-shell" | "mongodb-info" | "cassandra-browser" | "cassandra-shell" | "cassandra-info";
   connectionId: string;
   content?: string;
   tableName?: string; // Full table identifier for "table", "properties", and "diagram" types
@@ -297,6 +300,8 @@ export interface Tab {
   mongoDatabase?: string; // MongoDB database name for mongo tabs
   mongoCollection?: string; // MongoDB collection name for mongo tabs
   mongoDocumentId?: string; // MongoDB document ID for document view
+  cassandraKeyspace?: string; // Cassandra keyspace name for cassandra tabs
+  cassandraTable?: string; // Cassandra table name for cassandra tabs
   isPinned?: boolean; // Pinned tabs appear first and cannot be accidentally closed
 }
 

@@ -56,6 +56,7 @@ import { AssignGroupDialog } from "@/components/connections/AssignGroupDialog";
 import { ConnectionGroupItem } from "./ConnectionGroupItem";
 import { RedisConnectionContent } from "@/components/redis";
 import { MongoConnectionContent } from "@/components/mongodb";
+import { CassandraConnectionContent } from "@/components/cassandra";
 import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo, DatabaseType } from "@/types";
@@ -1244,8 +1245,13 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                     <MongoConnectionContent connectionId={connection.id} />
                   )}
 
+                  {/* Cassandra: Show Cassandra-specific content */}
+                  {featureSupport.isCassandra && (
+                    <CassandraConnectionContent connectionId={connection.id} />
+                  )}
+
                   {/* MSSQL: Show "Databases" node with expandable databases containing tables */}
-                  {!featureSupport.isRedis && !featureSupport.isMongoDB && isMssql && (
+                  {!featureSupport.isRedis && !featureSupport.isMongoDB && !featureSupport.isCassandra && isMssql && (
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
                         <div>
@@ -1397,8 +1403,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                     </ContextMenu>
                   )}
 
-                  {/* For non-MSSQL databases (excluding Redis and MongoDB), show Schemas tree */}
-                  {!featureSupport.isRedis && !featureSupport.isMongoDB && !isMssql && (
+                  {/* For non-MSSQL databases (excluding Redis, MongoDB, and Cassandra), show Schemas tree */}
+                  {!featureSupport.isRedis && !featureSupport.isMongoDB && !featureSupport.isCassandra && !isMssql && (
                 <ContextMenu>
                   <ContextMenuTrigger asChild>
                     <div>

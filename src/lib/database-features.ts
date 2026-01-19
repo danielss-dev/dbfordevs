@@ -7,6 +7,7 @@ export interface DatabaseFeatureSupport {
   sequences: boolean;
   isRedis: boolean;
   isMongoDB: boolean;
+  isCassandra: boolean;
 }
 
 /**
@@ -24,6 +25,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         sequences: true,
         isRedis: false,
         isMongoDB: false,
+        isCassandra: false,
       };
 
     case "mysql":
@@ -35,6 +37,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         sequences: false, // MySQL uses AUTO_INCREMENT instead of sequences
         isRedis: false,
         isMongoDB: false,
+        isCassandra: false,
       };
 
     case "sqlite":
@@ -45,6 +48,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         sequences: false, // SQLite uses AUTOINCREMENT
         isRedis: false,
         isMongoDB: false,
+        isCassandra: false,
       };
 
     case "oracle":
@@ -55,6 +59,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         sequences: true,
         isRedis: false,
         isMongoDB: false,
+        isCassandra: false,
       };
 
     case "mssql":
@@ -65,6 +70,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         sequences: true,
         isRedis: false,
         isMongoDB: false,
+        isCassandra: false,
       };
 
     case "redis":
@@ -75,6 +81,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         sequences: false,
         isRedis: true,
         isMongoDB: false,
+        isCassandra: false,
       };
 
     case "mongodb":
@@ -85,6 +92,18 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         sequences: false,
         isRedis: false,
         isMongoDB: true,
+        isCassandra: false,
+      };
+
+    case "cassandra":
+      return {
+        procedures: false,
+        functions: false,
+        triggers: false,
+        sequences: false,
+        isRedis: false,
+        isMongoDB: false,
+        isCassandra: true,
       };
 
     default:
@@ -96,6 +115,7 @@ export function getDatabaseFeatureSupport(dbType: DatabaseType): DatabaseFeature
         sequences: false,
         isRedis: false,
         isMongoDB: false,
+        isCassandra: false,
       };
   }
 }
