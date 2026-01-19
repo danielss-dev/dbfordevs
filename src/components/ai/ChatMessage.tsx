@@ -17,6 +17,7 @@ import { useQueryStore } from "@/stores/query";
 import { useConnectionsStore } from "@/stores/connections";
 import { useDatabase } from "@/hooks/useDatabase";
 import { QueryDiffView } from "./QueryDiffView";
+import { QueryValidationBadge } from "./QueryValidationBadge";
 
 interface ChatMessageProps {
   message: AIChatMessage;
@@ -284,9 +285,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
           <div className="w-full max-w-full rounded-xl border border-border bg-[#1e1e2e] overflow-hidden shadow-md">
             {/* SQL header */}
             <div className="flex items-center justify-between px-3 py-2 bg-[#181825]/80 backdrop-blur-sm border-b border-border/30">
-              <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">
-                Generated SQL
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">
+                  Generated SQL
+                </span>
+                <QueryValidationBadge
+                  sql={message.sql}
+                  onRunAnyway={handleRunSQL}
+                />
+              </div>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"

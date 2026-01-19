@@ -2,10 +2,12 @@
  * AI System Prompts
  *
  * System prompts for SQL generation, explanation, and optimization.
+ * Includes support for MongoDB and Redis query generation.
  * Ported from crates/ai-assistant/src/prompts.rs
  */
 
-import type { TableInfo } from "./types";
+import type { TableInfo, EnhancedTableInfo, AIContextConfig } from "./types";
+import { mongoQueryPrompt, redisCommandPrompt } from "./nosql-prompts";
 
 export interface QueryContext {
   databaseType?: string;
@@ -15,12 +17,40 @@ export interface QueryContext {
   selectedTable?: string;
   /** Current query from the editor (if any) */
   currentQuery?: string;
+  /** Enhanced tables with relationships and indexes */
+  enhancedTables?: EnhancedTableInfo[];
+  /** Context configuration */
+  contextConfig?: AIContextConfig;
+  /** Manual context entries */
+  manualContext?: string;
 }
 
 /**
  * Generate the system prompt for SQL generation
+ * Also handles MongoDB and Redis contexts when databaseType indicates NoSQL
  */
 export function sqlGenerationPrompt(context: QueryContext): string {
+  // Check for MongoDB context
+  if (context.databaseType?.toLowerCase() === "mongodb") {
+    return mongoQueryPrompt({
+      database: context.databaseName || "",
+      collections: context.tables.map(t => ({
+        name: t.name,
+        sampleDoc: undefined, // Sample docs would need to be fetched separately
+      })),
+      selectedCollection: context.selectedTable,
+    });
+  }
+
+  // Check for Redis context
+  if (context.databaseType?.toLowerCase() === "redis") {
+    return redisCommandPrompt({
+      keyPatterns: context.tables.map(t => t.name), // Redis keys treated as "tables"
+      dataTypes: {},
+      selectedKey: context.selectedTable ? { key: context.selectedTable, type: "string" } : undefined,
+    });
+  }
+
   let prompt = `You are an expert SQL developer assistant for dbfordevs, a database management tool.
 Your task is to generate accurate, efficient SQL queries based on natural language descriptions.
 
@@ -126,6 +156,89 @@ IMPORTANT RULES:
       prompt += "You MUST use the exact column names as shown. DO NOT assume or invent column names.\n";
       prompt += "For example, if you see 'USERNAME' in the schema, use 'USERNAME' not 'name' or 'user_name'.\n\n";
     }
+  }
+
+  // Add enhanced context if available
+  if (context.enhancedTables && context.enhancedTables.length > 0) {
+    const config = context.contextConfig;
+
+    // Add foreign key relationships
+    if (config?.includeForeignKeys) {
+      const tablesWithRelationships = context.enhancedTables.filter(
+        (t) => t.relationships && t.relationships.length > 0
+      );
+
+      if (tablesWithRelationships.length > 0) {
+        prompt += "FOREIGN KEY RELATIONSHIPS:\n";
+        prompt += "-".repeat(30) + "\n";
+
+        for (const table of tablesWithRelationships) {
+          const tableName = table.schema ? `${table.schema}.${table.name}` : table.name;
+          for (const rel of table.relationships || []) {
+            const direction = rel.type === "outgoing" ? "->" : "<-";
+            prompt += `${tableName}.${rel.foreignKeyColumn} ${direction} ${rel.referencedTable}.${rel.referencedColumn}`;
+            if (rel.constraintName) {
+              prompt += ` (${rel.constraintName})`;
+            }
+            prompt += "\n";
+          }
+        }
+        prompt += "\n";
+      }
+    }
+
+    // Add indexes
+    if (config?.includeIndexes) {
+      const tablesWithIndexes = context.enhancedTables.filter(
+        (t) => t.indexes && t.indexes.length > 0
+      );
+
+      if (tablesWithIndexes.length > 0) {
+        prompt += "INDEXES:\n";
+        prompt += "-".repeat(30) + "\n";
+
+        for (const table of tablesWithIndexes) {
+          const tableName = table.schema ? `${table.schema}.${table.name}` : table.name;
+          for (const idx of table.indexes || []) {
+            const type = idx.isPrimary ? "PRIMARY" : idx.isUnique ? "UNIQUE" : "INDEX";
+            prompt += `${tableName}: ${type} ${idx.name} (${idx.columns.join(", ")})\n`;
+          }
+        }
+        prompt += "\n";
+      }
+    }
+
+    // Add sample data
+    if (config?.includeSampleData) {
+      const tablesWithSampleData = context.enhancedTables.filter(
+        (t) => t.sampleData && t.sampleData.length > 0
+      );
+
+      if (tablesWithSampleData.length > 0) {
+        prompt += "SAMPLE DATA:\n";
+        prompt += "-".repeat(30) + "\n";
+        prompt += "Note: This is representative data from the database to help understand the data format.\n\n";
+
+        for (const table of tablesWithSampleData) {
+          const tableName = table.schema ? `${table.schema}.${table.name}` : table.name;
+          prompt += `Table ${tableName}:\n`;
+          for (const row of table.sampleData || []) {
+            const values = Object.entries(row)
+              .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+              .join(", ");
+            prompt += `  { ${values} }\n`;
+          }
+          prompt += "\n";
+        }
+      }
+    }
+  }
+
+  // Add manual context if provided
+  if (context.manualContext && context.manualContext.trim()) {
+    prompt += "ADDITIONAL CONTEXT:\n";
+    prompt += "-".repeat(30) + "\n";
+    prompt += context.manualContext.trim() + "\n\n";
   }
 
   // Add selected table context

@@ -1,13 +1,14 @@
 /**
  * TableReferenceDropdown
  *
- * Autocomplete dropdown for @table and @table.column references in AI input.
+ * Autocomplete dropdown for @table, @table.column, @mongo:collection, and @redis:key references in AI input.
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Table, Columns, Check } from "lucide-react";
+import { Table, Columns, Check, Leaf, Key } from "lucide-react";
 import { ScrollArea } from "@/components/ui";
 import type { TableInfo } from "@/lib/ai/types";
+import type { RedisKeyInfo } from "@/types";
 import { cn } from "@/lib/utils";
 
 interface TableReferenceDropdownProps {
@@ -19,10 +20,14 @@ interface TableReferenceDropdownProps {
   onSelect: (reference: string) => void;
   /** Called when dropdown should close */
   onClose: () => void;
-  /** Current selection mode: "table" or "column" */
-  mode?: "table" | "column";
+  /** Current selection mode */
+  mode?: "table" | "column" | "mongo" | "redis";
   /** Selected table (when in column mode) */
   selectedTable?: string;
+  /** MongoDB collections (when in mongo mode) */
+  mongoCollections?: { db: string; name: string }[];
+  /** Redis keys (when in redis mode) */
+  redisKeys?: RedisKeyInfo[];
 }
 
 export function TableReferenceDropdown({
@@ -32,13 +37,37 @@ export function TableReferenceDropdown({
   onClose,
   mode = "table",
   selectedTable,
+  mongoCollections = [],
+  redisKeys = [],
 }: TableReferenceDropdownProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Get items to display
-  const items: Array<{ type: "table" | "column"; name: string; displayName: string; table?: string }> =
-    mode === "table"
+  const items: Array<{ type: "table" | "column" | "mongo" | "redis"; name: string; displayName: string; table?: string; db?: string }> =
+    mode === "mongo"
+      ? mongoCollections
+          .filter((c) => {
+            const fullName = `${c.db}.${c.name}`.toLowerCase();
+            return fullName.includes(filter.toLowerCase()) || c.name.toLowerCase().includes(filter.toLowerCase());
+          })
+          .slice(0, 20)
+          .map((c) => ({
+            type: "mongo" as const,
+            name: c.name,
+            displayName: `${c.db}.${c.name}`,
+            db: c.db,
+          }))
+      : mode === "redis"
+      ? redisKeys
+          .filter((k) => k.key.toLowerCase().includes(filter.toLowerCase()))
+          .slice(0, 20)
+          .map((k) => ({
+            type: "redis" as const,
+            name: k.key,
+            displayName: k.key,
+          }))
+      : mode === "table"
       ? tables
           .filter((t) => t.name.toLowerCase().includes(filter.toLowerCase()))
           .map((t) => ({
@@ -89,7 +118,11 @@ export function TableReferenceDropdown({
           e.preventDefault();
           if (items[selectedIndex]) {
             const item = items[selectedIndex];
-            if (item.type === "table") {
+            if (item.type === "mongo") {
+              onSelect(`@mongo:${item.db}.${item.name}`);
+            } else if (item.type === "redis") {
+              onSelect(`@redis:${item.name}`);
+            } else if (item.type === "table") {
               onSelect(`@${item.name}`);
             } else {
               onSelect(`@${item.table}.${item.name}`);
@@ -125,18 +158,36 @@ export function TableReferenceDropdown({
     return null;
   }
 
+  const getModeLabel = () => {
+    switch (mode) {
+      case "mongo": return "Select a MongoDB collection";
+      case "redis": return "Select a Redis key";
+      case "column": return `Columns in ${selectedTable}`;
+      default: return "Select a table";
+    }
+  };
+
+  const getItemIcon = (type: string) => {
+    switch (type) {
+      case "mongo": return <Leaf className="h-3.5 w-3.5 text-green-500" />;
+      case "redis": return <Key className="h-3.5 w-3.5 text-red-500" />;
+      case "table": return <Table className="h-3.5 w-3.5 text-muted-foreground" />;
+      default: return <Columns className="h-3.5 w-3.5 text-muted-foreground" />;
+    }
+  };
+
   return (
     <div
       ref={listRef}
       className={cn(
-        "absolute z-50 min-w-[200px] max-w-[300px] rounded-lg border border-border",
+        "absolute z-50 min-w-[200px] max-w-[350px] rounded-lg border border-border",
         "bg-popover shadow-lg animate-in fade-in-0 zoom-in-95",
         "bottom-full left-0 mb-2"
       )}
     >
       <div className="px-2 py-1.5 border-b border-border">
         <p className="text-xs text-muted-foreground">
-          {mode === "table" ? "Select a table" : `Columns in ${selectedTable}`}
+          {getModeLabel()}
         </p>
       </div>
       <ScrollArea className="max-h-[200px]">
@@ -152,7 +203,11 @@ export function TableReferenceDropdown({
                 selectedIndex === index && "bg-accent text-accent-foreground"
               )}
               onClick={() => {
-                if (item.type === "table") {
+                if (item.type === "mongo") {
+                  onSelect(`@mongo:${item.db}.${item.name}`);
+                } else if (item.type === "redis") {
+                  onSelect(`@redis:${item.name}`);
+                } else if (item.type === "table") {
                   onSelect(`@${item.name}`);
                 } else {
                   onSelect(`@${item.table}.${item.name}`);
@@ -160,12 +215,8 @@ export function TableReferenceDropdown({
               }}
               onMouseEnter={() => setSelectedIndex(index)}
             >
-              {item.type === "table" ? (
-                <Table className="h-3.5 w-3.5 text-muted-foreground" />
-              ) : (
-                <Columns className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-              <span className="flex-1 truncate">{item.displayName}</span>
+              {getItemIcon(item.type)}
+              <span className="flex-1 truncate font-mono text-xs">{item.displayName}</span>
               {selectedIndex === index && (
                 <Check className="h-3.5 w-3.5 text-primary" />
               )}
