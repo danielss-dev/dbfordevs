@@ -32,6 +32,8 @@ pub fn run() {
             connections::list_connections,
             connections::delete_connection,
             connections::get_connection,
+            connections::test_ssl_connection,
+            connections::get_ssl_support_info,
             // Query commands
             queries::execute_query,
             queries::preview_query,

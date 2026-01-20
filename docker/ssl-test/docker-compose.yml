@@ -1,0 +1,143 @@
+version: '3.8'
+
+# SSL/TLS Test Containers for dbfordevs
+# Run: docker-compose up -d
+#
+# Before starting, generate certificates:
+#   Windows: .\setup-certs.ps1
+#   Linux/Mac: ./setup-certs.sh
+
+services:
+  # ============================================
+  # PostgreSQL with SSL
+  # ============================================
+  postgres-ssl:
+    image: postgres:16
+    container_name: dbfordevs-postgres-ssl
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: testdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./certs/pg-server.crt:/certs/server.crt:ro
+      - ./certs/pg-server.key:/certs/server.key:ro
+    command:
+      - bash
+      - -c
+      - |
+        cp /certs/server.crt /var/lib/postgresql/server.crt
+        cp /certs/server.key /var/lib/postgresql/server.key
+        chmod 600 /var/lib/postgresql/server.key
+        chown postgres:postgres /var/lib/postgresql/server.crt /var/lib/postgresql/server.key
+        exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL without SSL (for comparison)
+  postgres:
+    image: postgres:16
+    container_name: dbfordevs-postgres-nossl
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: testdb
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MySQL with SSL
+  # ============================================
+  mysql-ssl:
+    image: mysql:8
+    container_name: dbfordevs-mysql-ssl
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_DATABASE: testdb
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./certs/mysql-ca.pem:/etc/mysql/certs/ca.pem:ro
+      - ./certs/mysql-server-cert.pem:/etc/mysql/certs/server-cert.pem:ro
+      - ./certs/mysql-server-key.pem:/etc/mysql/certs/server-key.pem:ro
+    command: >
+      --ssl-ca=/etc/mysql/certs/ca.pem
+      --ssl-cert=/etc/mysql/certs/server-cert.pem
+      --ssl-key=/etc/mysql/certs/server-key.pem
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pmysql"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MySQL without SSL (for comparison)
+  mysql:
+    image: mysql:8
+    container_name: dbfordevs-mysql-nossl
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_DATABASE: testdb
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pmysql"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MariaDB with SSL
+  # ============================================
+  mariadb-ssl:
+    image: mariadb:11
+    container_name: dbfordevs-mariadb-ssl
+    environment:
+      MARIADB_ROOT_PASSWORD: mariadb
+      MARIADB_DATABASE: testdb
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./certs/mysql-ca.pem:/etc/mysql/certs/ca.pem:ro
+      - ./certs/mysql-server-cert.pem:/etc/mysql/certs/server-cert.pem:ro
+      - ./certs/mysql-server-key.pem:/etc/mysql/certs/server-key.pem:ro
+    command: >
+      --ssl-ca=/etc/mysql/certs/ca.pem
+      --ssl-cert=/etc/mysql/certs/server-cert.pem
+      --ssl-key=/etc/mysql/certs/server-key.pem
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MSSQL with Encryption
+  # ============================================
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: dbfordevs-mssql
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: YourStrong@Passw0rd123
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd123' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+# Network for all containers
+networks:
+  default:
+    name: dbfordevs-ssl-test

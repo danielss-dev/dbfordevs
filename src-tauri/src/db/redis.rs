@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::models::ConnectionConfig;
+use crate::models::{ConnectionConfig, SslMode};
 use async_trait::async_trait;
 use deadpool_redis::{Config, Pool, Runtime};
 use redis::AsyncCommands;
@@ -218,10 +218,18 @@ pub fn build_redis_connection_string(config: &ConnectionConfig) -> String {
     let password = config.password.as_deref().unwrap_or("");
     let database = config.database.parse::<u32>().unwrap_or(0);
 
+    // Determine if TLS should be used based on SSL config
+    let use_tls = config.ssl.as_ref()
+        .map(|ssl| !matches!(ssl.mode, SslMode::Disable))
+        .unwrap_or(false);
+
+    // Use rediss:// for TLS connections, redis:// for plain connections
+    let protocol = if use_tls { "rediss" } else { "redis" };
+
     if password.is_empty() {
-        format!("redis://{}:{}/{}", host, port, database)
+        format!("{}://{}:{}/{}", protocol, host, port, database)
     } else {
-        format!("redis://:{}@{}:{}/{}", password, host, port, database)
+        format!("{}://:{}@{}:{}/{}", protocol, password, host, port, database)
     }
 }
 

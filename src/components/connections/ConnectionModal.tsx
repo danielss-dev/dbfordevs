@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Loader2, CheckCircle2, XCircle, Database, HelpCircle, Server, Key, FolderOpen, Link2, Shield, Terminal, FileText, Settings2 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { OracleSetupDialog, isOracleClientError } from "./OracleSetupDialog";
+import { SslTestDialog } from "./SslTestDialog";
 import {
   Dialog,
   DialogContent,
@@ -160,6 +161,7 @@ export function ConnectionModal() {
   const [formData, setFormData] = useState<ConnectionConfig>(INITIAL_FORM_DATA);
   const [parseError, setParseError] = useState<string | null>(null);
   const [showOracleSetup, setShowOracleSetup] = useState(false);
+  const [showSslTest, setShowSslTest] = useState(false);
 
   const isEditMode = editingConnectionId !== null;
   const defaults = useMemo(() => DATABASE_DEFAULTS[formData.databaseType], [formData.databaseType]);
@@ -301,6 +303,11 @@ export function ConnectionModal() {
 
   const isMssql = formData.databaseType === "mssql";
   const isRedis = formData.databaseType === "redis";
+  const isCassandra = formData.databaseType === "cassandra";
+  const isOracle = formData.databaseType === "oracle";
+  // SSL is supported for PostgreSQL, MySQL, MariaDB, MSSQL, CockroachDB, Redis, MongoDB
+  // Not supported for SQLite (file-based), Cassandra (requires native OpenSSL), Oracle (requires Wallet)
+  const sslSupported = !isSqlite && !isCassandra && !isOracle;
   // MSSQL allows connecting without a specific database (defaults to master, shows all databases)
   // Redis doesn't use database name (uses numeric index 0-15, default 0)
   const canTest = formData.name.trim() && (isSqlite ? formData.filePath?.trim() : (isMssql || isRedis || formData.database.trim()));
@@ -346,7 +353,16 @@ export function ConnectionModal() {
         ) : (
           <div className="flex-1 overflow-y-auto">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className={cn("grid w-full", isSqlite ? "grid-cols-1" : isRedis ? "grid-cols-2" : "grid-cols-4")}>
+              <TabsList className={cn("grid w-full", (() => {
+                // Calculate number of tabs based on database type
+                const isMongo = formData.databaseType === "mongodb";
+                const sshSupported = !isRedis && !isCassandra && !isMongo;
+                if (isSqlite) return "grid-cols-1"; // General only
+                if (!sslSupported && !sshSupported) return "grid-cols-2"; // General, Connection (Cassandra)
+                if (sslSupported && !sshSupported) return "grid-cols-3"; // General, Connection, SSL (Redis, MongoDB)
+                if (!sslSupported && sshSupported) return "grid-cols-3"; // General, Connection, SSH (Oracle)
+                return "grid-cols-4"; // General, Connection, SSL, SSH (PostgreSQL, MySQL, etc.)
+              })())}>
                 <TabsTrigger value="general" className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
                   General
@@ -357,28 +373,29 @@ export function ConnectionModal() {
                       <Server className="h-4 w-4" />
                       Connection
                     </TabsTrigger>
-                    {/* Hide SSL/SSH tabs for Redis - simpler connection model */}
-                    {!isRedis && (
-                      <>
-                        <TabsTrigger value="ssl" className="flex items-center gap-2">
-                          <Shield className="h-4 w-4" />
-                          SSL
-                          {getSslStatus() && (
-                            <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
-                              {getSslStatus()}
-                            </span>
-                          )}
-                        </TabsTrigger>
-                        <TabsTrigger value="ssh" className="flex items-center gap-2">
-                          <Terminal className="h-4 w-4" />
-                          SSH
-                          {getSshStatus() && (
-                            <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
-                              on
-                            </span>
-                          )}
-                        </TabsTrigger>
-                      </>
+                    {/* SSL tab - shown for supported databases */}
+                    {sslSupported && (
+                      <TabsTrigger value="ssl" className="flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        SSL
+                        {getSslStatus() && (
+                          <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
+                            {getSslStatus()}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    )}
+                    {/* SSH tab - hidden for Redis, Cassandra, MongoDB */}
+                    {!isRedis && !isCassandra && formData.databaseType !== "mongodb" && (
+                      <TabsTrigger value="ssh" className="flex items-center gap-2">
+                        <Terminal className="h-4 w-4" />
+                        SSH
+                        {getSshStatus() && (
+                          <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+                            on
+                          </span>
+                        )}
+                      </TabsTrigger>
                     )}
                   </>
                 )}
@@ -652,7 +669,7 @@ export function ConnectionModal() {
                 )}
 
                 {/* SSL Tab */}
-                {!isSqlite && !isRedis && (
+                {sslSupported && (
                   <TabsContent value="ssl" className="mt-0 space-y-6">
                     <FormField
                       label="SSL Mode"
@@ -730,11 +747,28 @@ export function ConnectionModal() {
                         SSL is disabled. Select a different SSL mode to configure secure connections.
                       </p>
                     )}
+
+                    {/* Test SSL Button */}
+                    <div className="pt-4 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSslTest(true)}
+                        disabled={!canTest}
+                        className="w-full"
+                      >
+                        <Shield className="mr-2 h-4 w-4" />
+                        Test SSL/TLS Connection
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        Test the security of your connection and view SSL details
+                      </p>
+                    </div>
                   </TabsContent>
                 )}
 
                 {/* SSH Tab */}
-                {!isSqlite && !isRedis && (
+                {!isSqlite && !isRedis && !isCassandra && formData.databaseType !== "mongodb" && (
                   <TabsContent value="ssh" className="mt-0 space-y-6">
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <input
@@ -981,6 +1015,13 @@ export function ConnectionModal() {
           // Clear the test result to encourage retrying
           setTestResult(null);
         }}
+      />
+
+      {/* SSL Test Dialog */}
+      <SslTestDialog
+        open={showSslTest}
+        onOpenChange={setShowSslTest}
+        config={getEffectiveConfig()}
       />
     </Dialog>
   );

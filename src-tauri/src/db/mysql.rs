@@ -1045,8 +1045,45 @@ impl DatabaseDriver for MySqlDriver {
         let username = config.username.as_deref().unwrap_or("root");
         let password = config.password.as_deref().unwrap_or("");
 
-        format!("mysql://{}:{}@{}:{}/{}",
-            username, password, host, port, config.database)
+        let mut url = format!("mysql://{}:{}@{}:{}/{}",
+            username, password, host, port, config.database);
+
+        // Build SSL query parameters
+        let mut params: Vec<String> = Vec::new();
+
+        if let Some(ssl) = &config.ssl {
+            let ssl_mode = match ssl.mode {
+                crate::models::SslMode::Disable => "DISABLED",
+                crate::models::SslMode::Prefer => "PREFERRED",
+                crate::models::SslMode::Require => "REQUIRED",
+                crate::models::SslMode::VerifyCa => "VERIFY_CA",
+                crate::models::SslMode::VerifyFull => "VERIFY_IDENTITY",
+            };
+            params.push(format!("ssl-mode={}", ssl_mode));
+
+            if let Some(ca_cert) = &ssl.ca_cert_path {
+                if !ca_cert.is_empty() {
+                    params.push(format!("ssl-ca={}", ca_cert));
+                }
+            }
+            if let Some(client_cert) = &ssl.client_cert_path {
+                if !client_cert.is_empty() {
+                    params.push(format!("ssl-cert={}", client_cert));
+                }
+            }
+            if let Some(client_key) = &ssl.client_key_path {
+                if !client_key.is_empty() {
+                    params.push(format!("ssl-key={}", client_key));
+                }
+            }
+        }
+
+        if !params.is_empty() {
+            url.push('?');
+            url.push_str(&params.join("&"));
+        }
+
+        url
     }
 
     async fn generate_table_ddl(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<String> {
