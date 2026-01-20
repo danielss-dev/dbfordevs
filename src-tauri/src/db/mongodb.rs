@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::models::ConnectionConfig;
+use crate::models::{ConnectionConfig, SslMode};
 use async_trait::async_trait;
 use bson::{doc, oid::ObjectId, Bson, Document};
 use mongodb::{
@@ -114,17 +114,64 @@ pub fn build_mongodb_connection_string(config: &ConnectionConfig) -> String {
         &config.database
     };
 
+    // Build query parameters
+    let mut params: Vec<String> = Vec::new();
+
+    // Add SSL/TLS parameters if configured
+    if let Some(ssl) = &config.ssl {
+        if !matches!(ssl.mode, SslMode::Disable) {
+            params.push("tls=true".to_string());
+
+            // Set TLS options based on SSL mode
+            match ssl.mode {
+                SslMode::Require => {
+                    // Allow invalid certificates (similar to require mode)
+                    params.push("tlsAllowInvalidCertificates=true".to_string());
+                }
+                SslMode::VerifyCa | SslMode::VerifyFull => {
+                    params.push("tlsAllowInvalidCertificates=false".to_string());
+                }
+                SslMode::Prefer => {
+                    // Prefer TLS but allow fallback - not directly supported, use allow invalid
+                    params.push("tlsAllowInvalidCertificates=true".to_string());
+                }
+                SslMode::Disable => {} // Already handled above
+            }
+
+            // Add certificate paths if provided
+            if let Some(ca_cert) = &ssl.ca_cert_path {
+                if !ca_cert.is_empty() {
+                    params.push(format!("tlsCAFile={}", urlencoding::encode(ca_cert)));
+                }
+            }
+            if let Some(client_cert) = &ssl.client_cert_path {
+                if !client_cert.is_empty() {
+                    // MongoDB combines client cert and key in one file, but we can specify the cert file
+                    params.push(format!("tlsCertificateKeyFile={}", urlencoding::encode(client_cert)));
+                }
+            }
+        }
+    }
+
     // Build connection string
-    if username.is_empty() {
+    let base_url = if username.is_empty() {
         format!("mongodb://{}:{}/{}", host, port, database)
     } else {
         // URL encode credentials
         let encoded_user = urlencoding::encode(username);
         let encoded_pass = urlencoding::encode(password);
+        params.push("authSource=admin".to_string());
         format!(
-            "mongodb://{}:{}@{}:{}/{}?authSource=admin",
+            "mongodb://{}:{}@{}:{}/{}",
             encoded_user, encoded_pass, host, port, database
         )
+    };
+
+    // Append parameters if any
+    if params.is_empty() {
+        base_url
+    } else {
+        format!("{}?{}", base_url, params.join("&"))
     }
 }
 

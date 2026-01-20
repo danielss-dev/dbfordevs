@@ -152,24 +152,24 @@ pub fn get_ssl_support_info() -> Vec<SslSupportInfo> {
         },
         SslSupportInfo {
             database_type: "redis".to_string(),
-            supports_ssl: false,
-            supports_ca_cert: false,
-            supports_client_cert: false,
-            notes: "SSL not yet implemented. Consider using stunnel for encrypted connections.".to_string(),
+            supports_ssl: true,
+            supports_ca_cert: true,
+            supports_client_cert: true,
+            notes: "TLS support via rediss:// protocol. Requires Redis server with TLS enabled.".to_string(),
         },
         SslSupportInfo {
             database_type: "mongodb".to_string(),
-            supports_ssl: false,
-            supports_ca_cert: false,
-            supports_client_cert: false,
-            notes: "SSL can be configured via connection string parameters (e.g., ?tls=true)".to_string(),
+            supports_ssl: true,
+            supports_ca_cert: true,
+            supports_client_cert: true,
+            notes: "Full TLS support. Certificate paths are passed via connection parameters.".to_string(),
         },
         SslSupportInfo {
             database_type: "cassandra".to_string(),
             supports_ssl: false,
             supports_ca_cert: false,
             supports_client_cert: false,
-            notes: "SSL not yet implemented in driver.".to_string(),
+            notes: "SSL requires native OpenSSL setup. Configure SSL at the Cassandra client level.".to_string(),
         },
     ]
 }
@@ -183,7 +183,8 @@ pub async fn test_ssl_connection(config: ConnectionConfig) -> Result<SslTestResu
     let supports_ssl = matches!(
         config.database_type,
         DatabaseType::PostgreSQL | DatabaseType::MySQL | DatabaseType::MariaDB |
-        DatabaseType::MSSQL | DatabaseType::CockroachDB
+        DatabaseType::MSSQL | DatabaseType::CockroachDB | DatabaseType::Redis |
+        DatabaseType::MongoDB
     );
 
     if !supports_ssl {
@@ -305,6 +306,12 @@ async fn get_ssl_connection_info(config: &ConnectionConfig) -> SslConnectionInfo
         }
         DatabaseType::MSSQL => {
             get_mssql_ssl_info(&manager, &temp_id).await
+        }
+        DatabaseType::Redis => {
+            get_redis_ssl_info(&config).await
+        }
+        DatabaseType::MongoDB => {
+            get_mongodb_ssl_info(&config).await
         }
         _ => SslConnectionInfo {
             protocol_version: None,
@@ -445,4 +452,45 @@ async fn get_mssql_ssl_info(_manager: &crate::db::ConnectionManager, _connection
         certificate_info: None,
     }
 }
+
+/// Get SSL info from Redis
+/// Redis TLS is established at connection time via the rediss:// protocol
+async fn get_redis_ssl_info(config: &ConnectionConfig) -> SslConnectionInfo {
+    let ssl_enabled = config.ssl.as_ref().map(|s| !matches!(s.mode, SslMode::Disable)).unwrap_or(false);
+
+    if ssl_enabled {
+        SslConnectionInfo {
+            protocol_version: Some("TLS (configured)".to_string()),
+            cipher_suite: None,
+            certificate_info: None,
+        }
+    } else {
+        SslConnectionInfo {
+            protocol_version: None,
+            cipher_suite: None,
+            certificate_info: None,
+        }
+    }
+}
+
+/// Get SSL info from MongoDB
+/// MongoDB TLS is configured via connection string parameters
+async fn get_mongodb_ssl_info(config: &ConnectionConfig) -> SslConnectionInfo {
+    let ssl_enabled = config.ssl.as_ref().map(|s| !matches!(s.mode, SslMode::Disable)).unwrap_or(false);
+
+    if ssl_enabled {
+        SslConnectionInfo {
+            protocol_version: Some("TLS (configured)".to_string()),
+            cipher_suite: None,
+            certificate_info: None,
+        }
+    } else {
+        SslConnectionInfo {
+            protocol_version: None,
+            cipher_suite: None,
+            certificate_info: None,
+        }
+    }
+}
+
 

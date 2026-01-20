@@ -48,7 +48,7 @@ deadpool = { version = "0.12", features = ["managed"] }
 oracle = { version = "0.6", features = ["chrono"] }
 
 # Redis driver
-redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager", "tls-rustls", "tokio-rustls-comp"] }
 deadpool-redis = "0.18"
 
 # MongoDB driver
