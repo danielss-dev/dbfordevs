@@ -29,7 +29,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUIStore } from "@/stores";
 import { useDatabase } from "@/hooks";
-import type { ConnectionConfig, DatabaseType, SslMode, SslConfig, SshTunnelConfig } from "@/types";
+import type { ConnectionConfig, DatabaseType, SslMode, SslConfig, SshTunnelConfig, OracleWalletConfig } from "@/types";
 import { parseConnectionString } from "@/lib/connection-string-parser";
 import { cn } from "@/lib/utils";
 import { DATABASE_DEFAULTS, DATABASE_METADATA } from "@/lib/constants";
@@ -74,6 +74,13 @@ const DEFAULT_SSH_CONFIG: SshTunnelConfig = {
   password: undefined,
   privateKeyPath: undefined,
   passphrase: undefined,
+};
+
+const DEFAULT_WALLET_CONFIG: OracleWalletConfig = {
+  enabled: false,
+  walletPath: "",
+  tnsAlias: undefined,
+  useAutoLogin: true,
 };
 
 interface FormFieldProps {
@@ -130,6 +137,44 @@ function FilePickerInput({ id, value, onChange, placeholder, filters }: FilePick
       }
     } catch (error) {
       console.error("File picker error:", error);
+    }
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        id={id}
+        placeholder={placeholder}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value || undefined)}
+        className="transition-colors font-mono text-sm flex-1"
+      />
+      <Button type="button" variant="outline" size="icon" onClick={handleBrowse}>
+        <FolderOpen className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+interface FolderPickerInputProps {
+  id: string;
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+  placeholder?: string;
+}
+
+function FolderPickerInput({ id, value, onChange, placeholder }: FolderPickerInputProps) {
+  const handleBrowse = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: true,
+      });
+      if (selected) {
+        onChange(selected as string);
+      }
+    } catch (error) {
+      console.error("Folder picker error:", error);
     }
   };
 
@@ -264,6 +309,17 @@ export function ConnectionModal() {
     });
   };
 
+  // Helper to update Oracle Wallet config
+  const updateWalletConfig = (updates: Partial<OracleWalletConfig>) => {
+    setFormData({
+      ...formData,
+      oracleWallet: {
+        ...(formData.oracleWallet || DEFAULT_WALLET_CONFIG),
+        ...updates,
+      },
+    });
+  };
+
   const handleTest = async () => {
     setIsTesting(true);
     setTestResult(null);
@@ -328,6 +384,13 @@ export function ConnectionModal() {
     return null;
   };
 
+  const getWalletStatus = () => {
+    if (formData.oracleWallet?.enabled) {
+      return "enabled";
+    }
+    return null;
+  };
+
   return (
     <Dialog open={showConnectionModal} onOpenChange={setShowConnectionModal}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
@@ -360,7 +423,8 @@ export function ConnectionModal() {
                 if (isSqlite) return "grid-cols-1"; // General only
                 if (!sslSupported && !sshSupported) return "grid-cols-2"; // General, Connection (Cassandra)
                 if (sslSupported && !sshSupported) return "grid-cols-3"; // General, Connection, SSL (Redis, MongoDB)
-                if (!sslSupported && sshSupported) return "grid-cols-3"; // General, Connection, SSH (Oracle)
+                if (isOracle) return "grid-cols-4"; // General, Connection, Wallet, SSH (Oracle)
+                if (!sslSupported && sshSupported) return "grid-cols-3"; // General, Connection, SSH
                 return "grid-cols-4"; // General, Connection, SSL, SSH (PostgreSQL, MySQL, etc.)
               })())}>
                 <TabsTrigger value="general" className="flex items-center gap-2">
@@ -373,7 +437,7 @@ export function ConnectionModal() {
                       <Server className="h-4 w-4" />
                       Connection
                     </TabsTrigger>
-                    {/* SSL tab - shown for supported databases */}
+                    {/* SSL tab - shown for supported databases (not Oracle, which uses Wallet) */}
                     {sslSupported && (
                       <TabsTrigger value="ssl" className="flex items-center gap-2">
                         <Shield className="h-4 w-4" />
@@ -381,6 +445,18 @@ export function ConnectionModal() {
                         {getSslStatus() && (
                           <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
                             {getSslStatus()}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    )}
+                    {/* Oracle Wallet tab - only for Oracle */}
+                    {isOracle && (
+                      <TabsTrigger value="wallet" className="flex items-center gap-2">
+                        <Key className="h-4 w-4" />
+                        Wallet
+                        {getWalletStatus() && (
+                          <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-400">
+                            on
                           </span>
                         )}
                       </TabsTrigger>
@@ -764,6 +840,99 @@ export function ConnectionModal() {
                         Test the security of your connection and view SSL details
                       </p>
                     </div>
+                  </TabsContent>
+                )}
+
+                {/* Oracle Wallet Tab */}
+                {isOracle && (
+                  <TabsContent value="wallet" className="mt-0 space-y-6">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <input
+                        type="checkbox"
+                        id="walletEnabled"
+                        checked={formData.oracleWallet?.enabled || false}
+                        onChange={(e) => updateWalletConfig({ enabled: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="walletEnabled" className="text-sm cursor-pointer">
+                        Use Oracle Wallet for authentication
+                      </Label>
+                    </div>
+
+                    {formData.oracleWallet?.enabled ? (
+                      <>
+                        <FormField
+                          label="Wallet Path"
+                          htmlFor="walletPath"
+                          hint="Directory containing cwallet.sso and ewallet.p12 files"
+                          required
+                        >
+                          <FolderPickerInput
+                            id="walletPath"
+                            value={formData.oracleWallet?.walletPath}
+                            onChange={(value) => updateWalletConfig({ walletPath: value || "" })}
+                            placeholder="/path/to/wallet"
+                          />
+                        </FormField>
+
+                        <FormField
+                          label="TNS Alias"
+                          htmlFor="tnsAlias"
+                          hint="TNS alias from tnsnames.ora in wallet (optional, uses host/port/service if empty)"
+                        >
+                          <Input
+                            id="tnsAlias"
+                            placeholder="mydb_high"
+                            value={formData.oracleWallet?.tnsAlias || ""}
+                            onChange={(e) => updateWalletConfig({ tnsAlias: e.target.value || undefined })}
+                            className="transition-colors"
+                          />
+                        </FormField>
+
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                          <input
+                            type="checkbox"
+                            id="useAutoLogin"
+                            checked={formData.oracleWallet?.useAutoLogin ?? true}
+                            onChange={(e) => updateWalletConfig({ useAutoLogin: e.target.checked })}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <div>
+                            <Label htmlFor="useAutoLogin" className="text-sm cursor-pointer">
+                              Use auto-login wallet (cwallet.sso)
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              When enabled, no username/password required. Credentials stored in wallet.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-2">
+                          <p className="font-medium">Oracle Wallet Setup</p>
+                          <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                            <li>Wallet directory should contain <code className="text-xs bg-muted px-1 rounded">cwallet.sso</code> (auto-login) or <code className="text-xs bg-muted px-1 rounded">ewallet.p12</code></li>
+                            <li>For cloud databases (ATP/ADW), download wallet from Oracle Cloud Console</li>
+                            <li>TNS alias can be found in <code className="text-xs bg-muted px-1 rounded">tnsnames.ora</code> inside the wallet</li>
+                            <li>Ensure Oracle Instant Client is installed and configured</li>
+                          </ul>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Oracle Wallet is disabled. Enable it to use secure wallet-based authentication.
+                        </p>
+                        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-2">
+                          <p className="font-medium">When to use Oracle Wallet</p>
+                          <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                            <li>Connecting to Oracle Autonomous Database (ATP/ADW)</li>
+                            <li>Secure credential storage without passwords in connection strings</li>
+                            <li>SSL/TLS encrypted connections to Oracle databases</li>
+                            <li>Enterprise environments requiring centralized credential management</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
                   </TabsContent>
                 )}
 

@@ -26,6 +26,10 @@ pub struct OracleConnectionConfig {
     pub connect_string: String,
     pub username: String,
     pub password: String,
+    /// Path to Oracle Wallet directory (contains cwallet.sso, ewallet.p12)
+    pub wallet_path: Option<String>,
+    /// Whether to use external authentication (wallet auto-login)
+    pub use_external_auth: bool,
 }
 
 /// Oracle connection manager for deadpool
@@ -68,9 +72,32 @@ impl Manager for OracleConnectionManager {
         async move {
             // Oracle crate is synchronous, use spawn_blocking
             tokio::task::spawn_blocking(move || {
-                let connector = Connector::new(&config.username, &config.password, &config.connect_string);
-                let conn = connector.connect()
-                    .map_err(|e| AppError::ConnectionError(format!("Failed to connect to Oracle: {}", e)))?;
+                // Set up wallet environment if configured
+                if let Some(wallet_path) = &config.wallet_path {
+                    // Set TNS_ADMIN to wallet directory (for tnsnames.ora resolution)
+                    std::env::set_var("TNS_ADMIN", wallet_path);
+
+                    // Only set WALLET_LOCATION when using external auth (auto-login)
+                    // Otherwise Oracle will try to open wallet files that may not exist
+                    if config.use_external_auth {
+                        std::env::set_var("ORACLE_WALLET_LOCATION", wallet_path);
+                    }
+                }
+
+                let conn = if config.use_external_auth {
+                    // External authentication with wallet (auto-login)
+                    // Use empty username/password - credentials come from wallet
+                    Connector::new("", "", &config.connect_string)
+                        .external_auth(true)
+                        .connect()
+                        .map_err(|e| AppError::ConnectionError(format!("Failed to connect to Oracle with wallet: {}", e)))?
+                } else {
+                    // Standard authentication (may still use wallet for SSL/TLS)
+                    Connector::new(&config.username, &config.password, &config.connect_string)
+                        .connect()
+                        .map_err(|e| AppError::ConnectionError(format!("Failed to connect to Oracle: {}", e)))?
+                };
+
                 Ok(OracleConnection::new(conn))
             })
             .await
@@ -130,6 +157,42 @@ pub async fn create_oracle_pool(config: OracleConnectionConfig) -> AppResult<Ora
 
 /// Build Oracle connection config from ConnectionConfig
 pub fn build_oracle_config(config: &ConnectionConfig) -> OracleConnectionConfig {
+    // Check if Oracle Wallet is configured
+    if let Some(wallet) = &config.oracle_wallet {
+        if wallet.enabled {
+            // Build connection string for wallet authentication
+            let connect_string = if let Some(tns_alias) = &wallet.tns_alias {
+                // Use TNS alias from tnsnames.ora in wallet
+                tns_alias.clone()
+            } else {
+                // Build Easy Connect with wallet
+                let host = config.host.as_deref().unwrap_or("localhost");
+                let port = config.port.unwrap_or(1521);
+                let service = &config.database;
+                format!("//{}:{}/{}", host, port, service)
+            };
+
+            return OracleConnectionConfig {
+                connect_string,
+                username: if wallet.use_auto_login {
+                    // External authentication - empty username, credentials from wallet
+                    String::new()
+                } else {
+                    config.username.clone().unwrap_or_else(|| "system".to_string())
+                },
+                password: if wallet.use_auto_login {
+                    // No password needed for auto-login wallet
+                    String::new()
+                } else {
+                    config.password.clone().unwrap_or_default()
+                },
+                wallet_path: Some(wallet.wallet_path.clone()),
+                use_external_auth: wallet.use_auto_login,
+            };
+        }
+    }
+
+    // Standard connection without wallet
     let host = config.host.as_deref().unwrap_or("localhost");
     let port = config.port.unwrap_or(1521);
     let service = &config.database;
@@ -141,6 +204,8 @@ pub fn build_oracle_config(config: &ConnectionConfig) -> OracleConnectionConfig 
         connect_string,
         username: config.username.clone().unwrap_or_else(|| "system".to_string()),
         password: config.password.clone().unwrap_or_default(),
+        wallet_path: None,
+        use_external_auth: false,
     }
 }
 
@@ -442,8 +507,30 @@ impl DatabaseDriver for OracleDriver {
         let oracle_config = build_oracle_config(config);
 
         let result = tokio::task::spawn_blocking(move || -> AppResult<TestConnectionResult> {
-            let connector = Connector::new(&oracle_config.username, &oracle_config.password, &oracle_config.connect_string);
-            match connector.connect() {
+            // Set up wallet environment if configured
+            if let Some(wallet_path) = &oracle_config.wallet_path {
+                // Set TNS_ADMIN for tnsnames.ora resolution
+                std::env::set_var("TNS_ADMIN", wallet_path);
+
+                // Only set WALLET_LOCATION when using external auth (auto-login)
+                if oracle_config.use_external_auth {
+                    std::env::set_var("ORACLE_WALLET_LOCATION", wallet_path);
+                }
+            }
+
+            let connect_result = if oracle_config.use_external_auth {
+                // External authentication with wallet (auto-login)
+                // Use empty username/password - credentials come from wallet
+                Connector::new("", "", &oracle_config.connect_string)
+                    .external_auth(true)
+                    .connect()
+            } else {
+                // Standard authentication
+                Connector::new(&oracle_config.username, &oracle_config.password, &oracle_config.connect_string)
+                    .connect()
+            };
+
+            match connect_result {
                 Ok(conn) => {
                     // Get server version
                     let version = match conn.query_row_as::<String>(
@@ -460,9 +547,15 @@ impl DatabaseDriver for OracleDriver {
                         }
                     };
 
+                    let message = if oracle_config.wallet_path.is_some() {
+                        "Connection successful (using Oracle Wallet)".to_string()
+                    } else {
+                        "Connection successful".to_string()
+                    };
+
                     Ok(TestConnectionResult {
                         success: true,
-                        message: "Connection successful".to_string(),
+                        message,
                         server_version: version,
                     })
                 }

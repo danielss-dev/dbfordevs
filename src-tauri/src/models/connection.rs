@@ -54,6 +54,16 @@ pub struct SshTunnelConfig {
     pub passphrase: Option<String>,
 }
 
+/// Oracle Wallet configuration for secure authentication
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OracleWalletConfig {
+    pub enabled: bool,
+    pub wallet_path: String,
+    pub tns_alias: Option<String>,
+    pub use_auto_login: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionConfig {
@@ -76,6 +86,8 @@ pub struct ConnectionConfig {
     pub ssl: Option<SslConfig>,
     /// SSH tunnel configuration
     pub ssh_tunnel: Option<SshTunnelConfig>,
+    /// Oracle Wallet configuration
+    pub oracle_wallet: Option<OracleWalletConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -56,6 +56,14 @@ export interface SshTunnelConfig {
   passphrase?: string;
 }
 
+// Oracle Wallet Configuration
+export interface OracleWalletConfig {
+  enabled: boolean;
+  walletPath: string;
+  tnsAlias?: string;         // TNS alias from tnsnames.ora in wallet
+  useAutoLogin: boolean;     // Use auto-login wallet (cwallet.sso)
+}
+
 export interface ConnectionConfig {
   id?: string;
   name: string;
@@ -74,6 +82,8 @@ export interface ConnectionConfig {
   /** SSL configuration - preferred over legacy sslMode */
   ssl?: SslConfig;
   sshTunnel?: SshTunnelConfig;
+  /** Oracle Wallet configuration for secure authentication */
+  oracleWallet?: OracleWalletConfig;
 }
 
 export interface ConnectionInfo {
