@@ -2,6 +2,15 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-01-20
+
+
+### Added
+- **feat**: add Oracle Wallet support for secure database authentication (#68)
+- **feat**: implement SSL/TLS testing feature for database connections (#67)
+
+### Changed
+- Cassandra implementation (#66)
 ## [0.3.11] - 2026-01-19
 
 
