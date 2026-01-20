@@ -34,6 +34,13 @@ In-depth documentation on using the application, including:
 - Tips and best practices
 - Troubleshooting
 
+### [SSL/TLS Testing](./ssl-tls-testing.md)
+Guide to testing secure database connections, including:
+- SSL mode configuration
+- Certificate setup
+- Docker test environment
+- Troubleshooting SSL issues
+
 ### [Graphite Workflow](./GRAPHITE.md)
 Guide for developers on using Graphite for stacked pull requests in this project.
 

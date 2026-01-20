@@ -97,3 +97,41 @@ pub struct TestConnectionResult {
     pub server_version: Option<String>,
 }
 
+/// Result of testing SSL/TLS connection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SslTestResult {
+    pub success: bool,
+    pub message: String,
+    pub ssl_enabled: bool,
+    pub ssl_mode: Option<String>,
+    pub protocol_version: Option<String>,
+    pub cipher_suite: Option<String>,
+    pub certificate_info: Option<CertificateInfo>,
+    pub server_version: Option<String>,
+    pub supports_ssl: bool,
+    pub database_type: String,
+}
+
+/// Certificate information from SSL connection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CertificateInfo {
+    pub subject: Option<String>,
+    pub issuer: Option<String>,
+    pub valid_from: Option<String>,
+    pub valid_until: Option<String>,
+    pub serial_number: Option<String>,
+}
+
+/// SSL support information for a database type
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SslSupportInfo {
+    pub database_type: String,
+    pub supports_ssl: bool,
+    pub supports_ca_cert: bool,
+    pub supports_client_cert: bool,
+    pub notes: String,
+}
+

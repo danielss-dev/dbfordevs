@@ -124,6 +124,36 @@ export interface TestConnectionResult {
   serverVersion?: string;
 }
 
+// SSL Test Types
+export interface CertificateInfo {
+  subject?: string;
+  issuer?: string;
+  validFrom?: string;
+  validUntil?: string;
+  serialNumber?: string;
+}
+
+export interface SslTestResult {
+  success: boolean;
+  message: string;
+  sslEnabled: boolean;
+  sslMode?: string;
+  protocolVersion?: string;
+  cipherSuite?: string;
+  certificateInfo?: CertificateInfo;
+  serverVersion?: string;
+  supportsSsl: boolean;
+  databaseType: string;
+}
+
+export interface SslSupportInfo {
+  databaseType: string;
+  supportsSsl: boolean;
+  supportsCaCert: boolean;
+  supportsClientCert: boolean;
+  notes: string;
+}
+
 // Query types
 export interface QueryRequest {
   connectionId: string;

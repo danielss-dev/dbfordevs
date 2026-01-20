@@ -6,6 +6,8 @@ import type {
   ConnectionInfo,
   DatabaseInfo,
   TestConnectionResult,
+  SslTestResult,
+  SslSupportInfo,
   QueryRequest,
   QueryResult,
   TableInfo,
@@ -99,6 +101,48 @@ export function useDatabase() {
     },
     [setConnecting, setConnectionError]
   );
+
+  /**
+   * Test SSL/TLS connection and return detailed security information
+   */
+  const testSslConnection = useCallback(
+    async (config: ConnectionConfig): Promise<SslTestResult> => {
+      setConnecting(true);
+      setConnectionError(null);
+
+      try {
+        const result = await invoke<SslTestResult>("test_ssl_connection", {
+          config,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setConnectionError(message);
+        return {
+          success: false,
+          message,
+          sslEnabled: false,
+          supportsSsl: false,
+          databaseType: config.databaseType,
+        };
+      } finally {
+        setConnecting(false);
+      }
+    },
+    [setConnecting, setConnectionError]
+  );
+
+  /**
+   * Get SSL support information for all database types
+   */
+  const getSslSupportInfo = useCallback(async (): Promise<SslSupportInfo[]> => {
+    try {
+      return await invoke<SslSupportInfo[]>("get_ssl_support_info");
+    } catch (error) {
+      console.error("Failed to get SSL support info:", error);
+      return [];
+    }
+  }, []);
 
   /**
    * Save a connection configuration
@@ -1527,6 +1571,8 @@ export function useDatabase() {
 
   return {
     testConnection,
+    testSslConnection,
+    getSslSupportInfo,
     saveConnection,
     connect,
     disconnect,

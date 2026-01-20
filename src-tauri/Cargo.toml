@@ -29,6 +29,7 @@ arboard = "3.4.1"
 # Database drivers
 sqlx = { version = "0.8", features = [
     "runtime-tokio",
+    "tls-rustls",
     "postgres",
     "mysql",
     "sqlite",

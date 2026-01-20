@@ -1430,8 +1430,42 @@ impl DatabaseDriver for PostgresDriver {
         let mut url = format!("postgresql://{}:{}@{}:{}/{}",
             username, password, host, port, config.database);
 
-        if let Some(ssl_mode) = &config.ssl_mode {
-            url.push_str(&format!("?sslmode={}", ssl_mode));
+        // Build SSL query parameters
+        let mut params: Vec<String> = Vec::new();
+
+        if let Some(ssl) = &config.ssl {
+            let ssl_mode = match ssl.mode {
+                crate::models::SslMode::Disable => "disable",
+                crate::models::SslMode::Prefer => "prefer",
+                crate::models::SslMode::Require => "require",
+                crate::models::SslMode::VerifyCa => "verify-ca",
+                crate::models::SslMode::VerifyFull => "verify-full",
+            };
+            params.push(format!("sslmode={}", ssl_mode));
+
+            if let Some(ca_cert) = &ssl.ca_cert_path {
+                if !ca_cert.is_empty() {
+                    params.push(format!("sslrootcert={}", ca_cert));
+                }
+            }
+            if let Some(client_cert) = &ssl.client_cert_path {
+                if !client_cert.is_empty() {
+                    params.push(format!("sslcert={}", client_cert));
+                }
+            }
+            if let Some(client_key) = &ssl.client_key_path {
+                if !client_key.is_empty() {
+                    params.push(format!("sslkey={}", client_key));
+                }
+            }
+        } else if let Some(ssl_mode) = &config.ssl_mode {
+            // Legacy support for old ssl_mode field
+            params.push(format!("sslmode={}", ssl_mode));
+        }
+
+        if !params.is_empty() {
+            url.push('?');
+            url.push_str(&params.join("&"));
         }
 
         url

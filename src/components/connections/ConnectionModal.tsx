@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Loader2, CheckCircle2, XCircle, Database, HelpCircle, Server, Key, FolderOpen, Link2, Shield, Terminal, FileText, Settings2 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { OracleSetupDialog, isOracleClientError } from "./OracleSetupDialog";
+import { SslTestDialog } from "./SslTestDialog";
 import {
   Dialog,
   DialogContent,
@@ -160,6 +161,7 @@ export function ConnectionModal() {
   const [formData, setFormData] = useState<ConnectionConfig>(INITIAL_FORM_DATA);
   const [parseError, setParseError] = useState<string | null>(null);
   const [showOracleSetup, setShowOracleSetup] = useState(false);
+  const [showSslTest, setShowSslTest] = useState(false);
 
   const isEditMode = editingConnectionId !== null;
   const defaults = useMemo(() => DATABASE_DEFAULTS[formData.databaseType], [formData.databaseType]);
@@ -730,6 +732,23 @@ export function ConnectionModal() {
                         SSL is disabled. Select a different SSL mode to configure secure connections.
                       </p>
                     )}
+
+                    {/* Test SSL Button */}
+                    <div className="pt-4 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSslTest(true)}
+                        disabled={!canTest}
+                        className="w-full"
+                      >
+                        <Shield className="mr-2 h-4 w-4" />
+                        Test SSL/TLS Connection
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        Test the security of your connection and view SSL details
+                      </p>
+                    </div>
                   </TabsContent>
                 )}
 
@@ -981,6 +1000,13 @@ export function ConnectionModal() {
           // Clear the test result to encourage retrying
           setTestResult(null);
         }}
+      />
+
+      {/* SSL Test Dialog */}
+      <SslTestDialog
+        open={showSslTest}
+        onOpenChange={setShowSslTest}
+        config={getEffectiveConfig()}
       />
     </Dialog>
   );
