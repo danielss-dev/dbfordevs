@@ -1,0 +1,61 @@
+# Oracle Wallet Test Environment for dbfordevs
+#
+# This setup creates an Oracle database with wallet authentication support.
+# Run the setup script first to generate wallet files:
+#   Windows: .\setup-wallet.ps1
+#   Linux/Mac: ./setup-wallet.sh
+#
+# Then start: docker-compose up -d
+
+services:
+  # ============================================
+  # Oracle Database with Wallet Support
+  # ============================================
+  oracle-wallet:
+    image: gvenzl/oracle-free:23-slim-faststart
+    container_name: dbfordevs-oracle-wallet
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: walletuser
+      APP_USER_PASSWORD: walletpass
+    ports:
+      - "1522:1521"
+    volumes:
+      - oracle_wallet_data:/opt/oracle/oradata
+      - ./wallet:/opt/oracle/wallet:ro
+      - ./init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  # ============================================
+  # Oracle without Wallet (for comparison)
+  # ============================================
+  oracle-standard:
+    image: gvenzl/oracle-free:23-slim-faststart
+    container_name: dbfordevs-oracle-standard
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: testuser
+      APP_USER_PASSWORD: testuser
+    ports:
+      - "1523:1521"
+    volumes:
+      - oracle_standard_data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+volumes:
+  oracle_wallet_data:
+  oracle_standard_data:
+
+networks:
+  default:
+    name: dbfordevs-oracle-wallet-test

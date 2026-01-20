@@ -33,3 +33,6 @@ coverage/
 .cache/
 *.tsbuildinfo
 
+# Oracle Wallet (contains credentials)
+docker/oracle-wallet-test/wallet/
+
