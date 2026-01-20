@@ -64,7 +64,7 @@ export function CassandraShell({ connectionId }: CassandraShellProps) {
     "ANY",
   ];
 
-  const handleEditorMount = (editor: any, monaco: Monaco) => {
+  const handleEditorMount = (_editor: any, monaco: Monaco) => {
     // Register custom themes for Monaco
     registerCustomThemes(monaco);
     // Set the theme after registering

@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { Play, RefreshCw, Key, Columns3, ChevronDown } from "lucide-react";
+import { RefreshCw, Key, Columns3, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Button,
-  Input,
   Select,
   SelectContent,
   SelectItem,
