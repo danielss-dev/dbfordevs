@@ -280,15 +280,19 @@ export function SslTestDialog({
                       <p className="text-blue-600 dark:text-blue-400 text-xs">
                         {supportInfo.notes}
                       </p>
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-2">
                         <Badge variant={supportInfo.supportsSsl ? "default" : "secondary"} className="text-xs">
                           {supportInfo.supportsSsl ? "SSL Supported" : "No SSL"}
                         </Badge>
                         {supportInfo.supportsCaCert && (
-                          <Badge variant="outline" className="text-xs">CA Cert</Badge>
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700">
+                            CA Cert
+                          </Badge>
                         )}
                         {supportInfo.supportsClientCert && (
-                          <Badge variant="outline" className="text-xs">Client Cert</Badge>
+                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700">
+                            Client Cert
+                          </Badge>
                         )}
                       </div>
                     </div>
