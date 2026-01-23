@@ -18,7 +18,12 @@ export type SchemaObjectType =
   // MongoDB types
   | "mongo-database"
   | "mongo-collection"
-  | "mongo-index";
+  | "mongo-index"
+  // Cassandra types
+  | "cassandra-keyspace"
+  | "cassandra-table"
+  | "cassandra-column"
+  | "cassandra-index";
 
 /** Display labels for schema object types */
 export const SCHEMA_OBJECT_TYPE_LABELS: Record<SchemaObjectType, string> = {
@@ -36,6 +41,11 @@ export const SCHEMA_OBJECT_TYPE_LABELS: Record<SchemaObjectType, string> = {
   "mongo-database": "Databases",
   "mongo-collection": "Collections",
   "mongo-index": "Indexes",
+  // Cassandra
+  "cassandra-keyspace": "Keyspaces",
+  "cassandra-table": "Tables",
+  "cassandra-column": "Columns",
+  "cassandra-index": "Indexes",
 };
 
 /** A single search result from the schema search */

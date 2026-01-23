@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Database,
   FolderTree,
@@ -58,7 +58,7 @@ import { ConnectionGroupItem } from "./ConnectionGroupItem";
 import { RedisConnectionContent } from "@/components/redis";
 import { MongoConnectionContent } from "@/components/mongodb";
 import { CassandraConnectionContent } from "@/components/cassandra";
-import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore } from "@/stores";
+import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore, useSidebarHighlightStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo, DatabaseType } from "@/types";
 import { getDatabaseFeatureSupport } from "@/lib/database-features";
@@ -77,6 +77,8 @@ interface TreeItemProps {
   isConnected?: boolean;
   rightElement?: React.ReactNode;
   defaultOpen?: boolean;
+  forceOpen?: boolean;
+  isHighlighted?: boolean;
 }
 
 function TreeItem({
@@ -88,10 +90,21 @@ function TreeItem({
   isActive,
   isConnected,
   rightElement,
-  defaultOpen = false
+  defaultOpen = false,
+  forceOpen = false,
+  isHighlighted = false,
 }: TreeItemProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const hasChildren = Boolean(children);
+
+  // Force open when forceOpen prop changes to true
+  useEffect(() => {
+    if (forceOpen && !isOpen) {
+      setIsOpen(true);
+    }
+  }, [forceOpen]);
+
+  const effectiveOpen = isOpen || forceOpen;
 
   return (
     <div className="group/tree relative">
@@ -110,7 +123,8 @@ function TreeItem({
         className={cn(
           "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
           "hover:bg-sidebar-accent/60",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+          isHighlighted && "bg-primary/20 ring-1 ring-primary/50 animate-pulse"
         )}
         style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: '8px' }}
       >
@@ -125,7 +139,7 @@ function TreeItem({
             <ChevronRight
               className={cn(
                 "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-                isOpen && "rotate-90",
+                effectiveOpen && "rotate-90",
                 isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
               )}
             />
@@ -150,7 +164,7 @@ function TreeItem({
           </div>
         )}
       </div>
-      {isOpen && children && (
+      {effectiveOpen && children && (
         <div className="animate-slide-down">{children}</div>
       )}
     </div>
@@ -183,6 +197,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { functionsByConnection, setFunctions } = useFunctionsStore();
   const { triggersByConnection, setTriggers } = useTriggersStore();
   const { sequencesByConnection, setSequences } = useSequencesStore();
+  const { highlightedTableByConnection, clearHighlightedTable } = useSidebarHighlightStore();
+  const highlightedTable = highlightedTableByConnection[connection.id] || null;
   const {
     connect,
     disconnect,
@@ -268,6 +284,40 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const [tablesByDatabase, setTablesByDatabase] = useState<Record<string, TableInfo[]>>({});
   const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(new Set());
   const [loadingDatabaseTables, setLoadingDatabaseTables] = useState<Set<string>>(new Set());
+
+  // Refs for scrolling to highlighted items
+  const tableRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const setTableRef = useCallback((key: string) => (el: HTMLDivElement | null) => {
+    tableRefs.current[key] = el;
+  }, []);
+
+  // Handle highlighted table from search
+  useEffect(() => {
+    if (highlightedTable) {
+      // Force expand tables section
+      setTablesOpen(true);
+
+      // Scroll to highlighted item after a short delay
+      const refKey = highlightedTable.schema
+        ? `${highlightedTable.schema}.${highlightedTable.table}`
+        : highlightedTable.table;
+
+      setTimeout(() => {
+        if (tableRefs.current[refKey]) {
+          tableRefs.current[refKey]?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }, 150);
+
+      // Clear highlight after animation
+      setTimeout(() => {
+        clearHighlightedTable(connection.id);
+      }, 2000);
+    }
+  }, [highlightedTable, connection.id, clearHighlightedTable]);
 
   useEffect(() => {
     if (isActive && connection.connected && tablesOpen && !tablesByConnection[connection.id]?.length) {
@@ -1421,7 +1471,11 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                             <span>Loading...</span>
                           </div>
                         ) : schemaNames.length > 0 ? (
-                          schemaNames.map((schemaName) => (
+                          schemaNames.map((schemaName) => {
+                            // Check if any table in this schema is highlighted
+                            const hasHighlightedTable = highlightedTable?.schema === schemaName;
+
+                            return (
                             <ContextMenu key={schemaName}>
                               <ContextMenuTrigger asChild>
                                 <div>
@@ -1430,22 +1484,28 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                     icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
                                     level={1}
                                     defaultOpen={isSingleSchema}
+                                    forceOpen={hasHighlightedTable}
                                   >
                                     {tablesBySchema[schemaName].map((table) => {
                                 // For display, strip the schema prefix if it's there
-                                const displayLabel = table.name.startsWith(`${schemaName}.`) 
+                                const displayLabel = table.name.startsWith(`${schemaName}.`)
                                   ? table.name.slice(schemaName.length + 1)
                                   : table.name;
-                                
+
+                                // Check if this specific table is highlighted
+                                const isTableHighlighted = highlightedTable?.schema === schemaName &&
+                                  highlightedTable?.table === table.name;
+
                                 return (
                                   <ContextMenu key={table.name}>
                                     <ContextMenuTrigger asChild>
-                                      <div>
+                                      <div ref={setTableRef(table.name)}>
                                         <TreeItem
                                           label={displayLabel}
                                           icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
                                           level={2}
                                           onClick={() => handleTableClick(table.name, displayLabel)}
+                                          isHighlighted={isTableHighlighted}
                                         />
                                       </div>
                                     </ContextMenuTrigger>
@@ -1503,7 +1563,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                 </ContextMenuItem>
                               </ContextMenuContent>
                             </ContextMenu>
-                          ))
+                          );
+                          })
                         ) : tablesOpen ? (
                           <div className="ml-6 py-2 text-xs text-muted-foreground">No schemas found</div>
                         ) : null}

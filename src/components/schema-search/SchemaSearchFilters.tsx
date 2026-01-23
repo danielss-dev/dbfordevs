@@ -11,6 +11,7 @@ import {
   Key,
   Database,
   FolderOpen,
+  HardDrive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
@@ -33,6 +34,11 @@ const OBJECT_TYPE_ICONS: Record<SchemaObjectType, React.ComponentType<{ classNam
   "mongo-database": Database,
   "mongo-collection": FolderOpen,
   "mongo-index": ListTree,
+  // Cassandra
+  "cassandra-keyspace": HardDrive,
+  "cassandra-table": Table,
+  "cassandra-column": Columns,
+  "cassandra-index": ListTree,
 };
 
 /** Display labels for filters */
@@ -51,6 +57,11 @@ const FILTER_LABELS: Record<SchemaObjectType, string> = {
   "mongo-database": "Databases",
   "mongo-collection": "Collections",
   "mongo-index": "Indexes",
+  // Cassandra
+  "cassandra-keyspace": "Keyspaces",
+  "cassandra-table": "Tables",
+  "cassandra-column": "Columns",
+  "cassandra-index": "Indexes",
 };
 
 /** Order in which filters should be displayed - SQL types */
@@ -77,6 +88,14 @@ const MONGODB_FILTER_ORDER: SchemaObjectType[] = [
   "mongo-index",
 ];
 
+/** Cassandra filter types */
+const CASSANDRA_FILTER_ORDER: SchemaObjectType[] = [
+  "cassandra-keyspace",
+  "cassandra-table",
+  "cassandra-column",
+  "cassandra-index",
+];
+
 /** Get filter order based on database type */
 function getFilterOrder(databaseType?: string): SchemaObjectType[] {
   if (databaseType === "redis") {
@@ -84,6 +103,9 @@ function getFilterOrder(databaseType?: string): SchemaObjectType[] {
   }
   if (databaseType === "mongodb") {
     return MONGODB_FILTER_ORDER;
+  }
+  if (databaseType === "cassandra") {
+    return CASSANDRA_FILTER_ORDER;
   }
   return SQL_FILTER_ORDER;
 }

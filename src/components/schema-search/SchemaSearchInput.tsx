@@ -13,7 +13,7 @@ import { fuzzySearch } from "@/lib/fuzzy-search";
 import { getDatabaseFeatureSupport } from "@/lib/database-features";
 import { SchemaSearchResults } from "./SchemaSearchResults";
 import { SchemaSearchFilters } from "./SchemaSearchFilters";
-import type { SchemaSearchResult, SearchHistoryEntry } from "@/types";
+import type { SchemaSearchResult } from "@/types";
 
 interface SchemaSearchInputProps {
   connectionId: string;
@@ -35,7 +35,6 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
     selectNext,
     selectPrevious,
     enabledFilters,
-    addToHistory,
     updateSchemaCache,
     getFromCache,
   } = useSchemaSearchStore();
@@ -309,16 +308,6 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
 
       // Update results
       setResults(searchResults);
-
-      // Add to history if we have results
-      if (searchResults.length > 0) {
-        addToHistory({
-          query: searchQuery,
-          connectionId,
-          timestamp: Date.now(),
-          resultCount: searchResults.length,
-        });
-      }
     } catch (error) {
       console.error("Search error:", error);
       setResults([]);
@@ -333,7 +322,6 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
     updateSchemaCache,
     setResults,
     setSearching,
-    addToHistory,
   ]);
 
   /**
@@ -457,14 +445,6 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
       }
     }
   }, [setOpen, setQuery, addTab, setActiveTab]);
-
-  /**
-   * Handle history item click
-   */
-  const handleHistoryClick = useCallback((entry: SearchHistoryEntry) => {
-    setQuery(entry.query);
-    performSearch(entry.query);
-  }, [setQuery, performSearch]);
 
   /**
    * Handle keyboard navigation
@@ -594,7 +574,6 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
             <div className="p-1">
               <SchemaSearchResults
                 onResultClick={handleResultClick}
-                onHistoryClick={handleHistoryClick}
               />
             </div>
           )}

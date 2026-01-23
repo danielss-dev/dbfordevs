@@ -3,12 +3,8 @@ import { persist } from "zustand/middleware";
 import type {
   SchemaObjectType,
   SchemaSearchResult,
-  SearchHistoryEntry,
   SchemaCacheEntry,
 } from "@/types/schema-search";
-
-/** Maximum number of search history entries to keep */
-const MAX_HISTORY_ENTRIES = 20;
 
 /** Cache TTL in milliseconds (5 minutes) */
 const CACHE_TTL = 5 * 60 * 1000;
@@ -26,8 +22,6 @@ interface SchemaSearchState {
   enabledFilters: SchemaObjectType[];
   /** Currently selected result index for keyboard navigation */
   selectedIndex: number;
-  /** Search history */
-  searchHistory: SearchHistoryEntry[];
   /** Cached schema data per connection */
   schemaCache: Record<string, SchemaCacheEntry>;
 
@@ -43,9 +37,6 @@ interface SchemaSearchState {
   selectNext: () => void;
   selectPrevious: () => void;
   setSelectedIndex: (index: number) => void;
-  addToHistory: (entry: Omit<SearchHistoryEntry, "id">) => void;
-  removeFromHistory: (id: string) => void;
-  clearHistory: () => void;
   updateSchemaCache: (connectionId: string, items: SchemaSearchResult[]) => void;
   clearSchemaCache: (connectionId?: string) => void;
   isCacheValid: (connectionId: string) => boolean;
@@ -69,6 +60,11 @@ const ALL_OBJECT_TYPES: SchemaObjectType[] = [
   "mongo-database",
   "mongo-collection",
   "mongo-index",
+  // Cassandra
+  "cassandra-keyspace",
+  "cassandra-table",
+  "cassandra-column",
+  "cassandra-index",
 ];
 
 const initialState = {
@@ -78,7 +74,6 @@ const initialState = {
   isSearching: false,
   enabledFilters: [...ALL_OBJECT_TYPES],
   selectedIndex: 0,
-  searchHistory: [],
   schemaCache: {},
 };
 
@@ -153,38 +148,6 @@ export const useSchemaSearchStore = create<SchemaSearchState>()(
 
       setSelectedIndex: (index) => set({ selectedIndex: index }),
 
-      addToHistory: (entry) =>
-        set((state) => {
-          const newEntry: SearchHistoryEntry = {
-            ...entry,
-            id: crypto.randomUUID(),
-          };
-
-          // Remove duplicate queries for the same connection
-          const filteredHistory = state.searchHistory.filter(
-            (h) =>
-              !(
-                h.query.toLowerCase() === entry.query.toLowerCase() &&
-                h.connectionId === entry.connectionId
-              )
-          );
-
-          // Add new entry at the beginning
-          const newHistory = [newEntry, ...filteredHistory].slice(
-            0,
-            MAX_HISTORY_ENTRIES
-          );
-
-          return { searchHistory: newHistory };
-        }),
-
-      removeFromHistory: (id) =>
-        set((state) => ({
-          searchHistory: state.searchHistory.filter((h) => h.id !== id),
-        })),
-
-      clearHistory: () => set({ searchHistory: [] }),
-
       updateSchemaCache: (connectionId, items) =>
         set((state) => ({
           schemaCache: {
@@ -224,14 +187,12 @@ export const useSchemaSearchStore = create<SchemaSearchState>()(
         set({
           ...initialState,
           // Keep persisted data
-          searchHistory: get().searchHistory,
           enabledFilters: get().enabledFilters,
         }),
     }),
     {
       name: "dbfordevs-schema-search",
       partialize: (state) => ({
-        searchHistory: state.searchHistory,
         enabledFilters: state.enabledFilters,
       }),
     }
