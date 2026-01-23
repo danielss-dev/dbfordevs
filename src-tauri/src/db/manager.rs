@@ -374,8 +374,19 @@ fn build_mssql_connection_string(config: &ConnectionConfig) -> AppResult<String>
     };
 
     // Tiberius uses ADO.NET style connection strings
+    // Handle named instances (e.g., localhost\SQLEXPRESS or localhost\sql2022)
+    // When a named instance is specified, don't include the port - the SQL Browser
+    // service will resolve the actual port for the named instance
+    let server_part = if host.contains('\\') {
+        // Named instance - don't use tcp: prefix or port
+        format!("Server={}", host)
+    } else {
+        // Regular connection with host and port
+        format!("Server=tcp:{},{}", host, port)
+    };
+
     let mut parts = vec![
-        format!("Server=tcp:{},{}", host, port),
+        server_part,
         format!("Database={}", database),
         format!("User Id={}", username),
         format!("Password={}", password),
