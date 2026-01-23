@@ -11,6 +11,7 @@ import { useSchemaSearchStore, useQueryStore, useConnectionsStore, selectActiveC
 import { useDatabase } from "@/hooks";
 import { fuzzySearch } from "@/lib/fuzzy-search";
 import { getDatabaseFeatureSupport } from "@/lib/database-features";
+import { getSchemaObjectFullName } from "@/lib/table-utils";
 import { SchemaSearchResults } from "./SchemaSearchResults";
 import { SchemaSearchFilters } from "./SchemaSearchFilters";
 import type { SchemaSearchResult } from "@/types";
@@ -73,7 +74,7 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
       // Fetch tables and their columns
       const tables = await getTables(connId);
       for (const table of tables) {
-        const fullPath = table.schema ? `${table.schema}.${table.name}` : table.name;
+        const fullPath = getSchemaObjectFullName(table);
         items.push({
           id: `table-${fullPath}`,
           objectType: "table",
@@ -91,7 +92,7 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
       try {
         const views = await getViews(connId);
         for (const view of views) {
-          const fullPath = view.schema ? `${view.schema}.${view.name}` : view.name;
+          const fullPath = getSchemaObjectFullName(view);
           items.push({
             id: `view-${fullPath}`,
             objectType: "view",
@@ -111,7 +112,7 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
       try {
         const indexes = await getAllIndexes(connId);
         for (const idx of indexes) {
-          const fullPath = idx.schema ? `${idx.schema}.${idx.name}` : idx.name;
+          const fullPath = getSchemaObjectFullName(idx);
           items.push({
             id: `index-${fullPath}`,
             objectType: "index",
@@ -134,7 +135,7 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
         try {
           const procedures = await getProcedures(connId);
           for (const proc of procedures) {
-            const fullPath = proc.schema ? `${proc.schema}.${proc.name}` : proc.name;
+            const fullPath = getSchemaObjectFullName(proc);
             items.push({
               id: `procedure-${fullPath}`,
               objectType: "procedure",
@@ -157,7 +158,7 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
         try {
           const functions = await getFunctions(connId);
           for (const func of functions) {
-            const fullPath = func.schema ? `${func.schema}.${func.name}` : func.name;
+            const fullPath = getSchemaObjectFullName(func);
             items.push({
               id: `function-${fullPath}`,
               objectType: "function",
@@ -180,7 +181,7 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
         try {
           const triggers = await getTriggers(connId);
           for (const trigger of triggers) {
-            const fullPath = trigger.schema ? `${trigger.schema}.${trigger.name}` : trigger.name;
+            const fullPath = getSchemaObjectFullName(trigger);
             items.push({
               id: `trigger-${fullPath}`,
               objectType: "trigger",
@@ -204,7 +205,7 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
         try {
           const sequences = await getSequences(connId);
           for (const seq of sequences) {
-            const fullPath = seq.schema ? `${seq.schema}.${seq.name}` : seq.name;
+            const fullPath = getSchemaObjectFullName(seq);
             items.push({
               id: `sequence-${fullPath}`,
               objectType: "sequence",
@@ -233,7 +234,7 @@ export function SchemaSearchInput({ connectionId }: SchemaSearchInputProps) {
       const { getSchema } = await import("@/stores/schema").then(m => ({ getSchema: m.useSchemaStore.getState().getSchema }));
 
       for (const table of connectionTables) {
-        const tablePath = table.schema ? `${table.schema}.${table.name}` : table.name;
+        const tablePath = getSchemaObjectFullName(table);
         const schema = getSchema(connId, tablePath);
         if (schema) {
           for (const col of schema.columns) {

@@ -1,3 +1,7 @@
+mod snapshots;
+
+pub use snapshots::*;
+
 use crate::error::{AppError, AppResult};
 use crate::models::ConnectionConfig;
 use dirs::data_dir;

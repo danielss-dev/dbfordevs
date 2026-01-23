@@ -18,6 +18,7 @@ import { useQueryStore, selectActiveTab } from "@/stores/query";
 import { useSchemaStore } from "@/stores/schema";
 import { useConnectionsStore, selectActiveConnection } from "@/stores/connections";
 import { applyTemplateVariables } from "@/lib/bookmark-templates";
+import { getTableFullName } from "@/lib/table-utils";
 
 interface TemplateVariableDialogProps {
   onApply: (sql: string) => void;
@@ -98,7 +99,7 @@ export function TemplateVariableDialog({ onApply }: TemplateVariableDialogProps)
   // Build table autocomplete options
   const tableOptions: AutocompleteOption[] = useMemo(() => {
     return tables.map((table) => ({
-      value: table.schema ? `${table.schema}.${table.name}` : table.name,
+      value: getTableFullName(table),
       label: table.name,
       description: table.schema || undefined,
     }));

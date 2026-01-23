@@ -14,6 +14,7 @@ import type {
   ManualContextEntry,
 } from "./types";
 import type { TableProperties, TableRelationship } from "@/types";
+import { getSchemaObjectFullName } from "@/lib/table-utils";
 
 /** Default context configuration */
 export const DEFAULT_CONTEXT_CONFIG: AIContextConfig = {
@@ -238,7 +239,7 @@ export function formatContextForPrompt(
     sections.push("=".repeat(50));
 
     for (const table of tables) {
-      const tableName = table.schema ? `${table.schema}.${table.name}` : table.name;
+      const tableName = getSchemaObjectFullName(table);
       sections.push(`\nTable: ${tableName}`);
 
       // Columns

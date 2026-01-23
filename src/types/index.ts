@@ -19,6 +19,9 @@ export * from "./theme";
 // Re-export schema search types
 export * from "./schema-search";
 
+// Re-export diff types
+export * from "./diff";
+
 // Database types
 export type DatabaseType =
   | "postgresql"

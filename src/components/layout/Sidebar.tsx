@@ -27,6 +27,8 @@ import {
   FunctionSquare,
   Zap,
   Hash,
+  GitCompare,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -58,7 +60,7 @@ import { ConnectionGroupItem } from "./ConnectionGroupItem";
 import { RedisConnectionContent } from "@/components/redis";
 import { MongoConnectionContent } from "@/components/mongodb";
 import { CassandraConnectionContent } from "@/components/cassandra";
-import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore, useSidebarHighlightStore } from "@/stores";
+import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore, useSidebarHighlightStore, useDiffStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo, DatabaseType } from "@/types";
 import { getDatabaseFeatureSupport } from "@/lib/database-features";
@@ -199,6 +201,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const { sequencesByConnection, setSequences } = useSequencesStore();
   const { highlightedTableByConnection, clearHighlightedTable } = useSidebarHighlightStore();
   const highlightedTable = highlightedTableByConnection[connection.id] || null;
+  const { openSchemaDiffDialog } = useDiffStore();
   const {
     connect,
     disconnect,
@@ -231,6 +234,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     getSequences,
     getSequenceDdl,
     dropSequence,
+    saveSchemaSnapshot,
   } = useDatabase();
   const { toast } = useToast();
   const [isLoadingTables, setIsLoadingTables] = useState(false);
@@ -572,6 +576,27 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 
   const handleRenameTable = (tableIdentifier: string) => {
     openRenameTableDialog(tableIdentifier, connection.id);
+  };
+
+  const handleCompareSchema = (_schemaName: string) => {
+    // Open diff dialog without pre-selecting a table - user can select in the dialog
+    openSchemaDiffDialog(connection.id);
+  };
+
+  const handleSaveTableSnapshot = async (tableIdentifier: string) => {
+    try {
+      const tableName = tableIdentifier.split(".").pop() || tableIdentifier;
+      const snapshotName = `${tableName} - ${new Date().toLocaleString()}`;
+      await saveSchemaSnapshot({
+        connectionId: connection.id,
+        tableName: tableIdentifier,
+        snapshotName,
+        description: `Snapshot of ${tableIdentifier}`,
+      });
+      showSuccessToast(`Snapshot saved: ${snapshotName}`);
+    } catch (error) {
+      showErrorToast(`Failed to save snapshot: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   const handleViewSchemaDiagram = (schemaName: string) => {
@@ -1418,6 +1443,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                                       <Pencil className="h-4 w-4" />
                                                       Rename Table
                                                     </ContextMenuItem>
+                                                    <ContextMenuItem onSelect={() => handleSaveTableSnapshot(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
+                                                      <Camera className="h-4 w-4" />
+                                                      Save Snapshot
+                                                    </ContextMenuItem>
                                                     <ContextMenuSeparator />
                                                     <ContextMenuItem
                                                       onSelect={() => handleTableDelete(`${db.name}.${schemaName}.${table.name}`)}
@@ -1536,6 +1565,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         <Pencil className="h-4 w-4" />
                                         Rename Table
                                       </ContextMenuItem>
+                                      <ContextMenuItem onSelect={() => handleSaveTableSnapshot(table.name)} className="gap-2">
+                                        <Camera className="h-4 w-4" />
+                                        Save Snapshot
+                                      </ContextMenuItem>
                                       <ContextMenuSeparator />
                                       <ContextMenuItem
                                         onSelect={() => handleTableDelete(table.name)}
@@ -1551,7 +1584,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                   </TreeItem>
                                 </div>
                               </ContextMenuTrigger>
-                              <ContextMenuContent className="w-48">
+                              <ContextMenuContent className="w-56">
                                 <ContextMenuItem onSelect={() => openCreateTableDialog(connection.id, schemaName)} className="gap-2">
                                   <Plus className="h-4 w-4" />
                                   Create Table
@@ -1560,6 +1593,11 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                 <ContextMenuItem onSelect={() => handleViewSchemaDiagram(schemaName)} className="gap-2">
                                   <Network className="h-4 w-4" />
                                   View Diagram
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem onSelect={() => handleCompareSchema(schemaName)} className="gap-2">
+                                  <GitCompare className="h-4 w-4" />
+                                  Compare Schema...
                                 </ContextMenuItem>
                               </ContextMenuContent>
                             </ContextMenu>

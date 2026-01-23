@@ -48,6 +48,11 @@ import type {
   // Sequence management types
   SequenceInfo,
   NewSequenceDefinition,
+  // Schema diff types
+  SchemaDiffRequest,
+  SchemaDiffResult,
+  CreateSnapshotRequest,
+  SchemaSnapshot,
 } from "@/types";
 
 /**
@@ -1569,6 +1574,91 @@ export function useDatabase() {
     [setExecuting, setQueryError]
   );
 
+  // ============ Schema Diff Operations ============
+
+  /**
+   * Compare two table schemas
+   */
+  const compareTableSchemas = useCallback(
+    async (request: SchemaDiffRequest): Promise<SchemaDiffResult | null> => {
+      try {
+        const result = await invoke<SchemaDiffResult>("compare_table_schemas", { request });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(message);
+      }
+    },
+    []
+  );
+
+  /**
+   * Compare a table with a saved snapshot
+   */
+  const compareWithSnapshot = useCallback(
+    async (connectionId: string, tableName: string, snapshotId: string): Promise<SchemaDiffResult | null> => {
+      try {
+        const result = await invoke<SchemaDiffResult>("compare_with_snapshot", {
+          connectionId,
+          tableName,
+          snapshotId,
+        });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(message);
+      }
+    },
+    []
+  );
+
+  /**
+   * Save a schema snapshot
+   */
+  const saveSchemaSnapshot = useCallback(
+    async (request: CreateSnapshotRequest): Promise<SchemaSnapshot | null> => {
+      try {
+        const result = await invoke<SchemaSnapshot>("save_schema_snapshot", { request });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(message);
+      }
+    },
+    []
+  );
+
+  /**
+   * List all saved schema snapshots
+   */
+  const listSchemaSnapshots = useCallback(
+    async (): Promise<SchemaSnapshot[]> => {
+      try {
+        const result = await invoke<SchemaSnapshot[]>("list_schema_snapshots");
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(message);
+      }
+    },
+    []
+  );
+
+  /**
+   * Delete a schema snapshot
+   */
+  const deleteSchemaSnapshot = useCallback(
+    async (snapshotId: string): Promise<void> => {
+      try {
+        await invoke("delete_schema_snapshot", { snapshotId });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(message);
+      }
+    },
+    []
+  );
+
   return {
     testConnection,
     testSslConnection,
@@ -1644,6 +1734,12 @@ export function useDatabase() {
     getSequenceDdl,
     createSequence,
     dropSequence,
+    // Schema diff
+    compareTableSchemas,
+    compareWithSnapshot,
+    saveSchemaSnapshot,
+    listSchemaSnapshots,
+    deleteSchemaSnapshot,
   };
 }
 
