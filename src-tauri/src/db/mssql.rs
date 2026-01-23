@@ -464,7 +464,7 @@ impl MssqlDriver {
         let mut rows_data: Vec<Vec<serde_json::Value>> = Vec::new();
         let mut affected_rows: Option<u64> = None;
 
-        for result_set in results {
+        if let Some(result_set) = results.into_iter().next() {
             if columns.is_empty() && !result_set.is_empty() {
                 if let Some(first_row) = result_set.first() {
                     columns = first_row
@@ -487,7 +487,6 @@ impl MssqlDriver {
                 }
                 rows_data.push(row_values);
             }
-            break;
         }
 
         if !is_select && rows_data.is_empty() {
