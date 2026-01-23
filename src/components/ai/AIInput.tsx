@@ -203,6 +203,10 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
   }, [slashCommand.filter]);
 
   // Check if a reference matches any table (handles both "table" and "schema.table" formats)
+  // Different databases return table info differently:
+  // - PostgreSQL/Oracle: name includes schema (e.g., "public.users")
+  // - MySQL/SQLite: name is just table name (e.g., "users"), schema is database name
+  // - MSSQL: name is just table name, schema is separate (e.g., "dbo")
   const isValidTableReference = useCallback((reference: string): boolean => {
     const ref = reference.toLowerCase();
 
@@ -223,22 +227,32 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
 
     // Standard SQL table reference
     return tables.some((table) => {
-      const tableName = table.name.toLowerCase();
+      const tableNameLower = table.name.toLowerCase();
       const schemaName = table.schema?.toLowerCase();
 
-      // Check just table name: @accounts
-      if (tableName === ref) return true;
+      // Check if table.name already includes schema (PostgreSQL, Oracle return "schema.table")
+      const tableNameHasSchema = tableNameLower.includes('.');
 
-      // Check full qualified name: @public.accounts
-      if (schemaName && ref === `${schemaName}.${tableName}`) return true;
+      // Extract just the table name without schema prefix
+      const pureTableName = tableNameHasSchema
+        ? tableNameLower.split('.').pop()!
+        : tableNameLower;
 
-      // Check if ref is schema.table format
-      if (ref.includes(".")) {
-        const [refSchema, refTable] = ref.split(".");
-        if (schemaName === refSchema && tableName === refTable) return true;
+      // If reference doesn't include schema, match against pure table name
+      if (!ref.includes('.')) {
+        return pureTableName === ref;
       }
 
-      return false;
+      // Reference includes schema (e.g., @schema.table)
+      const [refSchema, refTable] = ref.split('.');
+
+      // For tables where name already includes schema (PostgreSQL, Oracle)
+      if (tableNameHasSchema) {
+        return tableNameLower === ref;
+      }
+
+      // For tables where schema is separate (MySQL, MSSQL, SQLite)
+      return schemaName === refSchema && pureTableName === refTable;
     });
   }, [tables, mongoCollections, redisKeys]);
 
@@ -387,9 +401,17 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
     // Check for @table.column pattern
     const columnMatch = textBeforeCursor.match(/@(\w+)\.(\w*)$/);
     if (columnMatch) {
-      const tableName = columnMatch[1];
+      const tableName = columnMatch[1].toLowerCase();
       const columnFilter = columnMatch[2];
-      const table = tables.find((t) => t.name.toLowerCase() === tableName.toLowerCase());
+      // Find table - handle both "schema.table" names (PostgreSQL/Oracle) and plain names (MySQL/MSSQL/SQLite)
+      const table = tables.find((t) => {
+        const tableNameLower = t.name.toLowerCase();
+        // For tables where name includes schema (PostgreSQL/Oracle), extract pure name
+        const pureTableName = tableNameLower.includes('.')
+          ? tableNameLower.split('.').pop()!
+          : tableNameLower;
+        return pureTableName === tableName;
+      });
 
       if (table) {
         const atIndex = cursorPos - columnMatch[0].length;
