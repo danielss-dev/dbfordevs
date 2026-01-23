@@ -78,27 +78,40 @@ function extractTableReferences(message: string): string[] {
   return matches.map((m) => m.slice(1).toLowerCase());
 }
 
-/** Check if a table matches a reference (handles both "table" and "schema.table" formats) */
+/** Check if a table matches a reference (handles both "table" and "schema.table" formats)
+ *
+ * Different databases return table info differently:
+ * - PostgreSQL/Oracle: name includes schema (e.g., "public.users")
+ * - MySQL/SQLite: name is just table name (e.g., "users"), schema is database name
+ * - MSSQL: name is just table name, schema is separate (e.g., "dbo")
+ */
 function tableMatchesReference(table: TableInfo, reference: string): boolean {
-  const tableName = table.name.toLowerCase();
+  const tableNameLower = table.name.toLowerCase();
   const schemaName = table.schema?.toLowerCase();
 
-  // Check full qualified name (schema.table)
-  if (schemaName && reference.includes(".")) {
-    const fullName = `${schemaName}.${tableName}`;
-    if (fullName === reference) return true;
+  // Check if table.name already includes schema (PostgreSQL, Oracle return "schema.table")
+  const tableNameHasSchema = tableNameLower.includes('.');
+
+  // Extract just the table name without schema prefix
+  const pureTableName = tableNameHasSchema
+    ? tableNameLower.split('.').pop()!
+    : tableNameLower;
+
+  // If reference doesn't include schema, match against pure table name
+  if (!reference.includes('.')) {
+    return pureTableName === reference;
   }
 
-  // Check just the table name (for @table without schema)
-  if (tableName === reference) return true;
+  // Reference includes schema (e.g., @schema.table)
+  const [refSchema, refTable] = reference.split('.');
 
-  // Check if reference is schema.table and matches this table
-  if (reference.includes(".")) {
-    const [refSchema, refTable] = reference.split(".");
-    if (schemaName === refSchema && tableName === refTable) return true;
+  // For tables where name already includes schema (PostgreSQL, Oracle)
+  if (tableNameHasSchema) {
+    return tableNameLower === reference;
   }
 
-  return false;
+  // For tables where schema is separate (MySQL, MSSQL, SQLite)
+  return schemaName === refSchema && pureTableName === refTable;
 }
 
 /** Fetch table schema from backend */
