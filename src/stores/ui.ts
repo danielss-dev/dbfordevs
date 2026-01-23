@@ -276,20 +276,21 @@ export const useUIStore = create<UIState>()(
         );
 
         // Apply theme-specific class
+        // Dark-based themes also get the "dark" class for Tailwind dark: variants
         if (theme === "nordic-dark") {
-          root.classList.add("theme-nordic-dark");
+          root.classList.add("dark", "theme-nordic-dark");
         } else if (theme === "nordic-light") {
           root.classList.add("theme-nordic-light");
         } else if (theme === "slasher") {
-          root.classList.add("theme-slasher");
+          root.classList.add("dark", "theme-slasher");
         } else if (theme === "solarized-dark") {
-          root.classList.add("theme-solarized-dark");
+          root.classList.add("dark", "theme-solarized-dark");
         } else if (theme === "solarized-light") {
           root.classList.add("theme-solarized-light");
         } else if (theme === "one-dark") {
-          root.classList.add("theme-one-dark");
+          root.classList.add("dark", "theme-one-dark");
         } else if (theme === "high-contrast") {
-          root.classList.add("theme-high-contrast");
+          root.classList.add("dark", "theme-high-contrast");
         } else if (theme === "system") {
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           root.classList.toggle("dark", prefersDark);

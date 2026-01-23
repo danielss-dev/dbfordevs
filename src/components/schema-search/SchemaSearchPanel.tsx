@@ -9,16 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSchemaSearchStore, useQueryStore, useConnectionsStore, useUIStore, selectActiveConnection } from "@/stores";
-import { useRedisStore } from "@/stores/redis";
+import { useSchemaSearchStore, useQueryStore, useConnectionsStore, useUIStore, selectActiveConnection, useSidebarHighlightStore } from "@/stores";
 import { useMongoDBStore } from "@/stores/mongodb";
-import { useDatabase, useRedis, useMongoDB } from "@/hooks";
+import { useCassandraStore } from "@/stores/cassandra";
+import { useDatabase, useRedis, useMongoDB, useCassandra } from "@/hooks";
 import { fuzzySearch } from "@/lib/fuzzy-search";
 import { getDatabaseFeatureSupport } from "@/lib/database-features";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
 import { SchemaSearchResults } from "./SchemaSearchResults";
 import { SchemaSearchFilters } from "./SchemaSearchFilters";
-import type { SchemaSearchResult, SearchHistoryEntry } from "@/types";
+import type { SchemaSearchResult, Tab } from "@/types";
 
 export function SchemaSearchPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -35,15 +35,16 @@ export function SchemaSearchPanel() {
     selectNext,
     selectPrevious,
     enabledFilters,
-    addToHistory,
+    setEnabledFilters,
     updateSchemaCache,
     getFromCache,
   } = useSchemaSearchStore();
 
-  const { addTab, setActiveTab } = useQueryStore();
+  const { tabs, addTab, setActiveTab } = useQueryStore();
   const { connections, setActiveConnection } = useConnectionsStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const { setRightPanelTab } = useUIStore();
+  const { setHighlightedTable } = useSidebarHighlightStore();
   const {
     getTables,
     getViews,
@@ -54,9 +55,10 @@ export function SchemaSearchPanel() {
     getSequences,
   } = useDatabase();
 
-  // Hooks for fetching Redis and MongoDB data
+  // Hooks for fetching Redis, MongoDB, and Cassandra data
   const { scanKeys } = useRedis();
   const { listDatabases, listCollections, listIndexes } = useMongoDB();
+  const { listKeyspaces, listTables: listCassandraTables, describeTable: describeCassandraTable, listIndexes: listCassandraIndexes } = useCassandra();
 
   // Get only connected connections
   const connectedConnections = useMemo(() => {
@@ -79,11 +81,25 @@ export function SchemaSearchPanel() {
     }
   }, [activeConnection, connectedConnections, selectedConnectionId]);
 
-  // Clear results when connection changes
+  // Clear results and reset filters when connection changes
   useEffect(() => {
     setResults([]);
     setQuery("");
-  }, [selectedConnectionId, setResults, setQuery]);
+    // Reset filters to appropriate ones for the new database type
+    if (selectedConnection) {
+      const dbType = selectedConnection.databaseType;
+      if (dbType === "redis") {
+        setEnabledFilters(["redis-key"]);
+      } else if (dbType === "mongodb") {
+        setEnabledFilters(["mongo-database", "mongo-collection", "mongo-index"]);
+      } else if (dbType === "cassandra") {
+        setEnabledFilters(["cassandra-keyspace", "cassandra-table", "cassandra-column", "cassandra-index"]);
+      } else {
+        // SQL databases
+        setEnabledFilters(["table", "column", "view", "index", "procedure", "function", "trigger", "sequence"]);
+      }
+    }
+  }, [selectedConnectionId, selectedConnection, setResults, setQuery, setEnabledFilters]);
 
   // Get database feature support for selected connection
   const featureSupport = useMemo(() => {
@@ -182,14 +198,92 @@ export function SchemaSearchPanel() {
         return items;
       }
 
+      // Cassandra: fetch keyspaces, tables, columns, and indexes
+      if (dbType === "cassandra") {
+        // Fetch keyspaces from backend
+        const keyspaces = await listKeyspaces(connId) || [];
+
+        for (const ks of keyspaces) {
+          items.push({
+            id: `cassandra-keyspace-${ks.name}`,
+            objectType: "cassandra-keyspace",
+            name: ks.name,
+            fullPath: ks.name,
+            connectionId: connId,
+            matchScore: 0,
+            matchIndices: [],
+            metadata: { replicationStrategy: ks.replicationStrategy, replicationFactor: ks.replicationFactor },
+          });
+
+          // Fetch tables for this keyspace
+          const tables = await listCassandraTables(connId, ks.name) || [];
+          for (const table of tables) {
+            const tableFullPath = `${ks.name}.${table.name}`;
+            items.push({
+              id: `cassandra-table-${tableFullPath}`,
+              objectType: "cassandra-table",
+              name: table.name,
+              fullPath: tableFullPath,
+              parentName: ks.name,
+              connectionId: connId,
+              matchScore: 0,
+              matchIndices: [],
+              metadata: { columnCount: table.columnCount, partitionKeys: table.partitionKeys },
+            });
+
+            // Fetch columns for this table
+            const columns = await describeCassandraTable(connId, ks.name, table.name) || [];
+            for (const col of columns) {
+              const colFullPath = `${ks.name}.${table.name}.${col.name}`;
+              items.push({
+                id: `cassandra-column-${colFullPath}`,
+                objectType: "cassandra-column",
+                name: col.name,
+                fullPath: colFullPath,
+                parentName: table.name,
+                schema: ks.name,
+                connectionId: connId,
+                matchScore: 0,
+                matchIndices: [],
+                metadata: { dataType: col.dataType, kind: col.kind },
+              });
+            }
+          }
+
+          // Fetch indexes for this keyspace
+          const indexes = await listCassandraIndexes(connId, ks.name) || [];
+          for (const idx of indexes) {
+            const idxFullPath = `${ks.name}.${idx.tableName}.${idx.name}`;
+            items.push({
+              id: `cassandra-index-${idxFullPath}`,
+              objectType: "cassandra-index",
+              name: idx.name,
+              fullPath: idxFullPath,
+              parentName: idx.tableName,
+              schema: ks.name,
+              connectionId: connId,
+              matchScore: 0,
+              matchIndices: [],
+              metadata: { indexType: idx.indexType, columnName: idx.columnName },
+            });
+          }
+        }
+        return items;
+      }
+
       // SQL databases: fetch tables and their columns
       const tables = await getTables(connId);
       for (const table of tables) {
-        const fullPath = table.schema ? `${table.schema}.${table.name}` : table.name;
+        // table.name might already include schema prefix (e.g., "public.users")
+        // Only add schema prefix if table.name doesn't already have it
+        const alreadyHasSchema = table.schema && table.name.startsWith(`${table.schema}.`);
+        const fullPath = (table.schema && !alreadyHasSchema) ? `${table.schema}.${table.name}` : table.name;
+        // For display, use the name without schema prefix
+        const displayName = (alreadyHasSchema && table.schema) ? table.name.slice(table.schema.length + 1) : table.name;
         items.push({
           id: `table-${fullPath}`,
           objectType: "table",
-          name: table.name,
+          name: displayName,
           fullPath,
           schema: table.schema,
           connectionId: connId,
@@ -203,11 +297,14 @@ export function SchemaSearchPanel() {
       try {
         const views = await getViews(connId);
         for (const view of views) {
-          const fullPath = view.schema ? `${view.schema}.${view.name}` : view.name;
+          // view.name might already include schema prefix
+          const viewAlreadyHasSchema = view.schema && view.name.startsWith(`${view.schema}.`);
+          const fullPath = (view.schema && !viewAlreadyHasSchema) ? `${view.schema}.${view.name}` : view.name;
+          const displayName = (viewAlreadyHasSchema && view.schema) ? view.name.slice(view.schema.length + 1) : view.name;
           items.push({
             id: `view-${fullPath}`,
             objectType: "view",
-            name: view.name,
+            name: displayName,
             fullPath,
             schema: view.schema,
             connectionId: connId,
@@ -341,7 +438,10 @@ export function SchemaSearchPanel() {
       const { getSchema } = await import("@/stores/schema").then(m => ({ getSchema: m.useSchemaStore.getState().getSchema }));
 
       for (const table of connectionTables) {
-        const tablePath = table.schema ? `${table.schema}.${table.name}` : table.name;
+        // table.name might already include schema prefix
+        const colTableAlreadyHasSchema = table.schema && table.name.startsWith(`${table.schema}.`);
+        const tablePath = (table.schema && !colTableAlreadyHasSchema) ? `${table.schema}.${table.name}` : table.name;
+        const tableDisplayName = (colTableAlreadyHasSchema && table.schema) ? table.name.slice(table.schema.length + 1) : table.name;
         const schema = getSchema(connId, tablePath);
         if (schema) {
           for (const col of schema.columns) {
@@ -350,7 +450,7 @@ export function SchemaSearchPanel() {
               objectType: "column",
               name: col.name,
               fullPath: `${tablePath}.${col.name}`,
-              parentName: table.name,
+              parentName: tableDisplayName,
               schema: table.schema,
               connectionId: connId,
               matchScore: 0,
@@ -385,6 +485,10 @@ export function SchemaSearchPanel() {
     listDatabases,
     listCollections,
     listIndexes,
+    listKeyspaces,
+    listCassandraTables,
+    describeCassandraTable,
+    listCassandraIndexes,
   ]);
 
   /**
@@ -420,16 +524,6 @@ export function SchemaSearchPanel() {
 
       // Update results
       setResults(searchResults);
-
-      // Add to history if we have results
-      if (searchResults.length > 0) {
-        addToHistory({
-          query: searchQuery,
-          connectionId: selectedConnectionId,
-          timestamp: Date.now(),
-          resultCount: searchResults.length,
-        });
-      }
     } catch (error) {
       console.error("Search error:", error);
       setResults([]);
@@ -444,7 +538,6 @@ export function SchemaSearchPanel() {
     updateSchemaCache,
     setResults,
     setSearching,
-    addToHistory,
   ]);
 
   /**
@@ -472,16 +565,28 @@ export function SchemaSearchPanel() {
     switch (result.objectType) {
       case "table":
       case "view": {
-        const tabId = crypto.randomUUID();
-        const sql = `SELECT * FROM ${result.fullPath} LIMIT 100;`;
-        addTab({
-          id: tabId,
-          title: result.name,
-          type: "query",
-          connectionId: result.connectionId,
-          content: sql,
+        // Open the table browser (same as clicking in sidebar)
+        const tabId = `table-${result.connectionId}-${result.fullPath}`;
+        const existingTab = tabs.find((t) => t.id === tabId);
+        if (existingTab) {
+          setActiveTab(tabId);
+        } else {
+          addTab({
+            id: tabId,
+            title: result.name,
+            tableName: result.fullPath,
+            type: "table",
+            connectionId: result.connectionId,
+          });
+        }
+        // Highlight the table in the sidebar tree
+        setHighlightedTable(result.connectionId, {
+          schema: result.schema,
+          table: result.fullPath,
         });
-        setActiveTab(tabId);
+        // Switch to the connection and close search panel
+        setActiveConnection(result.connectionId);
+        setRightPanelTab(null);
         break;
       }
       case "column": {
@@ -558,10 +663,22 @@ export function SchemaSearchPanel() {
       }
       // Redis
       case "redis-key": {
-        // Switch to the connection and highlight the key (triggers tree expansion + scroll + animation)
+        // Open the key viewer (same as clicking in sidebar)
+        const tabId = `redis-key-${result.connectionId}-${result.name}`;
+        const existingTab = tabs.find((t) => t.id === tabId);
+        if (existingTab) {
+          setActiveTab(tabId);
+        } else {
+          addTab({
+            id: tabId,
+            title: result.name.length > 20 ? result.name.substring(0, 17) + "..." : result.name,
+            type: "redis-key",
+            connectionId: result.connectionId,
+            redisKey: result.name,
+          } as Tab);
+        }
+        // Switch to the connection and close search panel
         setActiveConnection(result.connectionId);
-        useRedisStore.getState().setHighlightedKey(result.connectionId, result.name);
-        // Close the search panel
         setRightPanelTab(null);
         break;
       }
@@ -580,14 +697,29 @@ export function SchemaSearchPanel() {
       case "mongo-collection": {
         const dbName = result.parentName;
         if (dbName) {
-          // Switch to the connection and highlight the collection
-          setActiveConnection(result.connectionId);
+          // Open the collection browser (same as clicking in sidebar)
+          const tabId = `mongodb-browser-${result.connectionId}-${dbName}-${result.name}`;
+          const existingTab = tabs.find((t) => t.id === tabId);
+          if (existingTab) {
+            setActiveTab(tabId);
+          } else {
+            addTab({
+              id: tabId,
+              title: result.name.length > 20 ? result.name.substring(0, 17) + "..." : result.name,
+              type: "mongodb-browser",
+              connectionId: result.connectionId,
+              mongoDatabase: dbName,
+              mongoCollection: result.name,
+            } as Tab);
+          }
+          // Highlight the collection in the sidebar tree
           useMongoDBStore.getState().setHighlightedItem(result.connectionId, {
             type: "collection",
             dbName,
             name: result.name,
           });
-          // Close the search panel
+          // Switch to the connection and close search panel
+          setActiveConnection(result.connectionId);
           setRightPanelTab(null);
         }
         break;
@@ -609,23 +741,84 @@ export function SchemaSearchPanel() {
         }
         break;
       }
-    }
-  }, [addTab, setActiveTab, setActiveConnection, setRightPanelTab]);
-
-  /**
-   * Handle history item click
-   */
-  const handleHistoryClick = useCallback((entry: SearchHistoryEntry) => {
-    // If the history entry is for a different connection, switch to it
-    if (entry.connectionId !== selectedConnectionId) {
-      const conn = connectedConnections.find(c => c.id === entry.connectionId);
-      if (conn) {
-        setSelectedConnectionId(entry.connectionId);
+      // Cassandra
+      case "cassandra-keyspace": {
+        // Switch to the connection and highlight the keyspace
+        setActiveConnection(result.connectionId);
+        useCassandraStore.getState().setHighlightedItem(result.connectionId, {
+          type: "keyspace",
+          name: result.name,
+        });
+        // Close the search panel
+        setRightPanelTab(null);
+        break;
+      }
+      case "cassandra-table": {
+        const keyspace = result.parentName;
+        if (keyspace) {
+          // Open the table browser (same as clicking in sidebar)
+          const tabId = `cassandra-browser-${result.connectionId}-${keyspace}-${result.name}`;
+          const existingTab = tabs.find((t) => t.id === tabId);
+          if (existingTab) {
+            setActiveTab(tabId);
+          } else {
+            addTab({
+              id: tabId,
+              title: result.name.length > 20 ? result.name.substring(0, 17) + "..." : result.name,
+              type: "cassandra-browser",
+              connectionId: result.connectionId,
+              cassandraKeyspace: keyspace,
+              cassandraTable: result.name,
+            } as Tab);
+          }
+          // Highlight the table in the sidebar tree
+          useCassandraStore.getState().setHighlightedItem(result.connectionId, {
+            type: "table",
+            keyspace,
+            name: result.name,
+          });
+          // Switch to the connection and close search panel
+          setActiveConnection(result.connectionId);
+          setRightPanelTab(null);
+        }
+        break;
+      }
+      case "cassandra-column": {
+        const keyspace = result.schema;
+        const tableName = result.parentName;
+        if (keyspace && tableName) {
+          // Switch to the connection and highlight the column
+          setActiveConnection(result.connectionId);
+          useCassandraStore.getState().setHighlightedItem(result.connectionId, {
+            type: "column",
+            keyspace,
+            table: tableName,
+            name: result.name,
+          });
+          // Close the search panel
+          setRightPanelTab(null);
+        }
+        break;
+      }
+      case "cassandra-index": {
+        const keyspace = result.schema;
+        const tableName = result.parentName;
+        if (keyspace && tableName) {
+          // Switch to the connection and highlight the index
+          setActiveConnection(result.connectionId);
+          useCassandraStore.getState().setHighlightedItem(result.connectionId, {
+            type: "index",
+            keyspace,
+            table: tableName,
+            name: result.name,
+          });
+          // Close the search panel
+          setRightPanelTab(null);
+        }
+        break;
       }
     }
-    setQuery(entry.query);
-    performSearch(entry.query);
-  }, [setQuery, performSearch, selectedConnectionId, connectedConnections]);
+  }, [addTab, setActiveTab, setActiveConnection, setRightPanelTab]);
 
   /**
    * Handle keyboard navigation
@@ -683,8 +876,12 @@ export function SchemaSearchPanel() {
       const mongoFilters = enabledFilters.filter(f => f.startsWith("mongo-"));
       return 3 - mongoFilters.length; // 3 filter types for MongoDB
     }
+    if (dbType === "cassandra") {
+      const cassandraFilters = enabledFilters.filter(f => f.startsWith("cassandra-"));
+      return 4 - cassandraFilters.length; // 4 filter types for Cassandra
+    }
     // SQL databases have 8 filter types
-    const sqlFilters = enabledFilters.filter(f => !f.startsWith("redis-") && !f.startsWith("mongo-"));
+    const sqlFilters = enabledFilters.filter(f => !f.startsWith("redis-") && !f.startsWith("mongo-") && !f.startsWith("cassandra-"));
     return 8 - sqlFilters.length;
   };
   const activeFilterCount = getFilterCount();
@@ -777,7 +974,9 @@ export function SchemaSearchPanel() {
                 ? "Search keys..."
                 : selectedConnection?.databaseType === "mongodb"
                   ? "Search databases, collections..."
-                  : "Search tables, columns, views..."
+                  : selectedConnection?.databaseType === "cassandra"
+                    ? "Search keyspaces, tables..."
+                    : "Search tables, columns, views..."
             }
             className="h-9 pl-9 pr-9"
           />
@@ -807,7 +1006,6 @@ export function SchemaSearchPanel() {
         <div className="p-2">
           <SchemaSearchResults
             onResultClick={handleResultClick}
-            onHistoryClick={handleHistoryClick}
           />
         </div>
       </ScrollArea>

@@ -20,4 +20,5 @@ export * from "./mongodb";
 export * from "./cassandra";
 export * from "./themes";
 export * from "./schema-search";
+export * from "./sidebar-highlight";
 

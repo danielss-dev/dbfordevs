@@ -1,14 +1,12 @@
 import { useMemo } from "react";
-import { Loader2, History, X, Search } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Loader2, Search } from "lucide-react";
 import { useSchemaSearchStore } from "@/stores";
 import { SchemaSearchResultItem } from "./SchemaSearchResultItem";
 import { SCHEMA_OBJECT_TYPE_LABELS } from "@/types";
-import type { SchemaObjectType, SchemaSearchResult, SearchHistoryEntry } from "@/types";
+import type { SchemaObjectType, SchemaSearchResult } from "@/types";
 
 interface SchemaSearchResultsProps {
   onResultClick: (result: SchemaSearchResult) => void;
-  onHistoryClick: (entry: SearchHistoryEntry) => void;
 }
 
 interface GroupedResults {
@@ -19,7 +17,6 @@ interface GroupedResults {
 
 export function SchemaSearchResults({
   onResultClick,
-  onHistoryClick,
 }: SchemaSearchResultsProps) {
   const {
     query,
@@ -27,9 +24,6 @@ export function SchemaSearchResults({
     isSearching,
     selectedIndex,
     setSelectedIndex,
-    searchHistory,
-    removeFromHistory,
-    clearHistory,
     enabledFilters,
   } = useSchemaSearchStore();
 
@@ -55,13 +49,18 @@ export function SchemaSearchResults({
       "mongo-database": [],
       "mongo-collection": [],
       "mongo-index": [],
+      // Cassandra
+      "cassandra-keyspace": [],
+      "cassandra-table": [],
+      "cassandra-column": [],
+      "cassandra-index": [],
     };
 
     for (const result of filteredResults) {
       groups[result.objectType].push(result);
     }
 
-    // Order: tables first, then columns, then rest, then Redis, then MongoDB
+    // Order: tables first, then columns, then rest, then Redis, then MongoDB, then Cassandra
     const order: SchemaObjectType[] = [
       "table",
       "column",
@@ -77,6 +76,11 @@ export function SchemaSearchResults({
       "mongo-database",
       "mongo-collection",
       "mongo-index",
+      // Cassandra
+      "cassandra-keyspace",
+      "cassandra-table",
+      "cassandra-column",
+      "cassandra-index",
     ];
 
     return order
@@ -110,62 +114,17 @@ export function SchemaSearchResults({
     );
   }
 
-  // No query - show history
+  // No query - show placeholder
   if (!query.trim()) {
-    if (searchHistory.length === 0) {
-      return (
-        <div className="py-8 text-center">
-          <Search className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-          <p className="text-sm text-muted-foreground">
-            Search for tables, columns, views, and more
-          </p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
-            Type to start searching
-          </p>
-        </div>
-      );
-    }
-
     return (
-      <div className="space-y-1">
-        <div className="flex items-center justify-between px-2 py-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <History className="h-3.5 w-3.5" />
-            <span>Recent searches</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={clearHistory}
-          >
-            Clear
-          </Button>
-        </div>
-        <div className="space-y-0.5">
-          {searchHistory.map((entry) => (
-            <button
-              key={entry.id}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-accent/50 group"
-              onClick={() => onHistoryClick(entry)}
-            >
-              <History className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-              <span className="flex-1 text-left truncate">{entry.query}</span>
-              <span className="text-xs text-muted-foreground">
-                {entry.resultCount} result{entry.resultCount !== 1 ? "s" : ""}
-              </span>
-              <button
-                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-accent rounded transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeFromHistory(entry.id);
-                }}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </button>
-          ))}
-        </div>
+      <div className="py-8 text-center">
+        <Search className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+        <p className="text-sm text-muted-foreground">
+          Search for tables, columns, views, and more
+        </p>
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          Type to start searching
+        </p>
       </div>
     );
   }

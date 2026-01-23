@@ -10,6 +10,7 @@ import {
   Key,
   Database,
   FolderOpen,
+  HardDrive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { highlightMatches } from "@/lib/fuzzy-search";
@@ -38,6 +39,11 @@ const OBJECT_TYPE_ICONS: Record<SchemaObjectType, React.ComponentType<{ classNam
   "mongo-database": Database,
   "mongo-collection": FolderOpen,
   "mongo-index": ListTree,
+  // Cassandra
+  "cassandra-keyspace": HardDrive,
+  "cassandra-table": Table,
+  "cassandra-column": Columns,
+  "cassandra-index": ListTree,
 };
 
 /** Colors for each schema object type */
@@ -56,6 +62,11 @@ const OBJECT_TYPE_COLORS: Record<SchemaObjectType, string> = {
   "mongo-database": "text-green-500",
   "mongo-collection": "text-green-600",
   "mongo-index": "text-green-400",
+  // Cassandra
+  "cassandra-keyspace": "text-sky-500",
+  "cassandra-table": "text-sky-600",
+  "cassandra-column": "text-sky-400",
+  "cassandra-index": "text-sky-300",
 };
 
 export function SchemaSearchResultItem({
