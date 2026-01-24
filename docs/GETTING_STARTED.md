@@ -235,7 +235,7 @@ Selected data in the grid can be copied and pasted into spreadsheet applications
 
 Click the **Settings** icon (gear icon) to access:
 
-- **Theme**: Choose from Light, Dark, Nordic Light, Nordic Dark, Slasher, Solarized Light, Solarized Dark, or System (auto)
+- **Theme**: Choose from Light, Dark, Classic Light, Classic Dark, Nordic Light, Nordic Dark, Solarized Light, Solarized Dark, or System (auto)
 - **Appearance Mode**: Developer or Web view
 - **Font Size**: Adjust editor and grid font sizes
 - **Keyboard Shortcuts**: View and customize shortcuts

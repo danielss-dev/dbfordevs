@@ -4,8 +4,98 @@ import type * as Monaco from "monaco-editor";
  * Register custom Monaco themes that match the app's design system
  */
 export function registerCustomThemes(monaco: typeof Monaco) {
-  // Dark theme matching the app's design
+  // Default Dark theme - near-black with orange accents
   monaco.editor.defineTheme("dbfordevs-dark", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [
+      { token: "keyword", foreground: "f97316", fontStyle: "bold" },
+      { token: "keyword.sql", foreground: "f97316", fontStyle: "bold" },
+      { token: "string", foreground: "fbbf24" },
+      { token: "string.sql", foreground: "fbbf24" },
+      { token: "number", foreground: "a78bfa" },
+      { token: "number.sql", foreground: "a78bfa" },
+      { token: "comment", foreground: "6b7280", fontStyle: "italic" },
+      { token: "comment.sql", foreground: "6b7280", fontStyle: "italic" },
+      { token: "operator", foreground: "e5e5e5" },
+      { token: "operator.sql", foreground: "e5e5e5" },
+      { token: "identifier", foreground: "d4d4d4" },
+      { token: "identifier.sql", foreground: "d4d4d4" },
+      { token: "type", foreground: "c084fc" },
+      { token: "predefined.sql", foreground: "c084fc" },
+    ],
+    colors: {
+      "editor.background": "#1a1a1a",
+      "editor.foreground": "#ebebeb",
+      "editor.lineHighlightBackground": "#262626",
+      "editor.selectionBackground": "#f9731640",
+      "editorLineNumber.foreground": "#525252",
+      "editorLineNumber.activeForeground": "#f97316",
+      "editorCursor.foreground": "#f97316",
+      "editor.inactiveSelectionBackground": "#f9731620",
+      "editorWidget.background": "#212121",
+      "editorWidget.border": "#333333",
+      "editorSuggestWidget.background": "#212121",
+      "editorSuggestWidget.border": "#333333",
+      "editorSuggestWidget.foreground": "#ebebeb",
+      "editorSuggestWidget.selectedBackground": "#f9731630",
+      "editorSuggestWidget.highlightForeground": "#f97316",
+      "scrollbarSlider.background": "#52525233",
+      "scrollbarSlider.hoverBackground": "#52525280",
+      "scrollbarSlider.activeBackground": "#525252",
+      "editorGutter.background": "#1a1a1a",
+      "editorGutter.foldingControlForeground": "#525252",
+      "editor.foldBackground": "#262626",
+    },
+  });
+
+  // Default Light theme - warm white with orange accents
+  monaco.editor.defineTheme("dbfordevs-light", {
+    base: "vs",
+    inherit: true,
+    rules: [
+      { token: "keyword", foreground: "ea580c", fontStyle: "bold" },
+      { token: "keyword.sql", foreground: "ea580c", fontStyle: "bold" },
+      { token: "string", foreground: "b45309" },
+      { token: "string.sql", foreground: "b45309" },
+      { token: "number", foreground: "7c3aed" },
+      { token: "number.sql", foreground: "7c3aed" },
+      { token: "comment", foreground: "9ca3af", fontStyle: "italic" },
+      { token: "comment.sql", foreground: "9ca3af", fontStyle: "italic" },
+      { token: "operator", foreground: "374151" },
+      { token: "operator.sql", foreground: "374151" },
+      { token: "identifier", foreground: "1f2937" },
+      { token: "identifier.sql", foreground: "1f2937" },
+      { token: "type", foreground: "9333ea" },
+      { token: "predefined.sql", foreground: "9333ea" },
+    ],
+    colors: {
+      "editor.background": "#faf8f5",
+      "editor.foreground": "#1f2937",
+      "editor.lineHighlightBackground": "#f5f0eb",
+      "editor.selectionBackground": "#fdba7440",
+      "editorLineNumber.foreground": "#9ca3af",
+      "editorLineNumber.activeForeground": "#ea580c",
+      "editorCursor.foreground": "#ea580c",
+      "editor.inactiveSelectionBackground": "#fdba7420",
+      "editorWidget.background": "#fefdfb",
+      "editorWidget.border": "#e5e0da",
+      "editorSuggestWidget.background": "#fefdfb",
+      "editorSuggestWidget.border": "#e5e0da",
+      "editorSuggestWidget.foreground": "#1f2937",
+      "editorSuggestWidget.selectedBackground": "#fdba7430",
+      "editorSuggestWidget.highlightForeground": "#ea580c",
+      "scrollbarSlider.background": "#9ca3af33",
+      "scrollbarSlider.hoverBackground": "#9ca3af66",
+      "scrollbarSlider.activeBackground": "#9ca3af",
+      "editorGutter.background": "#faf8f5",
+      "editorGutter.foldingControlForeground": "#9ca3af",
+      "editor.foldBackground": "#f5f0eb",
+    },
+  });
+
+  // Classic Dark theme - original blue accent dark theme
+  monaco.editor.defineTheme("dbfordevs-classic-dark", {
     base: "vs-dark",
     inherit: true,
     rules: [
@@ -49,8 +139,8 @@ export function registerCustomThemes(monaco: typeof Monaco) {
     },
   });
 
-  // Light theme for light mode
-  monaco.editor.defineTheme("dbfordevs-light", {
+  // Classic Light theme - original blue accent light theme
+  monaco.editor.defineTheme("dbfordevs-classic-light", {
     base: "vs",
     inherit: true,
     rules: [
@@ -93,51 +183,6 @@ export function registerCustomThemes(monaco: typeof Monaco) {
       "editorGutter.background": "#ffffff",
       "editorGutter.foldingControlForeground": "#636c76",
       "editor.foldBackground": "#f0f0f0",
-    },
-  });
-
-  // Slasher theme - near-black with orange accents
-  monaco.editor.defineTheme("dbfordevs-slasher", {
-    base: "vs-dark",
-    inherit: true,
-    rules: [
-      { token: "keyword", foreground: "f97316", fontStyle: "bold" },
-      { token: "keyword.sql", foreground: "f97316", fontStyle: "bold" },
-      { token: "string", foreground: "fbbf24" },
-      { token: "string.sql", foreground: "fbbf24" },
-      { token: "number", foreground: "a78bfa" },
-      { token: "number.sql", foreground: "a78bfa" },
-      { token: "comment", foreground: "6b7280", fontStyle: "italic" },
-      { token: "comment.sql", foreground: "6b7280", fontStyle: "italic" },
-      { token: "operator", foreground: "e5e5e5" },
-      { token: "operator.sql", foreground: "e5e5e5" },
-      { token: "identifier", foreground: "d4d4d4" },
-      { token: "identifier.sql", foreground: "d4d4d4" },
-      { token: "type", foreground: "c084fc" },
-      { token: "predefined.sql", foreground: "c084fc" },
-    ],
-    colors: {
-      "editor.background": "#1a1a1a",
-      "editor.foreground": "#ebebeb",
-      "editor.lineHighlightBackground": "#262626",
-      "editor.selectionBackground": "#f9731640",
-      "editorLineNumber.foreground": "#525252",
-      "editorLineNumber.activeForeground": "#f97316",
-      "editorCursor.foreground": "#f97316",
-      "editor.inactiveSelectionBackground": "#f9731620",
-      "editorWidget.background": "#212121",
-      "editorWidget.border": "#333333",
-      "editorSuggestWidget.background": "#212121",
-      "editorSuggestWidget.border": "#333333",
-      "editorSuggestWidget.foreground": "#ebebeb",
-      "editorSuggestWidget.selectedBackground": "#f9731630",
-      "editorSuggestWidget.highlightForeground": "#f97316",
-      "scrollbarSlider.background": "#52525233",
-      "scrollbarSlider.hoverBackground": "#52525280",
-      "scrollbarSlider.activeBackground": "#525252",
-      "editorGutter.background": "#1a1a1a",
-      "editorGutter.foldingControlForeground": "#525252",
-      "editor.foldBackground": "#262626",
     },
   });
 
@@ -325,7 +370,7 @@ export function registerCustomThemes(monaco: typeof Monaco) {
 /**
  * Built-in theme type for the function signature
  */
-type BuiltInTheme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher" | "solarized-dark" | "solarized-light" | "one-dark" | "high-contrast";
+type BuiltInTheme = "light" | "dark" | "system" | "classic-light" | "classic-dark" | "nordic-dark" | "nordic-light" | "solarized-dark" | "solarized-light" | "one-dark" | "high-contrast";
 
 /**
  * Get the Monaco theme name based on the app's current theme setting
@@ -344,17 +389,20 @@ export function getMonacoTheme(
     return baseTheme === "light" ? "dbfordevs-light" : "dbfordevs-dark";
   }
 
+  // Handle Classic themes
+  if (appTheme === "classic-dark") {
+    return "dbfordevs-classic-dark";
+  }
+  if (appTheme === "classic-light") {
+    return "dbfordevs-classic-light";
+  }
+
   // Handle Nordic themes (use generic dark/light monaco)
   if (appTheme === "nordic-dark") {
     return "dbfordevs-dark";
   }
   if (appTheme === "nordic-light") {
     return "dbfordevs-light";
-  }
-
-  // Handle Slasher theme
-  if (appTheme === "slasher") {
-    return "dbfordevs-slasher";
   }
 
   // Handle Solarized themes

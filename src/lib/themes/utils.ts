@@ -101,9 +101,10 @@ export function applyCustomTheme(theme: CustomTheme): void {
   const root = document.documentElement;
   root.classList.remove(
     "dark",
+    "theme-classic-light",
+    "theme-classic-dark",
     "theme-nordic-dark",
     "theme-nordic-light",
-    "theme-slasher",
     "theme-solarized-dark",
     "theme-solarized-light",
     "theme-one-dark",

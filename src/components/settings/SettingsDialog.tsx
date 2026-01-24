@@ -39,7 +39,6 @@ import {
   Download,
   RefreshCw,
   Table,
-  Zap,
   Eye,
   Palette,
   Wrench,
@@ -336,9 +335,10 @@ export function SettingsDialog() {
       system: "System",
       light: "Light",
       dark: "Dark",
+      "classic-light": "Classic Light",
+      "classic-dark": "Classic Dark",
       "nordic-dark": "Nordic Dark",
       "nordic-light": "Nordic Light",
-      slasher: "Slasher",
       "solarized-dark": "Solarized Dark",
       "solarized-light": "Solarized Light",
       "one-dark": "One Dark",
@@ -901,18 +901,24 @@ export function SettingsDialog() {
                                   <span>Solarized Light</span>
                                 </div>
                               </SelectItem>
+                              {/* Classic Themes */}
+                              <SelectItem value="classic-light">
+                                <div className="flex items-center gap-2">
+                                  <Sun className="h-4 w-4 text-blue-500" />
+                                  <span>Classic Light</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="classic-dark">
+                                <div className="flex items-center gap-2">
+                                  <Moon className="h-4 w-4 text-blue-400" />
+                                  <span>Classic Dark</span>
+                                </div>
+                              </SelectItem>
                               {/* One Dark Theme */}
                               <SelectItem value="one-dark">
                                 <div className="flex items-center gap-2">
                                   <Palette className="h-4 w-4 text-[#61afef]" />
                                   <span>One Dark</span>
-                                </div>
-                              </SelectItem>
-                              {/* Slasher Theme */}
-                              <SelectItem value="slasher">
-                                <div className="flex items-center gap-2">
-                                  <Zap className="h-4 w-4 text-orange-500" />
-                                  <span>Slasher</span>
                                 </div>
                               </SelectItem>
                               {/* High Contrast Theme */}

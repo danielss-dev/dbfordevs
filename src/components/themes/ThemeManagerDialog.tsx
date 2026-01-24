@@ -24,7 +24,6 @@ import {
   Moon,
   Sun,
   Monitor,
-  Zap,
   Eye,
   Check,
   X,
@@ -49,7 +48,8 @@ const BUILT_IN_THEMES: { id: BuiltInThemeId; name: string; icon: React.ReactNode
   { id: "solarized-dark", name: "Solarized Dark", icon: <Moon className="h-4 w-4 text-[#268bd2]" />, baseTheme: "dark" },
   { id: "solarized-light", name: "Solarized Light", icon: <Sun className="h-4 w-4 text-[#b58900]" />, baseTheme: "light" },
   { id: "one-dark", name: "One Dark", icon: <Palette className="h-4 w-4 text-[#61afef]" />, baseTheme: "dark" },
-  { id: "slasher", name: "Slasher", icon: <Zap className="h-4 w-4 text-orange-500" />, baseTheme: "dark" },
+  { id: "classic-light", name: "Classic Light", icon: <Sun className="h-4 w-4 text-blue-500" />, baseTheme: "light" },
+  { id: "classic-dark", name: "Classic Dark", icon: <Moon className="h-4 w-4 text-blue-400" />, baseTheme: "dark" },
   { id: "high-contrast", name: "High Contrast", icon: <Eye className="h-4 w-4 text-yellow-400" />, baseTheme: "dark" },
 ];
 
