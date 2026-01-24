@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAIStore } from "@/lib/ai/store";
+import { DbForDevsIcon } from "@/components/icons";
 import { GridSettingsTab } from "./GridSettingsTab";
 
 interface SettingRowProps {
@@ -1198,7 +1199,7 @@ export function SettingsDialog() {
                       <div className="relative mb-6">
                         <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl" />
                         <div className="relative bg-primary/10 w-20 h-20 rounded-2xl flex items-center justify-center ring-8 ring-primary/5">
-                          <Database className="h-10 w-10 text-primary" />
+                          <DbForDevsIcon className="h-10 w-10 text-primary" />
                         </div>
                       </div>
                       <h2 className="text-2xl font-bold tracking-tight">dbfordevs</h2>

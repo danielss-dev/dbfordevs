@@ -68,6 +68,7 @@ import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
 import { showSuccessToast, showErrorToast, showInfoToast } from "@/lib/toast-helpers";
+import { DbForDevsIcon } from "@/components/icons";
 
 interface TreeItemProps {
   label: string;
@@ -2514,7 +2515,7 @@ export function Sidebar() {
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
         <div className="flex items-center gap-2.5">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
-            <Database className="h-4 w-4 text-primary" />
+            <DbForDevsIcon className="h-4 w-4 text-primary" />
           </div>
           <div>
             <span className="font-semibold text-sm">dbfordevs</span>
