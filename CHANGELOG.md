@@ -2,6 +2,20 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-01-24
+
+
+### Added
+- **feat**: enhance database support and features in documentation (#74)
+- **feat**: replace Database icon with DbForDevsIcon in Sidebar and Setting… (#73)
+- **feat**: implement schema diff functionality with UI components (#72)
+- Add support for MSSQL named instances (#69)
+
+### Changed
+- Enhance schema search and sidebar functionality for Cassandra support (#71)
+
+### Fixed
+- Fix AI table references for all database providers (#70)
 ## [0.4.0] - 2026-01-20
 
 

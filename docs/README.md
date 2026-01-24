@@ -34,6 +34,13 @@ In-depth documentation on using the application, including:
 - Tips and best practices
 - Troubleshooting
 
+### [Keyboard Shortcuts](./KEYBOARD_SHORTCUTS.md)
+Complete reference for all keyboard shortcuts:
+- General navigation
+- SQL editor shortcuts
+- Data grid operations
+- Quick reference card
+
 ### [SSL/TLS Testing](./ssl-tls-testing.md)
 Guide to testing secure database connections, including:
 - SSL mode configuration
