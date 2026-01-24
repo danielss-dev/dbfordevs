@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-dbfordevs is a cross-platform database management application built with Tauri 2.0 (Rust backend) and React 18 (TypeScript frontend). It provides a unified interface for PostgreSQL, MySQL, SQLite, Oracle, MSSQL and other databases with AI-powered query assistance.
+dbfordevs is a cross-platform database management application built with Tauri 2.0 (Rust backend) and React 18 (TypeScript frontend). It provides a unified interface for PostgreSQL, MySQL, SQLite, Oracle, MSSQL, MongoDB, Redis, Cassandra and other databases with AI-powered query assistance.
 
 ## Development Commands
 
@@ -42,7 +42,7 @@ bun scripts/bump-version.ts
 
 ### Backend (src-tauri/)
 - **Commands** (`src-tauri/src/commands/`): Tauri IPC handlers for connections, queries, tables
-- **Database Layer** (`src-tauri/src/db/`): sqlx-based async connection pooling with driver-specific implementations (postgres.rs, mysql.rs, sqlite.rs, oracle.rs, mssql.rs)
+- **Database Layer** (`src-tauri/src/db/`): sqlx-based async connection pooling with driver-specific implementations (postgres.rs, mysql.rs, sqlite.rs, oracle.rs, mssql.rs, mongodb.rs, redis.rs, cassandra.rs)
 - **Connection Manager**: `src-tauri/src/db/manager.rs` - manages active connection pools per connection ID
 
 ### AI Integration (Built-in)
@@ -58,7 +58,7 @@ bun scripts/bump-version.ts
 - **Components**: `src/components/ai/` - AI panel UI components
 
 ### Themes
-- **Built-in Themes**: Light, Dark, System (auto), Nordic Dark, Nordic Light
+- **Built-in Themes**: Light, Dark, System (auto), Nordic Dark, Nordic Light, Solarized Dark, Solarized Light
 - **Theme System**: CSS custom properties in `src/index.css`
 - **Theme Switching**: Managed by `useUIStore` in `src/stores/ui.ts`
 - **Monaco Editor**: Theme mapping in `src/components/editor/monaco-themes.ts`
@@ -94,12 +94,20 @@ bun scripts/bump-version.ts
 
 ## Database Support Status
 
-- **Fully Implemented**: PostgreSQL, MySQL, SQLite, Oracle, MSSQL
-- **Typed but not implemented**: MongoDB, Redis
+- **Fully Implemented**: PostgreSQL, MySQL, SQLite, Oracle, MSSQL, MongoDB, Redis, Cassandra
 
-## Recent Features (v0.3.0)
+## Recent Features (v0.4.0)
 
-- **Oracle Database Support**: Full driver implementation with Easy Connect format
+- **Schema Diff**: Compare and visualize schema differences between databases
+- **Cassandra Support**: Full NoSQL support for Apache Cassandra databases
+- **MongoDB & Redis**: Complete driver implementations with connection management and UI
+- **Oracle Wallet Support**: Secure authentication using Oracle Wallet
+- **SSL/TLS Testing**: Built-in feature for testing secure database connections
+- **Connection Groups & Tags**: Organize connections with groups and custom tags
+- **Tab Pinning**: Pin important query tabs to prevent accidental closure
+- **Solarized Themes**: Additional theme options (Solarized Light, Solarized Dark)
+- **Database Objects Management**: Create and manage procedures, functions, triggers, and sequences
+- **AI Context Management**: Enhanced AI assistant with NoSQL database context awareness
 - **Query Bookmarks & Templates**: Save, organize, and reuse queries with template variables
 - **Table Creation Wizard**: 5-step guided UI for creating tables with constraints and indexes
 - **SQL Formatting**: One-click SQL beautification with dialect-aware formatting

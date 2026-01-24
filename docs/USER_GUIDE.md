@@ -365,6 +365,114 @@ The left sidebar contains:
 7. **Test**: Click "Test Connection"
 8. **Save**: Store the connection for future use
 
+### Workflow 16: Organizing Connections with Groups & Tags
+
+**Goal**: Organize many connections for easier management
+
+1. **Create a Group**:
+   - Right-click in the connections area
+   - Select **"Create Group"**
+   - Name it (e.g., "Production", "Development")
+2. **Add Connections to Group**:
+   - Drag existing connections into the group
+   - Or create new connections directly in the group
+3. **Add Tags**:
+   - Right-click a connection
+   - Select **"Add Tag"**
+   - Enter a tag name (e.g., "API", "Reporting")
+4. **Filter by Tag**: Click a tag to filter the connection list
+5. **Color Coding**: Tags appear as colored labels for visual identification
+
+**Tip**: Use groups for environments and tags for projects/teams.
+
+### Workflow 17: Comparing Schemas with Schema Diff
+
+**Goal**: Identify differences between two database schemas
+
+1. **Open Schema Diff**: Click the **Schema Diff** button in the toolbar
+2. **Select Source**:
+   - Choose the source connection
+   - Select the schema to compare from
+3. **Select Target**:
+   - Choose the target connection
+   - Select the schema to compare against
+4. **Run Comparison**: Click **"Compare"**
+5. **Review Results**:
+   - Green items: Exist in source only
+   - Red items: Exist in target only
+   - Yellow items: Exist in both but differ
+6. **View Details**: Click any item to see detailed differences
+7. **Generate Scripts**: Export migration scripts if needed
+
+**Use Cases**:
+- Verify deployment success
+- Identify schema drift
+- Plan database migrations
+
+### Workflow 18: Using Tab Pinning
+
+**Goal**: Keep important query tabs always visible
+
+1. **Pin a Tab**: Right-click a query tab → **"Pin Tab"**
+2. **Pinned tabs**:
+   - Show a pin icon
+   - Move to the left side
+   - Cannot be closed with Ctrl/Cmd+W
+3. **Unpin**: Right-click → **"Unpin Tab"**
+4. **Tab Context Menu**: Right-click for options like:
+   - Close Other Tabs
+   - Close Tabs to the Right
+   - Duplicate Tab
+
+### Workflow 19: Working with MongoDB
+
+**Goal**: Connect to and query a MongoDB database
+
+1. **New Connection**: Click "New Connection"
+2. **Select MongoDB**: Choose MongoDB from database type
+3. **Connection String**: Enter `mongodb://user:pass@host:port/database`
+4. **Connect**: Click Test and Save
+5. **Browse Collections**: Expand the connection to see collections
+6. **View Documents**: Click a collection to view documents
+7. **Query**: Use MongoDB query syntax in the editor
+   ```javascript
+   { "status": "active", "age": { "$gt": 25 } }
+   ```
+8. **Edit Documents**: Click a document to edit in the side panel
+
+### Workflow 20: Working with Redis
+
+**Goal**: Connect to and manage a Redis database
+
+1. **New Connection**: Click "New Connection"
+2. **Select Redis**: Choose Redis from database type
+3. **Connection**: Enter host and port (default: 6379)
+4. **Connect**: Click Test and Save
+5. **Browse Keys**: Expand the connection to see keys
+6. **View Values**: Click a key to see its value and type
+7. **Supported Types**:
+   - Strings
+   - Hashes
+   - Lists
+   - Sets
+   - Sorted Sets
+8. **TTL Management**: View and set key expiration times
+
+### Workflow 21: Working with Cassandra
+
+**Goal**: Connect to and query an Apache Cassandra database
+
+1. **New Connection**: Click "New Connection"
+2. **Select Cassandra**: Choose Cassandra from database type
+3. **Connection Details**: Enter contact points and port
+4. **Keyspace**: Optionally specify a default keyspace
+5. **Connect**: Click Test and Save
+6. **Browse**: Expand to see keyspaces and tables
+7. **Query**: Use CQL in the editor
+   ```sql
+   SELECT * FROM users WHERE user_id = 'abc123';
+   ```
+
 ## Advanced Usage
 
 ### Working with Large Result Sets
@@ -887,6 +995,22 @@ A: Yes. Type `CALL procedure_name()` or `EXECUTE procedure_name` depending on yo
 
 A: Yes. Begin transaction, run queries, then commit or rollback. Some databases default to auto-commit, so `BEGIN` may be necessary.
 
+**Q: How do I organize many connections?**
+
+A: Use connection groups and tags. Create groups for environments (Dev, Staging, Prod) and add tags for projects or teams. You can also filter connections by tag.
+
+**Q: Can I compare schemas between databases?**
+
+A: Yes! Use the Schema Diff feature to compare schemas between two connections. It shows added, removed, and modified objects with detailed differences.
+
+**Q: What themes are available?**
+
+A: dbfordevs includes Light, Dark, Nordic Light, Nordic Dark, Solarized Light, Solarized Dark, and System (auto) themes.
+
+**Q: How do I pin tabs?**
+
+A: Right-click a query tab and select "Pin Tab". Pinned tabs stay on the left and can't be accidentally closed.
+
 ### Database-Specific Questions
 
 **Q: Can I connect to RDS, Azure SQL Database, or other cloud databases?**
@@ -908,6 +1032,22 @@ A: Select Oracle as the database type and use the Easy Connect format: `//host:p
 **Q: Can I use SSH tunneling for secure connections?**
 
 A: Yes. In the connection dialog, go to the SSH tab and enable SSH tunneling. You can authenticate with password or private key.
+
+**Q: How do I connect to MongoDB?**
+
+A: Select MongoDB as the database type and enter the connection string: `mongodb://user:pass@host:port/database`. You can browse collections and query documents using JSON syntax.
+
+**Q: How do I connect to Redis?**
+
+A: Select Redis as the database type and enter the host and port. You can browse keys, view values by type (strings, hashes, lists, sets, sorted sets), and manage TTLs.
+
+**Q: How do I connect to Cassandra?**
+
+A: Select Cassandra as the database type, enter the contact points and port. You can browse keyspaces and tables, and run CQL queries.
+
+**Q: Does dbfordevs support Oracle Wallet authentication?**
+
+A: Yes. In the Oracle connection dialog, you can configure Oracle Wallet for secure authentication without storing passwords.
 
 ### Data Editing Questions
 

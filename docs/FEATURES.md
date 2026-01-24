@@ -51,6 +51,30 @@ Right-click any saved connection for options:
 - **Connecting**: In progress (spinner icon)
 - **Error** (red): Connection failed
 
+### Connection Groups & Tags
+
+Organize your connections with groups and custom tags for easier management.
+
+**Creating Groups:**
+
+1. Right-click the connections area in the sidebar
+2. Select **"Create Group"**
+3. Enter a group name
+4. Drag connections into the group
+
+**Using Tags:**
+
+1. Right-click a connection
+2. Select **"Add Tag"**
+3. Enter or select a tag name
+4. Tags appear as colored labels on connections
+
+**Benefits:**
+- Group connections by environment (Development, Staging, Production)
+- Tag connections by project or team
+- Filter the connection list by tag
+- Quickly find related connections
+
 ### SSL Configuration
 
 Secure your database connections with SSL/TLS encryption.
@@ -77,6 +101,26 @@ Secure your database connections with SSL/TLS encryption.
 - **Client Key**: Path to client private key file
 
 **Tip:** Use Verify-Full for production databases to ensure both encryption and server identity verification.
+
+### SSL/TLS Testing
+
+Test your SSL configuration before saving the connection.
+
+**To test SSL:**
+
+1. Configure SSL settings in the connection dialog
+2. Click **"Test SSL Connection"**
+3. View the test results:
+   - Connection success/failure
+   - Certificate details
+   - SSL version and cipher
+   - Expiration warnings
+
+**Common Issues Detected:**
+- Certificate expired or not yet valid
+- Certificate hostname mismatch
+- Untrusted certificate authority
+- Missing client certificate
 
 ### SSH Tunneling
 
@@ -139,14 +183,32 @@ dbfordevs supports the following database systems:
 | Microsoft SQL Server | Full Support | Yes | Yes |
 | SQLite | Full Support | N/A | N/A |
 | Oracle | Full Support | Yes | Yes |
-| MongoDB | Planned | - | - |
-| Redis | Planned | - | - |
+| MongoDB | Full Support | Yes | Yes |
+| Redis | Full Support | Yes | Yes |
+| Cassandra | Full Support | Yes | Yes |
 
 **Oracle-Specific Notes:**
 - Uses Easy Connect format: `//host:port/service_name`
 - Supports Oracle Wallet authentication
 - Full PL/SQL execution support
 - EXPLAIN PLAN visualization with DBMS_XPLAN
+
+**MongoDB-Specific Notes:**
+- Connection string format: `mongodb://user:pass@host:port/database`
+- Full document browsing and editing
+- Collection management
+- Index management
+
+**Redis-Specific Notes:**
+- Connection string format: `redis://host:port`
+- Key-value browsing and editing
+- Data type support (strings, hashes, lists, sets, sorted sets)
+- TTL management
+
+**Cassandra-Specific Notes:**
+- CQL query support
+- Keyspace and table management
+- Full schema browsing
 
 ## Query Editor
 
@@ -201,6 +263,29 @@ Organize multiple queries in separate tabs:
 - **Close Tab**: Click the `X` on a tab to close it
 - **Rename Tab**: Double-click tab name to rename
 - **Tab Menu**: Right-click for additional options
+
+### Tab Pinning
+
+Pin important tabs to prevent accidental closure.
+
+**To pin a tab:**
+1. Right-click on a query tab
+2. Select **"Pin Tab"**
+3. Pinned tabs display a pin icon and move to the left
+
+**Pinned Tab Behavior:**
+- Pinned tabs cannot be closed with `Ctrl/Cmd+W`
+- Pinned tabs remain when closing other tabs
+- Pinned tabs are always visible on the left side
+- Right-click and select **"Unpin Tab"** to remove the pin
+
+**Tab Context Menu Options:**
+- Pin/Unpin Tab
+- Rename Tab
+- Duplicate Tab
+- Close Tab
+- Close Other Tabs
+- Close Tabs to the Right
 
 ### Editor Settings
 
@@ -478,6 +563,44 @@ For databases with schema support:
 3. Enter schema name
 4. Click **"Create"**
 
+### Schema Diff
+
+Compare database schemas to identify differences between connections.
+
+**To compare schemas:**
+
+1. Click the **Schema Diff** button in the toolbar (or use the menu)
+2. Select the **source** connection and schema
+3. Select the **target** connection and schema
+4. Click **"Compare"**
+
+**Diff Results:**
+
+The comparison shows:
+- **Added Objects**: Objects in source but not in target (green)
+- **Removed Objects**: Objects in target but not in source (red)
+- **Modified Objects**: Objects with structural differences (yellow)
+- **Unchanged Objects**: Identical objects (gray)
+
+**Supported Comparisons:**
+- Tables (columns, types, constraints)
+- Views
+- Indexes
+- Functions/Procedures
+- Triggers
+
+**Actions from Diff View:**
+- View detailed differences for each object
+- Generate migration scripts
+- Copy DDL for modified objects
+- Export diff report
+
+**Use Cases:**
+- Compare development and production schemas
+- Verify database migrations were applied correctly
+- Identify schema drift between environments
+- Generate upgrade/downgrade scripts
+
 ## Keyboard Shortcuts
 
 ### Query Editor
@@ -530,6 +653,10 @@ Choose your preferred color scheme:
 
 - **Light Theme**: Bright interface for daytime use
 - **Dark Theme**: Dark interface for low-light environments
+- **Nordic Light**: Light theme with Nordic color palette
+- **Nordic Dark**: Dark theme with Nordic color palette
+- **Solarized Light**: Solarized light color scheme
+- **Solarized Dark**: Solarized dark color scheme
 - **System Theme**: Automatically matches OS preference
 
 **To change theme:**
@@ -958,6 +1085,70 @@ Right-click an index and select **View DDL** to see the CREATE INDEX statement.
 3. Confirm the action
 
 **Note**: Primary key indexes cannot be dropped directly. Modify the table constraints instead.
+
+## Database Object Management
+
+Manage stored procedures, functions, triggers, and sequences from the sidebar.
+
+### Procedures
+
+**Viewing Procedures:**
+1. Connect to a database
+2. Expand the **Procedures** section in the sidebar
+3. View all stored procedures
+4. Right-click for additional options
+
+**Procedure Options:**
+- **View DDL**: See the CREATE PROCEDURE statement
+- **Execute**: Run the procedure (with parameter input dialog)
+- **Drop**: Remove the procedure
+
+### Functions
+
+**Viewing Functions:**
+1. Expand the **Functions** section in the sidebar
+2. View all user-defined functions
+3. Right-click for additional options
+
+**Function Options:**
+- **View DDL**: See the CREATE FUNCTION statement
+- **Drop**: Remove the function
+
+**Note**: Functions can be used in SQL queries directly.
+
+### Triggers
+
+**Viewing Triggers:**
+1. Expand the **Triggers** section in the sidebar
+2. View all triggers across tables
+3. See trigger timing (BEFORE/AFTER) and event (INSERT/UPDATE/DELETE)
+
+**Trigger Options:**
+- **View DDL**: See the CREATE TRIGGER statement
+- **Enable/Disable**: Toggle trigger activation
+- **Drop**: Remove the trigger
+
+### Sequences
+
+**Viewing Sequences:**
+1. Expand the **Sequences** section in the sidebar
+2. View all sequences with current values
+3. Right-click for additional options
+
+**Sequence Options:**
+- **View DDL**: See the CREATE SEQUENCE statement
+- **View Properties**: Current value, increment, min/max values
+- **Alter**: Modify sequence properties
+- **Drop**: Remove the sequence
+
+**Database Support:**
+
+| Object | PostgreSQL | MySQL | MSSQL | SQLite | Oracle |
+|--------|------------|-------|-------|--------|--------|
+| Procedures | Yes | Yes | Yes | N/A | Yes |
+| Functions | Yes | Yes | Yes | N/A | Yes |
+| Triggers | Yes | Yes | Yes | Yes | Yes |
+| Sequences | Yes | N/A | Yes | N/A | Yes |
 
 ## User & Role Management
 

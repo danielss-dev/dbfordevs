@@ -76,6 +76,34 @@ Password: your_password
 Database: your_database
 ```
 
+#### Oracle Example
+```
+Connection String: //localhost:1521/ORCL
+Username: system
+Password: your_password
+```
+
+#### MongoDB Example
+```
+Connection String: mongodb://localhost:27017/your_database
+Username: (optional)
+Password: (optional)
+```
+
+#### Redis Example
+```
+Host: localhost
+Port: 6379
+Password: (optional)
+```
+
+#### Cassandra Example
+```
+Contact Points: localhost
+Port: 9042
+Keyspace: your_keyspace (optional)
+```
+
 ### Step 4: Validate Connection
 
 Click **"Test Connection"** to verify your details are correct. You should see a success message if the connection works.
@@ -207,7 +235,7 @@ Selected data in the grid can be copied and pasted into spreadsheet applications
 
 Click the **Settings** icon (gear icon) to access:
 
-- **Theme**: Choose Light, Dark, or System theme
+- **Theme**: Choose from Light, Dark, Nordic Light, Nordic Dark, Slasher, Solarized Light, Solarized Dark, or System (auto)
 - **Appearance Mode**: Developer or Web view
 - **Font Size**: Adjust editor and grid font sizes
 - **Keyboard Shortcuts**: View and customize shortcuts

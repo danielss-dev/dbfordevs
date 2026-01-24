@@ -414,9 +414,23 @@ Each database has a dedicated module implementing the `DatabaseConnection` trait
 - T-SQL support
 - Complex data types support
 
-**Others** (MongoDB, Redis, CockroachDB, Cassandra)
-- Specialized drivers per database
-- Custom protocol handlers
+**MongoDB** (`src-tauri/src/db/mongodb.rs`)
+- Uses `mongodb` crate
+- Document-based queries
+- Collection management
+
+**Redis** (`src-tauri/src/db/redis.rs`)
+- Uses `redis` crate
+- Key-value operations
+- Multiple data type support
+
+**Cassandra** (`src-tauri/src/db/cassandra.rs`)
+- Uses `cassandra-cpp` or `scylla` crate
+- CQL query support
+- Keyspace management
+
+**Others** (CockroachDB)
+- Compatible with PostgreSQL driver
 
 ### Type Conversions
 
