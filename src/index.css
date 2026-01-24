@@ -19,7 +19,131 @@
 @tailwind utilities;
 
 @layer base {
+  /* Default Light Theme - Warm white with orange accents */
   :root {
+    --background: 30 20% 97%;
+    --foreground: 20 10% 15%;
+    --card: 30 30% 99%;
+    --card-foreground: 20 10% 15%;
+    --popover: 30 30% 100%;
+    --popover-foreground: 20 10% 15%;
+    --primary: 24 95% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 10% 92%;
+    --secondary-foreground: 20 10% 25%;
+    --muted: 30 10% 94%;
+    --muted-foreground: 20 5% 45%;
+    --accent: 24 40% 95%;
+    --accent-foreground: 20 10% 15%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 15% 88%;
+    --input: 30 10% 92%;
+    --ring: 24 95% 50%;
+    --radius: 0.5rem;
+
+    /* Semantic colors */
+    --success: 142 71% 40%;
+    --warning: 38 92% 50%;
+    --info: 270 60% 55%;
+
+    /* Sidebar - Slightly warmer than main */
+    --sidebar-background: 30 25% 98%;
+    --sidebar-foreground: 20 10% 20%;
+    --sidebar-primary: 24 95% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 24 30% 94%;
+    --sidebar-accent-foreground: 20 10% 15%;
+    --sidebar-border: 30 15% 90%;
+    --sidebar-ring: 24 95% 50%;
+
+    /* Table Specifics */
+    --table-header-bg: 30 15% 94%;
+    --table-row-odd: 30 30% 99%;
+    --table-row-even: 30 20% 97%;
+    --table-row-hover: 24 40% 93%;
+
+    /* Text Hierarchy */
+    --text-primary: 20 10% 15%;
+    --text-secondary: 20 5% 35%;
+    --text-dim: 20 5% 55%;
+
+    /* Database Icon Colors - Light Theme */
+    --db-postgresql: #4169E1;
+    --db-mysql: #4479A1;
+    --db-mariadb: #003545;
+    --db-sqlite: #003B57;
+    --db-mssql: #CC2927;
+    --db-oracle: #F80000;
+    --db-mongodb: #47A248;
+    --db-redis: #FF4438;
+    --db-cockroachdb: #6933FF;
+    --db-cassandra: #1287B1;
+  }
+
+  /* Default Dark Theme - Near-black with orange accents */
+  .dark {
+    --background: 0 0% 10%;
+    --foreground: 0 0% 92%;
+    --card: 0 0% 13%;
+    --card-foreground: 0 0% 92%;
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 92%;
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 92%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 24 30% 18%;
+    --accent-foreground: 0 0% 92%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 18%;
+    --ring: 24 95% 53%;
+
+    /* Semantic colors */
+    --success: 142 71% 45%;
+    --warning: 45 93% 58%;
+    --info: 270 60% 60%;
+
+    /* Table Specifics */
+    --table-header-bg: 0 0% 8%;
+    --table-row-odd: 0 0% 10%;
+    --table-row-even: 0 0% 12%;
+    --table-row-hover: 24 30% 15%;
+
+    /* Text Hierarchy */
+    --text-primary: 0 0% 92%;
+    --text-secondary: 0 0% 65%;
+    --text-dim: 0 0% 45%;
+
+    /* Sidebar - Darker than main */
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 24 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 92%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 24 95% 53%;
+
+    /* Database Icon Colors - Dark Theme (warm-tinted for visibility) */
+    --db-postgresql: #6B8DD6;
+    --db-mysql: #6BA0C2;
+    --db-mariadb: #5DBDAD;
+    --db-sqlite: #6EB0D9;
+    --db-mssql: #F06560;
+    --db-oracle: #FF6B4A;
+    --db-mongodb: #6FCF78;
+    --db-redis: #FF7B70;
+    --db-cockroachdb: #9B7CFF;
+    --db-cassandra: #4CC8E8;
+  }
+
+  /* Classic Light Theme - Original blue accent light theme */
+  .theme-classic-light {
     --background: 220 14% 96%;
     --foreground: 224 71% 4%;
     --card: 0 0% 100%;
@@ -39,7 +163,6 @@
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 220 90% 56%;
-    --radius: 0.5rem;
 
     /* Status colors */
     --success: 142 71% 45%;
@@ -67,7 +190,7 @@
     --text-secondary: 224 9% 30%;
     --text-dim: 224 9% 55%;
 
-    /* Database Icon Colors - Light Theme (original brand colors) */
+    /* Database Icon Colors - Classic Light (original brand colors) */
     --db-postgresql: #4169E1;
     --db-mysql: #4479A1;
     --db-mariadb: #003545;
@@ -80,29 +203,24 @@
     --db-cassandra: #1287B1;
   }
 
-.dark {
-    /* Base: Deep Slate/Navy (Refined for reduced fatigue) */
-    --background: 224 20% 6%;      /* Desaturated & slightly lighter for better canvas */
-    --foreground: 213 31% 91%;     /* Soft white (off-white) to reduce eye strain */
-
-    /* Layers */
-    --card: 224 20% 10%;           /* Clear surface separation */
+  /* Classic Dark Theme - Original blue accent dark theme */
+  .theme-classic-dark {
+    /* Base: Deep Slate/Navy */
+    --background: 224 20% 6%;
+    --foreground: 213 31% 91%;
+    --card: 224 20% 10%;
     --card-foreground: 213 31% 91%;
-    --popover: 224 20% 12%;        /* Elevated over card */
+    --popover: 224 20% 12%;
     --popover-foreground: 213 31% 91%;
-
-    /* Brand & Actions */
-    --primary: 212 90% 60%;        /* Vibrant but not neon; better readability */
+    --primary: 212 90% 60%;
     --primary-foreground: 224 20% 6%;
-    --secondary: 222 15% 18%;      /* Subdued grey-blue */
+    --secondary: 222 15% 18%;
     --secondary-foreground: 210 40% 98%;
-
-    /* Muted & UI Borders */
     --muted: 223 15% 14%;
     --muted-foreground: 215 15% 65%;
     --accent: 216 20% 15%;
     --accent-foreground: 210 40% 98%;
-    --border: 224 20% 18%;         /* Crisper borders for data-heavy UI */
+    --border: 224 20% 18%;
     --input: 224 20% 16%;
     --ring: 212 90% 60%;
 
@@ -113,26 +231,26 @@
     --table-row-hover: 224 20% 12%;
 
     /* Text Hierarchy */
-    --text-primary: 213 31% 91%;   /* High contrast: IDs, Titles */
-    --text-secondary: 215 15% 60%; /* Medium contrast: Regular data */
-    --text-dim: 215 10% 45%;       /* Low contrast: Hashes, Seconds, Metadata */
+    --text-primary: 213 31% 91%;
+    --text-secondary: 215 15% 60%;
+    --text-dim: 215 10% 45%;
 
     /* Enhanced Status Colors */
-    --success: 158 64% 52%;        /* Emerald/Teal tint for better visibility */
+    --success: 158 64% 52%;
     --warning: 37 90% 60%;
-    --destructive: 0 84% 65%;      /* Brighter red for visibility against dark */
+    --destructive: 0 84% 65%;
 
     /* Sidebar - Distinct from Main View */
     --sidebar-background: 224 20% 4%;
     --sidebar-foreground: 215 20% 75%;
     --sidebar-accent: 222 15% 12%;
-    --sidebar-accent-foreground: 210 40% 98%; /* High contrast for selected items */
+    --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 222 15% 10%;
     --sidebar-primary: 212 90% 60%;
     --sidebar-primary-foreground: 224 20% 6%;
     --sidebar-ring: 212 90% 60%;
 
-    /* Database Icon Colors - Dark Theme (lighter variants for visibility) */
+    /* Database Icon Colors - Classic Dark (lighter variants for visibility) */
     --db-postgresql: #5B7CE9;
     --db-mysql: #6BA0C2;
     --db-mariadb: #4DA6A0;
@@ -300,84 +418,6 @@
     --db-redis: #FF4438;
     --db-cockroachdb: #6933FF;
     --db-cassandra: #1287B1;
-  }
-
-  /* Slasher Theme - Near-black with orange accents */
-  .theme-slasher {
-    /* Background colors - Near-black */
-    --background: 0 0% 10%;
-    --foreground: 0 0% 92%;
-
-    /* Card colors - Slightly elevated */
-    --card: 0 0% 13%;
-    --card-foreground: 0 0% 92%;
-
-    /* Popover colors */
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 92%;
-
-    /* Primary - Orange accent */
-    --primary: 24 95% 53%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary - Dark gray */
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 92%;
-
-    /* Muted colors */
-    --muted: 0 0% 16%;
-    --muted-foreground: 0 0% 55%;
-
-    /* Accent - Subtle orange tint */
-    --accent: 24 30% 18%;
-    --accent-foreground: 0 0% 92%;
-
-    /* Destructive - Bright red */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Border and input */
-    --border: 0 0% 20%;
-    --input: 0 0% 18%;
-    --ring: 24 95% 53%;
-
-    /* Semantic colors - Purple/Yellow indicators */
-    --success: 142 71% 45%;
-    --warning: 45 93% 58%;
-    --info: 270 60% 60%;
-
-    /* Table Specifics */
-    --table-header-bg: 0 0% 8%;
-    --table-row-odd: 0 0% 10%;
-    --table-row-even: 0 0% 12%;
-    --table-row-hover: 24 30% 15%;
-
-    /* Text Hierarchy */
-    --text-primary: 0 0% 92%;
-    --text-secondary: 0 0% 65%;
-    --text-dim: 0 0% 45%;
-
-    /* Sidebar - Darker than main */
-    --sidebar-background: 0 0% 7%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 24 95% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 14%;
-    --sidebar-accent-foreground: 0 0% 92%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 24 95% 53%;
-
-    /* Database Icon Colors - Slasher (warm-tinted for visibility) */
-    --db-postgresql: #6B8DD6;
-    --db-mysql: #6BA0C2;
-    --db-mariadb: #5DBDAD;
-    --db-sqlite: #6EB0D9;
-    --db-mssql: #F06560;
-    --db-oracle: #FF6B4A;
-    --db-mongodb: #6FCF78;
-    --db-redis: #FF7B70;
-    --db-cockroachdb: #9B7CFF;
-    --db-cassandra: #4CC8E8;
   }
 
   /* Solarized Dark Theme - Warm, precision-crafted dark theme */

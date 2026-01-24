@@ -8,16 +8,17 @@ import { useThemesStore } from "./themes";
 /**
  * Built-in theme IDs
  */
-type BuiltInTheme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher" | "solarized-dark" | "solarized-light" | "one-dark" | "high-contrast";
+type BuiltInTheme = "light" | "dark" | "system" | "classic-light" | "classic-dark" | "nordic-dark" | "nordic-light" | "solarized-dark" | "solarized-light" | "one-dark" | "high-contrast";
 
 /**
  * Theme type - built-in themes or custom theme reference (custom:${id})
  * - "light": Default light theme
  * - "dark": Default dark theme
  * - "system": Follows OS preference
+ * - "classic-light": Original blue accent light theme
+ * - "classic-dark": Original blue accent dark theme
  * - "nordic-dark": Arctic, north-bluish dark theme based on Nord
  * - "nordic-light": Arctic, north-bluish light theme based on Nord
- * - "slasher": Near-black with orange accents
  * - "solarized-dark": Warm, precision-crafted dark theme
  * - "solarized-light": Warm, precision-crafted light theme
  * - "one-dark": Atom-inspired dark theme
@@ -266,9 +267,10 @@ export const useUIStore = create<UIState>()(
         // Remove all theme classes
         root.classList.remove(
           "dark",
+          "theme-classic-light",
+          "theme-classic-dark",
           "theme-nordic-dark",
           "theme-nordic-light",
-          "theme-slasher",
           "theme-solarized-dark",
           "theme-solarized-light",
           "theme-one-dark",
@@ -277,12 +279,14 @@ export const useUIStore = create<UIState>()(
 
         // Apply theme-specific class
         // Dark-based themes also get the "dark" class for Tailwind dark: variants
-        if (theme === "nordic-dark") {
+        if (theme === "classic-light") {
+          root.classList.add("theme-classic-light");
+        } else if (theme === "classic-dark") {
+          root.classList.add("dark", "theme-classic-dark");
+        } else if (theme === "nordic-dark") {
           root.classList.add("dark", "theme-nordic-dark");
         } else if (theme === "nordic-light") {
           root.classList.add("theme-nordic-light");
-        } else if (theme === "slasher") {
-          root.classList.add("dark", "theme-slasher");
         } else if (theme === "solarized-dark") {
           root.classList.add("dark", "theme-solarized-dark");
         } else if (theme === "solarized-light") {

@@ -10,7 +10,7 @@ import { useThemesStore } from "@/stores/themes";
 /**
  * Built-in theme IDs for SqlEditor
  */
-type BuiltInEditorTheme = "light" | "dark" | "system" | "nordic-dark" | "nordic-light" | "slasher" | "solarized-dark" | "solarized-light" | "one-dark" | "high-contrast";
+type BuiltInEditorTheme = "light" | "dark" | "system" | "classic-light" | "classic-dark" | "nordic-dark" | "nordic-light" | "solarized-dark" | "solarized-light" | "one-dark" | "high-contrast";
 
 interface SqlEditorProps {
   value: string;
