@@ -1,7 +1,6 @@
 import { Database, Plus, Trash2, RefreshCw } from "lucide-react";
 import type { StatementPreview } from "@/types";
 import { cn } from "@/lib/utils";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface DmlPreviewViewProps {
   statements: StatementPreview[];
@@ -64,50 +63,47 @@ export function DmlPreviewView({ statements }: DmlPreviewViewProps) {
             </div>
 
             {stmt.affectedRows && stmt.affectedColumns && stmt.affectedRows.length > 0 ? (
-              <ScrollArea className="max-h-[300px]">
-                <div className="min-w-full">
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/30 sticky top-0">
-                      <tr>
-                        {stmt.affectedColumns.map((col, colIdx) => (
-                          <th
-                            key={colIdx}
-                            className="px-3 py-2 text-left font-medium text-muted-foreground border-b border-border whitespace-nowrap"
+              <div className="max-h-[300px] overflow-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted sticky top-0">
+                    <tr>
+                      {stmt.affectedColumns.map((col, colIdx) => (
+                        <th
+                          key={colIdx}
+                          className="px-3 py-2 text-left font-medium text-muted-foreground border-b border-border whitespace-nowrap"
+                        >
+                          {col.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stmt.affectedRows.map((row, rowIdx) => (
+                      <tr
+                        key={rowIdx}
+                        className={cn(
+                          "border-b border-border last:border-b-0",
+                          rowIdx % 2 === 0 ? "bg-background" : "bg-muted/20"
+                        )}
+                      >
+                        {row.map((cell, cellIdx) => (
+                          <td
+                            key={cellIdx}
+                            className="px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate"
+                            title={String(cell ?? "")}
                           >
-                            {col.name}
-                          </th>
+                            {cell === null ? (
+                              <span className="text-muted-foreground italic">NULL</span>
+                            ) : (
+                              String(cell)
+                            )}
+                          </td>
                         ))}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {stmt.affectedRows.map((row, rowIdx) => (
-                        <tr
-                          key={rowIdx}
-                          className={cn(
-                            "border-b border-border last:border-b-0",
-                            rowIdx % 2 === 0 ? "bg-background" : "bg-muted/20"
-                          )}
-                        >
-                          {row.map((cell, cellIdx) => (
-                            <td
-                              key={cellIdx}
-                              className="px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate"
-                              title={String(cell ?? "")}
-                            >
-                              {cell === null ? (
-                                <span className="text-muted-foreground italic">NULL</span>
-                              ) : (
-                                String(cell)
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 {stmt.rowCount > 0 ? (
