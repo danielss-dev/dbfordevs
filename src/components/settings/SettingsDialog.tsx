@@ -28,7 +28,6 @@ import {
   Settings2,
   Code,
   Info,
-  Database,
   ExternalLink,
   Github,
   Search,
