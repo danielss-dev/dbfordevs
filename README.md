@@ -16,12 +16,13 @@
 
 ## 🚀 Key Features
 
-- **Unified Interface:** Manage PostgreSQL, MySQL, MSSQL, SQLite, Oracle, MongoDB, and Redis from a single app.
+- **Unified Interface:** Manage PostgreSQL, MySQL, MSSQL, SQLite, Oracle, MongoDB, Redis, and Cassandra from a single app.
 - **Lightweight & Fast:** Minimal memory footprint (< 200MB) and near-instant startup.
 - **Visual Diff Preview:** Review all data changes before committing them to the database.
 - **Side Panel Editor:** High-performance data grid with a comfortable side-panel for editing complex records.
 - **AI-Powered Assistance:** Built-in AI assistant to generate, explain, and optimize SQL queries using Claude, GPT, or Gemini.
-- **Multiple Themes:** Choose from Light, Dark, Nordic Dark, Nordic Light, or System auto-switching.
+- **Multiple Themes:** Choose from Light, Dark, Nordic Dark, Nordic Light, Solarized Dark, Solarized Light, or System auto-switching.
+- **Schema Diff:** Compare database schemas and visualize differences between connections.
 - **Query Execution Plans:** Visualize EXPLAIN output with interactive tree view and cost analysis.
 - **SQL Formatting:** One-click SQL beautification with configurable options per database dialect.
 - **Query Bookmarks & Templates:** Save, organize, and reuse frequently used queries with folder organization and template variables.
@@ -32,13 +33,14 @@
 - **Query History:** Search, filter, favorite, and export your query execution history with statistics.
 - **Advanced Data Grid:** Column pinning, conditional formatting, find & replace, binary preview, and more.
 - **SSH Tunneling & SSL:** Secure connections through SSH tunnels and SSL/TLS encryption.
+- **Connection Organization:** Group and tag connections for better organization.
 
 ## 🛠️ Tech Stack
 
 - **Frontend:** React 18+, TypeScript, Vite, TailwindCSS, shadcn/ui
 - **Backend:** Rust, Tauri 2.x
 - **State Management:** Zustand
-- **Database Drivers:** SQLx (PostgreSQL, MySQL, SQLite, MSSQL), Oracle, MongoDB, Redis
+- **Database Drivers:** SQLx (PostgreSQL, MySQL, SQLite, MSSQL), Oracle, MongoDB, Redis, Cassandra
 - **Package Manager:** Bun
 
 ## 📁 Project Structure

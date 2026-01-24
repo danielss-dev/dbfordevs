@@ -125,14 +125,17 @@ dbfordevs supports a wide range of database systems:
 
 | Feature | Description |
 |---------|-------------|
-| **Connection Management** | Save, test, and manage multiple database connections |
-| **SQL Editor** | Monaco-based editor with syntax highlighting and code completion |
-| **Data Grid** | High-performance grid with sorting, pagination, and filtering |
+| **Connection Management** | Save, test, and manage multiple database connections with groups and tags |
+| **SQL Editor** | Monaco-based editor with syntax highlighting, code completion, and formatting |
+| **Data Grid** | High-performance grid with sorting, pagination, filtering, and global search |
 | **Schema Tools** | View table properties, relationships, and DDL |
+| **Schema Diff** | Compare schemas between databases to identify differences |
 | **Visual Diagrams** | See table relationships at a glance |
 | **Data Editing** | Insert, update, and delete records with validation |
 | **Diff View** | Review all pending changes before committing |
-| **Themes** | Light, dark, and system themes |
+| **Query Bookmarks** | Save and organize frequently used queries |
+| **AI Assistant** | Generate, explain, and optimize SQL with AI (Claude, GPT, Gemini) |
+| **Themes** | Light, Dark, Nordic, Solarized, and System themes |
 
 ## Keyboard Shortcuts
 
