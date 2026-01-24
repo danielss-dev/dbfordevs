@@ -12,6 +12,7 @@ import type {
   ValidationSeverity,
   ValidationCategory,
 } from "./types";
+import { getSchemaObjectFullName } from "@/lib/table-utils";
 
 /**
  * Security patterns to check for dangerous operations
@@ -196,9 +197,7 @@ function checkSemantic(
   }
 
   // Check if referenced tables exist in context
-  const knownTableNames = tables.map((t) =>
-    (t.schema ? `${t.schema}.${t.name}` : t.name).toLowerCase()
-  );
+  const knownTableNames = tables.map((t) => getSchemaObjectFullName(t).toLowerCase());
   const knownTableNamesWithoutSchema = tables.map((t) => t.name.toLowerCase());
 
   for (const refTable of referencedTables) {
@@ -222,7 +221,7 @@ function checkSemantic(
   // Check for column references against schema
   for (const refTable of referencedTables) {
     const table = tables.find((t) => {
-      const fullName = (t.schema ? `${t.schema}.${t.name}` : t.name).toLowerCase();
+      const fullName = getSchemaObjectFullName(t).toLowerCase();
       return (
         fullName === refTable ||
         t.name.toLowerCase() === refTable ||

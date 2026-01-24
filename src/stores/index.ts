@@ -21,4 +21,5 @@ export * from "./cassandra";
 export * from "./themes";
 export * from "./schema-search";
 export * from "./sidebar-highlight";
+export * from "./diff";
 

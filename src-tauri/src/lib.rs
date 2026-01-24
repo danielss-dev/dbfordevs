@@ -6,7 +6,7 @@ pub mod oracle_client;
 mod ssh;
 mod storage;
 
-use commands::{cassandra, connections, functions, import, indexes, mongodb, oracle, procedures, queries, redis, sequences, tables, triggers, users, utils, views};
+use commands::{cassandra, connections, diff, functions, import, indexes, mongodb, oracle, procedures, queries, redis, sequences, tables, triggers, users, utils, views};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -180,6 +180,12 @@ pub fn run() {
             cassandra::cassandra_execute_cql,
             cassandra::cassandra_list_indexes,
             cassandra::cassandra_get_server_info,
+            // Schema diff commands
+            diff::compare_table_schemas,
+            diff::compare_with_snapshot,
+            diff::save_schema_snapshot,
+            diff::list_schema_snapshots,
+            diff::delete_schema_snapshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -5,6 +5,7 @@ import { SettingsDialog } from "@/components/settings";
 import { ConnectionModal, RenameConnectionDialog } from "@/components/connections";
 import { RenameTableDialog, CreateTableDialog } from "@/components/table";
 import { CreateSchemaDialog } from "@/components/database";
+import { SchemaDiffDialog } from "@/components/diff";
 import { BookmarkDialogs } from "@/components/bookmarks";
 import {
   CreateUserDialog,
@@ -84,6 +85,8 @@ function App() {
         <ChangePasswordDialog />
         <CreateRoleDialog />
         <ManagePermissionsDialog />
+        {/* Schema Diff Dialog */}
+        <SchemaDiffDialog />
         <UpdateNotification />
         <Toaster />
       </div>

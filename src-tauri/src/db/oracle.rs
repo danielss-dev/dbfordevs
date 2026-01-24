@@ -845,7 +845,7 @@ impl DatabaseDriver for OracleDriver {
 
             // Get foreign key info
             let fk_sql = "
-                SELECT a.column_name, c.table_name as ref_table, d.column_name as ref_column, c.owner as ref_schema
+                SELECT a.column_name, c.table_name as ref_table, d.column_name as ref_column, c.owner as ref_schema, b.constraint_name
                 FROM all_cons_columns a
                 JOIN all_constraints b ON a.constraint_name = b.constraint_name AND a.owner = b.owner
                 JOIN all_constraints c ON b.r_constraint_name = c.constraint_name AND b.r_owner = c.owner
@@ -868,11 +868,13 @@ impl DatabaseDriver for OracleDriver {
                 let ref_table: String = row.get(1).map_err(|e| AppError::QueryError(e.to_string()))?;
                 let ref_column: String = row.get(2).map_err(|e| AppError::QueryError(e.to_string()))?;
                 let ref_schema: String = row.get(3).map_err(|e| AppError::QueryError(e.to_string()))?;
+                let constraint_name: String = row.get(4).map_err(|e| AppError::QueryError(e.to_string()))?;
 
                 foreign_keys.push(ForeignKeyInfo {
                     column: col_name,
                     references_table: format!("{}.{}", ref_schema, ref_table),
                     references_column: ref_column,
+                    constraint_name: Some(constraint_name),
                 });
             }
 

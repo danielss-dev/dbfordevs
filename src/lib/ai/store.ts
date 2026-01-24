@@ -41,6 +41,7 @@ import { AVAILABLE_MODELS, DEFAULT_MODELS } from "./types";
 import { calculateCost, aiChatStream } from "./api";
 import * as api from "./api";
 import { generateChatTitle, cleanupOldChats, migrateToVersion1 } from "./utils";
+import { getSchemaObjectFullName } from "@/lib/table-utils";
 
 /** Calculate aggregated usage stats for a session */
 function calculateSessionUsageStats(messages: AIChatMessage[], modelId: string): SessionUsageStats {
@@ -468,11 +469,11 @@ export const useAIStore = create<AIState>()(
 
                   let tableNameForFetch: string;
                   if (isMySQLOrSQLite) {
+                    // MySQL/SQLite: use just the table name without schema
                     tableNameForFetch = tableNameIncludesSchema ? table.name.split('.').pop()! : table.name;
                   } else {
-                    tableNameForFetch = tableNameIncludesSchema
-                      ? table.name
-                      : (table.schema ? `${table.schema}.${table.name}` : table.name);
+                    // PostgreSQL, MSSQL, Oracle: use full qualified name
+                    tableNameForFetch = getSchemaObjectFullName(table);
                   }
 
                   console.log(`[AI Store] Fetching schema for: ${tableNameForFetch}`);

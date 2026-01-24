@@ -16,6 +16,7 @@ import { useDatabase, useRedis, useMongoDB, useCassandra } from "@/hooks";
 import { fuzzySearch } from "@/lib/fuzzy-search";
 import { getDatabaseFeatureSupport } from "@/lib/database-features";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
+import { getSchemaObjectFullName, getBaseName } from "@/lib/table-utils";
 import { SchemaSearchResults } from "./SchemaSearchResults";
 import { SchemaSearchFilters } from "./SchemaSearchFilters";
 import type { SchemaSearchResult, Tab } from "@/types";
@@ -274,12 +275,8 @@ export function SchemaSearchPanel() {
       // SQL databases: fetch tables and their columns
       const tables = await getTables(connId);
       for (const table of tables) {
-        // table.name might already include schema prefix (e.g., "public.users")
-        // Only add schema prefix if table.name doesn't already have it
-        const alreadyHasSchema = table.schema && table.name.startsWith(`${table.schema}.`);
-        const fullPath = (table.schema && !alreadyHasSchema) ? `${table.schema}.${table.name}` : table.name;
-        // For display, use the name without schema prefix
-        const displayName = (alreadyHasSchema && table.schema) ? table.name.slice(table.schema.length + 1) : table.name;
+        const fullPath = getSchemaObjectFullName(table);
+        const displayName = getBaseName(table.name);
         items.push({
           id: `table-${fullPath}`,
           objectType: "table",
@@ -297,10 +294,8 @@ export function SchemaSearchPanel() {
       try {
         const views = await getViews(connId);
         for (const view of views) {
-          // view.name might already include schema prefix
-          const viewAlreadyHasSchema = view.schema && view.name.startsWith(`${view.schema}.`);
-          const fullPath = (view.schema && !viewAlreadyHasSchema) ? `${view.schema}.${view.name}` : view.name;
-          const displayName = (viewAlreadyHasSchema && view.schema) ? view.name.slice(view.schema.length + 1) : view.name;
+          const fullPath = getSchemaObjectFullName(view);
+          const displayName = getBaseName(view.name);
           items.push({
             id: `view-${fullPath}`,
             objectType: "view",
@@ -320,7 +315,7 @@ export function SchemaSearchPanel() {
       try {
         const indexes = await getAllIndexes(connId);
         for (const idx of indexes) {
-          const fullPath = idx.schema ? `${idx.schema}.${idx.name}` : idx.name;
+          const fullPath = getSchemaObjectFullName(idx);
           items.push({
             id: `index-${fullPath}`,
             objectType: "index",
@@ -343,7 +338,7 @@ export function SchemaSearchPanel() {
         try {
           const procedures = await getProcedures(connId);
           for (const proc of procedures) {
-            const fullPath = proc.schema ? `${proc.schema}.${proc.name}` : proc.name;
+            const fullPath = getSchemaObjectFullName(proc);
             items.push({
               id: `procedure-${fullPath}`,
               objectType: "procedure",
@@ -366,7 +361,7 @@ export function SchemaSearchPanel() {
         try {
           const functions = await getFunctions(connId);
           for (const func of functions) {
-            const fullPath = func.schema ? `${func.schema}.${func.name}` : func.name;
+            const fullPath = getSchemaObjectFullName(func);
             items.push({
               id: `function-${fullPath}`,
               objectType: "function",
@@ -389,7 +384,7 @@ export function SchemaSearchPanel() {
         try {
           const triggers = await getTriggers(connId);
           for (const trigger of triggers) {
-            const fullPath = trigger.schema ? `${trigger.schema}.${trigger.name}` : trigger.name;
+            const fullPath = getSchemaObjectFullName(trigger);
             items.push({
               id: `trigger-${fullPath}`,
               objectType: "trigger",
@@ -413,7 +408,7 @@ export function SchemaSearchPanel() {
         try {
           const sequences = await getSequences(connId);
           for (const seq of sequences) {
-            const fullPath = seq.schema ? `${seq.schema}.${seq.name}` : seq.name;
+            const fullPath = getSchemaObjectFullName(seq);
             items.push({
               id: `sequence-${fullPath}`,
               objectType: "sequence",
@@ -438,10 +433,8 @@ export function SchemaSearchPanel() {
       const { getSchema } = await import("@/stores/schema").then(m => ({ getSchema: m.useSchemaStore.getState().getSchema }));
 
       for (const table of connectionTables) {
-        // table.name might already include schema prefix
-        const colTableAlreadyHasSchema = table.schema && table.name.startsWith(`${table.schema}.`);
-        const tablePath = (table.schema && !colTableAlreadyHasSchema) ? `${table.schema}.${table.name}` : table.name;
-        const tableDisplayName = (colTableAlreadyHasSchema && table.schema) ? table.name.slice(table.schema.length + 1) : table.name;
+        const tablePath = getSchemaObjectFullName(table);
+        const tableDisplayName = getBaseName(table.name);
         const schema = getSchema(connId, tablePath);
         if (schema) {
           for (const col of schema.columns) {

@@ -19,6 +19,9 @@ export * from "./theme";
 // Re-export schema search types
 export * from "./schema-search";
 
+// Re-export diff types
+export * from "./diff";
+
 // Database types
 export type DatabaseType =
   | "postgresql"
@@ -248,6 +251,7 @@ export interface ForeignKeyInfo {
   column: string;
   referencesTable: string;
   referencesColumn: string;
+  constraintName?: string;
 }
 
 // Extended types for table properties view

@@ -464,7 +464,7 @@ impl MssqlDriver {
         let mut rows_data: Vec<Vec<serde_json::Value>> = Vec::new();
         let mut affected_rows: Option<u64> = None;
 
-        for result_set in results {
+        if let Some(result_set) = results.into_iter().next() {
             if columns.is_empty() && !result_set.is_empty() {
                 if let Some(first_row) = result_set.first() {
                     columns = first_row
@@ -487,7 +487,6 @@ impl MssqlDriver {
                 }
                 rows_data.push(row_values);
             }
-            break;
         }
 
         if !is_select && rows_data.is_empty() {
@@ -1058,7 +1057,8 @@ impl DatabaseDriver for MssqlDriver {
             SELECT
                 COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS column_name,
                 OBJECT_SCHEMA_NAME(fkc.referenced_object_id) + '.' + OBJECT_NAME(fkc.referenced_object_id) AS ref_table,
-                COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS ref_column
+                COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS ref_column,
+                fk.name AS constraint_name
             FROM sys.foreign_keys fk
             INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
             INNER JOIN sys.tables t ON fk.parent_object_id = t.object_id
@@ -1080,11 +1080,13 @@ impl DatabaseDriver for MssqlDriver {
                 let column: Option<&str> = row.get(0);
                 let ref_table: Option<&str> = row.get(1);
                 let ref_column: Option<&str> = row.get(2);
+                let constraint_name: Option<&str> = row.get(3);
 
                 ForeignKeyInfo {
                     column: column.unwrap_or("").to_string(),
                     references_table: ref_table.unwrap_or("").to_string(),
                     references_column: ref_column.unwrap_or("").to_string(),
+                    constraint_name: constraint_name.map(|s| s.to_string()),
                 }
             })
             .collect();

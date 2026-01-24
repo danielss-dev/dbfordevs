@@ -864,25 +864,27 @@ impl DatabaseDriver for MySqlDriver {
             SELECT
                 kcu.COLUMN_NAME as column_name,
                 kcu.REFERENCED_TABLE_NAME as foreign_table_name,
-                kcu.REFERENCED_COLUMN_NAME as foreign_column_name
+                kcu.REFERENCED_COLUMN_NAME as foreign_column_name,
+                kcu.CONSTRAINT_NAME as constraint_name
             FROM information_schema.KEY_COLUMN_USAGE kcu
             WHERE kcu.TABLE_SCHEMA = DATABASE()
             AND kcu.TABLE_NAME = ?
             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
         "#;
-        
+
         let fk_rows = sqlx::query(fk_query)
             .bind(table_name)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get foreign keys: {}", e)))?;
-        
+
         let foreign_keys: Vec<ForeignKeyInfo> = fk_rows
             .iter()
             .map(|row| ForeignKeyInfo {
                 column: decode_string(row, "column_name"),
                 references_table: decode_string(row, "foreign_table_name"),
                 references_column: decode_string(row, "foreign_column_name"),
+                constraint_name: Some(decode_string(row, "constraint_name")),
             })
             .collect();
         
@@ -963,7 +965,8 @@ impl DatabaseDriver for MySqlDriver {
                 TABLE_NAME as table_name,
                 COLUMN_NAME as column_name,
                 REFERENCED_TABLE_NAME as foreign_table_name,
-                REFERENCED_COLUMN_NAME as foreign_column_name
+                REFERENCED_COLUMN_NAME as foreign_column_name,
+                CONSTRAINT_NAME as constraint_name
             FROM information_schema.KEY_COLUMN_USAGE
             WHERE TABLE_SCHEMA = DATABASE()
             AND REFERENCED_TABLE_NAME IS NOT NULL
@@ -1010,6 +1013,7 @@ impl DatabaseDriver for MySqlDriver {
                 column: decode_string(&row, "column_name"),
                 references_table: decode_string(&row, "foreign_table_name"),
                 references_column: decode_string(&row, "foreign_column_name"),
+                constraint_name: Some(decode_string(&row, "constraint_name")),
             };
 
             table_fks.entry(table_name.clone()).or_default().push(fk_info);
@@ -1254,7 +1258,8 @@ impl DatabaseDriver for MySqlDriver {
             SELECT
                 kcu.COLUMN_NAME as column_name,
                 kcu.REFERENCED_TABLE_NAME as foreign_table_name,
-                kcu.REFERENCED_COLUMN_NAME as foreign_column_name
+                kcu.REFERENCED_COLUMN_NAME as foreign_column_name,
+                kcu.CONSTRAINT_NAME as constraint_name
             FROM information_schema.KEY_COLUMN_USAGE kcu
             WHERE kcu.TABLE_SCHEMA = DATABASE()
             AND kcu.TABLE_NAME = ?
@@ -1272,6 +1277,7 @@ impl DatabaseDriver for MySqlDriver {
                 column: decode_string(row, "column_name"),
                 references_table: decode_string(row, "foreign_table_name"),
                 references_column: decode_string(row, "foreign_column_name"),
+                constraint_name: Some(decode_string(row, "constraint_name")),
             }
         }).collect();
 

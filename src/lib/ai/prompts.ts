@@ -8,6 +8,7 @@
 
 import type { TableInfo, EnhancedTableInfo, AIContextConfig } from "./types";
 import { mongoQueryPrompt, redisCommandPrompt } from "./nosql-prompts";
+import { getSchemaObjectFullName } from "@/lib/table-utils";
 
 export interface QueryContext {
   databaseType?: string;
@@ -129,9 +130,7 @@ IMPORTANT RULES:
         }
       } else {
         // For PostgreSQL: use schema.table format
-        displayTableName = tableNameIncludesSchema
-          ? table.name
-          : (table.schema ? `${table.schema}.${table.name}` : table.name);
+        displayTableName = getSchemaObjectFullName(table);
       }
 
       prompt += `\nTable: ${displayTableName}\n`;
@@ -173,7 +172,7 @@ IMPORTANT RULES:
         prompt += "-".repeat(30) + "\n";
 
         for (const table of tablesWithRelationships) {
-          const tableName = table.schema ? `${table.schema}.${table.name}` : table.name;
+          const tableName = getSchemaObjectFullName(table);
           for (const rel of table.relationships || []) {
             const direction = rel.type === "outgoing" ? "->" : "<-";
             prompt += `${tableName}.${rel.foreignKeyColumn} ${direction} ${rel.referencedTable}.${rel.referencedColumn}`;
@@ -198,7 +197,7 @@ IMPORTANT RULES:
         prompt += "-".repeat(30) + "\n";
 
         for (const table of tablesWithIndexes) {
-          const tableName = table.schema ? `${table.schema}.${table.name}` : table.name;
+          const tableName = getSchemaObjectFullName(table);
           for (const idx of table.indexes || []) {
             const type = idx.isPrimary ? "PRIMARY" : idx.isUnique ? "UNIQUE" : "INDEX";
             prompt += `${tableName}: ${type} ${idx.name} (${idx.columns.join(", ")})\n`;
@@ -220,7 +219,7 @@ IMPORTANT RULES:
         prompt += "Note: This is representative data from the database to help understand the data format.\n\n";
 
         for (const table of tablesWithSampleData) {
-          const tableName = table.schema ? `${table.schema}.${table.name}` : table.name;
+          const tableName = getSchemaObjectFullName(table);
           prompt += `Table ${tableName}:\n`;
           for (const row of table.sampleData || []) {
             const values = Object.entries(row)
@@ -262,7 +261,7 @@ You can reference this query when generating new queries or providing explanatio
 
   // Debug logging
   console.log("[AI Prompt] Generated system prompt with", context.tables.length, "tables");
-  console.log("[AI Prompt] Tables with columns:", context.tables.filter(t => t.columns && t.columns.length > 0).map(t => `${t.schema}.${t.name} (${t.columns?.length} columns)`));
+  console.log("[AI Prompt] Tables with columns:", context.tables.filter(t => t.columns && t.columns.length > 0).map(t => `${getSchemaObjectFullName(t)} (${t.columns?.length} columns)`));
 
   return prompt;
 }

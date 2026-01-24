@@ -19,6 +19,7 @@ pub fn postgres_config(host: &str, port: u16, database: &str, user: &str, passwo
         use_connection_string: None,
         ssl: None,
         ssh_tunnel: None,
+        oracle_wallet: None,
     }
 }
 
@@ -39,6 +40,7 @@ pub fn mysql_config(host: &str, port: u16, database: &str, user: &str, password:
         use_connection_string: None,
         ssl: None,
         ssh_tunnel: None,
+        oracle_wallet: None,
     }
 }
 
@@ -59,5 +61,6 @@ pub fn sqlite_config(file_path: &str) -> ConnectionConfig {
         use_connection_string: None,
         ssl: None,
         ssh_tunnel: None,
+        oracle_wallet: None,
     }
 }

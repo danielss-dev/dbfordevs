@@ -1,5 +1,6 @@
 import type * as Monaco from "monaco-editor";
 import type { TableInfo, TableSchema, ColumnInfo } from "@/types";
+import { getTableFullName } from "@/lib/table-utils";
 
 // Comprehensive SQL keywords list
 export const SQL_KEYWORDS = [
@@ -120,7 +121,7 @@ function getColumnsForTable(
   if (!table) return [];
 
   // Try to get schema for table with schema prefix
-  const fetchName = table.schema ? `${table.schema}.${table.name}` : table.name;
+  const fetchName = getTableFullName(table);
   const schemaWithPrefix = getTableSchema(fetchName);
 
   if (schemaWithPrefix) {
