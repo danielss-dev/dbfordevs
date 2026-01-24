@@ -2,6 +2,15 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] - 2026-01-24
+
+
+### Added
+- **feat**: update Monaco editor themes and enhance DmlPreviewView styling (#76)
+- **feat**: introduce classic themes and update theme management (#75)
+
+### Changed
+- **refactor**: remove unused Database import from SettingsDialog component
 ## [0.5.0] - 2026-01-24
 
 
