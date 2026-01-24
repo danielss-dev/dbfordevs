@@ -62,6 +62,7 @@ pub struct ForeignKeyInfo {
     pub column: String,
     pub references_table: String,
     pub references_column: String,
+    pub constraint_name: Option<String>,
 }
 
 // Extended types for table properties view

@@ -712,7 +712,10 @@ fn generate_postgres_migration(
         match diff.change_type {
             DiffChangeType::Added => {
                 if let Some(fk) = &diff.source_fk {
-                    let fk_name = format!("fk_{}_{}", table_name, fk.column);
+                    // Use actual constraint name if available, otherwise generate one
+                    let fk_name = fk.constraint_name.clone().unwrap_or_else(|| {
+                        format!("fk_{}_{}", table_name, fk.column)
+                    });
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES {} ({})",
@@ -734,7 +737,10 @@ fn generate_postgres_migration(
             }
             DiffChangeType::Removed => {
                 if let Some(fk) = &diff.target_fk {
-                    let fk_name = format!("fk_{}_{}", table_name, fk.column);
+                    // Use actual constraint name if available, otherwise generate one
+                    let fk_name = fk.constraint_name.clone().unwrap_or_else(|| {
+                        format!("fk_{}_{}", table_name, fk.column)
+                    });
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} DROP CONSTRAINT {}",
@@ -983,7 +989,10 @@ fn generate_mysql_migration(
         match diff.change_type {
             DiffChangeType::Added => {
                 if let Some(fk) = &diff.source_fk {
-                    let fk_name = format!("fk_{}_{}", table_name, fk.column);
+                    // Use actual constraint name if available, otherwise generate one
+                    let fk_name = fk.constraint_name.clone().unwrap_or_else(|| {
+                        format!("fk_{}_{}", table_name, fk.column)
+                    });
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES {} ({})",
@@ -1005,7 +1014,10 @@ fn generate_mysql_migration(
             }
             DiffChangeType::Removed => {
                 if let Some(fk) = &diff.target_fk {
-                    let fk_name = format!("fk_{}_{}", table_name, fk.column);
+                    // Use actual constraint name if available, otherwise generate one
+                    let fk_name = fk.constraint_name.clone().unwrap_or_else(|| {
+                        format!("fk_{}_{}", table_name, fk.column)
+                    });
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} DROP FOREIGN KEY {}",
@@ -1288,8 +1300,8 @@ fn generate_oracle_migration(
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} ADD {} {} {}{}",
-                            table_name.to_uppercase(),
-                            col.name.to_uppercase(),
+                            quote_oracle_identifier(table_name),
+                            quote_oracle_identifier(&col.name),
                             col.data_type.to_uppercase(),
                             nullable,
                             default
@@ -1306,8 +1318,8 @@ fn generate_oracle_migration(
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} DROP COLUMN {}",
-                            table_name.to_uppercase(),
-                            col.name.to_uppercase()
+                            quote_oracle_identifier(table_name),
+                            quote_oracle_identifier(&col.name)
                         ),
                         description: format!("Drop column '{}'", col.name),
                         order,
@@ -1337,8 +1349,8 @@ fn generate_oracle_migration(
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} MODIFY {} {} {}{}",
-                            table_name.to_uppercase(),
-                            source_col.name.to_uppercase(),
+                            quote_oracle_identifier(table_name),
+                            quote_oracle_identifier(&source_col.name),
                             source_col.data_type.to_uppercase(),
                             nullable,
                             default
@@ -1368,11 +1380,11 @@ fn generate_oracle_migration(
                             sql: format!(
                                 "CREATE {}INDEX {} ON {} ({})",
                                 unique,
-                                idx.name.to_uppercase(),
-                                table_name.to_uppercase(),
+                                quote_oracle_identifier(&idx.name),
+                                quote_oracle_identifier(table_name),
                                 idx.columns
                                     .iter()
-                                    .map(|c| c.to_uppercase())
+                                    .map(|c| quote_oracle_identifier(c))
                                     .collect::<Vec<_>>()
                                     .join(", ")
                             ),
@@ -1388,7 +1400,7 @@ fn generate_oracle_migration(
                 if let Some(idx) = &diff.target_index {
                     if !idx.is_primary {
                         statements.push(MigrationStatement {
-                            sql: format!("DROP INDEX {}", idx.name.to_uppercase()),
+                            sql: format!("DROP INDEX {}", quote_oracle_identifier(&idx.name)),
                             description: format!("Drop index '{}'", idx.name),
                             order,
                             is_destructive: false,
@@ -1409,8 +1421,8 @@ fn generate_oracle_migration(
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} ADD CONSTRAINT {} {}",
-                            table_name.to_uppercase(),
-                            con.name.to_uppercase(),
+                            quote_oracle_identifier(table_name),
+                            quote_oracle_identifier(&con.name),
                             con.definition
                         ),
                         description: format!("Add constraint '{}'", con.name),
@@ -1425,8 +1437,8 @@ fn generate_oracle_migration(
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} DROP CONSTRAINT {}",
-                            table_name.to_uppercase(),
-                            con.name.to_uppercase()
+                            quote_oracle_identifier(table_name),
+                            quote_oracle_identifier(&con.name)
                         ),
                         description: format!("Drop constraint '{}'", con.name),
                         order,
@@ -1444,15 +1456,18 @@ fn generate_oracle_migration(
         match diff.change_type {
             DiffChangeType::Added => {
                 if let Some(fk) = &diff.source_fk {
-                    let fk_name = format!("FK_{}_{}", table_name, fk.column).to_uppercase();
+                    // Use actual constraint name if available, otherwise generate one
+                    let fk_name = fk.constraint_name.clone().unwrap_or_else(|| {
+                        format!("FK_{}_{}", table_name, fk.column).to_uppercase()
+                    });
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES {} ({})",
-                            table_name.to_uppercase(),
-                            fk_name,
-                            fk.column.to_uppercase(),
-                            fk.references_table.to_uppercase(),
-                            fk.references_column.to_uppercase()
+                            quote_oracle_identifier(table_name),
+                            quote_oracle_identifier(&fk_name),
+                            quote_oracle_identifier(&fk.column),
+                            quote_oracle_identifier(&fk.references_table),
+                            quote_oracle_identifier(&fk.references_column)
                         ),
                         description: format!(
                             "Add foreign key on '{}' referencing '{}.{}'",
@@ -1466,12 +1481,15 @@ fn generate_oracle_migration(
             }
             DiffChangeType::Removed => {
                 if let Some(fk) = &diff.target_fk {
-                    let fk_name = format!("FK_{}_{}", table_name, fk.column).to_uppercase();
+                    // Use actual constraint name if available, otherwise generate one
+                    let fk_name = fk.constraint_name.clone().unwrap_or_else(|| {
+                        format!("FK_{}_{}", table_name, fk.column).to_uppercase()
+                    });
                     statements.push(MigrationStatement {
                         sql: format!(
                             "ALTER TABLE {} DROP CONSTRAINT {}",
-                            table_name.to_uppercase(),
-                            fk_name
+                            quote_oracle_identifier(table_name),
+                            quote_oracle_identifier(&fk_name)
                         ),
                         description: format!(
                             "Drop foreign key on '{}' referencing '{}.{}'",
@@ -1516,8 +1534,12 @@ fn generate_mssql_migration(
 
                     statements.push(MigrationStatement {
                         sql: format!(
-                            "ALTER TABLE [{}] ADD [{}] {} {}{}",
-                            table_name, col.name, col.data_type, nullable, default
+                            "ALTER TABLE {} ADD {} {} {}{}",
+                            quote_mssql_identifier(table_name),
+                            quote_mssql_identifier(&col.name),
+                            col.data_type,
+                            nullable,
+                            default
                         ),
                         description: format!("Add column '{}'", col.name),
                         order,
@@ -1529,7 +1551,11 @@ fn generate_mssql_migration(
             DiffChangeType::Removed => {
                 if let Some(col) = &diff.target_column {
                     statements.push(MigrationStatement {
-                        sql: format!("ALTER TABLE [{}] DROP COLUMN [{}]", table_name, col.name),
+                        sql: format!(
+                            "ALTER TABLE {} DROP COLUMN {}",
+                            quote_mssql_identifier(table_name),
+                            quote_mssql_identifier(&col.name)
+                        ),
                         description: format!("Drop column '{}'", col.name),
                         order,
                         is_destructive: true,
@@ -1552,8 +1578,11 @@ fn generate_mssql_migration(
 
                     statements.push(MigrationStatement {
                         sql: format!(
-                            "ALTER TABLE [{}] ALTER COLUMN [{}] {} {}",
-                            table_name, source_col.name, source_col.data_type, nullable
+                            "ALTER TABLE {} ALTER COLUMN {} {} {}",
+                            quote_mssql_identifier(table_name),
+                            quote_mssql_identifier(&source_col.name),
+                            source_col.data_type,
+                            nullable
                         ),
                         description: format!("Alter column '{}'", source_col.name),
                         order,
@@ -1570,8 +1599,11 @@ fn generate_mssql_migration(
                         let constraint_name = format!("DF_{}_{}", table_name, source_col.name);
                         statements.push(MigrationStatement {
                             sql: format!(
-                                "ALTER TABLE [{}] ADD CONSTRAINT [{}] DEFAULT {} FOR [{}]",
-                                table_name, constraint_name, default, source_col.name
+                                "ALTER TABLE {} ADD CONSTRAINT {} DEFAULT {} FOR {}",
+                                quote_mssql_identifier(table_name),
+                                quote_mssql_identifier(&constraint_name),
+                                default,
+                                quote_mssql_identifier(&source_col.name)
                             ),
                             description: format!(
                                 "Add default constraint for '{}'",
@@ -1596,13 +1628,13 @@ fn generate_mssql_migration(
                         let unique = if idx.is_unique { "UNIQUE " } else { "" };
                         statements.push(MigrationStatement {
                             sql: format!(
-                                "CREATE {}INDEX [{}] ON [{}] ({})",
+                                "CREATE {}INDEX {} ON {} ({})",
                                 unique,
-                                idx.name,
-                                table_name,
+                                quote_mssql_identifier(&idx.name),
+                                quote_mssql_identifier(table_name),
                                 idx.columns
                                     .iter()
-                                    .map(|c| format!("[{}]", c))
+                                    .map(|c| quote_mssql_identifier(c))
                                     .collect::<Vec<_>>()
                                     .join(", ")
                             ),
@@ -1618,7 +1650,11 @@ fn generate_mssql_migration(
                 if let Some(idx) = &diff.target_index {
                     if !idx.is_primary {
                         statements.push(MigrationStatement {
-                            sql: format!("DROP INDEX [{}] ON [{}]", idx.name, table_name),
+                            sql: format!(
+                                "DROP INDEX {} ON {}",
+                                quote_mssql_identifier(&idx.name),
+                                quote_mssql_identifier(table_name)
+                            ),
                             description: format!("Drop index '{}'", idx.name),
                             order,
                             is_destructive: false,
@@ -1638,8 +1674,10 @@ fn generate_mssql_migration(
                 if let Some(con) = &diff.source_constraint {
                     statements.push(MigrationStatement {
                         sql: format!(
-                            "ALTER TABLE [{}] ADD CONSTRAINT [{}] {}",
-                            table_name, con.name, con.definition
+                            "ALTER TABLE {} ADD CONSTRAINT {} {}",
+                            quote_mssql_identifier(table_name),
+                            quote_mssql_identifier(&con.name),
+                            con.definition
                         ),
                         description: format!("Add constraint '{}'", con.name),
                         order,
@@ -1652,8 +1690,9 @@ fn generate_mssql_migration(
                 if let Some(con) = &diff.target_constraint {
                     statements.push(MigrationStatement {
                         sql: format!(
-                            "ALTER TABLE [{}] DROP CONSTRAINT [{}]",
-                            table_name, con.name
+                            "ALTER TABLE {} DROP CONSTRAINT {}",
+                            quote_mssql_identifier(table_name),
+                            quote_mssql_identifier(&con.name)
                         ),
                         description: format!("Drop constraint '{}'", con.name),
                         order,
@@ -1671,11 +1710,18 @@ fn generate_mssql_migration(
         match diff.change_type {
             DiffChangeType::Added => {
                 if let Some(fk) = &diff.source_fk {
-                    let fk_name = format!("FK_{}_{}", table_name, fk.column);
+                    // Use actual constraint name if available, otherwise generate one
+                    let fk_name = fk.constraint_name.clone().unwrap_or_else(|| {
+                        format!("FK_{}_{}", table_name, fk.column)
+                    });
                     statements.push(MigrationStatement {
                         sql: format!(
-                            "ALTER TABLE [{}] ADD CONSTRAINT [{}] FOREIGN KEY ([{}]) REFERENCES [{}] ([{}])",
-                            table_name, fk_name, fk.column, fk.references_table, fk.references_column
+                            "ALTER TABLE {} ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES {} ({})",
+                            quote_mssql_identifier(table_name),
+                            quote_mssql_identifier(&fk_name),
+                            quote_mssql_identifier(&fk.column),
+                            quote_mssql_identifier(&fk.references_table),
+                            quote_mssql_identifier(&fk.references_column)
                         ),
                         description: format!(
                             "Add foreign key on '{}' referencing '{}.{}'",
@@ -1689,11 +1735,15 @@ fn generate_mssql_migration(
             }
             DiffChangeType::Removed => {
                 if let Some(fk) = &diff.target_fk {
-                    let fk_name = format!("FK_{}_{}", table_name, fk.column);
+                    // Use actual constraint name if available, otherwise generate one
+                    let fk_name = fk.constraint_name.clone().unwrap_or_else(|| {
+                        format!("FK_{}_{}", table_name, fk.column)
+                    });
                     statements.push(MigrationStatement {
                         sql: format!(
-                            "ALTER TABLE [{}] DROP CONSTRAINT [{}]",
-                            table_name, fk_name
+                            "ALTER TABLE {} DROP CONSTRAINT {}",
+                            quote_mssql_identifier(table_name),
+                            quote_mssql_identifier(&fk_name)
                         ),
                         description: format!(
                             "Drop foreign key on '{}' referencing '{}.{}'",
@@ -1720,6 +1770,16 @@ fn quote_identifier(name: &str) -> String {
 /// Quote an identifier for MySQL (backticks).
 fn quote_mysql_identifier(name: &str) -> String {
     format!("`{}`", name.replace('`', "``"))
+}
+
+/// Quote an identifier for Oracle (double quotes, uppercase).
+fn quote_oracle_identifier(name: &str) -> String {
+    format!("\"{}\"", name.to_uppercase().replace('"', "\"\""))
+}
+
+/// Quote an identifier for MSSQL (brackets with proper escaping).
+fn quote_mssql_identifier(name: &str) -> String {
+    format!("[{}]", name.replace(']', "]]"))
 }
 
 #[cfg(test)]

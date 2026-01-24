@@ -927,9 +927,10 @@ impl DatabaseDriver for SqliteDriver {
                 column: row.get("from"),
                 references_table: row.get("table"),
                 references_column: row.get("to"),
+                constraint_name: None, // SQLite PRAGMA doesn't return constraint names
             })
             .collect();
-        
+
         Ok(TableSchema {
             table_name: table_name.to_string(),
             columns,
@@ -1224,6 +1225,7 @@ impl DatabaseDriver for SqliteDriver {
                 column: row.get("from"),
                 references_table: row.get("table"),
                 references_column: row.get("to"),
+                constraint_name: None, // SQLite PRAGMA doesn't return constraint names
             })
             .collect();
 

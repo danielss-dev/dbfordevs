@@ -251,6 +251,7 @@ export interface ForeignKeyInfo {
   column: string;
   referencesTable: string;
   referencesColumn: string;
+  constraintName?: string;
 }
 
 // Extended types for table properties view

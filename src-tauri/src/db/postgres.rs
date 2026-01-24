@@ -1234,7 +1234,8 @@ impl DatabaseDriver for PostgresDriver {
             SELECT
                 kcu.column_name::text as column_name,
                 ccu.table_name::text AS foreign_table_name,
-                ccu.column_name::text AS foreign_column_name
+                ccu.column_name::text AS foreign_column_name,
+                tc.constraint_name::text AS constraint_name
             FROM information_schema.table_constraints AS tc
             JOIN information_schema.key_column_usage AS kcu
                 ON tc.constraint_name = kcu.constraint_name
@@ -1246,20 +1247,21 @@ impl DatabaseDriver for PostgresDriver {
             AND tc.table_schema = COALESCE($1, current_schema())
             AND tc.table_name = $2
         "#;
-        
+
         let fk_rows = sqlx::query(fk_query)
             .bind(&schema)
             .bind(&table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get foreign keys: {}", e)))?;
-        
+
         let foreign_keys: Vec<ForeignKeyInfo> = fk_rows
             .iter()
             .map(|row| ForeignKeyInfo {
                 column: row.get("column_name"),
                 references_table: row.get("foreign_table_name"),
                 references_column: row.get("foreign_column_name"),
+                constraint_name: row.get("constraint_name"),
             })
             .collect();
         
@@ -1335,7 +1337,8 @@ impl DatabaseDriver for PostgresDriver {
                 tc.table_name::text as table_name,
                 kcu.column_name::text as column_name,
                 ccu.table_name::text AS foreign_table_name,
-                ccu.column_name::text AS foreign_column_name
+                ccu.column_name::text AS foreign_column_name,
+                tc.constraint_name::text AS constraint_name
             FROM information_schema.table_constraints AS tc
             JOIN information_schema.key_column_usage AS kcu
                 ON tc.constraint_name = kcu.constraint_name
@@ -1394,6 +1397,7 @@ impl DatabaseDriver for PostgresDriver {
                 column: row.get("column_name"),
                 references_table: row.get("foreign_table_name"),
                 references_column: row.get("foreign_column_name"),
+                constraint_name: row.get("constraint_name"),
             };
 
             table_fks.entry(table_key.clone()).or_default().push(fk_info);
@@ -1859,7 +1863,8 @@ impl DatabaseDriver for PostgresDriver {
             SELECT
                 kcu.column_name::text as column_name,
                 ccu.table_name::text AS foreign_table_name,
-                ccu.column_name::text AS foreign_column_name
+                ccu.column_name::text AS foreign_column_name,
+                tc.constraint_name::text AS constraint_name
             FROM information_schema.table_constraints AS tc
             JOIN information_schema.key_column_usage AS kcu
                 ON tc.constraint_name = kcu.constraint_name
@@ -1884,6 +1889,7 @@ impl DatabaseDriver for PostgresDriver {
                 column: row.get("column_name"),
                 references_table: row.get("foreign_table_name"),
                 references_column: row.get("foreign_column_name"),
+                constraint_name: row.get("constraint_name"),
             }
         }).collect();
 
