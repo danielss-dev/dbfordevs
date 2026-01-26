@@ -2,6 +2,11 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.2] - 2026-01-26
+
+
+### Added
+- **feat**: implement SQL Server Browser query for named instance port resolution
 ## [0.5.1] - 2026-01-24
 
 
