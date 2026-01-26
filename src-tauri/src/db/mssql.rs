@@ -16,10 +16,83 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use deadpool::managed::{Manager, Pool, RecycleResult};
 use std::future::Future;
+use std::time::Duration;
 use std::time::Instant;
 use tiberius::{AuthMethod, Client, Config, Query, Row};
-use tokio::net::TcpStream;
+use tokio::net::{TcpStream, UdpSocket};
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
+
+/// Query SQL Server Browser service to discover the port for a named instance
+async fn query_sql_browser(host: &str, instance_name: &str) -> AppResult<u16> {
+    // SQL Browser runs on UDP port 1434
+    let browser_addr = format!("{}:1434", host);
+
+    // Create UDP socket bound to any available port
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .await
+        .map_err(|e| AppError::ConnectionError(format!("Failed to create UDP socket for SQL Browser: {}", e)))?;
+
+    // SQL Browser protocol: send 0x04 followed by instance name (null-terminated)
+    let mut request = vec![0x04u8];
+    request.extend_from_slice(instance_name.as_bytes());
+    request.push(0x00); // null terminator
+
+    socket.send_to(&request, &browser_addr)
+        .await
+        .map_err(|e| AppError::ConnectionError(format!("Failed to query SQL Browser service: {}", e)))?;
+
+    // Read response with timeout
+    let mut response = vec![0u8; 4096];
+    let len = match tokio::time::timeout(
+        Duration::from_secs(5),
+        socket.recv(&mut response)
+    ).await {
+        Ok(Ok(len)) => len,
+        Ok(Err(e)) => return Err(AppError::ConnectionError(format!("Failed to receive SQL Browser response: {}", e))),
+        Err(_) => return Err(AppError::ConnectionError(format!(
+            "SQL Browser query timed out. Make sure the SQL Server Browser service is running on '{}' or specify the port explicitly (e.g., Server={}\\{},1433)",
+            host, host, instance_name
+        ))),
+    };
+
+    // Parse response - format is: 0x05 0x?? 0x?? data
+    // Data contains semicolon-separated key-value pairs like "ServerName;X;InstanceName;Y;tcp;1433;"
+    if len < 3 {
+        return Err(AppError::ConnectionError(format!(
+            "Invalid SQL Browser response for instance '{}'. The instance may not exist or SQL Browser service may not be running.",
+            instance_name
+        )));
+    }
+
+    let response_str = String::from_utf8_lossy(&response[3..len]);
+
+    // Parse the response to find the tcp port
+    // Format: ServerName;HOST;InstanceName;INSTANCE;IsClustered;No;Version;X.Y.Z;tcp;PORT;np;\\HOST\pipe\sql\query;;
+    let parts: Vec<&str> = response_str.split(';').collect();
+    for i in 0..parts.len() {
+        if parts[i].eq_ignore_ascii_case("tcp") && i + 1 < parts.len() {
+            if let Ok(port) = parts[i + 1].parse::<u16>() {
+                return Ok(port);
+            }
+        }
+    }
+
+    Err(AppError::ConnectionError(format!(
+        "Could not find TCP port for instance '{}' in SQL Browser response. The instance may be configured for named pipes only.",
+        instance_name
+    )))
+}
+
+/// Parsed connection information for MSSQL
+struct MssqlConnectionInfo {
+    host: String,
+    port: u16,
+    instance_name: Option<String>,
+    database: String,
+    username: String,
+    password: String,
+    trust_cert: bool,
+}
 
 /// MSSQL connection manager for deadpool
 pub struct MssqlConnectionManager {
@@ -39,10 +112,23 @@ impl Manager for MssqlConnectionManager {
     fn create(&self) -> impl Future<Output = Result<Self::Type, Self::Error>> + Send {
         let connection_string = self.connection_string.clone();
         async move {
-            let config = parse_connection_string(&connection_string)?;
-            let tcp = TcpStream::connect(config.get_addr())
+            let info = parse_connection_info(&connection_string)?;
+
+            // Determine the actual port to connect to
+            let connect_port = if let Some(ref instance_name) = info.instance_name {
+                // Query SQL Browser to get the actual port for the named instance
+                query_sql_browser(&info.host, instance_name).await?
+            } else {
+                info.port
+            };
+
+            // Build the tiberius config with the resolved port
+            let config = build_tiberius_config(&info, connect_port)?;
+
+            let addr = format!("{}:{}", info.host, connect_port);
+            let tcp = TcpStream::connect(&addr)
                 .await
-                .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL server: {}", e)))?;
+                .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL server at {}: {}", addr, e)))?;
             tcp.set_nodelay(true)
                 .map_err(|e| AppError::ConnectionError(format!("Failed to set nodelay: {}", e)))?;
 
@@ -103,10 +189,8 @@ pub async fn create_mssql_pool(connection_string: &str) -> AppResult<MssqlPool> 
     Ok(pool)
 }
 
-fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
-    let mut config = Config::new();
-
-    // First pass: gather all values
+/// Parse connection string into structured info
+fn parse_connection_info(conn_str: &str) -> AppResult<MssqlConnectionInfo> {
     let mut host = String::from("localhost");
     let mut port: u16 = 1433;
     let mut instance_name: Option<String> = None;
@@ -128,7 +212,7 @@ fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
             match key.as_str() {
                 "server" => {
                     let server = value.strip_prefix("tcp:").unwrap_or(value);
-                    // First extract port if specified with comma (e.g., server,1433)
+                    // First extract port if specified with comma (e.g., server,1433 or server\instance,1433)
                     let (server_part, explicit_port) = if let Some((s, port_str)) = server.split_once(',') {
                         let p = port_str.parse::<u16>().ok();
                         (s, p)
@@ -144,9 +228,12 @@ fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
                         host = server_part.to_string();
                     }
 
-                    // Apply explicit port if specified
+                    // If explicit port is specified with a named instance, use that port
+                    // (user knows the port and doesn't want SQL Browser lookup)
                     if let Some(p) = explicit_port {
                         port = p;
+                        // Clear instance_name if port is explicitly specified to skip browser lookup
+                        instance_name = None;
                     }
                 }
                 "database" | "initial catalog" => {
@@ -166,21 +253,31 @@ fn parse_connection_string(conn_str: &str) -> AppResult<Config> {
         }
     }
 
-    config.host(&host);
-    // If instance name is specified, use it (this queries SQL Browser for the port)
-    // Otherwise use the explicit port
-    if let Some(ref inst) = instance_name {
-        config.instance_name(inst);
-    } else {
-        config.port(port);
+    Ok(MssqlConnectionInfo {
+        host,
+        port,
+        instance_name,
+        database,
+        username,
+        password,
+        trust_cert,
+    })
+}
+
+/// Build tiberius Config from connection info with resolved port
+fn build_tiberius_config(info: &MssqlConnectionInfo, port: u16) -> AppResult<Config> {
+    let mut config = Config::new();
+
+    config.host(&info.host);
+    config.port(port);
+
+    if !info.database.is_empty() {
+        config.database(&info.database);
     }
-    if !database.is_empty() {
-        config.database(&database);
+    if !info.username.is_empty() {
+        config.authentication(AuthMethod::sql_server(&info.username, &info.password));
     }
-    if !username.is_empty() {
-        config.authentication(AuthMethod::sql_server(&username, &password));
-    }
-    if trust_cert {
+    if info.trust_cert {
         config.trust_cert();
     }
 
@@ -744,17 +841,47 @@ fn mssql_value_to_json(row: &Row, idx: usize) -> serde_json::Value {
 impl DatabaseDriver for MssqlDriver {
     async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult> {
         let connection_string = self.build_connection_string(config);
-        let config_parsed = parse_connection_string(&connection_string)?;
+        let info = parse_connection_info(&connection_string)?;
 
-        match TcpStream::connect(config_parsed.get_addr())
+        // Determine the actual port to connect to
+        let connect_port = if let Some(ref instance_name) = info.instance_name {
+            // Query SQL Browser to get the actual port for the named instance
+            match query_sql_browser(&info.host, instance_name).await {
+                Ok(port) => port,
+                Err(e) => {
+                    return Ok(TestConnectionResult {
+                        success: false,
+                        message: format!("{}", e),
+                        server_version: None,
+                    });
+                }
+            }
+        } else {
+            info.port
+        };
+
+        // Build the tiberius config with the resolved port
+        let tiberius_config = match build_tiberius_config(&info, connect_port) {
+            Ok(c) => c,
+            Err(e) => {
+                return Ok(TestConnectionResult {
+                    success: false,
+                    message: format!("Configuration error: {}", e),
+                    server_version: None,
+                });
+            }
+        };
+
+        let addr = format!("{}:{}", info.host, connect_port);
+        match TcpStream::connect(&addr)
             .await
-            .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL server: {}", e)))
+            .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL server at {}: {}", addr, e)))
         {
             Ok(tcp) => {
                 tcp.set_nodelay(true)
                     .map_err(|e| AppError::ConnectionError(format!("Failed to set nodelay: {}", e)))?;
 
-                match Client::connect(config_parsed, tcp.compat_write())
+                match Client::connect(tiberius_config, tcp.compat_write())
                     .await
                     .map_err(|e| AppError::ConnectionError(format!("MSSQL authentication failed: {}", e)))
                 {
@@ -1125,9 +1252,20 @@ impl DatabaseDriver for MssqlDriver {
         let username = config.username.as_deref().unwrap_or("sa");
         let password = config.password.as_deref().unwrap_or("");
 
+        // Handle named instances (e.g., server\SQLEXPRESS or server\sql2022)
+        // When a named instance is specified, don't include the port - the SQL Browser
+        // service will resolve the actual port for the named instance
+        let server_part = if host.contains('\\') {
+            // Named instance - don't use tcp: prefix or port
+            format!("Server={}", host)
+        } else {
+            // Regular connection with host and port
+            format!("Server=tcp:{},{}", host, port)
+        };
+
         format!(
-            "Server=tcp:{},{};Database={};User Id={};Password={};TrustServerCertificate=true",
-            host, port, config.database, username, password
+            "{};Database={};User Id={};Password={};TrustServerCertificate=true",
+            server_part, config.database, username, password
         )
     }
 
