@@ -17,6 +17,8 @@ export default defineConfig({
     strictPort: true,
     watch: {
       ignored: ["**/src-tauri/**"],
+      usePolling: true,
+      interval: 250,
     },
   },
 });

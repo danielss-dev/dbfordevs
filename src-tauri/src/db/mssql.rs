@@ -3780,6 +3780,84 @@ impl MssqlDriver {
         Ok(tables)
     }
 
+    /// Create a new database on the SQL Server instance
+    pub async fn create_database(&self, pool: PoolRef<'_>, database_name: &str) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Validate database name - must not be empty and must not contain dangerous characters
+        if database_name.trim().is_empty() {
+            return Err(AppError::QueryError("Database name cannot be empty".to_string()));
+        }
+
+        // Use bracket quoting for the database name to handle special characters
+        let escaped_name = database_name.replace(']', "]]");
+        let sql = format!("CREATE DATABASE [{}]", escaped_name);
+
+        let query = Query::new(&sql);
+        query.execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to create database '{}': {}", database_name, e)))?;
+
+        Ok(())
+    }
+
+    /// Drop a database from the SQL Server instance
+    /// This will forcefully close all connections to the database before dropping
+    pub async fn drop_database(&self, pool: PoolRef<'_>, database_name: &str) -> AppResult<()> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Validate database name
+        if database_name.trim().is_empty() {
+            return Err(AppError::QueryError("Database name cannot be empty".to_string()));
+        }
+
+        // Prevent dropping system databases
+        let system_dbs = ["master", "tempdb", "model", "msdb"];
+        if system_dbs.iter().any(|&db| db.eq_ignore_ascii_case(database_name)) {
+            return Err(AppError::QueryError(format!(
+                "Cannot drop system database '{}'. System databases (master, tempdb, model, msdb) are protected.",
+                database_name
+            )));
+        }
+
+        // Use bracket quoting for the database name
+        let escaped_name = database_name.replace(']', "]]");
+
+        // First, set the database to SINGLE_USER mode with ROLLBACK IMMEDIATE
+        // This will forcefully close all existing connections to the database
+        let alter_sql = format!(
+            "ALTER DATABASE [{}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE",
+            escaped_name
+        );
+
+        let alter_query = Query::new(&alter_sql);
+        alter_query.execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!(
+                "Failed to set database '{}' to single user mode: {}. This may indicate insufficient permissions or the database doesn't exist.",
+                database_name, e
+            )))?;
+
+        // Now drop the database
+        let drop_sql = format!("DROP DATABASE [{}]", escaped_name);
+
+        let drop_query = Query::new(&drop_sql);
+        drop_query.execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to drop database '{}': {}", database_name, e)))?;
+
+        Ok(())
+    }
+
     /// Parse MSSQL SHOWPLAN_XML output into a PlanNode structure
     fn parse_mssql_plan_xml(xml: &str) -> (PlanNode, f64, Vec<ExplainWarning>) {
         let mut warnings = Vec::new();
