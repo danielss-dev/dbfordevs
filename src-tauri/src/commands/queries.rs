@@ -423,3 +423,54 @@ pub async fn get_mssql_database_tables(connection_id: String, database_name: Str
     driver.get_database_tables(pool_ref, &database_name).await
 }
 
+/// Create a new database on a MSSQL server
+/// Only available for MSSQL connections without a specific database configured
+#[tauri::command]
+pub async fn create_mssql_database(connection_id: String, database_name: String) -> AppResult<()> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    let config = storage::get_connection(&connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    // This command is only for MSSQL
+    if config.database_type != DatabaseType::MSSQL {
+        return Err(AppError::QueryError("This command is only available for MSSQL connections".to_string()));
+    }
+
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
+    let driver = MssqlDriver;
+
+    driver.create_database(pool_ref, &database_name).await
+}
+
+/// Drop a database from a MSSQL server
+/// This will forcefully close all connections to the database before dropping
+/// Only available for MSSQL connections without a specific database configured
+#[tauri::command]
+pub async fn drop_mssql_database(connection_id: String, database_name: String) -> AppResult<()> {
+    let manager = get_connection_manager().read().await;
+
+    // Verify connection exists
+    if !manager.is_connected(&connection_id) {
+        return Err(AppError::ConnectionError("Connection not found or not connected".to_string()));
+    }
+
+    let config = storage::get_connection(&connection_id)?
+        .ok_or_else(|| AppError::ConfigError("Connection config not found".to_string()))?;
+
+    // This command is only for MSSQL
+    if config.database_type != DatabaseType::MSSQL {
+        return Err(AppError::QueryError("This command is only available for MSSQL connections".to_string()));
+    }
+
+    let pool_ref = manager.get_pool_ref(&connection_id)?;
+    let driver = MssqlDriver;
+
+    driver.drop_database(pool_ref, &database_name).await
+}
+

@@ -43,6 +43,8 @@ pub fn run() {
             queries::get_all_table_schemas,
             queries::get_mssql_databases,
             queries::get_mssql_database_tables,
+            queries::create_mssql_database,
+            queries::drop_mssql_database,
             queries::insert_row,
             queries::update_row,
             queries::delete_row,

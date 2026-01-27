@@ -435,6 +435,51 @@ export function useDatabase() {
   );
 
   /**
+   * Create a new database on MSSQL server (only for generic connections without specific database)
+   */
+  const createMssqlDatabase = useCallback(
+    async (connectionId: string, databaseName: string): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("create_mssql_database", { connectionId, databaseName });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
+   * Drop a database from MSSQL server (only for generic connections without specific database)
+   * This will forcefully close all connections to the database before dropping
+   */
+  const dropMssqlDatabase = useCallback(
+    async (connectionId: string, databaseName: string): Promise<boolean> => {
+      setExecuting(true);
+      setQueryError(null);
+
+      try {
+        await invoke("drop_mssql_database", { connectionId, databaseName });
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setQueryError(message);
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [setExecuting, setQueryError]
+  );
+
+  /**
    * Get schema for a specific table
    */
   const getTableSchema = useCallback(
@@ -1675,6 +1720,8 @@ export function useDatabase() {
     getTables,
     getMssqlDatabases,
     getMssqlDatabaseTables,
+    createMssqlDatabase,
+    dropMssqlDatabase,
     getTableSchema,
     fetchAllSchemas,
     refreshSchemas,

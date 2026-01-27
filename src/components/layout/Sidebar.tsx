@@ -51,6 +51,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   ResizeHandle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { ConnectionFilterBar } from "@/components/connections/ConnectionFilterBar";
@@ -209,6 +217,8 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     getTables,
     getMssqlDatabases,
     getMssqlDatabaseTables,
+    createMssqlDatabase,
+    dropMssqlDatabase,
     deleteConnection,
     dropTable,
     generateTableDdl,
@@ -289,6 +299,13 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const [tablesByDatabase, setTablesByDatabase] = useState<Record<string, TableInfo[]>>({});
   const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(new Set());
   const [loadingDatabaseTables, setLoadingDatabaseTables] = useState<Set<string>>(new Set());
+  // MSSQL database management state (only for generic connections without specific database)
+  const [databaseToDelete, setDatabaseToDelete] = useState<string | null>(null);
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
+  const [showCreateDatabaseDialog, setShowCreateDatabaseDialog] = useState(false);
+  const [newDatabaseName, setNewDatabaseName] = useState("");
+  const [isCreatingDatabase, setIsCreatingDatabase] = useState(false);
+  const [isDeletingDatabase, setIsDeletingDatabase] = useState(false);
 
   // Refs for scrolling to highlighted items
   const tableRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -597,6 +614,59 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
       showSuccessToast(`Snapshot saved: ${snapshotName}`);
     } catch (error) {
       showErrorToast(`Failed to save snapshot: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  // MSSQL Database management handlers (only for generic connections)
+  const handleCreateDatabase = async () => {
+    if (!newDatabaseName.trim()) return;
+
+    setIsCreatingDatabase(true);
+    try {
+      const success = await createMssqlDatabase(connection.id, newDatabaseName.trim());
+      if (success) {
+        showSuccessToast(`Database "${newDatabaseName}" created successfully`);
+        setShowCreateDatabaseDialog(false);
+        setNewDatabaseName("");
+        // Refresh the database list
+        await loadDatabases();
+      }
+    } catch (error) {
+      showErrorToast(`Failed to create database: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsCreatingDatabase(false);
+    }
+  };
+
+  const handleDeleteDatabase = async () => {
+    if (!databaseToDelete || deleteConfirmationInput !== databaseToDelete) return;
+
+    setIsDeletingDatabase(true);
+    try {
+      const success = await dropMssqlDatabase(connection.id, databaseToDelete);
+      if (success) {
+        showSuccessToast(`Database "${databaseToDelete}" deleted successfully`);
+        setDatabaseToDelete(null);
+        setDeleteConfirmationInput("");
+        // Remove from expanded set if it was expanded
+        setExpandedDatabases(prev => {
+          const next = new Set(prev);
+          next.delete(databaseToDelete);
+          return next;
+        });
+        // Clear tables for this database
+        setTablesByDatabase(prev => {
+          const next = { ...prev };
+          delete next[databaseToDelete];
+          return next;
+        });
+        // Refresh the database list
+        await loadDatabases();
+      }
+    } catch (error) {
+      showErrorToast(`Failed to delete database: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsDeletingDatabase(false);
     }
   };
 
@@ -1360,35 +1430,42 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                 }, {});
                                 const dbSchemaNames = Object.keys(dbTablesBySchema).sort();
 
-                                return (
-                                  <div key={db.name} className="ml-2">
-                                    <div
-                                      className={cn(
-                                        "group flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-all duration-200 cursor-pointer",
-                                        "hover:bg-sidebar-accent/50",
-                                        db.isCurrent && "bg-primary/10 font-medium"
-                                      )}
-                                      onClick={() => handleDatabaseToggle(db.name)}
-                                    >
-                                      <ChevronRight
-                                        className={cn(
-                                          "h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-muted-foreground",
-                                          isExpanded && "rotate-90"
-                                        )}
-                                      />
-                                      <Database className={cn("h-3.5 w-3.5", db.isCurrent ? "text-primary" : "text-muted-foreground")} />
-                                      <span className="truncate flex-1 text-left">{db.name}</span>
-                                      {db.isCurrent && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">current</span>
-                                      )}
-                                      {db.state !== "ONLINE" && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
-                                          {db.state.toLowerCase()}
-                                        </span>
-                                      )}
-                                    </div>
+                                // Check if this is a system database that cannot be deleted
+                                const isSystemDb = ["master", "tempdb", "model", "msdb"].some(
+                                  sysDb => sysDb.toLowerCase() === db.name.toLowerCase()
+                                );
 
-                                    {/* Expanded database content - show tables */}
+                                return (
+                                  <ContextMenu key={db.name}>
+                                    <ContextMenuTrigger asChild>
+                                      <div className="ml-2">
+                                        <div
+                                          className={cn(
+                                            "group flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-all duration-200 cursor-pointer",
+                                            "hover:bg-sidebar-accent/50",
+                                            db.isCurrent && "bg-primary/10 font-medium"
+                                          )}
+                                          onClick={() => handleDatabaseToggle(db.name)}
+                                        >
+                                          <ChevronRight
+                                            className={cn(
+                                              "h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-muted-foreground",
+                                              isExpanded && "rotate-90"
+                                            )}
+                                          />
+                                          <Database className={cn("h-3.5 w-3.5", db.isCurrent ? "text-primary" : "text-muted-foreground")} />
+                                          <span className="truncate flex-1 text-left">{db.name}</span>
+                                          {db.isCurrent && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">current</span>
+                                          )}
+                                          {db.state !== "ONLINE" && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
+                                              {db.state.toLowerCase()}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Expanded database content - show tables */}
                                     {isExpanded && (
                                       <div className="ml-4 animate-slide-down">
                                         {isLoadingTables ? (
@@ -1466,7 +1543,21 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         )}
                                       </div>
                                     )}
-                                  </div>
+                                      </div>
+                                    </ContextMenuTrigger>
+                                    {/* Only show delete option for non-system databases when no specific database is configured */}
+                                    {!hasSpecificDatabase && !isSystemDb && (
+                                      <ContextMenuContent className="w-48">
+                                        <ContextMenuItem
+                                          onSelect={() => setDatabaseToDelete(db.name)}
+                                          className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                          Delete Database
+                                        </ContextMenuItem>
+                                      </ContextMenuContent>
+                                    )}
+                                  </ContextMenu>
                                 );
                               })
                             ) : databasesOpen ? (
@@ -1476,6 +1567,15 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-48">
+                        {!hasSpecificDatabase && (
+                          <>
+                            <ContextMenuItem onSelect={() => setShowCreateDatabaseDialog(true)} className="gap-2">
+                              <Plus className="h-4 w-4" />
+                              New Database
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                          </>
+                        )}
                         <ContextMenuItem onSelect={loadDatabases} className="gap-2">
                           <RefreshCw className={cn("h-4 w-4", isLoadingDatabases && "animate-spin")} />
                           Refresh
@@ -2461,6 +2561,118 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Drop Sequence
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* MSSQL Create Database Dialog */}
+      <Dialog open={showCreateDatabaseDialog} onOpenChange={(open) => {
+        setShowCreateDatabaseDialog(open);
+        if (!open) setNewDatabaseName("");
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Database</DialogTitle>
+            <DialogDescription>
+              Enter a name for the new database. The database will be created on the SQL Server instance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="database-name">Database Name</Label>
+            <Input
+              id="database-name"
+              value={newDatabaseName}
+              onChange={(e) => setNewDatabaseName(e.target.value)}
+              placeholder="Enter database name"
+              className="mt-2"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newDatabaseName.trim()) {
+                  handleCreateDatabase();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateDatabaseDialog(false);
+                setNewDatabaseName("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateDatabase}
+              disabled={!newDatabaseName.trim() || isCreatingDatabase}
+            >
+              {isCreatingDatabase ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Database"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MSSQL Delete Database Confirmation Dialog */}
+      <AlertDialog open={!!databaseToDelete} onOpenChange={(open) => {
+        if (!open) {
+          setDatabaseToDelete(null);
+          setDeleteConfirmationInput("");
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Delete Database</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                You are about to permanently delete the database <strong>"{databaseToDelete}"</strong>.
+              </p>
+              <p className="text-destructive font-medium">
+                This action will close all connections to the database and permanently delete all data. This cannot be undone.
+              </p>
+              <div className="pt-2">
+                <Label htmlFor="confirm-database-name" className="text-foreground">
+                  Type <strong>{databaseToDelete}</strong> to confirm:
+                </Label>
+                <Input
+                  id="confirm-database-name"
+                  value={deleteConfirmationInput}
+                  onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+                  placeholder="Enter database name to confirm"
+                  className="mt-2"
+                  autoFocus
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDatabaseToDelete(null);
+              setDeleteConfirmationInput("");
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDatabase}
+              disabled={deleteConfirmationInput !== databaseToDelete || isDeletingDatabase}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingDatabase ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Database"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
