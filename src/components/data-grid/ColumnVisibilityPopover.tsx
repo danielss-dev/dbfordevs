@@ -7,7 +7,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useGridStore } from "@/stores/grid";
 import type { ColumnInfo } from "@/types";
@@ -104,41 +103,39 @@ export function ColumnVisibilityPopover({
           </div>
         </div>
         <Separator />
-        <ScrollArea className="max-h-[300px]">
-          <div className="p-2 space-y-1">
-            {columns.map((column) => {
-              const isVisible = isColumnVisible(column.name);
-              const checkboxId = `col-vis-${column.name}`;
-              return (
-                <div
-                  key={column.name}
-                  className={cn(
-                    "flex items-center gap-2 py-1 px-1 rounded cursor-pointer hover:bg-accent transition-colors",
-                    !isVisible && "opacity-50"
-                  )}
-                  onClick={() => handleToggle(column.name, !isVisible)}
-                >
-                  <Checkbox
-                    id={checkboxId}
-                    checked={isVisible}
-                    onCheckedChange={(checked) =>
-                      handleToggle(column.name, checked === true)
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <span className="text-sm truncate flex-1" title={column.name}>
-                    {column.name}
+        <div className="max-h-[300px] overflow-y-auto p-2 space-y-1">
+          {columns.map((column) => {
+            const isVisible = isColumnVisible(column.name);
+            const checkboxId = `col-vis-${column.name}`;
+            return (
+              <div
+                key={column.name}
+                className={cn(
+                  "flex items-center gap-2 py-1 px-1 rounded cursor-pointer hover:bg-accent transition-colors",
+                  !isVisible && "opacity-50"
+                )}
+                onClick={() => handleToggle(column.name, !isVisible)}
+              >
+                <Checkbox
+                  id={checkboxId}
+                  checked={isVisible}
+                  onCheckedChange={(checked) =>
+                    handleToggle(column.name, checked === true)
+                  }
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <span className="text-sm truncate flex-1" title={column.name}>
+                  {column.name}
+                </span>
+                {column.isPrimaryKey && (
+                  <span className="text-[10px] px-1 py-0.5 bg-primary/10 text-primary rounded">
+                    PK
                   </span>
-                  {column.isPrimaryKey && (
-                    <span className="text-[10px] px-1 py-0.5 bg-primary/10 text-primary rounded">
-                      PK
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </PopoverContent>
     </Popover>
   );
