@@ -3658,6 +3658,71 @@ ORDER BY ic.key_ordinal;
             execution_time_ms: start.elapsed().as_millis() as u64,
         })
     }
+
+    async fn execute_parameterized(
+        &self,
+        pool: PoolRef<'_>,
+        sql: &str,
+        params: Vec<serde_json::Value>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Mssql(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let mut client = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        // Convert JSON params to owned strings/values that outlive the query.
+        // Tiberius bind takes references, so we need to hold the owned values.
+        let owned_params: Vec<MssqlParam> = params.iter().map(|p| match p {
+            serde_json::Value::String(s) => MssqlParam::String(s.clone()),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    MssqlParam::I64(i)
+                } else if let Some(f) = n.as_f64() {
+                    MssqlParam::F64(f)
+                } else {
+                    MssqlParam::String(n.to_string())
+                }
+            }
+            serde_json::Value::Bool(b) => MssqlParam::Bool(*b),
+            serde_json::Value::Null => MssqlParam::Null,
+            other => MssqlParam::String(other.to_string()),
+        }).collect();
+
+        let mut query = Query::new(sql);
+        for param in &owned_params {
+            match param {
+                MssqlParam::String(s) => { query.bind(s.as_str()); }
+                MssqlParam::I64(i) => { query.bind(*i); }
+                MssqlParam::F64(f) => { query.bind(*f); }
+                MssqlParam::Bool(b) => { query.bind(*b); }
+                MssqlParam::Null => { query.bind(Option::<&str>::None); }
+            }
+        }
+
+        let result = query.execute(&mut *client).await
+            .map_err(|e| AppError::QueryError(format!("Parameterized query failed: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected().iter().sum()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+}
+
+/// Owned parameter values for MSSQL parameterized queries
+enum MssqlParam {
+    String(String),
+    I64(i64),
+    F64(f64),
+    Bool(bool),
+    Null,
 }
 
 impl MssqlDriver {

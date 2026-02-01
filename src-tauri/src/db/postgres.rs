@@ -3959,5 +3959,51 @@ impl DatabaseDriver for PostgresDriver {
             execution_time_ms: start.elapsed().as_millis() as u64,
         })
     }
+
+    async fn execute_parameterized(
+        &self,
+        pool: PoolRef<'_>,
+        sql: &str,
+        params: Vec<serde_json::Value>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Postgres(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Postgres driver".to_string())),
+        };
+
+        let start = Instant::now();
+
+        // Build the query and bind each parameter based on its JSON type.
+        // PostgreSQL requires typed parameters so we bind with appropriate Rust types.
+        let mut query = sqlx::query(sql);
+        for param in &params {
+            query = match param {
+                serde_json::Value::String(s) => query.bind(s.clone()),
+                serde_json::Value::Number(n) => {
+                    if let Some(i) = n.as_i64() {
+                        query.bind(i)
+                    } else if let Some(f) = n.as_f64() {
+                        query.bind(f)
+                    } else {
+                        query.bind(n.to_string())
+                    }
+                }
+                serde_json::Value::Bool(b) => query.bind(*b),
+                serde_json::Value::Null => query.bind(None::<String>),
+                other => query.bind(other.to_string()),
+            };
+        }
+
+        let result = query.execute(pool)
+            .await
+            .map_err(|e| AppError::QueryError(format!("Parameterized query failed: {}", e)))?;
+
+        Ok(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            affected_rows: Some(result.rows_affected()),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        })
+    }
 }
 

@@ -33,49 +33,33 @@ fn quote_single_identifier(identifier: &str, db_type: &DatabaseType) -> String {
     }
 }
 
-/// Formats a JSON value for SQL based on database type.
-/// Handles proper boolean literals, NULL, strings, and numbers.
-fn format_sql_value(v: &serde_json::Value, db_type: &DatabaseType) -> String {
-    match v {
-        serde_json::Value::String(s) => format!("'{}'", s.replace('\'', "''")),
-        serde_json::Value::Number(n) => n.to_string(),
-        serde_json::Value::Bool(b) => {
-            // Use database-specific boolean literals
-            match db_type {
-                DatabaseType::PostgreSQL | DatabaseType::CockroachDB => {
-                    if *b { "TRUE".to_string() } else { "FALSE".to_string() }
-                }
-                DatabaseType::MySQL | DatabaseType::MariaDB => {
-                    if *b { "1".to_string() } else { "0".to_string() }
-                }
-                DatabaseType::SQLite => {
-                    if *b { "1".to_string() } else { "0".to_string() }
-                }
-                DatabaseType::MSSQL => {
-                    if *b { "1".to_string() } else { "0".to_string() }
-                }
-                DatabaseType::Oracle => {
-                    // Oracle doesn't have a native boolean type, use 1/0
-                    if *b { "1".to_string() } else { "0".to_string() }
-                }
-                DatabaseType::Redis | DatabaseType::MongoDB | DatabaseType::Cassandra => {
-                    // NoSQL databases don't use SQL booleans
-                    if *b { "true".to_string() } else { "false".to_string() }
-                }
-            }
-        }
-        serde_json::Value::Null => "NULL".to_string(),
-        _ => format!("'{}'", v.to_string().replace('\'', "''")),
+/// Returns the placeholder syntax for a given database type and 1-based parameter index.
+fn placeholder(db_type: &DatabaseType, index: usize) -> String {
+    match db_type {
+        DatabaseType::PostgreSQL | DatabaseType::CockroachDB => format!("${}", index),
+        DatabaseType::MySQL | DatabaseType::MariaDB | DatabaseType::SQLite => "?".to_string(),
+        DatabaseType::MSSQL => format!("@P{}", index),
+        DatabaseType::Oracle => format!(":{}", index),
+        _ => format!("${}", index),
     }
 }
 
-/// Formats a WHERE clause condition, handling NULL values correctly (IS NULL vs = NULL).
-fn format_where_condition(col: &str, v: &serde_json::Value, db_type: &DatabaseType) -> String {
+/// Formats a WHERE clause condition for parameterized queries.
+/// For NULL values, returns ("col IS NULL", None) since NULL can't be parameterized in WHERE.
+/// For non-NULL values, returns ("col = $N", Some(value)) and advances the index.
+fn format_parameterized_where_condition(
+    col: &str,
+    value: &serde_json::Value,
+    db_type: &DatabaseType,
+    param_index: &mut usize,
+) -> (String, Option<serde_json::Value>) {
     let quoted_col = quote_single_identifier(col, db_type);
-    if v.is_null() {
-        format!("{} IS NULL", quoted_col)
+    if value.is_null() {
+        (format!("{} IS NULL", quoted_col), None)
     } else {
-        format!("{} = {}", quoted_col, format_sql_value(v, db_type))
+        let ph = placeholder(db_type, *param_index);
+        *param_index += 1;
+        (format!("{} = {}", quoted_col, ph), Some(value.clone()))
     }
 }
 
@@ -210,6 +194,10 @@ pub async fn insert_row(
     table_name: String,
     values: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
+    if values.is_empty() {
+        return Err(AppError::ValidationError("No values provided for insert".to_string()));
+    }
+
     let manager = get_connection_manager().read().await;
 
     // Verify connection exists
@@ -223,26 +211,30 @@ pub async fn insert_row(
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
 
-    // Build INSERT statement with properly quoted identifiers
+    // Build parameterized INSERT statement
     let quoted_table = quote_identifier(&table_name, &config.database_type);
 
-    // Collect columns and values in consistent order
     let entries: Vec<_> = values.iter().collect();
     let columns: Vec<String> = entries.iter()
         .map(|(k, _)| quote_single_identifier(k, &config.database_type))
         .collect();
-    let values_str: Vec<String> = entries.iter()
-        .map(|(_, v)| format_sql_value(v, &config.database_type))
+
+    let mut params: Vec<serde_json::Value> = Vec::with_capacity(entries.len());
+    let placeholders: Vec<String> = entries.iter().enumerate()
+        .map(|(i, (_, v))| {
+            params.push((*v).clone());
+            placeholder(&config.database_type, i + 1)
+        })
         .collect();
 
-    let sql_with_values = format!(
+    let sql = format!(
         "INSERT INTO {} ({}) VALUES ({})",
         quoted_table,
         columns.join(", "),
-        values_str.join(", ")
+        placeholders.join(", ")
     );
 
-    driver.execute_query(pool_ref, &sql_with_values).await
+    driver.execute_parameterized(pool_ref, &sql, params).await
 }
 
 /// Update a row in a table
@@ -253,6 +245,13 @@ pub async fn update_row(
     primary_key: std::collections::HashMap<String, serde_json::Value>,
     values: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
+    if values.is_empty() {
+        return Err(AppError::ValidationError("No values provided for update".to_string()));
+    }
+    if primary_key.is_empty() {
+        return Err(AppError::ValidationError("No primary key provided for update".to_string()));
+    }
+
     let manager = get_connection_manager().read().await;
 
     // Verify connection exists
@@ -266,20 +265,29 @@ pub async fn update_row(
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
 
-    // Build UPDATE statement with properly quoted identifiers
+    // Build parameterized UPDATE statement
     let quoted_table = quote_identifier(&table_name, &config.database_type);
+    let mut params: Vec<serde_json::Value> = Vec::new();
+    let mut param_index: usize = 1;
 
-    // Build SET clauses with proper value formatting
+    // Build SET clauses with parameter placeholders
     let set_clauses: Vec<String> = values.iter().map(|(k, v)| {
         let quoted_col = quote_single_identifier(k, &config.database_type);
-        let value_str = format_sql_value(v, &config.database_type);
-        format!("{} = {}", quoted_col, value_str)
+        let ph = placeholder(&config.database_type, param_index);
+        param_index += 1;
+        params.push(v.clone());
+        format!("{} = {}", quoted_col, ph)
     }).collect();
 
-    // Build WHERE clauses with proper NULL handling
-    let where_clauses: Vec<String> = primary_key.iter()
-        .map(|(k, v)| format_where_condition(k, v, &config.database_type))
-        .collect();
+    // Build WHERE clauses — NULL values use IS NULL (no param), others use placeholders
+    let mut where_clauses: Vec<String> = Vec::new();
+    for (k, v) in &primary_key {
+        let (clause, param) = format_parameterized_where_condition(k, v, &config.database_type, &mut param_index);
+        where_clauses.push(clause);
+        if let Some(p) = param {
+            params.push(p);
+        }
+    }
 
     let sql = format!(
         "UPDATE {} SET {} WHERE {}",
@@ -288,7 +296,7 @@ pub async fn update_row(
         where_clauses.join(" AND ")
     );
 
-    driver.execute_query(pool_ref, &sql).await
+    driver.execute_parameterized(pool_ref, &sql, params).await
 }
 
 /// Delete a row from a table
@@ -298,6 +306,10 @@ pub async fn delete_row(
     table_name: String,
     primary_key: std::collections::HashMap<String, serde_json::Value>,
 ) -> AppResult<QueryResult> {
+    if primary_key.is_empty() {
+        return Err(AppError::ValidationError("No primary key provided for delete".to_string()));
+    }
+
     let manager = get_connection_manager().read().await;
 
     // Verify connection exists
@@ -311,13 +323,20 @@ pub async fn delete_row(
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
 
-    // Build DELETE statement with properly quoted identifiers
+    // Build parameterized DELETE statement
     let quoted_table = quote_identifier(&table_name, &config.database_type);
+    let mut params: Vec<serde_json::Value> = Vec::new();
+    let mut param_index: usize = 1;
 
-    // Build WHERE clauses with proper NULL handling
-    let where_clauses: Vec<String> = primary_key.iter()
-        .map(|(k, v)| format_where_condition(k, v, &config.database_type))
-        .collect();
+    // Build WHERE clauses — NULL values use IS NULL (no param), others use placeholders
+    let mut where_clauses: Vec<String> = Vec::new();
+    for (k, v) in &primary_key {
+        let (clause, param) = format_parameterized_where_condition(k, v, &config.database_type, &mut param_index);
+        where_clauses.push(clause);
+        if let Some(p) = param {
+            params.push(p);
+        }
+    }
 
     let sql = format!(
         "DELETE FROM {} WHERE {}",
@@ -325,7 +344,7 @@ pub async fn delete_row(
         where_clauses.join(" AND ")
     );
 
-    driver.execute_query(pool_ref, &sql).await
+    driver.execute_parameterized(pool_ref, &sql, params).await
 }
 
 /// Drop a table from the database
@@ -474,3 +493,102 @@ pub async fn drop_mssql_database(connection_id: String, database_name: String) -
     driver.drop_database(pool_ref, &database_name).await
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_placeholder_postgres() {
+        assert_eq!(placeholder(&DatabaseType::PostgreSQL, 1), "$1");
+        assert_eq!(placeholder(&DatabaseType::PostgreSQL, 3), "$3");
+    }
+
+    #[test]
+    fn test_placeholder_cockroachdb() {
+        assert_eq!(placeholder(&DatabaseType::CockroachDB, 1), "$1");
+    }
+
+    #[test]
+    fn test_placeholder_mysql() {
+        assert_eq!(placeholder(&DatabaseType::MySQL, 1), "?");
+        assert_eq!(placeholder(&DatabaseType::MySQL, 5), "?");
+    }
+
+    #[test]
+    fn test_placeholder_mariadb() {
+        assert_eq!(placeholder(&DatabaseType::MariaDB, 1), "?");
+    }
+
+    #[test]
+    fn test_placeholder_sqlite() {
+        assert_eq!(placeholder(&DatabaseType::SQLite, 1), "?");
+    }
+
+    #[test]
+    fn test_placeholder_mssql() {
+        assert_eq!(placeholder(&DatabaseType::MSSQL, 1), "@P1");
+        assert_eq!(placeholder(&DatabaseType::MSSQL, 4), "@P4");
+    }
+
+    #[test]
+    fn test_placeholder_oracle() {
+        assert_eq!(placeholder(&DatabaseType::Oracle, 1), ":1");
+        assert_eq!(placeholder(&DatabaseType::Oracle, 2), ":2");
+    }
+
+    #[test]
+    fn test_format_parameterized_where_null() {
+        let mut idx = 1;
+        let (clause, param) = format_parameterized_where_condition(
+            "col", &json!(null), &DatabaseType::PostgreSQL, &mut idx,
+        );
+        assert_eq!(clause, "\"col\" IS NULL");
+        assert!(param.is_none());
+        assert_eq!(idx, 1); // index not advanced for NULL
+    }
+
+    #[test]
+    fn test_format_parameterized_where_value_pg() {
+        let mut idx = 1;
+        let (clause, param) = format_parameterized_where_condition(
+            "id", &json!(42), &DatabaseType::PostgreSQL, &mut idx,
+        );
+        assert_eq!(clause, "\"id\" = $1");
+        assert_eq!(param, Some(json!(42)));
+        assert_eq!(idx, 2);
+    }
+
+    #[test]
+    fn test_format_parameterized_where_value_mysql() {
+        let mut idx = 3;
+        let (clause, param) = format_parameterized_where_condition(
+            "name", &json!("test"), &DatabaseType::MySQL, &mut idx,
+        );
+        assert_eq!(clause, "`name` = ?");
+        assert_eq!(param, Some(json!("test")));
+        assert_eq!(idx, 4);
+    }
+
+    #[test]
+    fn test_format_parameterized_where_value_mssql() {
+        let mut idx = 2;
+        let (clause, param) = format_parameterized_where_condition(
+            "id", &json!(1), &DatabaseType::MSSQL, &mut idx,
+        );
+        assert_eq!(clause, "[id] = @P2");
+        assert_eq!(param, Some(json!(1)));
+        assert_eq!(idx, 3);
+    }
+
+    #[test]
+    fn test_format_parameterized_where_value_oracle() {
+        let mut idx = 1;
+        let (clause, param) = format_parameterized_where_condition(
+            "id", &json!(99), &DatabaseType::Oracle, &mut idx,
+        );
+        assert_eq!(clause, "\"id\" = :1");
+        assert_eq!(param, Some(json!(99)));
+        assert_eq!(idx, 2);
+    }
+}

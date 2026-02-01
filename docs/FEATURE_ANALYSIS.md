@@ -141,7 +141,6 @@ These are features that users expect in a database management tool but are not y
 |---------|-------------|---------------|
 | **Table Truncate** | Quick truncate table contents with confirmation | Basic database operation users expect |
 | **Backup/Restore** | Database backup and restore functionality | Critical for data safety |
-| **Parameterized CRUD Queries** | Use prepared statements instead of string interpolation for INSERT/UPDATE/DELETE | Security improvement for CRUD operations |
 
 ### Previously Missing, Now Implemented
 
@@ -155,6 +154,7 @@ The following features from the original analysis have been fully implemented:
 | **User/Permission Management** | Implemented | v0.3.4 |
 | **Schema Comparison/Diff** | Implemented | v0.5.0 |
 | **Sequences Management** | Implemented | v0.3.7 |
+| **Parameterized CRUD Queries** | Implemented | v0.5.x |
 
 ---
 
@@ -237,7 +237,7 @@ These improvements would still enhance daily usage:
 
 ### Immediate High Value (Quick Wins)
 1. **Table truncate** - Basic expectation, quick to add
-2. **Parameterized CRUD queries** - Security improvement for INSERT/UPDATE/DELETE operations
+2. ~~**Parameterized CRUD queries** - Security improvement for INSERT/UPDATE/DELETE operations~~ (Implemented)
 3. **Quick filter UX improvements** - Polish existing feature
 4. **Recent queries dropdown** - Simple toolbar addition
 
@@ -304,6 +304,6 @@ DBForDevs is a feature-rich, modern database client with comprehensive coverage 
 
 **Best For**: Developers who need quick SQL execution, data exploration, multi-database support, and AI-powered query assistance.
 
-**Remaining Gaps**: Table truncate, backup/restore, parameterized CRUD queries, customizable keybindings, command palette, and data visualization.
+**Remaining Gaps**: Table truncate, backup/restore, customizable keybindings, command palette, and data visualization.
 
 *Last updated: February 2026*

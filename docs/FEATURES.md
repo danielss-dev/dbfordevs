@@ -515,6 +515,25 @@ Before committing changes, review all pending modifications:
 
 Press `Ctrl/Cmd+Z` to undo the last pending change. Only affects unsaved modifications.
 
+### Parameterized CRUD Queries (Security)
+
+All data editing operations (Insert, Update, Delete) use **parameterized/prepared statements** to separate SQL structure from user data at the protocol level. This eliminates SQL injection risk in CRUD operations.
+
+- **Insert**: `INSERT INTO table (col) VALUES ($1)` with bound parameters
+- **Update**: `UPDATE table SET col = $1 WHERE pk = $2` with bound parameters
+- **Delete**: `DELETE FROM table WHERE pk = $1` with bound parameters
+
+Supported across all SQL database drivers:
+| Database | Placeholder Syntax |
+|----------|-------------------|
+| PostgreSQL / CockroachDB | `$1, $2, $3` |
+| MySQL / MariaDB | `?` |
+| SQLite | `?` |
+| Microsoft SQL Server | `@P1, @P2, @P3` |
+| Oracle | `:1, :2, :3` |
+
+NULL values in WHERE clauses use `IS NULL` (inline) since NULL cannot be parameterized in equality comparisons.
+
 ## Schema Visualization
 
 ### Table Properties
