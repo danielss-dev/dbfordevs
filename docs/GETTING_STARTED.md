@@ -238,21 +238,11 @@ Click the **Settings** icon (gear icon) to access:
 - **Theme**: Choose from Light, Dark, Classic Light, Classic Dark, Nordic Light, Nordic Dark, Solarized Light, Solarized Dark, or System (auto)
 - **Appearance Mode**: Developer or Web view
 - **Font Size**: Adjust editor and grid font sizes
-- **Keyboard Shortcuts**: View and customize shortcuts
+- **Keyboard Shortcuts**: View available shortcuts
 
-### Connection String Validators
+### Connection String Parsing
 
-For help with connection strings, use the built-in validators:
-
-1. Open Settings
-2. Go to "Validators"
-3. Choose your programming language
-4. Paste a connection string to validate
-
-Validators are available for:
-- C# / .NET
-- Node.js / JavaScript
-- Python
+dbfordevs can auto-detect database type and parse connection details from common connection string formats. Paste a connection string into the New Connection dialog to auto-fill the fields.
 
 ## Using Query Tabs
 

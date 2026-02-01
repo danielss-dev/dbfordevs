@@ -51,19 +51,25 @@ dbfordevs/
 │   ├── components/         # UI components
 │   │   ├── ai/             # AI assistant panel
 │   │   ├── bookmarks/      # Query bookmarks & templates
+│   │   ├── cassandra/      # Cassandra browser and shell
 │   │   ├── connections/    # Connection management (SSH, SSL)
 │   │   ├── data-grid/      # Data grid with import/export
+│   │   ├── diff/           # Schema diff wizard
 │   │   ├── editor/         # SQL editor with formatting
 │   │   ├── explain/        # Query execution plan visualization
+│   │   ├── mongodb/        # MongoDB document browser
 │   │   ├── query-history/  # Query history panel
+│   │   ├── redis/          # Redis key browser
+│   │   ├── schema-search/  # Global schema search panel
 │   │   ├── table/          # Table creation wizard
+│   │   ├── themes/         # Custom theme editor
 │   │   └── users/          # User & role management
 │   ├── lib/ai/             # Built-in AI assistant
 │   ├── stores/             # Zustand state management
 │   └── hooks/              # React hooks
 ├── src-tauri/              # Tauri application core (Rust)
 │   ├── src/commands/       # Tauri IPC command handlers (views, indexes, users)
-│   └── src/db/             # Database drivers (PostgreSQL, MySQL, SQLite, MSSQL, Oracle)
+│   └── src/db/             # Database drivers (PostgreSQL, MySQL, SQLite, MSSQL, Oracle, MongoDB, Redis, Cassandra)
 ├── public/                 # Static assets
 └── docs/                   # Project documentation & PRD
 ```

@@ -4,62 +4,40 @@ Quick reference for dbfordevs releases. For detailed changes, see [CHANGELOG.md]
 
 ---
 
-## Latest Release: v0.2.1
+## Latest Release: v0.5.3
 
-**Release Date**: December 26, 2025
+**Release Date**: January 27, 2026
 
-### What's New
+### What's New in v0.5.x
 
-This release enhances AI Query Assistant with OpenAI integration, visual query optimization, and significantly improves PostgreSQL query handling and multi-statement support.
+The v0.5.x series delivers major advances in schema tooling, NoSQL support, and database management capabilities.
 
 #### Highlights
 
-🧠 **OpenAI Provider Integration**
-- Support for **OpenAI GPT** models (GPT-5.2, GPT-5 Mini, GPT-5.2 Pro)
-- Third major AI provider alongside Anthropic Claude and Google Gemini
-- Provider switcher in settings with model selection
-- Unified API key management across all providers
+**Schema Diff & Migration** (v0.5.0)
+- Compare schemas across connections, tables, or point-in-time snapshots
+- Visual diff with color-coded changes (added/removed/modified)
+- Database-specific migration SQL generation for PostgreSQL, MySQL, SQLite, Oracle, MSSQL
+- Destructive operation warnings and selective migration export
 
-📊 **Query Optimization Diff View**
-- Visual comparison of original and optimized SQL queries
-- Color-coded diff showing additions (green), removals (red), and changes
-- Change summary highlighting specific performance improvements
-- One-click Apply or Copy functionality for quick integration
-- Side-by-side comparison view for detailed analysis
+**Cassandra Support** (v0.4.0+)
+- Full driver implementation using `scylla` crate
+- Keyspace and table management with CQL Shell
+- Server info dashboard with cluster and node details
+- Consistency level configuration
 
-⚡ **Enhanced PostgreSQL Support**
-- **Comprehensive Type Handling**: Support for all PostgreSQL data types including:
-  - Binary data (BYTEA) with Base64 encoding
-  - Arrays, Intervals, Money types
-  - Network types (IP addresses, MAC addresses)
-  - All date/time representations (chrono and time crate)
-  - JSON/JSONB native support
-  - Bit vectors and custom composite types
-- **Multi-Statement Execution**: Execute multiple SQL statements in a single query:
-  - Intelligent SQL splitting with quote and comment handling
-  - Transaction-based execution for atomicity
-  - Proper error handling with automatic rollback on failure
-- **Expanded SQLx Features**: Added support for additional database types
+**MSSQL Enhancements** (v0.5.2-v0.5.3)
+- SQL Server Browser query for named instance port resolution
+- Database create and delete functionality
 
-🎯 **Improved AI Context**
-- Current query from editor now included in AI context
-- Better understanding of user intent when asking about "this query"
-- Support for query variants (multiple approaches in single response)
-- Enhanced error handling with clearer streaming message updates
-
-### Key Features Added Since v0.2.0
-
-| Feature | Category | Impact |
-|---------|----------|--------|
-| OpenAI Provider Support | AI | High |
-| Query Optimization Diff | AI | High |
-| PostgreSQL Multi-Statement | Database | High |
-| Comprehensive Type Handling | Database | Medium |
-| Enhanced AI Context | AI | Medium |
+**Additional v0.5.x Features**
+- Global schema search with fuzzy matching (Ctrl+Shift+F)
+- Enhanced sidebar with Cassandra browser integration
+- Classic themes and updated Monaco editor themes
 
 ### Downloads & Installation
 
-Visit the [GitHub Releases Page](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.1) to download v0.2.1 for your platform:
+Visit the [GitHub Releases Page](https://github.com/danielss-dev/dbfordevs/releases) to download the latest version for your platform:
 - **Windows**: `.msi` installer
 - **macOS**: `.dmg` installer (Intel & Apple Silicon)
 - **Linux**: `.AppImage` or `.deb` package
@@ -116,7 +94,7 @@ The inaugural release of dbfordevs - a lightweight, cross-platform database clie
 - Monaco-based SQL editor with autocomplete
 - High-performance data grid with virtualization
 - Light/dark theme support
-- Connection string validators for multiple languages
+- Connection string parsing for multiple formats
 - Beautiful, modern UI
 
 **Downloads**: [v0.1.0 Releases](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.0)
@@ -130,12 +108,18 @@ The inaugural release of dbfordevs - a lightweight, cross-platform database clie
 
 ## Version History
 
-| Version | Release Date | Type | Downloads |
-|---------|--------------|------|-----------|
-| [v0.2.1](#latest-release-v021) | Dec 26, 2025 | Minor | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.1) |
-| [v0.2.0](#previous-releases-v020) | Dec 25, 2025 | Minor | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.0) |
-| [v0.1.2](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.2) | Dec 21, 2025 | Minor | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.2) |
-| [v0.1.0](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.0) | Dec 15, 2025 | Initial | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.0) |
+| Version | Release Date | Highlights | Downloads |
+|---------|--------------|------------|-----------|
+| [v0.5.3](#latest-release-v053) | Jan 27, 2026 | MSSQL create/delete database | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.5.3) |
+| v0.5.2 | Jan 26, 2026 | MSSQL named instance port resolution | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.5.2) |
+| v0.5.1 | Jan 24, 2026 | Classic themes, Monaco editor updates | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.5.1) |
+| v0.5.0 | Jan 24, 2026 | Schema Diff, Cassandra search integration | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.5.0) |
+| v0.4.0 | Jan 20, 2026 | Oracle Wallet, SSL/TLS testing, Cassandra | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.4.0) |
+| v0.3.x | Jan 12-19, 2026 | MongoDB, Redis, views, indexes, users, data grid | [GitHub](https://github.com/danielss-dev/dbfordevs/releases) |
+| v0.2.1 | Dec 26, 2025 | OpenAI integration, PostgreSQL enhancements | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.1) |
+| v0.2.0 | Dec 25, 2025 | AI Query Assistant | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.2.0) |
+| v0.1.2 | Dec 21, 2025 | Schema diagrams, table properties | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.2) |
+| v0.1.0 | Dec 15, 2025 | Initial release | [GitHub](https://github.com/danielss-dev/dbfordevs/releases/tag/v0.1.0) |
 
 ---
 
@@ -195,4 +179,4 @@ Report it on [GitHub Issues](https://github.com/danielss-dev/dbfordevs/issues) w
 
 ---
 
-**Last Updated**: December 25, 2025
+**Last Updated**: February 1, 2026

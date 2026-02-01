@@ -613,19 +613,17 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 
 Example: `//oracle-server.example.com:1521/ORCL`
 
-### Using Connection String Validators
+### Using Connection String Parsing
 
-**Scenario**: You have a .NET connection string and want to verify it's valid
+**Scenario**: You have a connection string from your application config
 
-1. Go to Settings (`Ctrl/Cmd+,`)
-2. Click "Validators"
-3. Select "C# / .NET"
-4. Paste connection string:
-   ```
-   Server=localhost;Database=mydb;User Id=sa;Password=MyPassword123;
-   ```
-5. Validator shows if format is correct
-6. Can also test actual connection in Connection Dialog
+1. Open the New Connection dialog (`Ctrl/Cmd+K`)
+2. Paste your connection string in the connection string field
+3. dbfordevs auto-detects the database type and fills in the fields
+4. Review and adjust the parsed settings
+5. Click **"Test Connection"** to verify
+
+Supported formats include PostgreSQL URLs, MySQL URLs, MSSQL key-value strings, MongoDB connection strings, and Redis URLs.
 
 ### Managing Multiple Connections
 

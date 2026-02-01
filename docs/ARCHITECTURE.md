@@ -148,8 +148,17 @@ dbfordevs/
 │   │   │   │   - get_tables
 │   │   │   │   - get_table_info
 │   │   │   │   - get_columns
-│   │   │   ├── validators.rs        # Validation commands
-│   │   │   │   - validate_connection_string
+│   │   │   ├── views.rs             # View management commands
+│   │   │   ├── indexes.rs           # Index management commands
+│   │   │   ├── users.rs             # User/role management commands
+│   │   │   ├── procedures.rs        # Stored procedure commands
+│   │   │   ├── functions.rs         # Function commands
+│   │   │   ├── triggers.rs          # Trigger commands
+│   │   │   ├── sequences.rs         # Sequence commands
+│   │   │   ├── diff.rs              # Schema diff commands
+│   │   │   ├── mongodb.rs           # MongoDB-specific commands
+│   │   │   ├── redis.rs             # Redis-specific commands
+│   │   │   ├── cassandra.rs         # Cassandra-specific commands
 │   │   │   ├── database.rs          # Database operations
 │   │   │   │   - create_table
 │   │   │   │   - create_schema
@@ -164,6 +173,11 @@ dbfordevs/
 │   │   │   ├── sqlite.rs            # SQLite driver
 │   │   │   ├── mssql.rs             # SQL Server driver
 │   │   │   ├── mongodb.rs           # MongoDB driver
+│   │   │   ├── redis.rs             # Redis driver
+│   │   │   ├── oracle.rs            # Oracle driver
+│   │   │   ├── cassandra.rs         # Cassandra driver
+│   │   │   ├── diff.rs              # Schema diff engine
+│   │   │   ├── common.rs            # Shared SQL utilities
 │   │   │   └── connection.rs        # Connection trait abstraction
 │   │   ├── models/
 │   │   │   ├── connection.rs        # Connection types
@@ -265,7 +279,7 @@ type QueryStore = {
 
 ```typescript
 type UIStore = {
-  theme: 'light' | 'dark' | 'system'
+  theme: 'light' | 'dark' | 'system' | 'nordic-dark' | 'nordic-light' | 'solarized-dark' | 'solarized-light' | string
   sidebarOpen: boolean
   sidePanelOpen: boolean
   diffViewOpen: boolean
@@ -425,12 +439,16 @@ Each database has a dedicated module implementing the `DatabaseConnection` trait
 - Multiple data type support
 
 **Cassandra** (`src-tauri/src/db/cassandra.rs`)
-- Uses `cassandra-cpp` or `scylla` crate
-- CQL query support
-- Keyspace management
+- Uses `scylla` crate
+- CQL query support with consistency levels
+- Keyspace and table management
+- Cluster topology and server info
 
-**Others** (CockroachDB)
-- Compatible with PostgreSQL driver
+**Oracle** (`src-tauri/src/db/oracle.rs`)
+- Uses `oracle` crate with `deadpool` connection pooling
+- Easy Connect format support
+- PL/SQL execution
+- DBMS_XPLAN for execution plans
 
 ### Type Conversions
 

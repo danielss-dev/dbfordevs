@@ -16,22 +16,24 @@ dbfordevs supports connections to multiple database systems simultaneously.
 4. Click **"Test Connection"** to verify settings
 5. Enter a friendly name and click **"Save"**
 
-### Connection String Validators
+### Connection String Parsing
 
-If you have a connection string in your application's configuration, use the built-in validators to ensure correct format:
+dbfordevs can parse and auto-fill connection details from common connection string formats:
 
-**Supported Languages:**
-- C# / .NET
-- Node.js / JavaScript
-- Python
+**Supported Formats:**
+- PostgreSQL (`postgresql://user:pass@host:port/db`)
+- MySQL (`mysql://user:pass@host:port/db`)
+- MSSQL (`Server=host;Database=db;User Id=user;Password=pass;`)
+- MongoDB (`mongodb://user:pass@host:port/db`)
+- Redis (`redis://host:port`)
 
-**To validate a connection string:**
+**To use a connection string:**
 
-1. Open Settings (`Ctrl/Cmd+,`)
-2. Navigate to "Validators"
-3. Select your programming language
-4. Paste your connection string
-5. The validator will highlight any issues
+1. Open the New Connection dialog (`Ctrl/Cmd+K`)
+2. Paste your connection string into the connection string field
+3. The parser will auto-detect the database type and fill in the fields
+4. Review and adjust settings as needed
+5. Click **"Test Connection"** to verify
 
 ### Managing Saved Connections
 
@@ -206,9 +208,13 @@ dbfordevs supports the following database systems:
 - TTL management
 
 **Cassandra-Specific Notes:**
-- CQL query support
-- Keyspace and table management
-- Full schema browsing
+- CQL query support with consistency level selection
+- Keyspace management (create, drop, browse)
+- Table management (describe, drop, truncate)
+- Full schema browsing with partition and clustering key details
+- CQL Shell with query history
+- Server info dashboard with cluster and node details
+- Index management
 
 ## Query Editor
 
@@ -639,8 +645,11 @@ The comparison shows:
 | `Ctrl/Cmd + K` | New connection |
 | `Ctrl/Cmd + T` | New query tab |
 | `Ctrl/Cmd + W` | Close tab |
+| `Ctrl/Cmd + B` | Toggle sidebar |
 | `Ctrl/Cmd + ,` | Open settings |
 | `Ctrl/Cmd + Shift + D` | View changes diff |
+| `Ctrl/Cmd + Shift + F` | Schema search |
+| `Ctrl/Cmd + Shift + A` | Toggle AI assistant |
 | `Ctrl/Cmd + Z` | Undo pending change |
 | `F1` | Open help |
 | `F11` | Toggle fullscreen |
@@ -732,11 +741,12 @@ Access via `Ctrl/Cmd+,`
 
 ### Keyboard Settings
 
-View and customize keyboard shortcuts:
+View keyboard shortcuts:
 1. Open Settings
 2. Go to "Keyboard Shortcuts"
-3. Hover over shortcuts to edit
-4. Click to modify keybindings
+3. Browse the full list of available shortcuts
+
+**Note:** Keyboard shortcuts are currently view-only. Customizable keybindings are planned for a future release.
 
 ## Advanced Features
 

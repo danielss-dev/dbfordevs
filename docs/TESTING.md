@@ -14,11 +14,11 @@ The project includes two types of tests:
 | Category | Tests | Status |
 |----------|-------|--------|
 | TypeScript Unit Tests | 86 | ✅ All passing |
-| Rust Unit Tests | 16 | ✅ All passing |
+| Rust Unit Tests | 21 | ✅ All passing |
 | SQLite Integration Tests | 14 | ✅ All passing |
 | PostgreSQL Integration Tests | 11 | ✅ All passing (requires Docker) |
 | MySQL Integration Tests | 10 | ✅ All passing (requires Docker) |
-| **Total** | **137** | ✅ All passing |
+| **Total** | **142** | ✅ All passing |
 
 ## TypeScript Tests
 
@@ -133,12 +133,16 @@ Tests for query history utilities in `src/components/query-history/query-history
 
 ### Unit Tests
 
-Location: `src-tauri/src/db/common.rs`
+**Locations:**
+- `src-tauri/src/db/common.rs` - CTE parsing and SQLite identifier escaping
+- `src-tauri/src/db/diff.rs` - Schema comparison and data type normalization
 
-**16 built-in unit tests** covering:
+**21 built-in unit tests** covering:
 - CTE (Common Table Expression) parsing
 - SQLite identifier escaping
 - Multi-database SQL parsing (PostgreSQL, MySQL, SQLite)
+- Schema diff column comparison (added, removed, modified)
+- Data type normalization across databases
 
 Run with:
 ```bash

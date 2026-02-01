@@ -9,7 +9,7 @@ Maximize your productivity with these built-in keyboard shortcuts.
 | `Ctrl/Cmd + ,` | Open Settings |
 | `Ctrl/Cmd + B` | Toggle Sidebar |
 | `Ctrl/Cmd + \` | Toggle Side Panel |
-| `Ctrl/Cmd + K` | Quick Search / Command Palette |
+| `Ctrl/Cmd + K` | New Connection |
 | `F11` | Toggle Fullscreen |
 | `F1` | Open Help |
 | `Escape` | Close Dialog / Cancel |
@@ -97,7 +97,7 @@ Maximize your productivity with these built-in keyboard shortcuts.
 | `Ctrl/Cmd + G` | Go to Line (in Editor) |
 | `Ctrl/Cmd + P` | Quick Open File/Table |
 | `Ctrl/Cmd + Shift + E` | Focus Sidebar |
-| `Ctrl/Cmd + Shift + F` | Focus Search |
+| `Ctrl/Cmd + Shift + F` | Toggle Schema Search Panel |
 
 ## Schema Diff
 
@@ -115,24 +115,15 @@ Maximize your productivity with these built-in keyboard shortcuts.
 - Use `Cmd` (Command) for all shortcuts marked as `Ctrl/Cmd`
 - Use `Option` for all shortcuts marked as `Alt/Option`
 
-## Customizing Shortcuts
+## Viewing Shortcuts
 
-You can customize keyboard shortcuts in Settings:
+You can view all keyboard shortcuts in Settings:
 
 1. Open Settings (`Ctrl/Cmd + ,`)
 2. Navigate to **Keyboard Shortcuts**
-3. Click on any shortcut to modify
-4. Press your desired key combination
-5. Click **Save** to apply changes
+3. Browse the full list of available shortcuts
 
-### Reset to Defaults
-
-To reset all shortcuts to their default values:
-
-1. Open Settings
-2. Navigate to **Keyboard Shortcuts**
-3. Click **Reset to Defaults**
-4. Confirm the action
+**Note:** Keyboard shortcuts are currently view-only. Customizable keybindings are planned for a future release.
 
 ## Quick Reference Card
 

@@ -10,18 +10,19 @@ This document lists features from [JetBrains DataGrip](https://www.jetbrains.com
 
 ---
 
-## 1. Schema Diff & Migration Scripts 🔴
+## 1. Schema Diff & Migration Scripts ✅ IMPLEMENTED
 
 **DataGrip Feature:** Compare schemas between databases and generate migration scripts automatically.
 
-**Current State:** Only AI-powered query diff exists for optimization suggestions.
+**Current State:** Fully implemented in v0.5.0. Includes 3-step wizard UI, comparison across connections/tables/snapshots, database-specific migration SQL generation, and export functionality.
 
-**Implementation Scope:**
+**What's Implemented:**
 - Compare table structures between two connections/schemas
 - Visual diff highlighting (added/removed/modified columns, indexes, constraints)
-- Generate ALTER TABLE migration scripts
+- Generate ALTER TABLE migration scripts per database dialect
 - Support for all database types (PostgreSQL, MySQL, SQLite, Oracle, MSSQL)
 - Export migration scripts to file
+- Point-in-time schema snapshots
 
 ---
 
@@ -74,7 +75,7 @@ This document lists features from [JetBrains DataGrip](https://www.jetbrains.com
 
 **DataGrip Feature:** Schema-aware completion that understands JOINs, subqueries, and aliases.
 
-**Current State:** Basic completion for keywords, tables, and columns.
+**Current State:** Schema-aware completion for keywords, tables, and columns with dot notation and FROM/JOIN context. Implemented via Monaco completion provider.
 
 **Implementation Scope:**
 - Alias-aware completion (e.g., `u.` resolves to `users` table columns)
@@ -118,7 +119,7 @@ This document lists features from [JetBrains DataGrip](https://www.jetbrains.com
 
 **DataGrip Feature:** Fully customizable keymap for all actions.
 
-**Current State:** Shortcuts are displayed but not customizable (confirmed in ROADMAP.md).
+**Current State:** Shortcuts are displayed in Settings but not customizable (view-only).
 
 **Implementation Scope:**
 - Settings UI for keybinding customization
@@ -221,22 +222,22 @@ This document lists features from [JetBrains DataGrip](https://www.jetbrains.com
 
 ## Summary
 
-| Priority | Feature | Effort |
-|----------|---------|--------|
-| 🔴 High | Schema Diff & Migration Scripts | Large |
-| 🔴 High | Data Comparison | Medium |
-| 🔴 High | Parameterized Queries | Medium |
-| 🟡 Medium | Foreign Key Navigation | Small |
-| 🟡 Medium | Smart Code Completion | Medium |
-| 🟡 Medium | Code Analysis & Quick-Fixes | Large |
-| 🟡 Medium | Refactoring & Find Usages | Medium |
-| 🟡 Medium | Customizable Shortcuts | Small |
-| 🟡 Medium | VCS / Git Integration | Medium |
-| 🟡 Medium | Run Configurations | Medium |
-| 🟢 Low | DDL Data Source | Large |
-| 🟢 Low | Enhanced Export Formats | Small |
-| 🟢 Low | Localization | Medium |
-| 🟢 Low | Query Console Modes | Small |
+| Priority | Feature | Effort | Status |
+|----------|---------|--------|--------|
+| ~~🔴 High~~ | ~~Schema Diff & Migration Scripts~~ | ~~Large~~ | **Implemented** |
+| 🔴 High | Data Comparison | Medium | Not Started |
+| 🔴 High | Parameterized Queries | Medium | Not Started |
+| 🟡 Medium | Foreign Key Navigation | Small | Not Started |
+| 🟡 Medium | Smart Code Completion | Medium | Partial (basic schema-aware) |
+| 🟡 Medium | Code Analysis & Quick-Fixes | Large | Not Started |
+| 🟡 Medium | Refactoring & Find Usages | Medium | Not Started |
+| 🟡 Medium | Customizable Shortcuts | Small | Not Started |
+| 🟡 Medium | VCS / Git Integration | Medium | Not Started |
+| 🟡 Medium | Run Configurations | Medium | Not Started |
+| 🟢 Low | DDL Data Source | Large | Not Started |
+| 🟢 Low | Enhanced Export Formats | Small | Not Started |
+| 🟢 Low | Localization | Medium | Not Started |
+| 🟢 Low | Query Console Modes | Small | Not Started |
 
 ---
 
@@ -245,9 +246,9 @@ This document lists features from [JetBrains DataGrip](https://www.jetbrains.com
 1. **Parameterized Queries** - Essential for real-world database work
 2. **Foreign Key Navigation** - Quick win, builds on existing FK validation
 3. **Customizable Shortcuts** - Already in roadmap, small effort
-4. **Schema Diff** - Major differentiator, high value
+4. ~~**Schema Diff**~~ - **Already implemented** in v0.5.0
 5. **Data Comparison** - Natural complement to schema diff
 6. **Enhanced Export** - Quick wins with Excel/Markdown/HTML
-7. **Smart Code Completion** - Iterative improvement
+7. **Smart Code Completion** - Extend existing schema-aware provider with alias resolution
 8. **Run Configurations** - Workflow automation
 9. **Code Analysis** - Long-term quality feature

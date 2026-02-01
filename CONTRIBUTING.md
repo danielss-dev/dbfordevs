@@ -181,7 +181,7 @@ docs(readme): update installation instructions
 refactor(stores): simplify query store logic
 ```
 
-Is you want you can just use an AI tool for create the commit.
+If you want, you can use an AI tool to create the commit message.
 
 ## Pull Request Process
 
@@ -215,13 +215,28 @@ Is you want you can just use an AI tool for create the commit.
 
 ### Frontend Testing
 
-Currently, frontend tests are minimal. Contributions to improve test coverage are welcome!
+Frontend tests use Vitest with 86+ test cases covering utilities, connection parsing, export functions, and query history.
+
+```bash
+bun test          # Run tests in watch mode
+bun test:run      # Run tests once
+bun test:coverage # Run with coverage
+```
 
 - Manual testing in `bun tauri dev` is required for all UI changes
-- Test across different themes (Light, Dark, Nordic)
-- Verify responsive behavior
+- Test across different themes (Light, Dark, Nordic, Solarized)
+- Contributions to improve test coverage are welcome
 
 ### Backend Testing
+
+Rust tests include unit tests and integration tests using testcontainers:
+
+```bash
+cd src-tauri
+cargo test --lib                    # Unit tests only
+cargo test --test sqlite_integration # SQLite (no Docker needed)
+cargo test                          # All tests (Docker required for PG/MySQL)
+```
 
 - Test database operations with PostgreSQL, MySQL, and SQLite
 - Ensure error handling works correctly
@@ -232,7 +247,7 @@ Currently, frontend tests are minimal. Contributions to improve test coverage ar
 For significant changes, test:
 - [ ] Fresh install works (`bun install` + `bun tauri dev`)
 - [ ] Production build works (`bun tauri build`)
-- [ ] Database connections (PostgreSQL, MySQL, SQLite)
+- [ ] Database connections (PostgreSQL, MySQL, SQLite, MSSQL, Oracle, MongoDB, Redis, Cassandra)
 - [ ] AI assistant functionality (if applicable)
 - [ ] Theme switching
 - [ ] Data editing and diff preview

@@ -54,7 +54,6 @@ Guide for developers on using Graphite for stacked pull requests in this project
 ## Quick Links
 
 - **GitHub**: Source code and issue tracking
-- **Validators**: Connection string validators for multiple languages
 
 ## Supported Databases
 
@@ -71,7 +70,7 @@ dbfordevs supports a wide range of database systems:
 | MongoDB | ✅ Supported | Document databases |
 | Redis | ✅ Supported | In-memory data structures |
 | CockroachDB | ✅ Supported | Distributed databases |
-| Cassandra | ✅ Supported | NoSQL databases |
+| Cassandra | ✅ Fully Supported | NoSQL databases |
 
 ## Getting Help
 
@@ -122,7 +121,7 @@ dbfordevs supports a wide range of database systems:
 
 ## Tips & Best Practices
 
-1. **Connection Strings**: Use the validator to ensure your connection strings are correctly formatted
+1. **Connection Strings**: Paste connection strings in the New Connection dialog to auto-fill fields
 2. **Keyboard Shortcuts**: Learn keyboard shortcuts to work faster (see Features Guide)
 3. **Multiple Connections**: Keep multiple database connections open simultaneously
 4. **Data Review**: Always review changes in the diff view before committing

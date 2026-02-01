@@ -160,24 +160,38 @@ Users can create new tables via a wizard-style GUI with full column, constraint,
 
 ### 6. Global Schema Search
 
-**Status:** Partial (diagram only)
+**Status:** Implemented
 **Impact:** Medium
 **Effort:** Low
 
 **Implementation Tasks:**
-- [ ] Search input in sidebar header
-- [ ] Search across:
-  - [ ] Table names
-  - [ ] Column names
-  - [ ] View names
-  - [ ] Stored procedures
-  - [ ] Functions
-  - [ ] Index names
-- [ ] Fuzzy matching support
-- [ ] Highlight matches in results
-- [ ] Navigate to result on click
-- [ ] Search history
-- [ ] Filter by object type
+- [x] Search panel accessible via Ctrl+Shift+F in right activity bar
+- [x] Search across:
+  - [x] Table names
+  - [x] Column names
+  - [x] View names
+  - [x] Stored procedures
+  - [x] Functions
+  - [x] Index names
+  - [x] Triggers
+  - [x] Sequences
+  - [x] MongoDB collections and databases
+  - [x] Redis keys
+  - [x] Cassandra keyspaces and tables
+- [x] Fuzzy matching support with scoring
+- [x] Highlight matches in results
+- [x] Navigate to result on click (opens appropriate query/view)
+- [ ] Search history (types defined but not active)
+- [x] Filter by object type
+
+**Files created:**
+- `src/components/schema-search/SchemaSearchPanel.tsx` - Main search panel
+- `src/components/schema-search/SchemaSearchFilters.tsx` - Object type filters
+- `src/components/schema-search/SchemaSearchResults.tsx` - Grouped results display
+- `src/components/schema-search/SchemaSearchResultItem.tsx` - Individual result rendering
+- `src/stores/schema-search.ts` - Zustand store with persistence
+- `src/lib/fuzzy-search.ts` - Fuzzy matching algorithm
+- `src/types/schema-search.ts` - Type definitions
 
 ---
 
@@ -326,19 +340,40 @@ Support queries returning multiple result sets.
 
 ---
 
-### 12. Query Diff Tool
+### 12. Schema Diff Tool
 
-**Status:** Partial (AI optimization only)
-**Impact:** Low
-**Effort:** Low
+**Status:** Implemented
+**Impact:** Medium
+**Effort:** Medium
 
 **Implementation Tasks:**
 - [ ] Compare two query results
-- [ ] Schema diff between connections
+- [x] Schema diff between connections
 - [ ] Data diff between tables
-- [ ] Generate migration scripts
-- [ ] Side-by-side view
-- [ ] Inline diff view
+- [x] Generate migration scripts
+- [x] Side-by-side view
+- [x] Visual diff with change categorization
+
+**Files created:**
+- `src-tauri/src/db/diff.rs` - Diff engine (1,859 lines) with database-specific migration SQL generation
+- `src-tauri/src/commands/diff.rs` - Tauri commands (compare, snapshot, list, delete)
+- `src-tauri/src/models/diff.rs` - Data models
+- `src-tauri/src/storage/snapshots.rs` - Snapshot persistence
+- `src/components/diff/SchemaDiffDialog.tsx` - 3-step wizard UI
+- `src/components/diff/SourceSelectionStep.tsx` - Connection/table/snapshot selection
+- `src/components/diff/DiffVisualizationStep.tsx` - Visual diff display
+- `src/components/diff/MigrationPreviewStep.tsx` - Migration script preview and export
+- `src/stores/diff.ts` - Zustand store
+- `src/types/diff.ts` - TypeScript types
+
+**Features:**
+- Compare schemas across connections, tables, or vs snapshots
+- Point-in-time schema snapshots
+- Color-coded diff (green=added, red=removed, blue=modified)
+- Database-specific migration SQL (PostgreSQL, MySQL, SQLite, Oracle, MSSQL)
+- Destructive operation warnings
+- Copy/download migration scripts
+- 8 unit tests for diff logic
 
 ---
 
@@ -483,17 +518,33 @@ Support queries returning multiple result sets.
 
 ### 18. Cassandra Driver
 
-**Status:** Types defined, not implemented
-**Impact:** Low
+**Status:** Implemented
+**Impact:** Medium
 **Effort:** High
 
 **Implementation Tasks:**
-- [ ] Add `scylla` or `cdrs-tokio` crate
-- [ ] Keyspace/table listing
-- [ ] CQL query execution
-- [ ] Partition key awareness
-- [ ] Cluster topology view
-- [ ] Consistency level configuration
+- [x] Add `scylla` crate
+- [x] Keyspace/table listing
+- [x] CQL query execution
+- [x] Partition key awareness
+- [x] Cluster topology view (server info with nodes, datacenters)
+- [x] Consistency level configuration
+- [x] Keyspace management (create, drop)
+- [x] Table management (describe, drop, truncate)
+- [x] Index listing
+- [x] CQL Shell with history
+- [x] SSH tunnel support
+
+**Files created:**
+- `src-tauri/src/db/cassandra.rs` - Core driver (~1,200 lines) using `scylla` crate
+- `src-tauri/src/commands/cassandra.rs` - 10 Tauri commands
+- `src/types/cassandra.ts` - TypeScript interfaces (148 lines)
+- `src/stores/cassandra.ts` - Zustand store (339 lines)
+- `src/hooks/useCassandra.ts` - React hook (474 lines)
+- `src/components/cassandra/CassandraShell.tsx` - CQL editor
+- `src/components/cassandra/CassandraBrowser.tsx` - Schema browser
+- `src/components/cassandra/CassandraConnectionContent.tsx` - Main interface
+- `src/components/cassandra/CassandraServerInfo.tsx` - Cluster info
 
 ---
 
@@ -844,12 +895,14 @@ Location: `src-tauri/src/commands/queries.rs:142`
 | ~~P1~~ | ~~SQL Formatter~~ | ~~High~~ | ~~Low~~ | **Implemented** |
 | ~~P2~~ | ~~Table Creation UI~~ | ~~High~~ | ~~Medium~~ | **Implemented** |
 | ~~P2~~ | ~~Query Bookmarks~~ | ~~Medium~~ | ~~Low~~ | **Implemented** |
-| P2 | Global Schema Search | Medium | Low | Partial |
+| ~~P2~~ | ~~Global Schema Search~~ | ~~Medium~~ | ~~Low~~ | **Implemented** |
 | ~~P2~~ | ~~MongoDB Driver~~ | ~~High~~ | ~~High~~ | **Implemented** |
 | P3 | Customizable Keybindings | Medium | Low | Not Started |
 | P3 | E2E Tests | High | High | Not Started |
 | ~~P4~~ | ~~Redis Driver~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 | ~~P4~~ | ~~Oracle Driver~~ | ~~Medium~~ | ~~High~~ | **Implemented** |
+| ~~P4~~ | ~~Cassandra Driver~~ | ~~Medium~~ | ~~High~~ | **Implemented** |
+| ~~P2~~ | ~~Schema Diff~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 | ~~P2~~ | ~~View Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 | ~~P2~~ | ~~Index Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
 | ~~P2~~ | ~~User/Role Management~~ | ~~Medium~~ | ~~Medium~~ | **Implemented** |
@@ -887,26 +940,29 @@ Location: `src-tauri/src/commands/queries.rs:142`
 - ✅ MongoDB Shell & Aggregation Pipeline
 - ✅ Redis CLI & Pub/Sub
 
-### v0.5.0 - Query Intelligence
+### v0.5.0 - Query Intelligence ✅ RELEASED
 - ✅ Query Validation (AI-powered)
 - ✅ Performance Warnings
 - ✅ AI Context Enhancements (relationships, indexes, sample data)
-- Global Schema Search
-- Parameterized Queries Improvement
+- ✅ Global Schema Search (full implementation with fuzzy search)
+- ✅ Schema Diff (3-step wizard with migration script generation)
+- ✅ Cassandra Driver (full implementation)
+- ✅ MSSQL Named Instance Support
 
-### v0.6.0 - Advanced Features
-- Stored Procedures Management
-- Functions Management
-- Triggers Management
-- Schema Diff
+### v0.6.0 - Polish & Quality
+- Parameterized CRUD Queries (security improvement)
+- Table Truncate
+- Customizable Keybindings
+- Command Palette
+- E2E Test Infrastructure
 
 ### v1.0.0 - Production Ready
 - Full Test Coverage
-- User Documentation
+- Backup/Restore
 - Accessibility Compliance
-- Customizable Keybindings
+- Data Visualization basics
 
 ---
 
-*Last updated: January 19, 2026*
-*Generated from codebase analysis - v0.4.0*
+*Last updated: February 1, 2026*
+*Updated from codebase analysis - v0.5.3*

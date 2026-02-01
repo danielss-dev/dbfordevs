@@ -32,10 +32,15 @@ bun scripts/bump-version.ts
 
 ### Frontend (src/)
 - **State Management**: Zustand stores with localStorage persistence in `src/stores/`
-  - `useConnectionsStore` - Database connections
+  - `useConnectionsStore` - Database connections, groups, tags
   - `useUIStore` - Theme, sidebar, modals, editor settings
-  - `useQueryStore` - Tabs, query results, table schemas
+  - `useQueryStore` - Tabs, query results, table schemas, query history
   - `useCRUDStore` - Row selection, cell editing, pending changes
+  - `useViewsStore`, `useIndexesStore`, `useProceduresStore`, `useFunctionsStore`, `useTriggersStore`, `useSequencesStore` - Database object management
+  - `useUsersStore` - Users, roles, and permissions
+  - `useGridStore` - Grid display settings and formatting
+  - `useDiffStore` - Schema diff state and snapshots
+  - `useSchemaSearchStore` - Global schema search
 - **Tauri Bridge**: All backend calls via `useDatabase` hook (`src/hooks/useDatabase.ts`) which wraps Tauri `invoke()` calls
 - **Components**: Radix UI primitives styled with Tailwind in `src/components/ui/`
 - **Editor**: Monaco editor with SQL syntax highlighting in `src/components/editor/`
@@ -96,17 +101,20 @@ bun scripts/bump-version.ts
 
 - **Fully Implemented**: PostgreSQL, MySQL, SQLite, Oracle, MSSQL, MongoDB, Redis, Cassandra
 
-## Recent Features (v0.4.0)
+## Recent Features (v0.5.x)
 
-- **Schema Diff**: Compare and visualize schema differences between databases
-- **Cassandra Support**: Full NoSQL support for Apache Cassandra databases
+- **Schema Diff**: Compare schemas across connections/tables/snapshots with migration script generation
+- **Global Schema Search**: Search across tables, columns, views, procedures, and more (Ctrl+Shift+F)
+- **Cassandra Support**: Full NoSQL support with CQL Shell, keyspace management, and cluster info
 - **MongoDB & Redis**: Complete driver implementations with connection management and UI
+- **MSSQL Enhancements**: Named instance support, SQL Server Browser, database create/delete
 - **Oracle Wallet Support**: Secure authentication using Oracle Wallet
 - **SSL/TLS Testing**: Built-in feature for testing secure database connections
 - **Connection Groups & Tags**: Organize connections with groups and custom tags
 - **Tab Pinning**: Pin important query tabs to prevent accidental closure
-- **Solarized Themes**: Additional theme options (Solarized Light, Solarized Dark)
+- **Solarized & Classic Themes**: Additional theme options
 - **Database Objects Management**: Create and manage procedures, functions, triggers, and sequences
+- **User/Role Management**: Full user, role, and permission management
 - **AI Context Management**: Enhanced AI assistant with NoSQL database context awareness
 - **Query Bookmarks & Templates**: Save, organize, and reuse queries with template variables
 - **Table Creation Wizard**: 5-step guided UI for creating tables with constraints and indexes
@@ -115,4 +123,5 @@ bun scripts/bump-version.ts
 - **Data Import**: CSV, JSON, SQL import with column mapping and progress tracking
 - **SSH Tunneling**: Secure database connections through SSH tunnels
 - **SSL Configuration**: Full SSL/TLS support with certificate configuration
-- **Global Search**: Search across all columns in data grid results
+- **Data Grid Global Search**: Search across all columns in data grid results
+- **Schema-Aware SQL Autocomplete**: Table and column suggestions in Monaco editor
