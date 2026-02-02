@@ -2,6 +2,18 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.4] - 2026-02-02
+
+
+### Added
+- **feat**: optimize build configuration and enhance lazy loading for dialogs (#81)
+- **feat**: implement parameterized queries for CRUD operations (#80)
+
+### Changed
+- **refactor**: replace ScrollArea with div for improved overflow handling … (#79)
+
+### Other
+- **docs**: fix inaccuracies across 14 documentation files
 ## [0.5.3] - 2026-01-27
 
 
