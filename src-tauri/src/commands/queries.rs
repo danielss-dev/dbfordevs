@@ -44,6 +44,32 @@ fn placeholder(db_type: &DatabaseType, index: usize) -> String {
     }
 }
 
+/// Returns a PostgreSQL type cast for a column data type, if needed.
+fn postgres_cast_for_type(db_type: &DatabaseType, data_type: Option<&String>) -> Option<&'static str> {
+    if !matches!(db_type, DatabaseType::PostgreSQL | DatabaseType::CockroachDB) {
+        return None;
+    }
+
+    let data_type = data_type?;
+    let normalized = data_type.to_lowercase();
+
+    if normalized == "timestamp without time zone" || normalized == "timestamp" {
+        Some("timestamp")
+    } else if normalized == "timestamp with time zone" {
+        Some("timestamptz")
+    } else if normalized == "time without time zone" || normalized == "time" {
+        Some("time")
+    } else if normalized == "time with time zone" {
+        Some("timetz")
+    } else if normalized == "date" {
+        Some("date")
+    } else if normalized == "uuid" {
+        Some("uuid")
+    } else {
+        None
+    }
+}
+
 /// Formats a WHERE clause condition for parameterized queries.
 /// For NULL values, returns ("col IS NULL", None) since NULL can't be parameterized in WHERE.
 /// For non-NULL values, returns ("col = $N", Some(value)) and advances the index.
@@ -211,6 +237,18 @@ pub async fn insert_row(
     let driver = get_driver(&config);
     let pool_ref = manager.get_pool_ref(&connection_id)?;
 
+    let column_type_map: std::collections::HashMap<String, String> =
+        if matches!(config.database_type, DatabaseType::PostgreSQL | DatabaseType::CockroachDB) {
+            let schema = driver.get_table_schema(pool_ref.clone(), &table_name).await?;
+            schema
+                .columns
+                .into_iter()
+                .map(|col| (col.name, col.data_type))
+                .collect()
+        } else {
+            std::collections::HashMap::new()
+        };
+
     // Build parameterized INSERT statement
     let quoted_table = quote_identifier(&table_name, &config.database_type);
 
@@ -221,9 +259,13 @@ pub async fn insert_row(
 
     let mut params: Vec<serde_json::Value> = Vec::with_capacity(entries.len());
     let placeholders: Vec<String> = entries.iter().enumerate()
-        .map(|(i, (_, v))| {
+        .map(|(i, (k, v))| {
             params.push((*v).clone());
-            placeholder(&config.database_type, i + 1)
+            let mut ph = placeholder(&config.database_type, i + 1);
+            if let Some(cast) = postgres_cast_for_type(&config.database_type, column_type_map.get(*k)) {
+                ph = format!("{}::{}", ph, cast);
+            }
+            ph
         })
         .collect();
 

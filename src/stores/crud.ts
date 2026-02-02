@@ -164,9 +164,12 @@ export const useCRUDStore = create<CRUDState>()(
               } else if (dataType.includes("bool") || dataType === "bit") {
                 // Boolean: default to false
                 acc[col.name] = false;
+              } else if (col.nullable) {
+                // Nullable columns: initialize to null to avoid sending empty strings
+                // User can still type directly into the field (it will update to empty string when typing)
+                acc[col.name] = null;
               } else {
-                // All other types: empty string so field is immediately editable
-                // User can click NULL button to set to null if the field is nullable
+                // Non-nullable columns: empty string so field is immediately editable
                 // This allows tabbing directly to the field and typing
                 acc[col.name] = "";
               }
