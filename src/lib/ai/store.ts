@@ -1021,9 +1021,9 @@ export const useAIStore = create<AIState>()(
         activeChatSessionId: state.activeChatSessionId,
         panelExpanded: state.panelExpanded,
         // Limit stored sessions and messages per session
-        chatSessions: state.chatSessions.slice(0, 100).map(session => ({
+        chatSessions: state.chatSessions.slice(0, 20).map(session => ({
           ...session,
-          messages: session.messages.slice(-50), // Max 50 messages per session
+          messages: session.messages.slice(-20), // Max 20 messages per session
         })),
         // Context and validation config (Phase 1 & 2)
         contextConfig: state.contextConfig,

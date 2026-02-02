@@ -698,8 +698,11 @@ impl MySqlDriver {
 impl DatabaseDriver for MySqlDriver {
     async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult> {
         let connection_string = self.build_connection_string(config);
-        
-        let pool = MySqlPool::connect(&connection_string).await
+
+        let pool = sqlx::mysql::MySqlPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(std::time::Duration::from_secs(5))
+            .connect(&connection_string).await
             .map_err(|e| AppError::ConnectionError(format!("MySQL connection failed: {}", e)))?;
         
         // Get server version

@@ -70,12 +70,16 @@ export function AIPanel() {
 
   // Get active connection and its tables
   const activeConnection = useConnectionsStore(selectActiveConnection);
-  const tablesByConnection = useQueryStore((state) => state.tablesByConnection);
-  const tabs = useQueryStore((state) => state.tabs);
-  const activeTabId = useQueryStore((state) => state.activeTabId);
+  const activeConnectionId = activeConnection?.id;
+  const activeConnectionTables = useQueryStore((state) =>
+    activeConnectionId ? state.tablesByConnection[activeConnectionId] || [] : []
+  );
+  const activeTab = useQueryStore((state) => {
+    const tabId = state.activeTabId;
+    return tabId ? state.tabs.find(t => t.id === tabId) : undefined;
+  });
 
   // Get current query from active tab
-  const activeTab = tabs.find(t => t.id === activeTabId);
   const currentQuery = activeTab?.type === "query" ? activeTab.content : undefined;
 
   const [showSettings, setShowSettings] = useState(false);
@@ -90,20 +94,19 @@ export function AIPanel() {
   // Sync tables and current query from active connection to AI context
   useEffect(() => {
     if (activeConnection) {
-      const tables = tablesByConnection[activeConnection.id] || [];
       console.log("[AIPanel] Syncing context:", {
         connectionId: activeConnection.id,
         databaseType: activeConnection.databaseType,
-        tableCount: tables.length,
+        tableCount: activeConnectionTables.length,
         hasCurrentQuery: !!currentQuery,
       });
       // Pass connectionId and currentQuery so AI has full context
-      updateContext(tables, undefined, activeConnection.databaseType, activeConnection.id, currentQuery);
+      updateContext(activeConnectionTables, undefined, activeConnection.databaseType, activeConnection.id, currentQuery);
     } else {
       console.log("[AIPanel] No active connection, clearing context");
       updateContext([], undefined, undefined, undefined, undefined);
     }
-  }, [activeConnection, tablesByConnection, currentQuery, updateContext]);
+  }, [activeConnection, activeConnectionTables, currentQuery, updateContext]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

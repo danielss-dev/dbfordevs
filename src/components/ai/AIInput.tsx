@@ -445,9 +445,12 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
     }
   }, [value, tables, dropdown.show]);
 
-  // Check for @ pattern on value change
+  // Check for @ pattern on value change (debounced to avoid lag on fast typing)
   useEffect(() => {
-    checkForAtPattern();
+    const timer = setTimeout(() => {
+      checkForAtPattern();
+    }, 120);
+    return () => clearTimeout(timer);
   }, [value, checkForAtPattern]);
 
   // Check for / slash command pattern

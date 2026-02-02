@@ -1,21 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { TooltipProvider, Toaster } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar, RightActivityBar } from "@/components/layout";
-import { SettingsDialog } from "@/components/settings";
-import { ConnectionModal, RenameConnectionDialog } from "@/components/connections";
-import { RenameTableDialog, CreateTableDialog } from "@/components/table";
-import { CreateSchemaDialog } from "@/components/database";
-import { SchemaDiffDialog } from "@/components/diff";
-import { BookmarkDialogs } from "@/components/bookmarks";
-import {
-  CreateUserDialog,
-  ChangePasswordDialog,
-  CreateRoleDialog,
-  ManagePermissionsDialog,
-} from "@/components/users";
-import { UpdateNotification } from "@/components/updater/UpdateNotification";
 import { useUIStore, useQueryStore } from "@/stores";
 import { useKeyboardShortcuts } from "@/hooks";
+
+// Lazy-loaded dialogs - only loaded when opened
+const SettingsDialog = lazy(() => import("@/components/settings").then(m => ({ default: m.SettingsDialog })));
+const ConnectionModal = lazy(() => import("@/components/connections").then(m => ({ default: m.ConnectionModal })));
+const RenameConnectionDialog = lazy(() => import("@/components/connections").then(m => ({ default: m.RenameConnectionDialog })));
+const RenameTableDialog = lazy(() => import("@/components/table").then(m => ({ default: m.RenameTableDialog })));
+const CreateTableDialog = lazy(() => import("@/components/table").then(m => ({ default: m.CreateTableDialog })));
+const CreateSchemaDialog = lazy(() => import("@/components/database").then(m => ({ default: m.CreateSchemaDialog })));
+const SchemaDiffDialog = lazy(() => import("@/components/diff").then(m => ({ default: m.SchemaDiffDialog })));
+const BookmarkDialogs = lazy(() => import("@/components/bookmarks").then(m => ({ default: m.BookmarkDialogs })));
+const CreateUserDialog = lazy(() => import("@/components/users").then(m => ({ default: m.CreateUserDialog })));
+const ChangePasswordDialog = lazy(() => import("@/components/users").then(m => ({ default: m.ChangePasswordDialog })));
+const CreateRoleDialog = lazy(() => import("@/components/users").then(m => ({ default: m.CreateRoleDialog })));
+const ManagePermissionsDialog = lazy(() => import("@/components/users").then(m => ({ default: m.ManagePermissionsDialog })));
+const UpdateNotification = lazy(() => import("@/components/updater/UpdateNotification").then(m => ({ default: m.UpdateNotification })));
 
 function App() {
   const { theme, setTheme, appStyle, setAppStyle } = useUIStore();
@@ -72,22 +74,24 @@ function App() {
         {/* Status Bar */}
         <StatusBar />
 
-        {/* Modals & Overlays */}
-        <SettingsDialog />
-        <ConnectionModal />
-        <RenameTableDialog />
-        <RenameConnectionDialog />
-        <CreateSchemaDialog />
-        <CreateTableDialog />
-        <BookmarkDialogs />
-        {/* User Management Dialogs */}
-        <CreateUserDialog />
-        <ChangePasswordDialog />
-        <CreateRoleDialog />
-        <ManagePermissionsDialog />
-        {/* Schema Diff Dialog */}
-        <SchemaDiffDialog />
-        <UpdateNotification />
+        {/* Modals & Overlays - lazy loaded */}
+        <Suspense fallback={null}>
+          <SettingsDialog />
+          <ConnectionModal />
+          <RenameTableDialog />
+          <RenameConnectionDialog />
+          <CreateSchemaDialog />
+          <CreateTableDialog />
+          <BookmarkDialogs />
+          {/* User Management Dialogs */}
+          <CreateUserDialog />
+          <ChangePasswordDialog />
+          <CreateRoleDialog />
+          <ManagePermissionsDialog />
+          {/* Schema Diff Dialog */}
+          <SchemaDiffDialog />
+          <UpdateNotification />
+        </Suspense>
         <Toaster />
       </div>
     </TooltipProvider>

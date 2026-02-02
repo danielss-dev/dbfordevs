@@ -171,39 +171,36 @@ const customColumnFilter: FilterFn<any> = (row, columnId, filterValue) => {
 };
 
 export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChange }: DataGridProps) {
-  const {
-    selectedRowIds,
-    addSelectedRow,
-    setSelectedRows,
-    toggleRowSelection,
-    clearSelection,
-    editingCell,
-    setEditingCell,
-    pendingChanges,
-    addPendingChange,
-    pageSize: storePageSize,
-    setPageSize,
-    pageIndex: storePageIndex,
-    setPageIndex,
-    columnFilters,
-    setColumnFilter,
-    clearColumnFilter,
-  } = useCRUDStore();
-  const { setRightPanelTab } = useUIStore();
-  const { getSchema } = useSchemaStore();
+  // Use granular selectors to avoid re-renders on unrelated CRUD store changes
+  const selectedRowIds = useCRUDStore(state => state.selectedRowIds);
+  const addSelectedRow = useCRUDStore(state => state.addSelectedRow);
+  const setSelectedRows = useCRUDStore(state => state.setSelectedRows);
+  const toggleRowSelection = useCRUDStore(state => state.toggleRowSelection);
+  const clearSelection = useCRUDStore(state => state.clearSelection);
+  const editingCell = useCRUDStore(state => state.editingCell);
+  const setEditingCell = useCRUDStore(state => state.setEditingCell);
+  const pendingChanges = useCRUDStore(state => state.pendingChanges);
+  const addPendingChange = useCRUDStore(state => state.addPendingChange);
+  const storePageSize = useCRUDStore(state => state.pageSize);
+  const setPageSize = useCRUDStore(state => state.setPageSize);
+  const storePageIndex = useCRUDStore(state => state.pageIndex);
+  const setPageIndex = useCRUDStore(state => state.setPageIndex);
+  const columnFilters = useCRUDStore(state => state.columnFilters);
+  const setColumnFilter = useCRUDStore(state => state.setColumnFilter);
+  const clearColumnFilter = useCRUDStore(state => state.clearColumnFilter);
+  const setRightPanelTab = useUIStore(state => state.setRightPanelTab);
+  const getSchema = useSchemaStore(state => state.getSchema);
 
   // Grid store for enhanced features
-  const {
-    gridPreferences,
-    defaultRowHeight,
-    nullDisplay,
-    numberFormat,
-    jsonDisplay,
-    conditionalRules,
-    openFindReplace,
-    openBinaryPreviewDialog,
-    resetGridPreferences,
-  } = useGridStore();
+  const gridPreferences = useGridStore(state => state.gridPreferences);
+  const defaultRowHeight = useGridStore(state => state.defaultRowHeight);
+  const nullDisplay = useGridStore(state => state.nullDisplay);
+  const numberFormat = useGridStore(state => state.numberFormat);
+  const jsonDisplay = useGridStore(state => state.jsonDisplay);
+  const conditionalRules = useGridStore(state => state.conditionalRules);
+  const openFindReplace = useGridStore(state => state.openFindReplace);
+  const openBinaryPreviewDialog = useGridStore(state => state.openBinaryPreviewDialog);
+  const resetGridPreferences = useGridStore(state => state.resetGridPreferences);
 
   // Generate table key for preferences
   const tableKey = useMemo(
@@ -694,30 +691,31 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     return tableColumns;
   }, [columnsWithPK, editingCell, pendingChanges, tableName, addPendingChange, setEditingCell, lastSelectedId, createSelectedRow, addSelectedRow, toggleRowSelection, columnFilters, setColumnFilter, clearColumnFilter, selectedRowIds, clearSelection, setSelectedRows, setRightPanelTab]);
 
-  const tableData = useMemo(() => {
-    // Convert existing rows to records
-    const existingRows = data.rows.map((row) => {
+  // Split into two memos: existingRows only recalculates when data changes,
+  // not on every pending change edit
+  const existingRows = useMemo(() => {
+    return data.rows.map((row) => {
       const record: Record<string, unknown> = {};
       data.columns.forEach((col, idx) => {
         record[col.name] = row[idx] ?? null;
       });
       return record;
     });
+  }, [data.rows, data.columns]);
 
+  const tableData = useMemo(() => {
     // Add pending insert rows for this table
     const pendingInserts = Object.values(pendingChanges)
       .filter(change => change.type === "insert" && change.tableName === tableName)
       .map(change => {
-        // Create a row with the new data, including the temp id marker
         const record: Record<string, unknown> = { ...change.newData };
-        // Add a marker for identifying new rows
         record.__pending_insert = true;
         record.__temp_pk = change.primaryKey;
         return record;
       });
 
-    return [...existingRows, ...pendingInserts];
-  }, [data.rows, data.columns, pendingChanges, tableName]);
+    return pendingInserts.length > 0 ? [...existingRows, ...pendingInserts] : existingRows;
+  }, [existingRows, pendingChanges, tableName]);
 
   const getRowId = useCallback((row: Record<string, unknown>) => {
     // For pending insert rows, use the temp primary key
@@ -775,6 +773,12 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     }));
   }, [columnFilters]);
 
+  // Memoize rowSelection to avoid recreating object on every render
+  const rowSelection = useMemo(
+    () => selectedRowIds.reduce<Record<string, boolean>>((acc, id) => { acc[id] = true; return acc; }, {}),
+    [selectedRowIds]
+  );
+
   const table = useReactTable({
     data: tableData,
     columns,
@@ -798,7 +802,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       setPageSize(nextPagination.pageSize);
     },
     state: {
-      rowSelection: selectedRowIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}),
+      rowSelection,
       pagination: {
         pageIndex: storePageIndex,
         pageSize: storePageSize,

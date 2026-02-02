@@ -21,5 +21,21 @@ export default defineConfig({
       interval: 250,
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-zustand": ["zustand"],
+          "vendor-monaco": ["@monaco-editor/react"],
+          "vendor-ai": ["ai", "@ai-sdk/anthropic", "@ai-sdk/openai", "@ai-sdk/google"],
+          "vendor-tanstack": ["@tanstack/react-table"],
+          "vendor-markdown": ["react-markdown"],
+          "vendor-sql-formatter": ["sql-formatter"],
+        },
+      },
+    },
+  },
 });
 

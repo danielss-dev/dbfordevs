@@ -873,8 +873,12 @@ impl DatabaseDriver for MssqlDriver {
         };
 
         let addr = format!("{}:{}", info.host, connect_port);
-        match TcpStream::connect(&addr)
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            TcpStream::connect(&addr)
+        )
             .await
+            .map_err(|_| AppError::ConnectionError(format!("Connection to MSSQL server at {} timed out after 5s", addr)))?
             .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MSSQL server at {}: {}", addr, e)))
         {
             Ok(tcp) => {
