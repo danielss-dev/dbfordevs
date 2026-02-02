@@ -352,7 +352,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
         return (
           <div
             className={cn(
-              "flex items-center justify-center w-full h-full text-[10px] font-medium transition-all cursor-pointer select-none",
+              "flex items-center justify-center w-full h-full text-[11px] font-medium transition-all cursor-pointer select-none",
               isSelected
                 ? "bg-primary/20 text-primary font-bold"
                 : "text-muted-foreground/50 hover:bg-primary/10 hover:text-primary/70"
@@ -401,8 +401,9 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
           </div>
         );
       },
-      size: 48,
+      size: 56,
       enableSorting: false,
+      enableResizing: false,
     });
 
     tableColumns.push(...columnsWithPK.map((col) => ({
@@ -787,6 +788,12 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    columnResizeMode: 'onChange',
+    enableColumnResizing: true,
+    defaultColumn: {
+      minSize: 60,
+      maxSize: 1200,
+    },
     // Row selection is handled by our custom click handlers with full context
     // This just keeps TanStack Table's internal state in sync
     onPaginationChange: (updater) => {
@@ -884,7 +891,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
 
       {/* Table Area */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-sm">
+        <table className="border-collapse text-sm" style={{ minWidth: '100%', width: table.getTotalSize() }}>
           <thead className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="bg-[hsl(var(--table-header-bg))] border-b border-border shadow-sm">
@@ -902,7 +909,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                         "hover:bg-muted/50",
                         isNumeric ? "text-right" : "text-left",
                         header.column.id === "rowNumber"
-                          ? "p-0 w-12 text-center bg-muted/20 border-r border-border/30 sticky left-0 z-30 bg-[hsl(var(--table-header-bg))]"
+                          ? "px-1 py-0 w-14 text-center bg-muted/20 border-r border-border/30 sticky left-0 z-30 bg-[hsl(var(--table-header-bg))]"
                           : "min-w-[120px] border-r border-border/20 last:border-r-0",
                         header.column.id !== "rowNumber" && isPinned && "sticky z-20 bg-[hsl(var(--table-header-bg))]",
                         header.column.id !== "rowNumber" && isPinned === "left" && "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]",
@@ -913,7 +920,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                         left: header.column.id === "rowNumber"
                           ? 0
                           : isPinned === "left"
-                            ? `${header.getStart("left") + 48}px` // 48px = row number column width
+                            ? `${header.getStart("left") + 56}px` // 56px = row number column width
                             : undefined,
                         right: isPinned === "right" ? `${header.column.getAfter("right")}px` : undefined,
                       }}
@@ -921,6 +928,17 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.column.getCanResize() && (
+                        <div
+                          onMouseDown={header.getResizeHandler()}
+                          onTouchStart={header.getResizeHandler()}
+                          onDoubleClick={() => header.column.resetSize()}
+                          className={cn(
+                            "absolute top-0 right-0 w-[3px] h-full cursor-col-resize select-none touch-none",
+                            header.column.getIsResizing() ? "bg-primary" : "bg-transparent hover:bg-primary/50"
+                          )}
+                        />
+                      )}
                     </th>
                   );
                 })}
@@ -974,7 +992,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                           "px-3 py-1.5 transition-colors",
                           isNumeric ? "text-right" : "text-left",
                           cell.column.id === "rowNumber"
-                            ? "p-0 w-12 text-center border-r border-border/20 sticky left-0 z-20 bg-[hsl(var(--background))]"
+                            ? "px-1 py-0 w-14 text-center border-r border-border/20 sticky left-0 z-20 bg-[hsl(var(--background))]"
                             : "border-r border-[hsl(var(--border)/0.15)] last:border-r-0",
                           editingCell?.rowId === row.id && editingCell?.columnId === cell.column.id && "p-0 bg-background ring-2 ring-primary/50",
                           cell.column.id !== "rowNumber" && isPinned && "sticky z-10 bg-[hsl(var(--background))]",
@@ -982,10 +1000,11 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                           cell.column.id !== "rowNumber" && isPinned === "right" && "right-0 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                         )}
                         style={{
+                          width: cell.column.getSize(),
                           left: cell.column.id === "rowNumber"
                             ? 0
                             : isPinned === "left"
-                              ? `${cell.column.getStart("left") + 48}px` // 48px = row number column width
+                              ? `${cell.column.getStart("left") + 56}px` // 56px = row number column width
                               : undefined,
                           right: isPinned === "right" ? `${cell.column.getAfter("right")}px` : undefined,
                         }}
