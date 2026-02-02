@@ -3190,6 +3190,91 @@ impl DatabaseDriver for OracleDriver {
         .await
         .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
     }
+
+    async fn execute_parameterized(
+        &self,
+        pool: PoolRef<'_>,
+        sql: &str,
+        params: Vec<serde_json::Value>,
+    ) -> AppResult<QueryResult> {
+        let pool = match pool {
+            PoolRef::Oracle(p) => p,
+            _ => return Err(AppError::QueryError("Invalid pool type for Oracle".to_string())),
+        };
+
+        let start = Instant::now();
+
+        let conn = pool.get().await
+            .map_err(|e| AppError::ConnectionError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = sql.to_string();
+
+        // Convert JSON params to OracleParam owned values
+        let oracle_params: Vec<OracleParam> = params.iter().map(|p| match p {
+            serde_json::Value::String(s) => OracleParam::String(s.clone()),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    OracleParam::I64(i)
+                } else if let Some(f) = n.as_f64() {
+                    OracleParam::F64(f)
+                } else {
+                    OracleParam::String(n.to_string())
+                }
+            }
+            serde_json::Value::Bool(b) => OracleParam::Bool(*b),
+            serde_json::Value::Null => OracleParam::Null(None),
+            other => OracleParam::String(other.to_string()),
+        }).collect();
+
+        tokio::task::spawn_blocking(move || {
+            let mut stmt = conn.inner().statement(&sql).build()
+                .map_err(|e| AppError::QueryError(format!("Failed to prepare statement: {}", e)))?;
+
+            // Build the parameter slice for oracle execute
+            let param_refs: Vec<&dyn oracle::sql_type::ToSql> = oracle_params.iter()
+                .map(|p| p.as_to_sql())
+                .collect();
+
+            stmt.execute(param_refs.as_slice())
+                .map_err(|e| AppError::QueryError(format!("Parameterized query failed: {}", e)))?;
+
+            let affected = stmt.row_count()
+                .map_err(|e| AppError::QueryError(format!("Failed to get row count: {}", e)))?;
+
+            conn.inner().commit()
+                .map_err(|e| AppError::QueryError(format!("Failed to commit: {}", e)))?;
+
+            Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                affected_rows: Some(affected as u64),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            })
+        })
+        .await
+        .map_err(|e| AppError::QueryError(format!("Task join error: {}", e)))?
+    }
+}
+
+/// Owned parameter values for Oracle parameterized queries
+enum OracleParam {
+    String(String),
+    I64(i64),
+    F64(f64),
+    Bool(bool),
+    Null(Option<String>),
+}
+
+impl OracleParam {
+    fn as_to_sql(&self) -> &dyn oracle::sql_type::ToSql {
+        match self {
+            OracleParam::String(s) => s,
+            OracleParam::I64(i) => i,
+            OracleParam::F64(f) => f,
+            OracleParam::Bool(b) => b,
+            OracleParam::Null(n) => n,
+        }
+    }
 }
 
 impl OracleDriver {

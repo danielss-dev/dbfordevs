@@ -52,6 +52,7 @@ export function useCRUD() {
 
     let successCount = 0;
     let errorCount = 0;
+    const errorMessages: string[] = [];
 
     for (const change of changes) {
       try {
@@ -78,12 +79,12 @@ export function useCRUD() {
           delete (insertData as Record<string, unknown>).__pending_insert;
           delete (insertData as Record<string, unknown>).__temp_pk;
 
-          // Get schema to identify auto-increment columns
+          // Get schema to identify auto-increment and nullable columns
           const cachedSchema = getSchema(activeTab.connectionId, change.tableName);
 
-          // Filter out auto-increment columns - they should always be omitted from INSERT
-          // to let the DB generate the value
           if (cachedSchema?.columns) {
+            const requiredColumns: string[] = [];
+
             for (const col of cachedSchema.columns) {
               const dataType = col.dataType.toLowerCase();
               const isAutoIncrement =
@@ -95,7 +96,31 @@ export function useCRUD() {
               // Always remove auto-increment columns from insert
               if (isAutoIncrement) {
                 delete insertData[col.name];
+                continue;
               }
+
+              // Track required (non-nullable, non-auto-increment) columns
+              if (!col.nullable) {
+                requiredColumns.push(col.name);
+              }
+
+              // Convert empty strings to null for nullable columns
+              if (col.nullable && insertData[col.name] === "") {
+                insertData[col.name] = null;
+              }
+            }
+
+            // Validate required columns
+            const missingColumns = requiredColumns.filter(
+              colName => insertData[colName] === undefined || 
+                         insertData[colName] === null || 
+                         insertData[colName] === ""
+            );
+
+            if (missingColumns.length > 0) {
+              throw new Error(
+                `Required columns missing or empty: ${missingColumns.join(", ")}`
+              );
             }
           }
 
@@ -115,6 +140,8 @@ export function useCRUD() {
       } catch (error) {
         console.error("Error committing change:", error);
         errorCount++;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errorMessages.push(errorMessage);
       }
     }
 
@@ -124,9 +151,12 @@ export function useCRUD() {
         description: `Successfully applied ${successCount} change(s).${errorCount > 0 ? ` ${errorCount} failed.` : ""}`,
       });
     } else if (errorCount > 0) {
+      const errorDetails = errorMessages.length > 0 
+        ? ` ${errorMessages[0]}${errorMessages.length > 1 ? ` (+${errorMessages.length - 1} more)` : ""}`
+        : "";
       toast({
         title: "Commit failed",
-        description: `Failed to apply ${errorCount} change(s).`,
+        description: `Failed to apply ${errorCount} change(s).${errorDetails}`,
         variant: "destructive",
       });
     }

@@ -553,7 +553,7 @@ export function useDatabase() {
       connectionId: string,
       tableName: string,
       values: Record<string, unknown>
-    ): Promise<QueryResult | null> => {
+    ): Promise<QueryResult> => {
       setExecuting(true);
       setQueryError(null);
 
@@ -567,7 +567,7 @@ export function useDatabase() {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setQueryError(message);
-        return null;
+        throw new Error(message);
       } finally {
         setExecuting(false);
       }

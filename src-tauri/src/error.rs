@@ -9,7 +9,6 @@ pub enum AppError {
     #[error("Query execution error: {0}")]
     QueryError(String),
 
-    #[allow(dead_code)]
     #[error("Validation error: {0}")]
     ValidationError(String),
 

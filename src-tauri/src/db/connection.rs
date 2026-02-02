@@ -1,4 +1,4 @@
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::models::{
     AvailablePrivileges, ChangePasswordRequest, ConnectionConfig, ConstraintInfo,
     CreateIndexDefinition, CreateRoleRequest, CreateUserRequest, DatabasePermission, DatabaseRole,
@@ -315,6 +315,20 @@ pub trait DatabaseDriver: Send + Sync {
         pool: PoolRef<'_>,
         sequence_name: &str,
     ) -> AppResult<QueryResult>;
+
+    /// Execute a parameterized DML statement (INSERT, UPDATE, DELETE) with bound parameters.
+    /// SQL drivers should override this. NoSQL drivers inherit the default NotSupported error.
+    async fn execute_parameterized(
+        &self,
+        pool: PoolRef<'_>,
+        sql: &str,
+        params: Vec<serde_json::Value>,
+    ) -> AppResult<QueryResult> {
+        let _ = (pool, sql, params);
+        Err(AppError::NotSupported(
+            "Parameterized queries not supported for this database type".to_string(),
+        ))
+    }
 }
 
 /// Factory function to get the appropriate driver for a database type
