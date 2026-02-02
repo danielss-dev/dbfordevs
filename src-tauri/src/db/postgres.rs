@@ -13,7 +13,7 @@ use crate::models::{
     TriggerInfo, ViewInfo, WarningSeverity,
 };
 use async_trait::async_trait;
-use sqlx::{postgres::PgPool, Row, Column, ValueRef, TypeInfo};
+use sqlx::{Row, Column, ValueRef, TypeInfo};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -948,8 +948,11 @@ impl PostgresDriver {
 impl DatabaseDriver for PostgresDriver {
     async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult> {
         let connection_string = self.build_connection_string(config);
-        
-        let pool = PgPool::connect(&connection_string).await
+
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(std::time::Duration::from_secs(5))
+            .connect(&connection_string).await
             .map_err(|e| AppError::ConnectionError(format!("PostgreSQL connection failed: {}", e)))?;
         
         // Get server version

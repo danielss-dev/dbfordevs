@@ -3,7 +3,8 @@ use crate::models::{ConnectionConfig, DatabaseType, SslMode};
 use crate::db::PoolRef;
 use crate::ssh::get_ssh_tunnel_manager;
 use once_cell::sync::OnceCell;
-use sqlx::{postgres::PgPool, mysql::MySqlPool, sqlite::SqlitePool};
+use sqlx::{postgres::{PgPool, PgPoolOptions}, mysql::{MySqlPool, MySqlPoolOptions}, sqlite::{SqlitePool, SqlitePoolOptions}};
+use std::time::Duration;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 
@@ -84,19 +85,36 @@ impl ConnectionManager {
         let (pool, connection_string) = match config.database_type {
             DatabaseType::PostgreSQL => {
                 let connection_string = build_postgres_connection_string(&tunnel_config)?;
-                let pool = PgPool::connect(&connection_string).await
+                let pool = PgPoolOptions::new()
+                    .max_connections(20)
+                    .min_connections(1)
+                    .idle_timeout(Duration::from_secs(300))
+                    .max_lifetime(Duration::from_secs(1800))
+                    .acquire_timeout(Duration::from_secs(10))
+                    .connect(&connection_string).await
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to PostgreSQL: {}", e)))?;
                 (ConnectionPool::Postgres(pool), connection_string)
             }
             DatabaseType::MySQL => {
                 let connection_string = build_mysql_connection_string(&tunnel_config)?;
-                let pool = MySqlPool::connect(&connection_string).await
+                let pool = MySqlPoolOptions::new()
+                    .max_connections(20)
+                    .min_connections(1)
+                    .idle_timeout(Duration::from_secs(300))
+                    .max_lifetime(Duration::from_secs(1800))
+                    .acquire_timeout(Duration::from_secs(10))
+                    .connect(&connection_string).await
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MySQL: {}", e)))?;
                 (ConnectionPool::MySql(pool), connection_string)
             }
             DatabaseType::SQLite => {
                 let connection_string = build_sqlite_connection_string(&tunnel_config)?;
-                let pool = SqlitePool::connect(&connection_string).await
+                let pool = SqlitePoolOptions::new()
+                    .max_connections(5)
+                    .min_connections(1)
+                    .idle_timeout(Duration::from_secs(600))
+                    .acquire_timeout(Duration::from_secs(10))
+                    .connect(&connection_string).await
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to SQLite: {}", e)))?;
                 (ConnectionPool::Sqlite(pool), connection_string)
             }
@@ -109,14 +127,26 @@ impl ConnectionManager {
             // MariaDB uses MySQL protocol
             DatabaseType::MariaDB => {
                 let connection_string = build_mysql_connection_string(&tunnel_config)?;
-                let pool = MySqlPool::connect(&connection_string).await
+                let pool = MySqlPoolOptions::new()
+                    .max_connections(20)
+                    .min_connections(1)
+                    .idle_timeout(Duration::from_secs(300))
+                    .max_lifetime(Duration::from_secs(1800))
+                    .acquire_timeout(Duration::from_secs(10))
+                    .connect(&connection_string).await
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to MariaDB: {}", e)))?;
                 (ConnectionPool::MySql(pool), connection_string)
             }
             // CockroachDB uses PostgreSQL protocol
             DatabaseType::CockroachDB => {
                 let connection_string = build_cockroachdb_connection_string(&tunnel_config)?;
-                let pool = PgPool::connect(&connection_string).await
+                let pool = PgPoolOptions::new()
+                    .max_connections(20)
+                    .min_connections(1)
+                    .idle_timeout(Duration::from_secs(300))
+                    .max_lifetime(Duration::from_secs(1800))
+                    .acquire_timeout(Duration::from_secs(10))
+                    .connect(&connection_string).await
                     .map_err(|e| AppError::ConnectionError(format!("Failed to connect to CockroachDB: {}", e)))?;
                 (ConnectionPool::Postgres(pool), connection_string)
             }

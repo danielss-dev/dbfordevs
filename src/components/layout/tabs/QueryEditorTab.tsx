@@ -21,10 +21,16 @@ interface QueryEditorTabProps {
 }
 
 export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
-  const { tabs, updateTabContent, isExecuting, error, tablesByConnection, addQueryToHistory, updateTab } = useQueryStore();
+  const tabs = useQueryStore(state => state.tabs);
+  const updateTabContent = useQueryStore(state => state.updateTabContent);
+  const isExecuting = useQueryStore(state => state.isExecuting);
+  const error = useQueryStore(state => state.error);
+  const tablesByConnection = useQueryStore(state => state.tablesByConnection);
+  const addQueryToHistory = useQueryStore(state => state.addQueryToHistory);
+  const updateTab = useQueryStore(state => state.updateTab);
   const activeConnection = useConnectionsStore(selectActiveConnection);
-  const { connections } = useConnectionsStore();
-  const { getSchemas } = useSchemaStore();
+  const connections = useConnectionsStore(state => state.connections);
+  const getSchemas = useSchemaStore(state => state.getSchemas);
 
   // Get the latest tab from store to ensure we have the most up-to-date connectionId
   const tab = tabs.find(t => t.id === tabProp.id) || tabProp;
@@ -32,12 +38,19 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
   const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
   const schemas = connectionId ? getSchemas(connectionId) : {};
   const results = useQueryStore(selectActiveResults);
-  const { theme, formatterSettings, openSaveBookmarkDialog } = useUIStore();
-  const { setPanelOpen, sendMessage, settings } = useAIStore();
+  const theme = useUIStore(state => state.theme);
+  const formatterSettings = useUIStore(state => state.formatterSettings);
+  const openSaveBookmarkDialog = useUIStore(state => state.openSaveBookmarkDialog);
+  const setPanelOpen = useAIStore(state => state.setPanelOpen);
+  const sendMessage = useAIStore(state => state.sendMessage);
+  const settings = useAIStore(state => state.settings);
   const isAIEnabled = settings.aiEnabled ?? true;
   const { executeQuery, fetchAllSchemas, refreshSchemas, previewQuery, explainQuery } = useDatabase();
-  const { openPreview, setPreviewResult } = usePreviewStore();
-  const { openExplain, setExplainResult, setExplainError } = useExplainStore();
+  const openPreview = usePreviewStore(state => state.openPreview);
+  const setPreviewResult = usePreviewStore(state => state.setPreviewResult);
+  const openExplain = useExplainStore(state => state.openExplain);
+  const setExplainResult = useExplainStore(state => state.setExplainResult);
+  const setExplainError = useExplainStore(state => state.setExplainError);
   const [content, setContent] = useState(tab.content || "");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const sqlEditorRef = useRef<SqlEditorHandle>(null);

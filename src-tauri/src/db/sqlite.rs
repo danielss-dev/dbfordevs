@@ -767,8 +767,11 @@ impl SqliteDriver {
 impl DatabaseDriver for SqliteDriver {
     async fn test_connection(&self, config: &ConnectionConfig) -> AppResult<TestConnectionResult> {
         let connection_string = self.build_connection_string(config);
-        
-        let pool = SqlitePool::connect(&connection_string).await
+
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(std::time::Duration::from_secs(5))
+            .connect(&connection_string).await
             .map_err(|e| AppError::ConnectionError(format!("SQLite connection failed: {}", e)))?;
         
         // Get SQLite version

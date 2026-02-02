@@ -1730,8 +1730,14 @@ function AIAssistantPanel() {
 }
 
 export function SidePanel() {
-  const { sidePanelOpen, sidePanelWidth, setSidePanelWidth, rightPanelTab, setRightPanelTab } = useUIStore();
-  const { selectedRows, pendingChanges, creatingNewRow } = useCRUDStore();
+  const sidePanelOpen = useUIStore(state => state.sidePanelOpen);
+  const sidePanelWidth = useUIStore(state => state.sidePanelWidth);
+  const setSidePanelWidth = useUIStore(state => state.setSidePanelWidth);
+  const rightPanelTab = useUIStore(state => state.rightPanelTab);
+  const setRightPanelTab = useUIStore(state => state.setRightPanelTab);
+  const selectedRows = useCRUDStore(state => state.selectedRows);
+  const pendingChanges = useCRUDStore(state => state.pendingChanges);
+  const creatingNewRow = useCRUDStore(state => state.creatingNewRow);
 
   const pendingChangesList = Object.values(pendingChanges);
 

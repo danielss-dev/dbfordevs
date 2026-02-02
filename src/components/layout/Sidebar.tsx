@@ -183,34 +183,43 @@ function TreeItem({
 }
 
 function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
-  const { activeConnectionId, setActiveConnection } = useConnectionsStore();
-  const {
-    openConnectionModal,
-    openRenameTableDialog,
-    openRenameConnectionDialog,
-    openCreateTableDialog,
-    openCreateUserDialog,
-    openChangePasswordDialog,
-    openCreateRoleDialog,
-    openManagePermissionsDialog,
-    openAssignGroupDialog,
-  } = useUIStore();
-  const { tablesByConnection, addTab, tabs, setActiveTab, removeTab } = useQueryStore();
-  const {
-    usersByConnection,
-    rolesByConnection,
-    setUsers,
-    setRoles,
-  } = useUsersStore();
-  const { viewsByConnection, setViews } = useViewsStore();
-  const { indexesByConnection, setIndexes } = useIndexesStore();
-  const { proceduresByConnection, setProcedures } = useProceduresStore();
-  const { functionsByConnection, setFunctions } = useFunctionsStore();
-  const { triggersByConnection, setTriggers } = useTriggersStore();
-  const { sequencesByConnection, setSequences } = useSequencesStore();
-  const { highlightedTableByConnection, clearHighlightedTable } = useSidebarHighlightStore();
-  const highlightedTable = highlightedTableByConnection[connection.id] || null;
-  const { openSchemaDiffDialog } = useDiffStore();
+  // Use granular selectors to prevent re-renders from unrelated store changes
+  const activeConnectionId = useConnectionsStore(state => state.activeConnectionId);
+  const setActiveConnection = useConnectionsStore(state => state.setActiveConnection);
+  const openConnectionModal = useUIStore(state => state.openConnectionModal);
+  const openRenameTableDialog = useUIStore(state => state.openRenameTableDialog);
+  const openRenameConnectionDialog = useUIStore(state => state.openRenameConnectionDialog);
+  const openCreateTableDialog = useUIStore(state => state.openCreateTableDialog);
+  const openCreateUserDialog = useUIStore(state => state.openCreateUserDialog);
+  const openChangePasswordDialog = useUIStore(state => state.openChangePasswordDialog);
+  const openCreateRoleDialog = useUIStore(state => state.openCreateRoleDialog);
+  const openManagePermissionsDialog = useUIStore(state => state.openManagePermissionsDialog);
+  const openAssignGroupDialog = useUIStore(state => state.openAssignGroupDialog);
+  // Only subscribe to this connection's data, not all connections
+  const tablesByConnection = useQueryStore(state => state.tablesByConnection);
+  const addTab = useQueryStore(state => state.addTab);
+  const tabs = useQueryStore(state => state.tabs);
+  const setActiveTab = useQueryStore(state => state.setActiveTab);
+  const removeTab = useQueryStore(state => state.removeTab);
+  const usersByConnection = useUsersStore(state => state.usersByConnection);
+  const rolesByConnection = useUsersStore(state => state.rolesByConnection);
+  const setUsers = useUsersStore(state => state.setUsers);
+  const setRoles = useUsersStore(state => state.setRoles);
+  const viewsByConnection = useViewsStore(state => state.viewsByConnection);
+  const setViews = useViewsStore(state => state.setViews);
+  const indexesByConnection = useIndexesStore(state => state.indexesByConnection);
+  const setIndexes = useIndexesStore(state => state.setIndexes);
+  const proceduresByConnection = useProceduresStore(state => state.proceduresByConnection);
+  const setProcedures = useProceduresStore(state => state.setProcedures);
+  const functionsByConnection = useFunctionsStore(state => state.functionsByConnection);
+  const setFunctions = useFunctionsStore(state => state.setFunctions);
+  const triggersByConnection = useTriggersStore(state => state.triggersByConnection);
+  const setTriggers = useTriggersStore(state => state.setTriggers);
+  const sequencesByConnection = useSequencesStore(state => state.sequencesByConnection);
+  const setSequences = useSequencesStore(state => state.setSequences);
+  const highlightedTable = useSidebarHighlightStore(state => state.highlightedTableByConnection[connection.id] || null);
+  const clearHighlightedTable = useSidebarHighlightStore(state => state.clearHighlightedTable);
+  const openSchemaDiffDialog = useDiffStore(state => state.openSchemaDiffDialog);
   const {
     connect,
     disconnect,
@@ -2682,20 +2691,16 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
 }
 
 export function Sidebar() {
-  const {
-    sidebarOpen,
-    sidebarWidth,
-    setSidebarWidth,
-    setShowConnectionModal,
-    openSettingsWithTab,
-    setShowGroupManagerDialog,
-  } = useUIStore();
-  const {
-    connections,
-    groups,
-    getFilteredConnections,
-    toggleGroupCollapse,
-  } = useConnectionsStore();
+  const sidebarOpen = useUIStore(state => state.sidebarOpen);
+  const sidebarWidth = useUIStore(state => state.sidebarWidth);
+  const setSidebarWidth = useUIStore(state => state.setSidebarWidth);
+  const setShowConnectionModal = useUIStore(state => state.setShowConnectionModal);
+  const openSettingsWithTab = useUIStore(state => state.openSettingsWithTab);
+  const setShowGroupManagerDialog = useUIStore(state => state.setShowGroupManagerDialog);
+  const connections = useConnectionsStore(state => state.connections);
+  const groups = useConnectionsStore(state => state.groups);
+  const getFilteredConnections = useConnectionsStore(state => state.getFilteredConnections);
+  const toggleGroupCollapse = useConnectionsStore(state => state.toggleGroupCollapse);
   const { loadConnections } = useDatabase();
 
   const filteredConnections = getFilteredConnections();
