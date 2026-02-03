@@ -110,27 +110,14 @@ IMPORTANT RULES:
 
     // Tables with full schema
     for (const table of tablesWithSchema) {
-      // Build display name for the table
-      // Different databases use different naming conventions:
-      // - PostgreSQL: schema.table (e.g., "public.accounts")
-      // - MySQL: just table name (e.g., "users") - database is implicit
-      // - SQLite: just table name
-      const tableNameIncludesSchema = table.name.includes('.');
-
-      let displayTableName: string;
+      // Build display name - all drivers now return bare names
       const dbType = context.databaseType?.toLowerCase();
       const isMySQLOrSQLite = dbType === 'mysql' || dbType === 'mariadb' || dbType === 'sqlite';
 
-      if (isMySQLOrSQLite) {
-        // For MySQL/SQLite: show just the table name (no database prefix in queries)
-        displayTableName = tableNameIncludesSchema ? table.name.split('.').pop()! : table.name;
-        // Optionally add database info in comment
-        if (table.schema) {
-          displayTableName = `${displayTableName}  /* database: ${table.schema} */`;
-        }
-      } else {
-        // For PostgreSQL: use schema.table format
-        displayTableName = getSchemaObjectFullName(table);
+      let displayTableName = getSchemaObjectFullName(table);
+      if (isMySQLOrSQLite && table.schema) {
+        // For MySQL/SQLite: use bare name in queries but add database info as comment
+        displayTableName = `${table.name}  /* database: ${table.schema} */`;
       }
 
       prompt += `\nTable: ${displayTableName}\n`;

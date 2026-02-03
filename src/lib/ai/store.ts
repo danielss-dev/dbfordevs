@@ -82,37 +82,21 @@ function extractTableReferences(message: string): string[] {
 /** Check if a table matches a reference (handles both "table" and "schema.table" formats)
  *
  * Different databases return table info differently:
- * - PostgreSQL/Oracle: name includes schema (e.g., "public.users")
- * - MySQL/SQLite: name is just table name (e.g., "users"), schema is database name
- * - MSSQL: name is just table name, schema is separate (e.g., "dbo")
+ * All drivers now return bare table names (no schema prefix in table.name).
+ * Schema is always in the separate table.schema field.
  */
 function tableMatchesReference(table: TableInfo, reference: string): boolean {
   const tableNameLower = table.name.toLowerCase();
   const schemaName = table.schema?.toLowerCase();
 
-  // Check if table.name already includes schema (PostgreSQL, Oracle return "schema.table")
-  const tableNameHasSchema = tableNameLower.includes('.');
-
-  // Extract just the table name without schema prefix
-  const pureTableName = tableNameHasSchema
-    ? tableNameLower.split('.').pop()!
-    : tableNameLower;
-
-  // If reference doesn't include schema, match against pure table name
+  // If reference doesn't include schema, match against table name
   if (!reference.includes('.')) {
-    return pureTableName === reference;
+    return tableNameLower === reference;
   }
 
   // Reference includes schema (e.g., @schema.table)
   const [refSchema, refTable] = reference.split('.');
-
-  // For tables where name already includes schema (PostgreSQL, Oracle)
-  if (tableNameHasSchema) {
-    return tableNameLower === reference;
-  }
-
-  // For tables where schema is separate (MySQL, MSSQL, SQLite)
-  return schemaName === refSchema && pureTableName === refTable;
+  return schemaName === refSchema && tableNameLower === refTable;
 }
 
 /** Fetch table schema from backend */
@@ -463,18 +447,8 @@ export const useAIStore = create<AIState>()(
                 const isReferenced = referencedTables.some((ref) => tableMatchesReference(table, ref));
 
                 if (isReferenced && (!table.columns || table.columns.length === 0)) {
-                  const tableNameIncludesSchema = table.name.includes('.');
-                  const dbType = context.databaseType?.toLowerCase();
-                  const isMySQLOrSQLite = dbType === 'mysql' || dbType === 'mariadb' || dbType === 'sqlite';
-
-                  let tableNameForFetch: string;
-                  if (isMySQLOrSQLite) {
-                    // MySQL/SQLite: use just the table name without schema
-                    tableNameForFetch = tableNameIncludesSchema ? table.name.split('.').pop()! : table.name;
-                  } else {
-                    // PostgreSQL, MSSQL, Oracle: use full qualified name
-                    tableNameForFetch = getSchemaObjectFullName(table);
-                  }
+                  // All drivers return bare names; build qualified identifier for fetch
+                  const tableNameForFetch = getSchemaObjectFullName(table);
 
                   console.log(`[AI Store] Fetching schema for: ${tableNameForFetch}`);
                   const schema = await fetchTableSchema(context.connectionId!, tableNameForFetch);

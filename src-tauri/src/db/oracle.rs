@@ -733,7 +733,7 @@ impl DatabaseDriver for OracleDriver {
                 let table_type: String = row.get(2).map_err(|e| AppError::QueryError(e.to_string()))?;
 
                 tables.push(TableInfo {
-                    name: format!("{}.{}", schema, name),
+                    name: name.clone(),
                     schema: Some(schema),
                     table_type,
                     row_count: None,

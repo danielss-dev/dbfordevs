@@ -54,15 +54,10 @@ interface CompletionProviderContext {
 const DEFAULT_SCHEMAS = ["public", "dbo"]; // PostgreSQL and MSSQL defaults
 
 /**
- * Get the full qualified name for a table, avoiding duplicate schema prefix
+ * Get the full qualified name for a table for SQL completion.
+ * For default schemas (public/dbo), just use the bare table name for cleaner SQL.
  */
 function getTableDisplayName(table: TableInfo): string {
-  // If the name already contains a dot, it likely already has the schema
-  if (table.name.includes(".")) {
-    return table.name;
-  }
-  // If there's a schema and it's not a default schema, prepend it
-  // For default schemas (public/dbo), just use the table name for cleaner SQL
   if (table.schema && !DEFAULT_SCHEMAS.includes(table.schema.toLowerCase())) {
     return `${table.schema}.${table.name}`;
   }

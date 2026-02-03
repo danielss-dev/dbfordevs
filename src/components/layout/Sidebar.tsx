@@ -76,6 +76,7 @@ import { BrandIcon } from "@/components/ui";
 import { copyToClipboard, readFromClipboard } from "@/lib/utils";
 import { getDatabaseBrand, getDatabaseColor } from "@/lib/constants";
 import { showSuccessToast, showErrorToast, showInfoToast } from "@/lib/toast-helpers";
+import { buildTableIdentifier } from "@/lib/table-utils";
 import { DbForDevsIcon } from "@/components/icons";
 
 interface TreeItemProps {
@@ -1626,43 +1627,40 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                     forceOpen={hasHighlightedTable}
                                   >
                                     {tablesBySchema[schemaName].map((table) => {
-                                // For display, strip the schema prefix if it's there
-                                const displayLabel = table.name.startsWith(`${schemaName}.`)
-                                  ? table.name.slice(schemaName.length + 1)
-                                  : table.name;
+                                const tableId = buildTableIdentifier(table);
 
                                 // Check if this specific table is highlighted
                                 const isTableHighlighted = highlightedTable?.schema === schemaName &&
-                                  highlightedTable?.table === table.name;
+                                  highlightedTable?.table === tableId;
 
                                 return (
                                   <ContextMenu key={table.name}>
                                     <ContextMenuTrigger asChild>
-                                      <div ref={setTableRef(table.name)}>
+                                      <div ref={setTableRef(tableId)}>
                                         <TreeItem
-                                          label={displayLabel}
+                                          label={table.name}
                                           icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
                                           level={2}
-                                          onClick={() => handleTableClick(table.name, displayLabel)}
+                                          onClick={() => handleTableClick(tableId, table.name)}
                                           isHighlighted={isTableHighlighted}
                                         />
                                       </div>
                                     </ContextMenuTrigger>
                                     <ContextMenuContent className="w-56">
-                                      <ContextMenuItem onSelect={() => handleTableClick(table.name, displayLabel)} className="gap-2">
+                                      <ContextMenuItem onSelect={() => handleTableClick(tableId, table.name)} className="gap-2">
                                         <Table className="h-4 w-4" />
                                         View Data
                                       </ContextMenuItem>
-                                      <ContextMenuItem onSelect={() => handleViewProperties(table.name, displayLabel)} className="gap-2">
+                                      <ContextMenuItem onSelect={() => handleViewProperties(tableId, table.name)} className="gap-2">
                                         <Info className="h-4 w-4" />
                                         View Properties
                                       </ContextMenuItem>
-                                      <ContextMenuItem onSelect={() => handleViewDiagram(table.name, displayLabel)} className="gap-2">
+                                      <ContextMenuItem onSelect={() => handleViewDiagram(tableId, table.name)} className="gap-2">
                                         <Network className="h-4 w-4" />
                                         View Diagram
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
-                                      <ContextMenuItem onSelect={() => handleCopyDdl(table.name)} className="gap-2">
+                                      <ContextMenuItem onSelect={() => handleCopyDdl(tableId)} className="gap-2">
                                         <Copy className="h-4 w-4" />
                                         Copy
                                       </ContextMenuItem>
@@ -1671,17 +1669,17 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         Paste
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
-                                      <ContextMenuItem onSelect={() => handleRenameTable(table.name)} className="gap-2">
+                                      <ContextMenuItem onSelect={() => handleRenameTable(tableId)} className="gap-2">
                                         <Pencil className="h-4 w-4" />
                                         Rename Table
                                       </ContextMenuItem>
-                                      <ContextMenuItem onSelect={() => handleSaveTableSnapshot(table.name)} className="gap-2">
+                                      <ContextMenuItem onSelect={() => handleSaveTableSnapshot(tableId)} className="gap-2">
                                         <Camera className="h-4 w-4" />
                                         Save Snapshot
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
                                       <ContextMenuItem
-                                        onSelect={() => handleTableDelete(table.name)}
+                                        onSelect={() => handleTableDelete(tableId)}
                                         className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                                       >
                                         <Trash2 className="h-4 w-4" />

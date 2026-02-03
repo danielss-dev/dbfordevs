@@ -225,34 +225,19 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
       return redisKeys.some(key => key.key.toLowerCase().includes(redisRef));
     }
 
-    // Standard SQL table reference
+    // Standard SQL table reference - table.name is always bare (no schema prefix)
     return tables.some((table) => {
       const tableNameLower = table.name.toLowerCase();
       const schemaName = table.schema?.toLowerCase();
 
-      // Check if table.name already includes schema (PostgreSQL, Oracle return "schema.table")
-      const tableNameHasSchema = tableNameLower.includes('.');
-
-      // Extract just the table name without schema prefix
-      const pureTableName = tableNameHasSchema
-        ? tableNameLower.split('.').pop()!
-        : tableNameLower;
-
-      // If reference doesn't include schema, match against pure table name
+      // If reference doesn't include schema, match against table name
       if (!ref.includes('.')) {
-        return pureTableName === ref;
+        return tableNameLower === ref;
       }
 
       // Reference includes schema (e.g., @schema.table)
       const [refSchema, refTable] = ref.split('.');
-
-      // For tables where name already includes schema (PostgreSQL, Oracle)
-      if (tableNameHasSchema) {
-        return tableNameLower === ref;
-      }
-
-      // For tables where schema is separate (MySQL, MSSQL, SQLite)
-      return schemaName === refSchema && pureTableName === refTable;
+      return schemaName === refSchema && tableNameLower === refTable;
     });
   }, [tables, mongoCollections, redisKeys]);
 
@@ -403,15 +388,8 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
     if (columnMatch) {
       const tableName = columnMatch[1].toLowerCase();
       const columnFilter = columnMatch[2];
-      // Find table - handle both "schema.table" names (PostgreSQL/Oracle) and plain names (MySQL/MSSQL/SQLite)
-      const table = tables.find((t) => {
-        const tableNameLower = t.name.toLowerCase();
-        // For tables where name includes schema (PostgreSQL/Oracle), extract pure name
-        const pureTableName = tableNameLower.includes('.')
-          ? tableNameLower.split('.').pop()!
-          : tableNameLower;
-        return pureTableName === tableName;
-      });
+      // Find table by bare name (all drivers now return bare names)
+      const table = tables.find((t) => t.name.toLowerCase() === tableName);
 
       if (table) {
         const atIndex = cursorPos - columnMatch[0].length;

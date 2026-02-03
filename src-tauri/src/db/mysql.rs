@@ -37,6 +37,32 @@ fn decode_string_opt(row: &sqlx::mysql::MySqlRow, column: &str) -> Option<String
     None
 }
 
+/// Parse a potentially qualified MySQL table name (e.g., "database.table" or "table").
+/// Returns (optional_database, table_name).
+fn parse_mysql_table_name(table_name: &str) -> (Option<&str>, &str) {
+    if let Some(dot_pos) = table_name.find('.') {
+        let db = &table_name[..dot_pos];
+        let table = &table_name[dot_pos + 1..];
+        (Some(db), table)
+    } else {
+        (None, table_name)
+    }
+}
+
+/// Resolve the effective database name for a MySQL query.
+/// If `db` is Some, returns that value. Otherwise queries the pool for the current database.
+/// This avoids COALESCE(?, DATABASE()) which prevents MySQL information_schema optimizations.
+async fn resolve_mysql_database(pool: &MySqlPool, db: Option<&str>) -> AppResult<String> {
+    if let Some(db) = db {
+        return Ok(db.to_string());
+    }
+    let row: (String,) = sqlx::query_as("SELECT DATABASE()")
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::QueryError(format!("Failed to get current database: {}", e)))?;
+    Ok(row.0)
+}
+
 pub struct MySqlDriver;
 
 impl MySqlDriver {
@@ -822,6 +848,8 @@ impl DatabaseDriver for MySqlDriver {
             PoolRef::MySql(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
         };
+        let (db, table) = parse_mysql_table_name(table_name);
+        let schema_name = resolve_mysql_database(pool, db).await?;
         // Get columns
         let columns_query = r#"
             SELECT
@@ -831,37 +859,39 @@ impl DatabaseDriver for MySqlDriver {
                 COLUMN_KEY as column_key,
                 EXTRA as extra
             FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
+            WHERE TABLE_SCHEMA = ?
             AND TABLE_NAME = ?
             ORDER BY ORDINAL_POSITION
         "#;
-        
+
         let columns_rows = sqlx::query(columns_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get columns: {}", e)))?;
-        
+
         // Get primary keys
         let pk_query = r#"
             SELECT COLUMN_NAME as column_name
             FROM information_schema.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = DATABASE()
+            WHERE TABLE_SCHEMA = ?
             AND TABLE_NAME = ?
             AND CONSTRAINT_NAME = 'PRIMARY'
         "#;
-        
+
         let pk_rows = sqlx::query(pk_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get primary keys: {}", e)))?;
-        
+
         let primary_keys: Vec<String> = pk_rows
             .iter()
             .map(|row| decode_string(row, "column_name"))
             .collect();
-        
+
         // Get foreign keys
         let fk_query = r#"
             SELECT
@@ -870,13 +900,14 @@ impl DatabaseDriver for MySqlDriver {
                 kcu.REFERENCED_COLUMN_NAME as foreign_column_name,
                 kcu.CONSTRAINT_NAME as constraint_name
             FROM information_schema.KEY_COLUMN_USAGE kcu
-            WHERE kcu.TABLE_SCHEMA = DATABASE()
+            WHERE kcu.TABLE_SCHEMA = ?
             AND kcu.TABLE_NAME = ?
             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
         "#;
 
         let fk_rows = sqlx::query(fk_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get foreign keys: {}", e)))?;
@@ -1100,7 +1131,15 @@ impl DatabaseDriver for MySqlDriver {
         };
 
         // MySQL has SHOW CREATE TABLE which gives us the exact DDL
-        let query = format!("SHOW CREATE TABLE {}", table_name);
+        // Handle database.table format by quoting each part separately
+        let (db, table) = parse_mysql_table_name(table_name);
+        let db_type = DatabaseType::MySQL;
+        let quoted_name = if let Some(db) = db {
+            format!("{}.{}", quote_identifier_single(db, &db_type), quote_identifier_single(table, &db_type))
+        } else {
+            quote_identifier_single(table, &db_type)
+        };
+        let query = format!("SHOW CREATE TABLE {}", quoted_name);
         let row = sqlx::query(&query)
             .fetch_one(pool)
             .await
@@ -1142,6 +1181,8 @@ impl DatabaseDriver for MySqlDriver {
             PoolRef::MySql(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
         };
+        let (db, table) = parse_mysql_table_name(table_name);
+        let schema_name = resolve_mysql_database(pool, db).await?;
 
         let query = r#"
             SELECT
@@ -1150,14 +1191,15 @@ impl DatabaseDriver for MySqlDriver {
                 NOT NON_UNIQUE as is_unique,
                 INDEX_NAME = 'PRIMARY' as is_primary
             FROM information_schema.STATISTICS
-            WHERE TABLE_SCHEMA = DATABASE()
+            WHERE TABLE_SCHEMA = ?
             AND TABLE_NAME = ?
             GROUP BY INDEX_NAME, NON_UNIQUE
             ORDER BY INDEX_NAME
         "#;
 
         let rows = sqlx::query(query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get indexes: {}", e)))?;
@@ -1180,6 +1222,8 @@ impl DatabaseDriver for MySqlDriver {
             PoolRef::MySql(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
         };
+        let (db, table) = parse_mysql_table_name(table_name);
+        let schema_name = resolve_mysql_database(pool, db).await?;
 
         let query = r#"
             SELECT
@@ -1187,13 +1231,14 @@ impl DatabaseDriver for MySqlDriver {
                 CONSTRAINT_TYPE as constraint_type,
                 '' as definition
             FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA = DATABASE()
+            WHERE TABLE_SCHEMA = ?
             AND TABLE_NAME = ?
             AND CONSTRAINT_TYPE IN ('CHECK', 'UNIQUE')
         "#;
 
         let rows = sqlx::query(query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get constraints: {}", e)))?;
@@ -1214,6 +1259,8 @@ impl DatabaseDriver for MySqlDriver {
             PoolRef::MySql(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
         };
+        let (db, table) = parse_mysql_table_name(table_name);
+        let schema_name = resolve_mysql_database(pool, db).await?;
 
         // Get columns with extended info
         let columns_query = r#"
@@ -1225,13 +1272,14 @@ impl DatabaseDriver for MySqlDriver {
                 COLUMN_KEY as column_key,
                 COLUMN_COMMENT as comment
             FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
+            WHERE TABLE_SCHEMA = ?
             AND TABLE_NAME = ?
             ORDER BY ORDINAL_POSITION
         "#;
 
         let columns_rows = sqlx::query(columns_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get columns: {}", e)))?;
@@ -1240,13 +1288,14 @@ impl DatabaseDriver for MySqlDriver {
         let pk_query = r#"
             SELECT COLUMN_NAME as column_name
             FROM information_schema.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = DATABASE()
+            WHERE TABLE_SCHEMA = ?
             AND TABLE_NAME = ?
             AND CONSTRAINT_NAME = 'PRIMARY'
         "#;
 
         let pk_rows = sqlx::query(pk_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get primary keys: {}", e)))?;
@@ -1264,13 +1313,14 @@ impl DatabaseDriver for MySqlDriver {
                 kcu.REFERENCED_COLUMN_NAME as foreign_column_name,
                 kcu.CONSTRAINT_NAME as constraint_name
             FROM information_schema.KEY_COLUMN_USAGE kcu
-            WHERE kcu.TABLE_SCHEMA = DATABASE()
+            WHERE kcu.TABLE_SCHEMA = ?
             AND kcu.TABLE_NAME = ?
             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
         "#;
 
         let fk_rows = sqlx::query(fk_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get foreign keys: {}", e)))?;
@@ -1290,8 +1340,14 @@ impl DatabaseDriver for MySqlDriver {
         // Get constraints
         let constraints = self.get_constraints(PoolRef::MySql(pool), table_name).await?;
 
-        // Get row count
-        let count_query = format!("SELECT COUNT(*) as count FROM {}", table_name);
+        // Get row count - use properly quoted identifier
+        let db_type = DatabaseType::MySQL;
+        let quoted_table = if let Some(db) = db {
+            format!("{}.{}", quote_identifier_single(db, &db_type), quote_identifier_single(table, &db_type))
+        } else {
+            quote_identifier_single(table, &db_type)
+        };
+        let count_query = format!("SELECT COUNT(*) as count FROM {}", quoted_table);
         let row_count: Option<i64> = sqlx::query_scalar(&count_query)
             .fetch_optional(pool)
             .await
@@ -1302,12 +1358,13 @@ impl DatabaseDriver for MySqlDriver {
         let comment_query = r#"
             SELECT TABLE_COMMENT
             FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = DATABASE()
+            WHERE TABLE_SCHEMA = ?
             AND TABLE_NAME = ?
         "#;
 
         let table_comment: Option<String> = sqlx::query_scalar(comment_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_optional(pool)
             .await
             .ok()
@@ -1345,6 +1402,8 @@ impl DatabaseDriver for MySqlDriver {
             PoolRef::MySql(p) => p,
             _ => return Err(AppError::QueryError("Invalid pool type for MySQL driver".to_string())),
         };
+        let (db, table) = parse_mysql_table_name(table_name);
+        let schema_name = resolve_mysql_database(pool, db).await?;
 
         // Get outgoing relationships
         let outgoing_query = r#"
@@ -1355,13 +1414,14 @@ impl DatabaseDriver for MySqlDriver {
                 kcu.REFERENCED_TABLE_NAME as target_table,
                 kcu.REFERENCED_COLUMN_NAME as target_column
             FROM information_schema.KEY_COLUMN_USAGE kcu
-            WHERE kcu.TABLE_SCHEMA = DATABASE()
+            WHERE kcu.TABLE_SCHEMA = ?
             AND kcu.TABLE_NAME = ?
             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
         "#;
 
         let outgoing_rows = sqlx::query(outgoing_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get outgoing relationships: {}", e)))?;
@@ -1375,12 +1435,13 @@ impl DatabaseDriver for MySqlDriver {
                 kcu.REFERENCED_TABLE_NAME as target_table,
                 kcu.REFERENCED_COLUMN_NAME as target_column
             FROM information_schema.KEY_COLUMN_USAGE kcu
-            WHERE kcu.TABLE_SCHEMA = DATABASE()
+            WHERE kcu.TABLE_SCHEMA = ?
             AND kcu.REFERENCED_TABLE_NAME = ?
         "#;
 
         let incoming_rows = sqlx::query(incoming_query)
-            .bind(table_name)
+            .bind(&schema_name)
+            .bind(table)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::QueryError(format!("Failed to get incoming relationships: {}", e)))?;
