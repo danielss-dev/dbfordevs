@@ -111,6 +111,9 @@ interface UIState {
   managingPermissionsGrantee: string | null;
   managingPermissionsGranteeHost: string | null;
   managingPermissionsConnectionId: string | null;
+  // Command palette
+  showCommandPalette: boolean;
+
   // Connection group management dialog states
   showGroupManagerDialog: boolean;
   showAssignGroupDialog: boolean;
@@ -163,6 +166,8 @@ interface UIState {
   openCreateRoleDialog: (connectionId: string) => void;
   setShowManagePermissionsDialog: (show: boolean) => void;
   openManagePermissionsDialog: (connectionId: string, grantee: string, host?: string) => void;
+  // Command palette
+  setShowCommandPalette: (show: boolean) => void;
   // Connection group management dialog actions
   setShowGroupManagerDialog: (show: boolean) => void;
   setShowAssignGroupDialog: (show: boolean) => void;
@@ -237,6 +242,8 @@ export const useUIStore = create<UIState>()(
       managingPermissionsGrantee: null,
       managingPermissionsGranteeHost: null,
       managingPermissionsConnectionId: null,
+      // Command palette
+      showCommandPalette: false,
       // Connection group management dialog initial states
       showGroupManagerDialog: false,
       showAssignGroupDialog: false,
@@ -543,6 +550,9 @@ export const useUIStore = create<UIState>()(
           managingPermissionsGrantee: grantee,
           managingPermissionsGranteeHost: host ?? null,
         }),
+
+      // Command palette
+      setShowCommandPalette: (show) => set({ showCommandPalette: show }),
 
       // Connection group management dialog actions
       setShowGroupManagerDialog: (show) =>

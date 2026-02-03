@@ -1075,3 +1075,13 @@
 .group\/tree:hover > .tree-guide {
   @apply bg-sidebar-border/50;
 }
+
+/* Focus zone visual indicator */
+[data-focus-zone].focus-zone-active {
+  @apply ring-2 ring-primary/30 ring-inset;
+}
+
+/* Active grid cell indicator */
+td[data-active-cell="true"] {
+  @apply ring-2 ring-primary ring-inset;
+}

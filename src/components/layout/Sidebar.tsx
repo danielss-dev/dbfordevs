@@ -2716,6 +2716,7 @@ export function Sidebar() {
   return (
     <aside
       data-sidebar
+      data-focus-zone="sidebar"
       className="relative flex h-full flex-col border-r border-sidebar-border bg-sidebar"
       style={{ width: sidebarWidth }}
     >

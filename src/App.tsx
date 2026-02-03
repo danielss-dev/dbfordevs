@@ -2,7 +2,8 @@ import { useEffect, lazy, Suspense } from "react";
 import { TooltipProvider, Toaster } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar, RightActivityBar } from "@/components/layout";
 import { useUIStore, useQueryStore } from "@/stores";
-import { useKeyboardShortcuts } from "@/hooks";
+import { useKeyboardShortcuts, useFocusZoneEffect } from "@/hooks";
+import { useCommandRegistration } from "@/lib/commands";
 
 // Lazy-loaded dialogs - only loaded when opened
 const SettingsDialog = lazy(() => import("@/components/settings").then(m => ({ default: m.SettingsDialog })));
@@ -18,12 +19,19 @@ const ChangePasswordDialog = lazy(() => import("@/components/users").then(m => (
 const CreateRoleDialog = lazy(() => import("@/components/users").then(m => ({ default: m.CreateRoleDialog })));
 const ManagePermissionsDialog = lazy(() => import("@/components/users").then(m => ({ default: m.ManagePermissionsDialog })));
 const UpdateNotification = lazy(() => import("@/components/updater/UpdateNotification").then(m => ({ default: m.UpdateNotification })));
+const CommandPalette = lazy(() => import("@/components/command-palette").then(m => ({ default: m.CommandPalette })));
 
 function App() {
   const { theme, setTheme, appStyle, setAppStyle } = useUIStore();
 
-  // Initialize keyboard shortcuts
+  // Register all default commands (must come before useKeyboardShortcuts)
+  useCommandRegistration();
+
+  // Initialize keyboard shortcuts (registry-based dispatcher)
   useKeyboardShortcuts();
+
+  // Watch focus zones and apply visual indicators
+  useFocusZoneEffect();
 
   // Initialize theme and app style on mount
   useEffect(() => {
@@ -91,6 +99,8 @@ function App() {
           {/* Schema Diff Dialog */}
           <SchemaDiffDialog />
           <UpdateNotification />
+          {/* Command Palette */}
+          <CommandPalette />
         </Suspense>
         <Toaster />
       </div>
