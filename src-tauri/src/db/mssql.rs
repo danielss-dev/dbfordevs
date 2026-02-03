@@ -284,6 +284,36 @@ fn build_tiberius_config(info: &MssqlConnectionInfo, port: u16) -> AppResult<Con
     Ok(config)
 }
 
+/// Parse a MSSQL table name that can be in one of these formats:
+/// - "table" -> (None, "dbo", "table")
+/// - "schema.table" -> (None, "schema", "table")
+/// - "database.schema.table" -> (Some("database"), "schema", "table")
+fn parse_mssql_table_name(table_name: &str) -> (Option<&str>, &str, &str) {
+    let parts: Vec<&str> = table_name.split('.').collect();
+    match parts.len() {
+        1 => (None, "dbo", parts[0]),
+        2 => (None, parts[0], parts[1]),
+        3 => (Some(parts[0]), parts[1], parts[2]),
+        _ => (Some(parts[parts.len() - 3]), parts[parts.len() - 2], parts[parts.len() - 1]),
+    }
+}
+
+/// Execute USE [database] to switch the connection context when a database name is provided.
+/// This is needed when table names are 3-part qualified (database.schema.table) because
+/// system catalog views like sys.tables are database-scoped.
+async fn switch_db_context(
+    client: &mut Client<Compat<TcpStream>>,
+    database: Option<&str>,
+) -> AppResult<()> {
+    if let Some(db) = database {
+        let use_sql = format!("USE [{}]", db.replace(']', "]]"));
+        let query = Query::new(&use_sql);
+        query.execute(client).await
+            .map_err(|e| AppError::QueryError(format!("Failed to switch to database '{}': {}", db, e)))?;
+    }
+    Ok(())
+}
+
 pub struct MssqlDriver;
 
 impl MssqlDriver {
@@ -1087,21 +1117,13 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        // Parse table name which can be:
-        // - "table" -> schema=dbo, table=table
-        // - "schema.table" -> schema=schema, table=table
-        // - "database.schema.table" -> schema=schema, table=table (ignore database)
-        let (schema_name, table) = {
-            let parts: Vec<&str> = table_name.split('.').collect();
-            match parts.len() {
-                1 => ("dbo", parts[0]),
-                2 => (parts[0], parts[1]),
-                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
-            }
-        };
+        let (database, schema_name, table) = parse_mssql_table_name(table_name);
 
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Switch to the correct database context for 3-part table names
+        switch_db_context(&mut *client, database).await?;
 
         let sql = format!(
             r#"
@@ -1182,6 +1204,9 @@ impl DatabaseDriver for MssqlDriver {
         // Get foreign keys
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Switch to the correct database context for 3-part table names
+        switch_db_context(&mut *client, database).await?;
 
         let fk_sql = format!(
             r#"
@@ -1276,18 +1301,7 @@ impl DatabaseDriver for MssqlDriver {
     async fn generate_table_ddl(&self, pool: PoolRef<'_>, table_name: &str) -> AppResult<String> {
         let schema = self.get_table_schema(pool, table_name).await?;
 
-        // Parse table name which can be:
-        // - "table" -> schema=dbo, table=table
-        // - "schema.table" -> schema=schema, table=table
-        // - "database.schema.table" -> schema=schema, table=table (ignore database)
-        let (schema_name, table) = {
-            let parts: Vec<&str> = table_name.split('.').collect();
-            match parts.len() {
-                1 => ("dbo", parts[0]),
-                2 => (parts[0], parts[1]),
-                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
-            }
-        };
+        let (_database, schema_name, table) = parse_mssql_table_name(table_name);
 
         let mut ddl = format!("CREATE TABLE [{}].[{}] (\n", schema_name, table);
 
@@ -1329,21 +1343,13 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        // Parse table name which can be:
-        // - "table" -> schema=dbo, table=table
-        // - "schema.table" -> schema=schema, table=table
-        // - "database.schema.table" -> schema=schema, table=table (ignore database)
-        let (schema_name, table) = {
-            let parts: Vec<&str> = table_name.split('.').collect();
-            match parts.len() {
-                1 => ("dbo", parts[0]),
-                2 => (parts[0], parts[1]),
-                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
-            }
-        };
+        let (database, schema_name, table) = parse_mssql_table_name(table_name);
 
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Switch to the correct database context for 3-part table names
+        switch_db_context(&mut *client, database).await?;
 
         let sql = format!(
             r#"
@@ -1400,21 +1406,13 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        // Parse table name which can be:
-        // - "table" -> schema=dbo, table=table
-        // - "schema.table" -> schema=schema, table=table
-        // - "database.schema.table" -> schema=schema, table=table (ignore database)
-        let (schema_name, table) = {
-            let parts: Vec<&str> = table_name.split('.').collect();
-            match parts.len() {
-                1 => ("dbo", parts[0]),
-                2 => (parts[0], parts[1]),
-                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
-            }
-        };
+        let (database, schema_name, table) = parse_mssql_table_name(table_name);
 
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Switch to the correct database context for 3-part table names
+        switch_db_context(&mut *client, database).await?;
 
         let sql = format!(
             r#"
@@ -1460,11 +1458,9 @@ impl DatabaseDriver for MssqlDriver {
         let indexes = self.get_indexes(pool.clone(), table_name).await?;
         let constraints = self.get_constraints(pool, table_name).await?;
 
-        let (schema_name, _table) = if table_name.contains('.') {
-            let parts: Vec<&str> = table_name.splitn(2, '.').collect();
-            (Some(parts[0].to_string()), parts[1])
-        } else {
-            (Some("dbo".to_string()), table_name)
+        let schema_name = {
+            let (_, schema, _) = parse_mssql_table_name(table_name);
+            Some(schema.to_string())
         };
 
         // Convert columns to extended format
@@ -1500,21 +1496,13 @@ impl DatabaseDriver for MssqlDriver {
             _ => return Err(AppError::QueryError("Invalid pool type for MSSQL".to_string())),
         };
 
-        // Parse table name which can be:
-        // - "table" -> schema=dbo, table=table
-        // - "schema.table" -> schema=schema, table=table
-        // - "database.schema.table" -> schema=schema, table=table (ignore database)
-        let (schema_name, table) = {
-            let parts: Vec<&str> = table_name.split('.').collect();
-            match parts.len() {
-                1 => ("dbo", parts[0]),
-                2 => (parts[0], parts[1]),
-                3 | _ => (parts[1], parts[2]), // database.schema.table -> use schema.table
-            }
-        };
+        let (database, schema_name, table) = parse_mssql_table_name(table_name);
 
         let mut client = pool.get().await
             .map_err(|e| AppError::QueryError(format!("Failed to get connection from pool: {}", e)))?;
+
+        // Switch to the correct database context for 3-part table names
+        switch_db_context(&mut *client, database).await?;
 
         let mut relationships = Vec::new();
         let sql = format!(
