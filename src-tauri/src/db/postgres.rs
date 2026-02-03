@@ -1157,14 +1157,9 @@ impl DatabaseDriver for PostgresDriver {
             .map(|row| {
                 let schema: Option<String> = row.try_get("table_schema").ok();
                 let name: String = row.get("table_name");
-                let full_name = if let Some(schema) = &schema {
-                    format!("{}.{}", schema, name)
-                } else {
-                    name.clone()
-                };
-                
+
                 TableInfo {
-                    name: full_name,
+                    name: name.clone(),
                     schema,
                     table_type: "BASE TABLE".to_string(),
                     row_count: None, // Could be added with COUNT query if needed

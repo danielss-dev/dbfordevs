@@ -66,18 +66,19 @@ export function getBaseName(identifier: string): string {
 }
 
 /**
- * Get the full qualified name for any schema object (table, view, index, etc.),
- * handling the case where obj.name might already include the schema prefix.
- *
- * This prevents the "public.public.posts" bug.
+ * Build a qualified table identifier from a TableInfo object.
+ * With standardized bare names from the backend, this simply prepends the schema.
+ */
+export function buildTableIdentifier(table: SchemaObject): string {
+  return table.schema ? `${table.schema}.${table.name}` : table.name;
+}
+
+/**
+ * Get the full qualified name for any schema object (table, view, index, etc.).
+ * Alias for buildTableIdentifier for backward compatibility.
  */
 export function getSchemaObjectFullName(obj: SchemaObject): string {
-  // If name already contains a dot, extract just the base name
-  const baseName = obj.name.includes(".")
-    ? obj.name.split(".").pop()!
-    : obj.name;
-
-  return obj.schema ? `${obj.schema}.${baseName}` : obj.name;
+  return buildTableIdentifier(obj);
 }
 
 /**
