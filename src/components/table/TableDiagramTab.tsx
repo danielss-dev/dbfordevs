@@ -212,7 +212,7 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
         // Get list of tables in schema first
         const tables = await getTables(tab.connectionId);
         const schemaTables = tables.filter(t => t.schema === schemaName || (!t.schema && schemaName === "default"));
-        tableNames = schemaTables.map(t => t.name);
+        tableNames = schemaTables.map(t => t.schema ? `${t.schema}.${t.name}` : t.name);
       } else if (tab.tableName) {
         // Single table mode - start with main table
         tableNames = [tab.tableName];
