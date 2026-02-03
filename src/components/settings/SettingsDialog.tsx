@@ -19,6 +19,7 @@ import { open } from "@tauri-apps/plugin-shell";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState, useMemo } from "react";
 import { ThemeManagerDialog } from "@/components/themes";
+import { KeybindingEditor } from "./KeybindingEditor";
 import {
   Monitor,
   Moon,
@@ -66,28 +67,6 @@ function SettingRow({ label, description, children }: SettingRowProps) {
   );
 }
 
-interface ShortcutItemProps {
-  label: string;
-  keys: string[];
-}
-
-function ShortcutItem({ label, keys }: ShortcutItemProps) {
-  return (
-    <div className="flex items-center justify-between py-3 group">
-      <span className="text-sm">{label}</span>
-      <div className="flex items-center gap-1">
-        {keys.map((key, idx) => (
-          <span key={idx}>
-            <kbd className="px-2 py-1 bg-muted rounded-md border border-border text-[11px] font-mono font-medium shadow-sm">
-              {key}
-            </kbd>
-            {idx < keys.length - 1 && <span className="text-muted-foreground mx-0.5">+</span>}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 interface GeneralTabProps {
   generalSettings: {
@@ -1014,31 +993,7 @@ export function SettingsDialog() {
 
                   {/* Keybindings Tab */}
                   {activeTab === "keybindings" && (
-                    <div className="space-y-6 animate-fade-in">
-                      <div>
-                        <h2 className="text-xl font-semibold mb-1">Keyboard Shortcuts</h2>
-                        <p className="text-sm text-muted-foreground">Master dbfordevs with these handy keys.</p>
-                      </div>
-
-                      <div className="rounded-xl border border-border bg-card p-4 divide-y divide-border">
-                        <ShortcutItem label="Execute query" keys={["Cmd", "Enter"]} />
-                        <ShortcutItem label="Format SQL" keys={["Shift", "Alt", "F"]} />
-                        <ShortcutItem label="Explain with AI" keys={["Cmd", "Shift", "E"]} />
-                        <ShortcutItem label="Optimize with AI" keys={["Cmd", "Shift", "O"]} />
-                        <ShortcutItem label="New connection" keys={["Cmd", "K"]} />
-                        <ShortcutItem label="Open settings" keys={["Cmd", ","]} />
-                        <ShortcutItem label="Toggle sidebar" keys={["Cmd", "B"]} />
-                        <ShortcutItem label="Toggle AI Assistant" keys={["Cmd", "Shift", "A"]} />
-                        <ShortcutItem label="New query tab" keys={["Cmd", "T"]} />
-                        <ShortcutItem label="Close tab" keys={["Cmd", "W"]} />
-                        <ShortcutItem label="View changes diff" keys={["Cmd", "Shift", "D"]} />
-                        <ShortcutItem label="Toggle fullscreen" keys={["F11"]} />
-                        <ShortcutItem label="Find" keys={["Cmd", "F"]} />
-                        <ShortcutItem label="Find and Replace" keys={["Cmd", "Option", "F"]} />
-                        <ShortcutItem label="Search settings" keys={["Cmd", "F"]} />
-                        <ShortcutItem label="Close dialogs" keys={["Esc"]} />
-                      </div>
-                    </div>
+                    <KeybindingEditor />
                   )}
 
                   {/* Advanced Tab */}

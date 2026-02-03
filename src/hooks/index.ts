@@ -9,6 +9,7 @@ export { useUpdater } from "./useUpdater";
 export { useRedis } from "./useRedis";
 export { useMongoDB } from "./useMongoDB";
 export { useCassandra } from "./useCassandra";
+export { useFocusZoneEffect } from "./useFocusZoneEffect";
 export type { UseAsyncOperationOptions, UseAsyncOperationResult } from "./useAsyncOperation";
 export type { UpdaterState } from "./useUpdater";
 

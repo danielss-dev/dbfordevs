@@ -863,7 +863,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
   }
 
   return (
-    <div className="flex h-full flex-col bg-[hsl(var(--background))] relative overflow-hidden">
+    <div data-focus-zone="grid" data-grid-container tabIndex={0} className="flex h-full flex-col bg-[hsl(var(--background))] relative overflow-hidden outline-none">
       {/* Find & Replace Bar */}
       <FindReplaceBar
         columns={columnsWithPK}

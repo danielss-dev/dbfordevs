@@ -1,298 +1,90 @@
 import { useEffect } from "react";
-import { useUIStore, useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
-import { useAIStore } from "@/lib/ai/store";
+import { eventToKeybindingString, normalizeKeybinding } from "@/lib/commands/keys";
+import { getCommand, executeCommand } from "@/lib/commands/registry";
+import { evaluateCondition } from "@/lib/commands/conditions";
+import { useKeybindingsStore } from "@/stores/keybindings";
+import { useUIStore } from "@/stores";
 
+/**
+ * Global keyboard shortcut handler.
+ * Converts KeyboardEvents into canonical binding strings and dispatches
+ * to the command registry. Replaces the previous monolithic handler.
+ */
 export function useKeyboardShortcuts() {
-  const {
-    setShowConnectionModal,
-    toggleSidebar,
-    setShowSettingsDialog,
-    setShowDiffModal,
-    showConnectionModal,
-    showSettingsDialog,
-    showDiffModal,
-    pendingChanges,
-    removePendingChange,
-    rightPanelTab,
-    setRightPanelTab,
-    toggleRightPanelTab,
-  } = useUIStore();
-
-  const {
-    tabs,
-    activeTabId,
-    addTab,
-    removeTab,
-    closeAllTabs,
-    togglePinTab,
-  } = useQueryStore();
-
-  const activeConnection = useConnectionsStore(selectActiveConnection);
-
-  const { settings: aiSettings } = useAIStore();
-  const isAIEnabled = aiSettings.aiEnabled ?? true;
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isMod = e.metaKey || e.ctrlKey;
-      const isShift = e.shiftKey;
-      const isAlt = e.altKey;
-
-      // Close all modals on Escape
+      // Close modals on Escape (special handling, not registry-based)
       if (e.key === "Escape") {
-        if (showConnectionModal) setShowConnectionModal(false);
-        if (showSettingsDialog) setShowSettingsDialog(false);
-        if (showDiffModal) setShowDiffModal(false);
-        if (rightPanelTab) setRightPanelTab(null);
+        const ui = useUIStore.getState();
+        if (ui.showCommandPalette) {
+          ui.setShowCommandPalette(false);
+          return;
+        }
+        if (ui.showConnectionModal) { ui.setShowConnectionModal(false); return; }
+        if (ui.showSettingsDialog) { ui.setShowSettingsDialog(false); return; }
+        if (ui.showDiffModal) { ui.setShowDiffModal(false); return; }
+        if (ui.rightPanelTab) { ui.setRightPanelTab(null); return; }
         return;
       }
 
-      // Mod + Shift + F: Toggle Schema Search Panel
-      if (isMod && isShift && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        if (activeConnection?.connected) {
-          toggleRightPanelTab("schema-search");
+      // Don't intercept when typing in inputs (except for global shortcuts)
+      const target = e.target as HTMLElement;
+      const isInInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+      // Let Monaco handle its own shortcuts when it has focus
+      const isInMonaco = !!target.closest?.(".monaco-editor");
+
+      // Convert the event to a binding string
+      const bindingString = eventToKeybindingString(e);
+      if (!bindingString) return;
+
+      const normalized = normalizeKeybinding(bindingString);
+
+      // Look up which command this binding triggers
+      const commandId = useKeybindingsStore.getState().getCommandForKeys(normalized);
+      if (!commandId) return;
+
+      const command = getCommand(commandId);
+      if (!command) return;
+
+      // Special handling: let Monaco-owned shortcuts pass through
+      // when the editor is focused (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+A, Ctrl+X, etc.)
+      if (isInMonaco) {
+        const monacoOwnedCommands = new Set([
+          "query.execute", "query.format", "editor.find", "editor.findReplace",
+        ]);
+        // If the command is NOT one of our global overrides, let Monaco handle it
+        if (!monacoOwnedCommands.has(commandId) && !commandId.startsWith("command.") &&
+            !commandId.startsWith("sidebar.") && !commandId.startsWith("settings.") &&
+            !commandId.startsWith("ai.") && !commandId.startsWith("diff.") &&
+            !commandId.startsWith("schemaSearch.") && !commandId.startsWith("tabs.") &&
+            !commandId.startsWith("query.closeTab") && !commandId.startsWith("query.closeAllTabs") &&
+            !commandId.startsWith("query.pinTab") && !commandId.startsWith("query.newTab") &&
+            !commandId.startsWith("navigation.") && !commandId.startsWith("bookmarks.") &&
+            !commandId.startsWith("general.fullscreen") && !commandId.startsWith("general.help") &&
+            !commandId.startsWith("theme.") && !commandId.startsWith("connection.")) {
+          return;
         }
+      }
+
+      // If in a regular input and the shortcut doesn't have Ctrl/Meta, skip
+      if (isInInput && !isInMonaco && !e.ctrlKey && !e.metaKey && !e.altKey &&
+          !bindingString.startsWith("f")) {
         return;
       }
 
-      // Mod + K: New Connection
-      if (isMod && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setShowConnectionModal(true);
-      }
+      // Evaluate when-condition
+      if (command.when && !evaluateCondition(command.when)) return;
 
-      // Mod + T: New Query Tab
-      if (isMod && e.key.toLowerCase() === "t") {
-        e.preventDefault();
-        if (activeConnection) {
-          addTab({
-            id: crypto.randomUUID(),
-            title: `Query ${tabs.length + 1}`,
-            type: "query",
-            connectionId: activeConnection.id,
-            content: "",
-          });
-        }
-      }
-
-      // Mod + W: Close Current Tab
-      if (isMod && e.key.toLowerCase() === "w") {
-        if (activeTabId) {
-          e.preventDefault();
-          removeTab(activeTabId);
-        }
-      }
-
-      // Mod + ,: Open Settings
-      if (isMod && e.key === ",") {
-        e.preventDefault();
-        setShowSettingsDialog(true);
-      }
-
-      // Mod + B: Toggle Sidebar
-      if (isMod && e.key.toLowerCase() === "b") {
-        e.preventDefault();
-        toggleSidebar();
-      }
-
-      // Mod + Shift + A: Toggle AI Assistant Panel
-      if (isMod && isShift && e.key.toLowerCase() === "a") {
-        e.preventDefault();
-        if (isAIEnabled) {
-          toggleRightPanelTab("ai");
-        }
-      }
-
-      // Mod + Shift + D: View Changes Diff
-      if (isMod && isShift && e.key.toLowerCase() === "d") {
-        e.preventDefault();
-        setShowDiffModal(true);
-      }
-
-      // Mod + Shift + P: Pin/Unpin Current Tab
-      if (isMod && isShift && e.key.toLowerCase() === "p") {
-        e.preventDefault();
-        if (activeTabId) {
-          togglePinTab(activeTabId);
-        }
-      }
-
-      // Mod + Shift + W: Close All Tabs
-      if (isMod && isShift && e.key.toLowerCase() === "w") {
-        e.preventDefault();
-        closeAllTabs();
-      }
-
-      // Mod + Alt + F: Focus Find and Replace in Editor
-      if (isMod && isAlt && e.key.toLowerCase() === "f") {
-        const activeTab = tabs.find(t => t.id === activeTabId);
-        if (activeTab && activeTab.type === "query") {
-          const monacoEditor = document.querySelector(".monaco-editor");
-          if (monacoEditor) {
-            e.preventDefault();
-            // If the editor doesn't have focus, focus it first
-            if (!monacoEditor.contains(document.activeElement)) {
-              const textarea = monacoEditor.querySelector("textarea");
-              if (textarea) {
-                textarea.focus();
-              }
-              
-              // Trigger find/replace via a new event
-              const event = new KeyboardEvent("keydown", {
-                key: "f",
-                code: "KeyF",
-                keyCode: 70,
-                metaKey: e.metaKey,
-                ctrlKey: e.ctrlKey,
-                altKey: true,
-                bubbles: true,
-                cancelable: true
-              });
-              textarea?.dispatchEvent(event);
-            }
-
-            // Robust polling to ensure the find widget opens with replace
-            let attempts = 0;
-            const focusReplaceInput = () => {
-              const findWidget = document.querySelector(".monaco-editor .find-widget");
-              if (findWidget) {
-                // Check if replace is expanded, if not, try to click the toggle
-                const replaceToggle = findWidget.querySelector(".monaco-button.expand") as HTMLElement;
-                if (replaceToggle && !findWidget.classList.contains("replace-expanded")) {
-                  replaceToggle.click();
-                }
-
-                const inputs = findWidget.querySelectorAll("input, textarea");
-                const findInput = inputs[0] as HTMLElement;
-
-                if (findInput) {
-                  findInput.focus();
-                  if (findInput instanceof HTMLInputElement || findInput instanceof HTMLTextAreaElement) {
-                    findInput.select();
-                  }
-                }
-              } else if (attempts < 10) {
-                attempts++;
-                setTimeout(focusReplaceInput, 50);
-              }
-            };
-            
-            setTimeout(focusReplaceInput, 50);
-          }
-        }
-      }
-
-      // Mod + F: Focus Find in Editor
-      if (isMod && !isShift && !isAlt && e.key.toLowerCase() === "f") {
-        const activeTab = tabs.find(t => t.id === activeTabId);
-        if (activeTab && activeTab.type === "query") {
-          const monacoEditor = document.querySelector(".monaco-editor");
-          if (monacoEditor) {
-            // If the editor doesn't have focus, focus it first
-            if (!monacoEditor.contains(document.activeElement)) {
-              e.preventDefault();
-              const textarea = monacoEditor.querySelector("textarea");
-              if (textarea) {
-                textarea.focus();
-              }
-              
-              // Trigger find via a new event
-              const event = new KeyboardEvent("keydown", {
-                key: "f",
-                code: "KeyF",
-                keyCode: 70,
-                metaKey: e.metaKey,
-                ctrlKey: e.ctrlKey,
-                bubbles: true,
-                cancelable: true
-              });
-              textarea?.dispatchEvent(event);
-            }
-
-            // Robust polling to ensure the find widget input gets focus
-            let attempts = 0;
-            const focusFindInput = () => {
-              const findWidget = document.querySelector(".monaco-editor .find-widget");
-              const findInput = findWidget?.querySelector("input, textarea") as HTMLElement;
-              
-              if (findInput) {
-                findInput.focus();
-                if (findInput instanceof HTMLInputElement || findInput instanceof HTMLTextAreaElement) {
-                  findInput.select();
-                }
-              } else if (attempts < 10) {
-                attempts++;
-                setTimeout(focusFindInput, 50);
-              }
-            };
-            
-            setTimeout(focusFindInput, 50);
-          }
-        }
-      }
-
-      // Mod + Z: Undo Pending Change
-      if (isMod && !isShift && e.key.toLowerCase() === "z") {
-        if (pendingChanges.length > 0) {
-          e.preventDefault();
-          const lastChange = pendingChanges[pendingChanges.length - 1];
-          removePendingChange(lastChange.id);
-        }
-      }
-
-      // F1: Open Help (Settings -> About or just Settings)
-      if (e.key === "F1") {
-        e.preventDefault();
-        setShowSettingsDialog(true);
-      }
-
-      // F11: Toggle Fullscreen
-      if (e.key === "F11") {
-        e.preventDefault();
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch((err) => {
-            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-          });
-        } else {
-          document.exitFullscreen();
-        }
-      }
-
-      // Alt + Up/Down: Navigate Results (Scroll)
-      if (isAlt && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-        const resultsArea = document.querySelector(".overflow-auto");
-        if (resultsArea) {
-          e.preventDefault();
-          const scrollAmount = e.key === "ArrowUp" ? -40 : 40;
-          resultsArea.scrollBy({ top: scrollAmount, behavior: "smooth" });
-        }
-      }
+      e.preventDefault();
+      executeCommand(commandId);
+      useKeybindingsStore.getState().addRecentCommand(commandId);
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    showConnectionModal,
-    showSettingsDialog,
-    showDiffModal,
-    rightPanelTab,
-    isAIEnabled,
-    activeConnection,
-    tabs.length,
-    activeTabId,
-    pendingChanges,
-    setShowConnectionModal,
-    setShowSettingsDialog,
-    setShowDiffModal,
-    setRightPanelTab,
-    toggleRightPanelTab,
-    addTab,
-    removeTab,
-    closeAllTabs,
-    togglePinTab,
-    toggleSidebar,
-    removePendingChange,
-  ]);
+  }, []);
 }
-

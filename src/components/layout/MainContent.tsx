@@ -397,7 +397,7 @@ export function MainContent() {
   };
 
   return (
-    <main className="flex h-full flex-1 flex-col bg-background overflow-hidden">
+    <main data-focus-zone="editor" className="flex h-full flex-1 flex-col bg-background overflow-hidden">
       {/* Tab Bar */}
       <div className="flex h-10 items-center border-b border-border bg-muted/30 relative group/tabbar">
         <div className="flex-1 h-full relative overflow-hidden flex items-center">

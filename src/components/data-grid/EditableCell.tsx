@@ -38,6 +38,10 @@ export function EditableCell({
       onSave(value);
     } else if (e.key === "Escape") {
       onCancel();
+    } else if (e.key === "Tab") {
+      // Save and let grid nav handle movement
+      e.preventDefault();
+      onSave(value);
     }
   };
 
