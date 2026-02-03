@@ -2,6 +2,18 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.5] - 2026-02-03
+
+
+### Added
+- **feat**: enhance MSSQL table name parsing and context switching (#84)
+- **feat**: integrate command palette and keyboard shortcuts functionality (#82)
+
+### Changed
+- **refactor**: standardize table name handling across database drivers (#85)
+
+### Fixed
+- **fix**: disable autocomplete on Input component (#83)
 ## [0.5.4] - 2026-02-02
 
 
