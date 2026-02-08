@@ -53,6 +53,10 @@ import type {
   SchemaDiffResult,
   CreateSnapshotRequest,
   SchemaSnapshot,
+  // Data diff types
+  DataCompareTableRequest,
+  DataCompareQueryRequest,
+  DataCompareResult,
 } from "@/types";
 
 /**
@@ -1689,6 +1693,40 @@ export function useDatabase() {
     []
   );
 
+  // ============ Data Diff Operations ============
+
+  /**
+   * Compare data between two tables
+   */
+  const compareTableData = useCallback(
+    async (request: DataCompareTableRequest): Promise<DataCompareResult> => {
+      try {
+        const result = await invoke<DataCompareResult>("compare_table_data", { request });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(message);
+      }
+    },
+    []
+  );
+
+  /**
+   * Compare data from two custom queries
+   */
+  const compareQueryData = useCallback(
+    async (request: DataCompareQueryRequest): Promise<DataCompareResult> => {
+      try {
+        const result = await invoke<DataCompareResult>("compare_query_data", { request });
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(message);
+      }
+    },
+    []
+  );
+
   /**
    * Delete a schema snapshot
    */
@@ -1787,6 +1825,9 @@ export function useDatabase() {
     saveSchemaSnapshot,
     listSchemaSnapshots,
     deleteSchemaSnapshot,
+    // Data diff
+    compareTableData,
+    compareQueryData,
   };
 }
 

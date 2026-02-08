@@ -1,5 +1,6 @@
 pub mod cassandra;
 pub mod connections;
+pub mod data_diff;
 pub mod diff;
 pub mod functions;
 pub mod import;

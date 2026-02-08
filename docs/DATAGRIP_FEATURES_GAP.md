@@ -26,18 +26,11 @@ This document lists features from [JetBrains DataGrip](https://www.jetbrains.com
 
 ---
 
-## 2. Data Comparison Between Tables/Query Results 🔴
+## ~~2. Data Comparison Between Tables/Query Results~~ ✅
 
 **DataGrip Feature:** Diff viewer to compare tables or query results with tolerance parameters.
 
-**Current State:** Not implemented.
-
-**Implementation Scope:**
-- Compare two result sets side-by-side
-- Highlight row/cell differences
-- Configurable comparison tolerance (ignore whitespace, case, etc.)
-- Sync scrolling between compared datasets
-- Export diff report
+**Current State:** **Implemented in v0.6.x** - Full data comparison feature with table vs table and query vs query modes, side-by-side grids with row/cell-level diff highlighting, configurable key columns, tolerance options (ignore case, whitespace, numeric tolerance, null handling), filter modes, synchronized scrolling, and CSV/JSON export.
 
 ---
 
@@ -225,7 +218,7 @@ This document lists features from [JetBrains DataGrip](https://www.jetbrains.com
 | Priority | Feature | Effort | Status |
 |----------|---------|--------|--------|
 | ~~🔴 High~~ | ~~Schema Diff & Migration Scripts~~ | ~~Large~~ | **Implemented** |
-| 🔴 High | Data Comparison | Medium | Not Started |
+| ~~🔴 High~~ | ~~Data Comparison~~ | ~~Medium~~ | **Implemented** |
 | 🔴 High | Parameterized Queries | Medium | Not Started |
 | 🟡 Medium | Foreign Key Navigation | Small | Not Started |
 | 🟡 Medium | Smart Code Completion | Medium | Partial (basic schema-aware) |
@@ -247,7 +240,7 @@ This document lists features from [JetBrains DataGrip](https://www.jetbrains.com
 2. **Foreign Key Navigation** - Quick win, builds on existing FK validation
 3. **Customizable Shortcuts** - Already in roadmap, small effort
 4. ~~**Schema Diff**~~ - **Already implemented** in v0.5.0
-5. **Data Comparison** - Natural complement to schema diff
+5. ~~**Data Comparison**~~ - **Already implemented** in v0.6.x
 6. **Enhanced Export** - Quick wins with Excel/Markdown/HTML
 7. **Smart Code Completion** - Extend existing schema-aware provider with alias resolution
 8. **Run Configurations** - Workflow automation

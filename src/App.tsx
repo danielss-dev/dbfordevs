@@ -13,6 +13,7 @@ const RenameTableDialog = lazy(() => import("@/components/table").then(m => ({ d
 const CreateTableDialog = lazy(() => import("@/components/table").then(m => ({ default: m.CreateTableDialog })));
 const CreateSchemaDialog = lazy(() => import("@/components/database").then(m => ({ default: m.CreateSchemaDialog })));
 const SchemaDiffDialog = lazy(() => import("@/components/diff").then(m => ({ default: m.SchemaDiffDialog })));
+const DataCompareDialog = lazy(() => import("@/components/data-diff").then(m => ({ default: m.DataCompareDialog })));
 const BookmarkDialogs = lazy(() => import("@/components/bookmarks").then(m => ({ default: m.BookmarkDialogs })));
 const CreateUserDialog = lazy(() => import("@/components/users").then(m => ({ default: m.CreateUserDialog })));
 const ChangePasswordDialog = lazy(() => import("@/components/users").then(m => ({ default: m.ChangePasswordDialog })));
@@ -98,6 +99,8 @@ function App() {
           <ManagePermissionsDialog />
           {/* Schema Diff Dialog */}
           <SchemaDiffDialog />
+          {/* Data Compare Dialog */}
+          <DataCompareDialog />
           <UpdateNotification />
           {/* Command Palette */}
           <CommandPalette />
