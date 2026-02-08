@@ -65,18 +65,18 @@ function getTableDisplayName(table: TableInfo): string {
 }
 
 /**
- * Extract table names referenced in the SQL query (after FROM/JOIN clauses)
+ * Extract table names referenced in the SQL query (after FROM/JOIN/INTO/UPDATE clauses)
+ * Uses the full query text to find all table references regardless of cursor position.
  */
 function extractTableReferences(sql: string, availableTables: TableInfo[]): string[] {
   const tableNames = new Set<string>();
-  // Match table names after FROM, JOIN keywords
-  const tablePattern = /\b(?:FROM|JOIN)\s+([`"\[]?\w+[`"\]]?(?:\.[`"\[]?\w+[`"\]]?)?)/gi;
+
+  // Match table names after FROM, JOIN, INTO, UPDATE keywords
+  const tablePattern = /\b(?:FROM|JOIN|INTO|UPDATE)\s+([`"\[]?\w+[`"\]]?(?:\.[`"\[]?\w+[`"\]]?)?)/gi;
   let match;
 
   while ((match = tablePattern.exec(sql)) !== null) {
-    // Remove quotes/brackets from table name
     const name = match[1].replace(/[`"\[\]]/g, "");
-    // Verify it's a real table
     const exists = availableTables.some(
       (t) =>
         t.name.toLowerCase() === name.toLowerCase() ||
@@ -87,7 +87,74 @@ function extractTableReferences(sql: string, availableTables: TableInfo[]): stri
     }
   }
 
+  // Also match comma-separated tables: FROM table1, table2, table3
+  const commaPattern = /\b(?:FROM|JOIN|INTO|UPDATE)\s+([`"\[]?\w+[`"\]]?(?:\.[`"\[]?\w+[`"\]]?)?)(?:\s+\w+)?(?:\s*,\s*([`"\[]?\w+[`"\]]?(?:\.[`"\[]?\w+[`"\]]?)?)(?:\s+\w+)?)+/gi;
+  while ((match = commaPattern.exec(sql)) !== null) {
+    // Extract all comma-separated table names from the full match
+    const fullMatch = match[0];
+    const commaTables = fullMatch.split(",").slice(1); // Skip first (already matched above)
+    for (const part of commaTables) {
+      const tableMatch = part.trim().match(/^([`"\[]?\w+[`"\]]?(?:\.[`"\[]?\w+[`"\]]?)?)/);
+      if (tableMatch) {
+        const name = tableMatch[1].replace(/[`"\[\]]/g, "");
+        const exists = availableTables.some(
+          (t) =>
+            t.name.toLowerCase() === name.toLowerCase() ||
+            getTableDisplayName(t).toLowerCase() === name.toLowerCase()
+        );
+        if (exists) {
+          tableNames.add(name);
+        }
+      }
+    }
+  }
+
   return Array.from(tableNames);
+}
+
+/**
+ * SQL keywords set for fast lookup (used to filter out false alias matches)
+ */
+const SQL_KEYWORDS_SET = new Set(SQL_KEYWORDS.map((k) => k.toLowerCase()));
+
+/**
+ * Extract table aliases from the SQL query.
+ * Handles: FROM table alias, FROM table AS alias, JOIN table alias, JOIN table AS alias
+ * Returns a map of lowercase alias -> original table name
+ */
+function extractTableAliases(
+  sql: string,
+  availableTables: TableInfo[]
+): Map<string, string> {
+  const aliases = new Map<string, string>();
+
+  // Match: FROM/JOIN table_name [AS] alias
+  const aliasPattern =
+    /\b(?:FROM|JOIN)\s+([`"\[]?\w+[`"\]]?(?:\.[`"\[]?\w+[`"\]]?)?)\s+(?:AS\s+)?([a-zA-Z_]\w*)/gi;
+
+  let match;
+  while ((match = aliasPattern.exec(sql)) !== null) {
+    const tableName = match[1].replace(/[`"\[\]]/g, "");
+    const alias = match[2];
+
+    // Skip if alias is a SQL keyword (WHERE, ON, SET, INNER, LEFT, etc.)
+    if (SQL_KEYWORDS_SET.has(alias.toLowerCase())) continue;
+    // Skip common clause starters that aren't in the keywords list
+    if (/^(on|where|set|and|or|order|group|having|limit|offset|union|into)$/i.test(alias)) continue;
+
+    // Verify it's a known table
+    const exists = availableTables.some(
+      (t) =>
+        t.name.toLowerCase() === tableName.toLowerCase() ||
+        getTableDisplayName(t).toLowerCase() === tableName.toLowerCase()
+    );
+
+    if (exists) {
+      aliases.set(alias.toLowerCase(), tableName);
+    }
+  }
+
+  return aliases;
 }
 
 /**
@@ -157,11 +224,24 @@ export function createSqlCompletionProvider(
 
       const suggestions: Monaco.languages.CompletionItem[] = [];
 
-      // Check if we're after a dot (table.column scenario)
+      // Check if we're after a dot (table.column or alias.column scenario)
       const dotMatch = textUntilPosition.match(/(\w+)\.\s*$/);
       if (dotMatch) {
-        const tableName = dotMatch[1];
-        const columns = getColumnsForTable(tableName, context);
+        const prefix = dotMatch[1];
+
+        // First try as a direct table name
+        let columns = getColumnsForTable(prefix, context);
+
+        // If no columns found, try as an alias
+        if (columns.length === 0) {
+          const fullText = model.getValue();
+          const tables = getTables();
+          const aliases = extractTableAliases(fullText, tables);
+          const realTable = aliases.get(prefix.toLowerCase());
+          if (realTable) {
+            columns = getColumnsForTable(realTable, context);
+          }
+        }
 
         columns.forEach((col) => {
           suggestions.push({
@@ -223,17 +303,25 @@ export function createSqlCompletionProvider(
         });
       });
 
-      // Add columns from tables referenced in the query
-      const referencedTables = extractTableReferences(textUntilPosition, tables);
+      // Add columns from tables referenced in the FULL query
+      // (not just text before cursor, so columns are available when editing SELECT before FROM)
+      const fullText = model.getValue();
+      const referencedTables = extractTableReferences(fullText, tables);
+      const seenColumns = new Set<string>();
       for (const tableName of referencedTables) {
         const columns = getColumnsForTable(tableName, context);
         columns.forEach((col) => {
+          // Avoid duplicate column suggestions when multiple tables have the same column name
+          const key = `${col.name}:${tableName}`;
+          if (seenColumns.has(key)) return;
+          seenColumns.add(key);
           suggestions.push({
             label: col.name,
             kind: 5, // Monaco.languages.CompletionItemKind.Field
             insertText: col.name,
-            detail: `${tableName}.${col.name}`,
+            detail: `${tableName}.${col.name} (${col.dataType})`,
             range,
+            sortText: `0_${col.name}`, // Sort columns before keywords
           });
         });
       }
