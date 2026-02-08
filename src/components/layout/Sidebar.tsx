@@ -29,6 +29,7 @@ import {
   Hash,
   GitCompare,
   Camera,
+  Rows3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -68,7 +69,7 @@ import { ConnectionGroupItem } from "./ConnectionGroupItem";
 import { RedisConnectionContent } from "@/components/redis";
 import { MongoConnectionContent } from "@/components/mongodb";
 import { CassandraConnectionContent } from "@/components/cassandra";
-import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore, useSidebarHighlightStore, useDiffStore } from "@/stores";
+import { useConnectionsStore, useUIStore, useQueryStore, useUsersStore, useViewsStore, useIndexesStore, useProceduresStore, useFunctionsStore, useTriggersStore, useSequencesStore, useSidebarHighlightStore, useDiffStore, useDataDiffStore } from "@/stores";
 import { useDatabase, useToast } from "@/hooks";
 import type { ConnectionInfo, TableInfo, DatabaseInfo, StandaloneIndexInfo, DatabaseType } from "@/types";
 import { getDatabaseFeatureSupport } from "@/lib/database-features";
@@ -221,6 +222,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const highlightedTable = useSidebarHighlightStore(state => state.highlightedTableByConnection[connection.id] || null);
   const clearHighlightedTable = useSidebarHighlightStore(state => state.clearHighlightedTable);
   const openSchemaDiffDialog = useDiffStore(state => state.openSchemaDiffDialog);
+  const openDataCompareDialog = useDataDiffStore(state => state.openDataCompareDialog);
   const {
     connect,
     disconnect,
@@ -1535,6 +1537,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                                       <Camera className="h-4 w-4" />
                                                       Save Snapshot
                                                     </ContextMenuItem>
+                                                    <ContextMenuItem onSelect={() => openDataCompareDialog(connection.id, `${db.name}.${schemaName}.${table.name}`)} className="gap-2">
+                                                      <Rows3 className="h-4 w-4" />
+                                                      Compare Data...
+                                                    </ContextMenuItem>
                                                     <ContextMenuSeparator />
                                                     <ContextMenuItem
                                                       onSelect={() => handleTableDelete(`${db.name}.${schemaName}.${table.name}`)}
@@ -1676,6 +1682,10 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                       <ContextMenuItem onSelect={() => handleSaveTableSnapshot(tableId)} className="gap-2">
                                         <Camera className="h-4 w-4" />
                                         Save Snapshot
+                                      </ContextMenuItem>
+                                      <ContextMenuItem onSelect={() => openDataCompareDialog(connection.id, tableId)} className="gap-2">
+                                        <Rows3 className="h-4 w-4" />
+                                        Compare Data...
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
                                       <ContextMenuItem

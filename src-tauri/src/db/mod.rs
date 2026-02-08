@@ -1,4 +1,5 @@
 mod connection;
+pub mod data_diff;
 pub mod diff;
 mod manager;
 mod postgres;
