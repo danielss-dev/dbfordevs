@@ -1,7 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, TreeDeciduous } from "lucide-react";
 import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
-import { useQueryStore, useConnectionsStore, selectActiveConnection, selectActiveResults, useSchemaStore, usePreviewStore, useExplainStore } from "@/stores";
+import {
+  useQueryStore,
+  useConnectionsStore,
+  selectActiveConnection,
+  selectActiveResults,
+  useSchemaStore,
+  usePreviewStore,
+  useExplainStore,
+  useViewsStore,
+  useProceduresStore,
+  useFunctionsStore,
+} from "@/stores";
 import { useUIStore } from "@/stores/ui";
 import { useAIStore } from "@/lib/ai/store";
 import { useDatabase } from "@/hooks";
@@ -31,12 +42,18 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const connections = useConnectionsStore(state => state.connections);
   const getSchemas = useSchemaStore(state => state.getSchemas);
+  const viewsByConnection = useViewsStore(state => state.viewsByConnection);
+  const proceduresByConnection = useProceduresStore(state => state.proceduresByConnection);
+  const functionsByConnection = useFunctionsStore(state => state.functionsByConnection);
 
   // Get the latest tab from store to ensure we have the most up-to-date connectionId
   const tab = tabs.find(t => t.id === tabProp.id) || tabProp;
   const connectionId = tab.connectionId || activeConnection?.id;
   const tables = connectionId ? tablesByConnection[connectionId] || [] : [];
   const schemas = connectionId ? getSchemas(connectionId) : {};
+  const views = connectionId ? viewsByConnection[connectionId] || [] : [];
+  const procedures = connectionId ? proceduresByConnection[connectionId] || [] : [];
+  const functions = connectionId ? functionsByConnection[connectionId] || [] : [];
   const results = useQueryStore(selectActiveResults);
   const theme = useUIStore(state => state.theme);
   const formatterSettings = useUIStore(state => state.formatterSettings);
@@ -372,6 +389,9 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           onSaveAsBookmark={handleSaveAsBookmark}
           tables={tables}
           schemas={schemas}
+          views={views}
+          procedures={procedures}
+          functions={functions}
           theme={theme}
           databaseType={databaseType}
           formatterOptions={formatterSettings}

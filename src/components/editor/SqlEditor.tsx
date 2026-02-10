@@ -4,7 +4,7 @@ import type * as MonacoEditor from "monaco-editor";
 import { createSqlCompletionProvider } from "./sql-completion-provider";
 import { registerCustomThemes, getMonacoTheme } from "./monaco-themes";
 import { formatSql, mapDatabaseTypeToDialect, type SqlFormatterOptions } from "@/lib/sql-formatter";
-import type { TableInfo, TableSchema } from "@/types";
+import type { FunctionInfo, ProcedureInfo, TableInfo, TableSchema, ViewInfo } from "@/types";
 import { useThemesStore } from "@/stores/themes";
 
 /**
@@ -22,6 +22,9 @@ interface SqlEditorProps {
   onFormat?: () => void;
   tables?: TableInfo[];
   schemas?: Record<string, TableSchema>;
+  views?: ViewInfo[];
+  procedures?: ProcedureInfo[];
+  functions?: FunctionInfo[];
   theme?: BuiltInEditorTheme | `custom:${string}`;
   databaseType?: string;
   formatterOptions?: SqlFormatterOptions;
@@ -44,6 +47,9 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
   onFormat,
   tables = [],
   schemas = {},
+  views = [],
+  procedures = [],
+  functions = [],
   theme = "dark",
   databaseType,
   formatterOptions,
@@ -56,6 +62,9 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
   const actionDisposablesRef = useRef<MonacoEditor.IDisposable[]>([]);
   const tablesRef = useRef<TableInfo[]>(tables);
   const schemasRef = useRef<Record<string, TableSchema>>(schemas);
+  const viewsRef = useRef<ViewInfo[]>(views);
+  const proceduresRef = useRef<ProcedureInfo[]>(procedures);
+  const functionsRef = useRef<FunctionInfo[]>(functions);
   const onExecuteRef = useRef(onExecute);
   const onExplainWithAIRef = useRef(onExplainWithAI);
   const onOptimizeWithAIRef = useRef(onOptimizeWithAI);
@@ -72,6 +81,18 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
   useEffect(() => {
     schemasRef.current = schemas;
   }, [schemas]);
+
+  useEffect(() => {
+    viewsRef.current = views;
+  }, [views]);
+
+  useEffect(() => {
+    proceduresRef.current = procedures;
+  }, [procedures]);
+
+  useEffect(() => {
+    functionsRef.current = functions;
+  }, [functions]);
 
   useEffect(() => {
     onExecuteRef.current = onExecute;
@@ -141,6 +162,10 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function Sq
       createSqlCompletionProvider({
         getTables: () => tablesRef.current,
         getTableSchema: (tableName) => schemasRef.current[tableName] || null,
+        getDatabaseType: () => databaseTypeRef.current,
+        getViews: () => viewsRef.current,
+        getProcedures: () => proceduresRef.current,
+        getFunctions: () => functionsRef.current,
       })
     );
 
