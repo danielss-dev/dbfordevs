@@ -155,3 +155,27 @@ export interface RedisCliHistoryEntry {
   error?: string;
   timestamp: number;
 }
+
+// Redis staged change operations (discriminated union)
+export type RedisOperation =
+  | { op: "SET"; value: string; originalValue: string }
+  | { op: "HSET"; field: string; value: string; isNew: boolean }
+  | { op: "HDEL"; field: string; originalValue: string }
+  | { op: "SADD"; member: string }
+  | { op: "SREM"; member: string }
+  | { op: "ZADD"; member: string; score: number; isNew: boolean }
+  | { op: "ZREM"; member: string }
+  | { op: "LSET"; index: number; value: string; originalValue: string }
+  | { op: "RPUSH"; value: string }
+  | { op: "LPUSH"; value: string }
+  | { op: "LREM"; value: string };
+
+// A single pending Redis change
+export interface RedisPendingChange {
+  id: string;
+  connectionId: string;
+  key: string;
+  keyType: RedisKeyType;
+  operation: RedisOperation;
+  timestamp: number;
+}

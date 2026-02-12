@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Plus, Trash2, Loader2, Edit, Check, X } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { useRedis, useToast } from "@/hooks";
+import { useRedisChangesStore } from "@/stores/redis-changes";
 import type { RedisHashField } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface RedisHashEditorProps {
   connectionId: string;
@@ -10,23 +12,24 @@ interface RedisHashEditorProps {
 }
 
 export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps) {
-  const { getHashFull, hashSet, hashDelete } = useRedis();
+  const { getHashFull } = useRedis();
   const { toast } = useToast();
-  const [fields, setFields] = useState<RedisHashField[]>([]);
+  const { addChange, removeChange } = useRedisChangesStore();
+  const [originalFields, setOriginalFields] = useState<RedisHashField[]>([]);
   const [totalFields, setTotalFields] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [newField, setNewField] = useState("");
   const [newValue, setNewValue] = useState("");
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const hadChangesRef = useRef(false);
 
   const loadHash = async () => {
     setIsLoading(true);
     try {
       const result = await getHashFull(connectionId, keyName);
       if (result) {
-        setFields(result.fields);
+        setOriginalFields(result.fields);
         setTotalFields(result.totalFields);
       }
     } catch (error) {
@@ -44,56 +47,103 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
     loadHash();
   }, [connectionId, keyName]);
 
-  const handleAdd = async () => {
+  // Subscribe reactively to pending changes, derive filtered list with useMemo
+  const allPendingChanges = useRedisChangesStore((state) => state.pendingChanges);
+  const pendingChanges = useMemo(
+    () => allPendingChanges.filter((c) => c.connectionId === connectionId && c.key === keyName),
+    [allPendingChanges, connectionId, keyName]
+  );
+
+  // Reload data after commit/clear
+  useEffect(() => {
+    if (pendingChanges.length > 0) {
+      hadChangesRef.current = true;
+    } else if (hadChangesRef.current) {
+      hadChangesRef.current = false;
+      loadHash();
+    }
+  }, [pendingChanges.length]);
+
+  // Compute virtual fields by applying pending changes on top of original
+  const virtualFields = useMemo(() => {
+    const fieldsMap = new Map<string, { field: string; value: string; status: "original" | "added" | "modified" | "deleted" }>();
+
+    // Start with original fields
+    for (const f of originalFields) {
+      fieldsMap.set(f.field, { field: f.field, value: f.value, status: "original" });
+    }
+
+    // Apply pending changes
+    for (const change of pendingChanges) {
+      const op = change.operation;
+      if (op.op === "HSET") {
+        const existing = fieldsMap.get(op.field);
+        if (existing && existing.status !== "deleted") {
+          fieldsMap.set(op.field, { field: op.field, value: op.value, status: op.isNew ? "added" : "modified" });
+        } else {
+          fieldsMap.set(op.field, { field: op.field, value: op.value, status: "added" });
+        }
+      } else if (op.op === "HDEL") {
+        const existing = fieldsMap.get(op.field);
+        if (existing) {
+          fieldsMap.set(op.field, { ...existing, status: "deleted" });
+        }
+      }
+    }
+
+    return Array.from(fieldsMap.values());
+  }, [originalFields, pendingChanges]);
+
+  const handleAdd = () => {
     if (!newField.trim() || !newValue.trim()) return;
 
-    setIsSaving(true);
-    try {
-      await hashSet(connectionId, keyName, [{ field: newField, value: newValue }]);
-      setNewField("");
-      setNewValue("");
-      await loadHash();
-      toast({
-        title: "Field added",
-        description: `Field "${newField}" added to hash.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error adding field",
-        description: error instanceof Error ? error.message : "Failed to add field",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+    addChange({
+      connectionId,
+      key: keyName,
+      keyType: "hash",
+      operation: { op: "HSET", field: newField, value: newValue, isNew: true },
+    });
+    setNewField("");
+    setNewValue("");
   };
 
-  const handleEdit = (field: RedisHashField) => {
-    setEditingField(field.field);
-    setEditValue(field.value);
+  const handleEdit = (field: string, currentValue: string) => {
+    setEditingField(field);
+    setEditValue(currentValue);
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
     if (editingField === null) return;
 
-    setIsSaving(true);
-    try {
-      await hashSet(connectionId, keyName, [{ field: editingField, value: editValue }]);
-      setEditingField(null);
-      await loadHash();
-      toast({
-        title: "Field updated",
-        description: `Field "${editingField}" updated.`,
+    // Find if this field exists in original data
+    const originalField = originalFields.find((f) => f.field === editingField);
+    const isNew = !originalField;
+
+    // If editing back to original value, remove the pending change instead
+    if (originalField && editValue === originalField.value) {
+      const existingChange = pendingChanges.find(
+        (c) => c.operation.op === "HSET" && c.operation.field === editingField
+      );
+      if (existingChange) {
+        removeChange(existingChange.id);
+      }
+    } else {
+      // Remove any existing HSET for this field first
+      const existingChange = pendingChanges.find(
+        (c) => c.operation.op === "HSET" && c.operation.field === editingField
+      );
+      if (existingChange) {
+        removeChange(existingChange.id);
+      }
+
+      addChange({
+        connectionId,
+        key: keyName,
+        keyType: "hash",
+        operation: { op: "HSET", field: editingField, value: editValue, isNew },
       });
-    } catch (error) {
-      toast({
-        title: "Error updating field",
-        description: error instanceof Error ? error.message : "Failed to update field",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
     }
+    setEditingField(null);
   };
 
   const handleCancelEdit = () => {
@@ -101,23 +151,42 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
     setEditValue("");
   };
 
-  const handleDelete = async (field: string) => {
-    setIsSaving(true);
-    try {
-      await hashDelete(connectionId, keyName, [field]);
-      await loadHash();
-      toast({
-        title: "Field deleted",
-        description: `Field "${field}" deleted from hash.`,
+  const handleDelete = (field: string) => {
+    const originalField = originalFields.find((f) => f.field === field);
+
+    if (originalField) {
+      // Field exists in original data - stage a HDEL
+      // Remove any existing HSET for this field
+      const existingChange = pendingChanges.find(
+        (c) => c.operation.op === "HSET" && c.operation.field === field
+      );
+      if (existingChange) {
+        removeChange(existingChange.id);
+      }
+
+      addChange({
+        connectionId,
+        key: keyName,
+        keyType: "hash",
+        operation: { op: "HDEL", field, originalValue: originalField.value },
       });
-    } catch (error) {
-      toast({
-        title: "Error deleting field",
-        description: error instanceof Error ? error.message : "Failed to delete field",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
+    } else {
+      // Field was newly added - just remove the SADD change
+      const existingChange = pendingChanges.find(
+        (c) => c.operation.op === "HSET" && c.operation.field === field
+      );
+      if (existingChange) {
+        removeChange(existingChange.id);
+      }
+    }
+  };
+
+  const handleUndoDelete = (field: string) => {
+    const deleteChange = pendingChanges.find(
+      (c) => c.operation.op === "HDEL" && c.operation.field === field
+    );
+    if (deleteChange) {
+      removeChange(deleteChange.id);
     }
   };
 
@@ -151,7 +220,7 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
         <Button
           size="sm"
           onClick={handleAdd}
-          disabled={!newField.trim() || !newValue.trim() || isSaving}
+          disabled={!newField.trim() || !newValue.trim()}
         >
           <Plus className="h-4 w-4 mr-1" />
           HSET
@@ -161,20 +230,49 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
       {/* Hash info */}
       <div className="px-3 py-2 text-xs text-muted-foreground border-b">
         {totalFields} fields
+        {pendingChanges.length > 0 && (
+          <span className="ml-2 text-amber-500">
+            ({pendingChanges.length} staged)
+          </span>
+        )}
       </div>
 
       {/* Hash fields */}
       <div className="flex-1 overflow-auto">
-        {fields.map((field) => (
+        {virtualFields.map((field) => (
           <div
             key={field.field}
-            className="group flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:bg-muted/30"
+            className={cn(
+              "group flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:bg-muted/30",
+              field.status === "added" && "bg-green-500/5",
+              field.status === "modified" && "bg-amber-500/5",
+              field.status === "deleted" && "bg-red-500/5 opacity-60"
+            )}
           >
-            <span className="font-mono text-sm text-muted-foreground w-1/4 truncate">
+            <span className={cn(
+              "font-mono text-sm text-muted-foreground w-1/4 truncate",
+              field.status === "added" && "text-green-600 dark:text-green-400",
+              field.status === "modified" && "text-amber-600 dark:text-amber-400",
+              field.status === "deleted" && "line-through"
+            )}>
               {field.field}
             </span>
 
-            {editingField === field.field ? (
+            {field.status === "deleted" ? (
+              <>
+                <span className="flex-1 font-mono text-sm truncate line-through text-muted-foreground">
+                  {field.value}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => handleUndoDelete(field.field)}
+                >
+                  Undo
+                </Button>
+              </>
+            ) : editingField === field.field ? (
               <>
                 <Input
                   value={editValue}
@@ -200,7 +298,7 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
-                  onClick={() => handleEdit(field)}
+                  onClick={() => handleEdit(field.field, field.value)}
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -217,7 +315,7 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
           </div>
         ))}
 
-        {fields.length === 0 && (
+        {virtualFields.length === 0 && (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <p className="text-sm">Hash is empty</p>
           </div>

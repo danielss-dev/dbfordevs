@@ -38,6 +38,9 @@ interface RedisState {
   // CLI history per connection (limited to last 50)
   cliHistoryByConnection: Record<string, RedisCliHistoryEntry[]>;
 
+  // View mode per connection ("type" = group by type, "tree" = folder hierarchy)
+  viewModeByConnection: Record<string, "type" | "tree">;
+
   // Loading states
   loading: boolean;
   loadingKeys: boolean;
@@ -81,6 +84,9 @@ interface RedisState {
   addCliHistoryEntry: (connectionId: string, entry: RedisCliHistoryEntry) => void;
   clearCliHistory: (connectionId: string) => void;
 
+  // Actions - View mode
+  setViewMode: (connectionId: string, mode: "type" | "tree") => void;
+
   // Actions - Loading states
   setLoading: (loading: boolean) => void;
   setLoadingKeys: (loading: boolean) => void;
@@ -108,6 +114,7 @@ export const useRedisStore = create<RedisState>()((set) => ({
   pubsubMessagesByConnection: {},
   pubsubChannelsByConnection: {},
   cliHistoryByConnection: {},
+  viewModeByConnection: {},
   loading: false,
   loadingKeys: false,
   loadingValue: false,
@@ -274,6 +281,15 @@ export const useRedisStore = create<RedisState>()((set) => ({
       },
     })),
 
+  // View mode
+  setViewMode: (connectionId, mode) =>
+    set((state) => ({
+      viewModeByConnection: {
+        ...state.viewModeByConnection,
+        [connectionId]: mode,
+      },
+    })),
+
   // Loading states
   setLoading: (loading) => set({ loading }),
   setLoadingKeys: (loadingKeys) => set({ loadingKeys }),
@@ -305,6 +321,8 @@ export const useRedisStore = create<RedisState>()((set) => ({
       delete newPubSubChannels[connectionId];
       const newCliHistory = { ...state.cliHistoryByConnection };
       delete newCliHistory[connectionId];
+      const newViewMode = { ...state.viewModeByConnection };
+      delete newViewMode[connectionId];
 
       return {
         keysByConnection: newKeys,
@@ -317,6 +335,7 @@ export const useRedisStore = create<RedisState>()((set) => ({
         pubsubMessagesByConnection: newPubSubMessages,
         pubsubChannelsByConnection: newPubSubChannels,
         cliHistoryByConnection: newCliHistory,
+        viewModeByConnection: newViewMode,
       };
     }),
 }));

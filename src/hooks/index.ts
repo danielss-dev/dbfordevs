@@ -7,6 +7,7 @@ export { useCRUD } from "./useCRUD";
 export { useAnime, useAnimeOnMount } from "./useAnime";
 export { useUpdater } from "./useUpdater";
 export { useRedis } from "./useRedis";
+export { useRedisCRUD } from "./useRedisCRUD";
 export { useMongoDB } from "./useMongoDB";
 export { useCassandra } from "./useCassandra";
 export { useFocusZoneEffect } from "./useFocusZoneEffect";

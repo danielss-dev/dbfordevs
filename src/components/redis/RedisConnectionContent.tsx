@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Hash,
   Terminal,
@@ -16,6 +16,10 @@ import {
   Eye,
   Copy,
   Clock,
+  FolderTree,
+  Folder,
+  FolderOpen,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +44,7 @@ import {
 import { useRedis, useToast } from "@/hooks";
 import { useRedisStore, useQueryStore } from "@/stores";
 import type { RedisKeyType, Tab } from "@/types";
+import { buildKeyTree, getAncestorPaths, type KeyTreeNode } from "./buildKeyTree";
 
 interface TreeItemProps {
   label: string;
@@ -163,6 +168,233 @@ const KEY_TYPE_LABELS: Record<RedisKeyType, string> = {
   unknown: "Unknown",
 };
 
+interface KeyTreeViewProps {
+  nodes: KeyTreeNode[];
+  level: number;
+  highlightedKey: string | null;
+  highlightedAncestors: Set<string>;
+  onKeyClick: (key: string) => void;
+  onCopyKey: (key: string) => void;
+  onDeleteKey: (key: string) => void;
+  setKeyRef: (key: string) => (el: HTMLDivElement | null) => void;
+}
+
+function KeyTreeView({
+  nodes,
+  level,
+  highlightedKey,
+  highlightedAncestors,
+  onKeyClick,
+  onCopyKey,
+  onDeleteKey,
+  setKeyRef,
+}: KeyTreeViewProps) {
+  return (
+    <>
+      {nodes.map((node) => {
+        const isLeaf = node.keyInfo !== undefined && node.children.length === 0;
+        const forceOpen = highlightedAncestors.has(node.fullPath);
+
+        if (isLeaf) {
+          return (
+            <ContextMenu key={node.fullPath}>
+              <ContextMenuTrigger asChild>
+                <div ref={setKeyRef(node.keyInfo!.key)}>
+                  <TreeItem
+                    label={node.name}
+                    icon={KEY_TYPE_ICONS[node.keyInfo!.keyType]}
+                    level={level}
+                    onClick={() => onKeyClick(node.keyInfo!.key)}
+                    isHighlighted={highlightedKey === node.keyInfo!.key}
+                    rightElement={
+                      node.keyInfo!.ttl !== undefined && node.keyInfo!.ttl > 0 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>{node.keyInfo!.ttl}s</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>TTL: {node.keyInfo!.ttl} seconds</TooltipContent>
+                        </Tooltip>
+                      ) : undefined
+                    }
+                  />
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-48">
+                <ContextMenuItem
+                  onSelect={() => onKeyClick(node.keyInfo!.key)}
+                  className="gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  View Value
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onSelect={() => onCopyKey(node.keyInfo!.key)}
+                  className="gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy Key Name
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onSelect={() => onDeleteKey(node.keyInfo!.key)}
+                  className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Key
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          );
+        }
+
+        // Folder node (may also be a leaf if keyInfo exists)
+        return (
+          <FolderNode
+            key={node.fullPath}
+            node={node}
+            level={level}
+            highlightedKey={highlightedKey}
+            highlightedAncestors={highlightedAncestors}
+            forceOpen={forceOpen}
+            onKeyClick={onKeyClick}
+            onCopyKey={onCopyKey}
+            onDeleteKey={onDeleteKey}
+            setKeyRef={setKeyRef}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+interface FolderNodeProps {
+  node: KeyTreeNode;
+  level: number;
+  highlightedKey: string | null;
+  highlightedAncestors: Set<string>;
+  forceOpen: boolean;
+  onKeyClick: (key: string) => void;
+  onCopyKey: (key: string) => void;
+  onDeleteKey: (key: string) => void;
+  setKeyRef: (key: string) => (el: HTMLDivElement | null) => void;
+}
+
+function FolderNode({
+  node,
+  level,
+  highlightedKey,
+  highlightedAncestors,
+  forceOpen,
+  onKeyClick,
+  onCopyKey,
+  onDeleteKey,
+  setKeyRef,
+}: FolderNodeProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (forceOpen) setIsOpen(true);
+  }, [forceOpen]);
+
+  const effectiveOpen = isOpen || forceOpen;
+  const hasKeyInfo = node.keyInfo !== undefined;
+
+  return (
+    <div>
+      {hasKeyInfo ? (
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div ref={setKeyRef(node.keyInfo!.key)}>
+              <TreeItem
+                label={node.name}
+                icon={
+                  effectiveOpen ? (
+                    <FolderOpen className="h-3.5 w-3.5 text-amber-500" />
+                  ) : (
+                    <Folder className="h-3.5 w-3.5 text-amber-500" />
+                  )
+                }
+                level={level}
+                count={node.keyCount}
+                onClick={() => onKeyClick(node.keyInfo!.key)}
+                isHighlighted={highlightedKey === node.keyInfo!.key}
+                defaultOpen={false}
+                forceOpen={forceOpen}
+              >
+                <KeyTreeView
+                  nodes={node.children}
+                  level={level + 1}
+                  highlightedKey={highlightedKey}
+                  highlightedAncestors={highlightedAncestors}
+                  onKeyClick={onKeyClick}
+                  onCopyKey={onCopyKey}
+                  onDeleteKey={onDeleteKey}
+                  setKeyRef={setKeyRef}
+                />
+              </TreeItem>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-48">
+            <ContextMenuItem
+              onSelect={() => onKeyClick(node.keyInfo!.key)}
+              className="gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              View Value
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={() => onCopyKey(node.keyInfo!.key)}
+              className="gap-2"
+            >
+              <Copy className="h-4 w-4" />
+              Copy Key Name
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={() => onDeleteKey(node.keyInfo!.key)}
+              className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Key
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      ) : (
+        <TreeItem
+          label={node.name}
+          icon={
+            effectiveOpen ? (
+              <FolderOpen className="h-3.5 w-3.5 text-amber-500" />
+            ) : (
+              <Folder className="h-3.5 w-3.5 text-amber-500" />
+            )
+          }
+          level={level}
+          count={node.keyCount}
+          defaultOpen={false}
+          forceOpen={forceOpen}
+        >
+          <KeyTreeView
+            nodes={node.children}
+            level={level + 1}
+            highlightedKey={highlightedKey}
+            highlightedAncestors={highlightedAncestors}
+            onKeyClick={onKeyClick}
+            onCopyKey={onCopyKey}
+            onDeleteKey={onDeleteKey}
+            setKeyRef={setKeyRef}
+          />
+        </TreeItem>
+      )}
+    </div>
+  );
+}
+
 interface RedisConnectionContentProps {
   connectionId: string;
 }
@@ -170,11 +402,24 @@ interface RedisConnectionContentProps {
 export function RedisConnectionContent({ connectionId }: RedisConnectionContentProps) {
   const { scanKeys, getServerInfo, deleteKey } = useRedis();
   const { addTab, tabs, setActiveTab } = useQueryStore();
-  const { keysByConnection, loadingKeys, highlightedKeyByConnection, clearHighlightedKey } = useRedisStore();
+  const { keysByConnection, loadingKeys, highlightedKeyByConnection, clearHighlightedKey, viewModeByConnection, setViewMode } = useRedisStore();
   const { toast } = useToast();
 
   const keys = keysByConnection[connectionId] || [];
   const highlightedKey = highlightedKeyByConnection[connectionId] || null;
+  const viewMode = viewModeByConnection[connectionId] || "type";
+
+  // Build key tree for tree view mode
+  const keyTree = useMemo(
+    () => (viewMode === "tree" ? buildKeyTree(keys, ":") : []),
+    [keys, viewMode]
+  );
+
+  // Compute ancestor paths for highlighted key (to force-open parent folders in tree view)
+  const highlightedAncestors = useMemo(
+    () => (highlightedKey ? new Set(getAncestorPaths(highlightedKey, ":")) : new Set<string>()),
+    [highlightedKey]
+  );
 
   // Refs for scrolling to highlighted key
   const keyRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -356,22 +601,56 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
               defaultOpen={true}
               count={keys.length}
               rightElement={
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRefreshKeys();
-                      }}
-                    >
-                      <RefreshCw className={cn("h-3.5 w-3.5", loadingKeys && "animate-spin")} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Refresh keys</TooltipContent>
-                </Tooltip>
+                <div className="flex items-center gap-0.5">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("h-6 w-6 p-0", viewMode === "type" && "bg-muted")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewMode(connectionId, "type");
+                        }}
+                      >
+                        <Layers className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Group by type</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("h-6 w-6 p-0", viewMode === "tree" && "bg-muted")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewMode(connectionId, "tree");
+                        }}
+                      >
+                        <FolderTree className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Folder view</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRefreshKeys();
+                        }}
+                      >
+                        <RefreshCw className={cn("h-3.5 w-3.5", loadingKeys && "animate-spin")} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Refresh keys</TooltipContent>
+                  </Tooltip>
+                </div>
               }
             >
               {loadingKeys ? (
@@ -379,7 +658,7 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
                   <Loader2 className="h-3 w-3 animate-spin" />
                   <span>Loading...</span>
                 </div>
-              ) : (
+              ) : viewMode === "type" ? (
                 Object.entries(groupedKeys).map(([type, typeKeys]) => (
                   <ContextMenu key={type}>
                     <ContextMenuTrigger asChild>
@@ -461,6 +740,17 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
                     </ContextMenuContent>
                   </ContextMenu>
                 ))
+              ) : (
+                <KeyTreeView
+                  nodes={keyTree}
+                  level={1}
+                  highlightedKey={highlightedKey}
+                  highlightedAncestors={highlightedAncestors}
+                  onKeyClick={handleKeyClick}
+                  onCopyKey={handleCopyKeyName}
+                  onDeleteKey={(key) => setDeleteKeyDialog(key)}
+                  setKeyRef={setKeyRef}
+                />
               )}
               {!loadingKeys && keys.length === 0 && (
                 <div className="ml-8 py-2 text-xs text-muted-foreground">No keys found</div>

@@ -1,6 +1,7 @@
 import { Table, Code, Eye, Sparkles, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore, useCRUDStore, usePreviewStore, useConnectionsStore, selectActiveConnection } from "@/stores";
+import { useRedisChangesStore } from "@/stores/redis-changes";
 import { useAIStore } from "@/lib/ai/store";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
 import type { RightPanelTab } from "@/stores/ui";
@@ -49,8 +50,9 @@ export function RightActivityBar() {
   const { isPreviewOpen } = usePreviewStore();
   const { settings: aiSettings } = useAIStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
+  const redisPendingCount = useRedisChangesStore((state) => state.pendingChanges.length);
 
-  const pendingCount = Object.keys(pendingChanges).length;
+  const pendingCount = Object.keys(pendingChanges).length + redisPendingCount;
   const selectedCount = selectedRows.length;
   const isAIEnabled = aiSettings.aiEnabled ?? true;
   const isConnected = activeConnection?.connected ?? false;
