@@ -1281,7 +1281,7 @@ function ChangesPreviewPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* View mode toggle */}
-      {pendingChangesList.length > 0 && (
+      {totalChangesCount > 0 && (
         <div className="px-4 py-2 border-b border-border bg-muted/20 shrink-0">
           <div className="flex bg-muted rounded-md p-1 border border-border w-fit">
             <Button
@@ -1294,7 +1294,7 @@ function ChangesPreviewPanel() {
               onClick={() => setViewMode("sql")}
             >
               <Code className="h-3.5 w-3.5" />
-              SQL
+              Query
             </Button>
             <Button
               variant={viewMode === "diff" ? "default" : "ghost"}
@@ -1454,7 +1454,7 @@ function ChangesPreviewPanel() {
               )}
             </div>
           ) : (
-            <DiffViewer changes={pendingChangesList} onRemoveChange={removePendingChange} />
+            <DiffViewer changes={pendingChangesList} onRemoveChange={removePendingChange} redisChanges={redisPendingChanges} onRemoveRedisChange={removeRedisChange} />
           )}
         </div>
       </div>

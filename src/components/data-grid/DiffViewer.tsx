@@ -1,10 +1,13 @@
 import { useMemo } from "react";
-import { Hash, Trash2, Plus, Pencil } from "lucide-react";
+import { Hash, Trash2, Plus, Pencil, Key } from "lucide-react";
 import type { PendingChange } from "@/types";
+import type { RedisPendingChange } from "@/types/redis";
 
 interface DiffViewerProps {
   changes: PendingChange[];
   onRemoveChange: (rowId: string) => void;
+  redisChanges?: RedisPendingChange[];
+  onRemoveRedisChange?: (id: string) => void;
 }
 
 interface DiffField {
@@ -225,7 +228,7 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
                   {field.status === "changed" && (
                     <>
                       <span className="text-destructive/70">{formatValue(field.oldValue)}</span>
-                      <span className="text-muted-foreground/40 mx-1">→</span>
+                      <span className="text-muted-foreground/40 mx-1">{"\u2192"}</span>
                       <span className="text-success/90">{formatValue(field.newValue)}</span>
                     </>
                   )}
@@ -238,8 +241,233 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
   );
 }
 
-export function DiffViewer({ changes, onRemoveChange }: DiffViewerProps) {
-  if (changes.length === 0) {
+// Get the operation type category for styling
+function getRedisOpCategory(op: string): "added" | "removed" | "changed" {
+  switch (op) {
+    case "SADD":
+    case "RPUSH":
+    case "LPUSH":
+      return "added";
+    case "HDEL":
+    case "SREM":
+    case "ZREM":
+    case "LREM":
+      return "removed";
+    default:
+      return "changed";
+  }
+}
+
+function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRemove: () => void }) {
+  const { operation, key } = change;
+
+  const diffFields = useMemo((): DiffField[] => {
+    switch (operation.op) {
+      case "SET":
+        return [{
+          name: "value",
+          status: "changed",
+          oldValue: operation.originalValue,
+          newValue: operation.value,
+        }];
+
+      case "HSET":
+        if (operation.isNew) {
+          return [{
+            name: operation.field,
+            status: "added",
+            newValue: operation.value,
+          }];
+        }
+        return [{
+          name: operation.field,
+          status: "changed",
+          newValue: operation.value,
+        }];
+
+      case "HDEL":
+        return [{
+          name: operation.field,
+          status: "removed",
+          oldValue: operation.originalValue,
+        }];
+
+      case "SADD":
+        return [{
+          name: "member",
+          status: "added",
+          newValue: operation.member,
+        }];
+
+      case "SREM":
+        return [{
+          name: "member",
+          status: "removed",
+          oldValue: operation.member,
+        }];
+
+      case "ZADD":
+        return [
+          {
+            name: "member",
+            status: operation.isNew ? "added" : "changed",
+            newValue: operation.member,
+          },
+          {
+            name: "score",
+            status: operation.isNew ? "added" : "changed",
+            newValue: operation.score,
+          },
+        ];
+
+      case "ZREM":
+        return [{
+          name: "member",
+          status: "removed",
+          oldValue: operation.member,
+        }];
+
+      case "LSET":
+        return [{
+          name: `[${operation.index}]`,
+          status: "changed",
+          oldValue: operation.originalValue,
+          newValue: operation.value,
+        }];
+
+      case "RPUSH":
+      case "LPUSH":
+        return [{
+          name: operation.op === "RPUSH" ? "tail" : "head",
+          status: "added",
+          newValue: operation.value,
+        }];
+
+      case "LREM":
+        return [{
+          name: "element",
+          status: "removed",
+          oldValue: operation.value,
+        }];
+
+      default:
+        return [];
+    }
+  }, [operation]);
+
+  const category = getRedisOpCategory(operation.op);
+  const styles = (() => {
+    switch (category) {
+      case "added": return { color: "text-success", bg: "bg-success/10", border: "border-success/30" };
+      case "removed": return { color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" };
+      default: return { color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/30" };
+    }
+  })();
+
+  const opIcon = (() => {
+    switch (category) {
+      case "added": return <Plus className="h-3 w-3" />;
+      case "removed": return <Trash2 className="h-3 w-3" />;
+      default: return <Pencil className="h-3 w-3" />;
+    }
+  })();
+
+  const formatValue = (value: unknown): string => {
+    if (value === null || value === undefined) return "NULL";
+    if (typeof value === "string") return `"${value}"`;
+    if (typeof value === "object") {
+      try { return JSON.stringify(value); } catch { return "[Object]"; }
+    }
+    return String(value);
+  };
+
+  return (
+    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b border-border">
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${styles.color} ${styles.bg} border ${styles.border}`}>
+            {opIcon}
+            {operation.op}
+          </span>
+          <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[9px] font-semibold">Redis</span>
+        </div>
+        <button
+          onClick={onRemove}
+          className="p-1.5 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors"
+          title="Remove change"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Key subheader */}
+      <div className="px-3 py-1.5 bg-muted/10 border-b border-border/50 flex items-center gap-1.5">
+        <Key className="h-3 w-3 text-muted-foreground/50" />
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/80 font-mono">
+          {key}
+        </span>
+      </div>
+
+      {/* Diff lines */}
+      <div className="font-mono text-[11px] leading-relaxed p-2 space-y-0.5">
+        {diffFields.map((field, fieldIdx) => (
+          <div
+            key={`${field.name}-${fieldIdx}`}
+            className={`flex gap-2 px-2 py-1 rounded ${
+              field.status === "added" ? "bg-success/10" :
+              field.status === "removed" ? "bg-destructive/10" :
+              "bg-transparent"
+            }`}
+          >
+            <span className={`
+              w-6 flex items-start justify-center font-bold shrink-0 pt-0.5
+              ${field.status === "added" ? "text-success" :
+                field.status === "removed" ? "text-destructive" :
+                "text-muted-foreground/40"}
+            `}>
+              {field.status === "added" ? "+" :
+               field.status === "removed" ? "-" :
+               field.status === "changed" ? "~" :
+               " "}
+            </span>
+            <span className="shrink-0 text-muted-foreground/60">
+              {field.name}:
+            </span>
+            <span className={`
+              flex-1 break-all
+              ${field.status === "added" ? "text-success font-medium" :
+                field.status === "removed" ? "text-destructive line-through" :
+                field.status === "changed" ? "text-amber-500" :
+                "text-muted-foreground/70"}
+            `}>
+              {field.status === "added" && formatValue(field.newValue)}
+              {field.status === "removed" && formatValue(field.oldValue)}
+              {field.status === "changed" && (
+                <>
+                  {field.oldValue !== undefined && (
+                    <span className="text-destructive/70">{formatValue(field.oldValue)}</span>
+                  )}
+                  {field.oldValue !== undefined && (
+                    <span className="text-muted-foreground/40 mx-1">{"\u2192"}</span>
+                  )}
+                  <span className="text-success/90">{formatValue(field.newValue)}</span>
+                </>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function DiffViewer({ changes, onRemoveChange, redisChanges, onRemoveRedisChange }: DiffViewerProps) {
+  const totalCount = changes.length + (redisChanges?.length ?? 0);
+
+  if (totalCount === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center mt-20">
         <div className="bg-muted p-4 rounded-full mb-4">
@@ -259,6 +487,13 @@ export function DiffViewer({ changes, onRemoveChange }: DiffViewerProps) {
           key={change.id}
           change={change}
           onRemove={() => onRemoveChange(JSON.stringify(change.primaryKey))}
+        />
+      ))}
+      {redisChanges && onRemoveRedisChange && redisChanges.map((change) => (
+        <RedisDiffItem
+          key={change.id}
+          change={change}
+          onRemove={() => onRemoveRedisChange(change.id)}
         />
       ))}
     </div>
