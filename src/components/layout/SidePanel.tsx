@@ -1224,8 +1224,6 @@ function ChangesPreviewPanel() {
     pendingChanges,
     removePendingChange,
     clearPendingChanges,
-    commitMode,
-    setCommitMode
   } = useCRUDStore();
   const { commitChanges } = useCRUD();
   const { executeQuery } = useDatabase();
@@ -1463,34 +1461,6 @@ function ChangesPreviewPanel() {
 
       {/* Actions Footer */}
       <div className="border-t border-border p-3 bg-gradient-to-t from-muted/40 to-muted/20 space-y-3 shrink-0">
-        <div className="flex items-center justify-between px-1">
-          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground/80 font-semibold">Commit Mode</Label>
-          <div className="flex bg-background/50 rounded-md p-0.5 border border-border/50 shadow-sm">
-            <Button
-              variant={commitMode === "staged" ? "secondary" : "ghost"}
-              size="sm"
-              className={cn(
-                "h-6 px-3 text-[10px] font-medium transition-all",
-                commitMode === "staged" && "shadow-sm"
-              )}
-              onClick={() => setCommitMode("staged")}
-            >
-              Staged
-            </Button>
-            <Button
-              variant={commitMode === "immediate" ? "secondary" : "ghost"}
-              size="sm"
-              className={cn(
-                "h-6 px-3 text-[10px] font-medium transition-all",
-                commitMode === "immediate" && "shadow-sm"
-              )}
-              onClick={() => setCommitMode("immediate")}
-            >
-              Immediate
-            </Button>
-          </div>
-        </div>
-
         <div className="flex items-center justify-between gap-2">
           <Button
             variant="outline"

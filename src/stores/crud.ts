@@ -2,8 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PendingChange, ColumnInfo } from "@/types";
 
-export type CommitMode = "staged" | "immediate";
-
 // Column filter configuration
 export interface ColumnFilter {
   columnId: string;
@@ -40,7 +38,6 @@ interface CRUDState {
 
   // Changes management
   pendingChanges: Record<string, PendingChange>; // Keyed by rowId
-  commitMode: CommitMode;
 
   // Counter for generating unique temporary row IDs
   newRowCounter: number;
@@ -73,7 +70,6 @@ interface CRUDState {
   clearPendingChanges: () => void;
   markSelectedForDeletion: (tableName: string, columns: ColumnInfo[]) => void;
 
-  setCommitMode: (mode: CommitMode) => void;
   setPageSize: (size: number) => void;
   setPageIndex: (index: number) => void;
 
@@ -90,7 +86,6 @@ export const useCRUDStore = create<CRUDState>()(
       editingCell: null,
       creatingNewRow: null,
       pendingChanges: {},
-      commitMode: "staged",
       newRowCounter: 0,
       pageSize: 50,
       pageIndex: 0,
@@ -281,8 +276,6 @@ export const useCRUDStore = create<CRUDState>()(
           };
         }),
 
-      setCommitMode: (commitMode) => set({ commitMode }),
-
       setPageSize: (pageSize) => set({ pageSize, pageIndex: 0 }),
       setPageIndex: (pageIndex) => set({ pageIndex }),
 
@@ -307,7 +300,6 @@ export const useCRUDStore = create<CRUDState>()(
     {
       name: "dbfordevs-crud",
       partialize: (state) => ({
-        commitMode: state.commitMode,
         pageSize: state.pageSize,
       }),
     }
