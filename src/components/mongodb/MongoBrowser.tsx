@@ -160,7 +160,7 @@ export function MongoBrowser({ connectionId, database, collection }: MongoBrowse
         connectionId,
         mongoDatabase: database,
         mongoCollection: collection,
-        mongoDocumentId: id,
+        mongoDocumentId: JSON.stringify(doc),
       } as Tab);
     }
   };

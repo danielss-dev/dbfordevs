@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { Save, Loader2, Copy, Check, Code, FileText, WrapText, ChevronRight, ChevronDown } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Undo2, Loader2, Copy, Check, Code, FileText, WrapText, ChevronRight, ChevronDown } from "lucide-react";
 import { Button, Textarea, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 import { useRedis, useToast } from "@/hooks";
+import { useRedisChangesStore } from "@/stores/redis-changes";
 import { copyToClipboard, cn } from "@/lib/utils";
 
 interface RedisStringEditorProps {
@@ -251,16 +252,41 @@ function JsonViewer({ value }: { value: string }) {
 }
 
 export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorProps) {
-  const { getString, setString } = useRedis();
+  const { getString } = useRedis();
   const { toast } = useToast();
+  const { addChange, updateChange, removeChange, clearChangesForKey } = useRedisChangesStore();
   const [value, setValue] = useState("");
   const [originalValue, setOriginalValue] = useState("");
   const [encoding, setEncoding] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("formatted");
   const [wordWrap, setWordWrap] = useState(true);
+  const pendingChangeIdRef = useRef<string | null>(null);
+
+  // Subscribe reactively to pending changes, derive filtered list with useMemo
+  // (selector must return stable reference to avoid infinite re-render loop)
+  const allPendingChanges = useRedisChangesStore((state) => state.pendingChanges);
+  const pendingChanges = useMemo(
+    () => allPendingChanges.filter((c) => c.connectionId === connectionId && c.key === keyName),
+    [allPendingChanges, connectionId, keyName]
+  );
+  const pendingSetChange = useMemo(
+    () => pendingChanges.find((c) => c.operation.op === "SET"),
+    [pendingChanges]
+  );
+
+  // Detect when changes are committed/cleared externally (e.g. from Changes panel)
+  useEffect(() => {
+    if (isLoading) return;
+
+    // If we had a tracked pending change but it no longer exists in the store,
+    // it was committed or cleared - update originalValue to current value
+    if (pendingChangeIdRef.current && !pendingSetChange) {
+      setOriginalValue(value);
+      pendingChangeIdRef.current = null;
+    }
+  }, [pendingSetChange, isLoading]);
 
   // Detect if value is JSON
   const isJson = useMemo(() => {
@@ -280,7 +306,15 @@ export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorPr
     try {
       const result = await getString(connectionId, keyName);
       if (result) {
-        setValue(result.value);
+        // Check if there's an existing pending SET change for this key
+        const storeChanges = useRedisChangesStore.getState().getChangesForKey(connectionId, keyName);
+        const existingSet = storeChanges.find((c) => c.operation.op === "SET");
+        if (existingSet && existingSet.operation.op === "SET") {
+          setValue(existingSet.operation.value);
+          pendingChangeIdRef.current = existingSet.id;
+        } else {
+          setValue(result.value);
+        }
         setOriginalValue(result.value);
         setEncoding(result.encoding);
       }
@@ -299,26 +333,52 @@ export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorPr
     loadValue();
   }, [connectionId, keyName]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const success = await setString(connectionId, keyName, value);
-      if (success) {
-        setOriginalValue(value);
-        toast({
-          title: "Value saved",
-          description: `String value for "${keyName}" has been updated.`,
-        });
+  // Stage changes automatically when value changes
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (value !== originalValue) {
+      const operation = { op: "SET" as const, value, originalValue };
+
+      // Check if our tracked ref still exists in the store
+      const refStillExists = pendingChangeIdRef.current && pendingSetChange?.id === pendingChangeIdRef.current;
+
+      if (refStillExists) {
+        updateChange(pendingChangeIdRef.current!, operation);
+      } else {
+        // If there's an existing SET change we don't know about, update it
+        if (pendingSetChange) {
+          pendingChangeIdRef.current = pendingSetChange.id;
+          updateChange(pendingSetChange.id, operation);
+        } else {
+          // Create a new change
+          addChange({
+            connectionId,
+            key: keyName,
+            keyType: "string",
+            operation,
+          });
+          // Find the newly added change to track its ID
+          const newChanges = useRedisChangesStore.getState().getChangesForKey(connectionId, keyName);
+          const newSet = newChanges.find((c) => c.operation.op === "SET");
+          if (newSet) {
+            pendingChangeIdRef.current = newSet.id;
+          }
+        }
       }
-    } catch (error) {
-      toast({
-        title: "Error saving value",
-        description: error instanceof Error ? error.message : "Failed to save string value",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
+    } else {
+      // Value reverted to original - remove any pending SET change
+      if (pendingChangeIdRef.current) {
+        removeChange(pendingChangeIdRef.current);
+        pendingChangeIdRef.current = null;
+      }
     }
+  }, [value, originalValue, isLoading]);
+
+  const handleDiscard = () => {
+    setValue(originalValue);
+    clearChangesForKey(connectionId, keyName);
+    pendingChangeIdRef.current = null;
   };
 
   const handleCopy = async () => {
@@ -467,24 +527,30 @@ export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorPr
             <TooltipContent>Copy to clipboard</TooltipContent>
           </Tooltip>
 
-          <Button
-            size="sm"
-            className="h-7"
-            onClick={handleSave}
-            disabled={!hasChanges || isSaving}
-          >
-            {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5 mr-1" />
-            )}
-            Save
-          </Button>
+          {hasChanges && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                  onClick={handleDiscard}
+                >
+                  <Undo2 className="h-3.5 w-3.5 mr-1" />
+                  Discard
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Revert to original value</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 border rounded-md overflow-hidden bg-muted/30">
+      <div className={cn(
+        "flex-1 border rounded-md overflow-hidden bg-muted/30",
+        hasChanges && "border-amber-500/50"
+      )}>
         {isJson && viewMode === "formatted" ? (
           <div className="h-full overflow-auto">
             <JsonViewer value={value} />
@@ -505,7 +571,7 @@ export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorPr
 
       {hasChanges && (
         <div className="mt-2 text-xs text-amber-500">
-          Unsaved changes
+          Staged change (commit from Changes panel)
         </div>
       )}
     </div>

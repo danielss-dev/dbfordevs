@@ -436,7 +436,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                     {getTypeIcon(col.dataType)}
                   </span>
                   <span className={cn(
-                    "font-semibold tracking-tight text-xs uppercase transition-colors",
+                    "font-semibold tracking-tight text-xs transition-colors",
                     sorted ? "text-primary" : "text-foreground/70 group-hover:text-foreground"
                   )}>
                     {col.name}

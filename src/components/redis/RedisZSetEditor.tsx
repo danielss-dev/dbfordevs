@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Plus, Trash2, Loader2, Edit, Check, X, ArrowUpDown } from "lucide-react";
 import { Button, Input, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 import { useRedis, useToast } from "@/hooks";
+import { useRedisChangesStore } from "@/stores/redis-changes";
 import type { RedisZSetMember } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface RedisZSetEditorProps {
   connectionId: string;
@@ -10,24 +12,25 @@ interface RedisZSetEditorProps {
 }
 
 export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps) {
-  const { getZSet, zsetAdd, zsetRemove, zsetUpdateScore } = useRedis();
+  const { getZSet } = useRedis();
   const { toast } = useToast();
-  const [members, setMembers] = useState<RedisZSetMember[]>([]);
+  const { addChange, removeChange } = useRedisChangesStore();
+  const [originalMembers, setOriginalMembers] = useState<RedisZSetMember[]>([]);
   const [cardinality, setCardinality] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [newMember, setNewMember] = useState("");
   const [newScore, setNewScore] = useState("0");
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editScore, setEditScore] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
   const [reverse, setReverse] = useState(false);
+  const hadChangesRef = useRef(false);
 
   const loadZSet = async () => {
     setIsLoading(true);
     try {
       const result = await getZSet(connectionId, keyName, 0, 99, reverse);
       if (result) {
-        setMembers(result.members);
+        setOriginalMembers(result.members);
         setCardinality(result.cardinality);
       }
     } catch (error) {
@@ -45,7 +48,52 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
     loadZSet();
   }, [connectionId, keyName, reverse]);
 
-  const handleAdd = async () => {
+  // Subscribe reactively to pending changes, derive filtered list with useMemo
+  const allPendingChanges = useRedisChangesStore((state) => state.pendingChanges);
+  const pendingChanges = useMemo(
+    () => allPendingChanges.filter((c) => c.connectionId === connectionId && c.key === keyName),
+    [allPendingChanges, connectionId, keyName]
+  );
+
+  // Reload data after commit/clear
+  useEffect(() => {
+    if (pendingChanges.length > 0) {
+      hadChangesRef.current = true;
+    } else if (hadChangesRef.current) {
+      hadChangesRef.current = false;
+      loadZSet();
+    }
+  }, [pendingChanges.length]);
+
+  // Compute virtual members: original + ZADD changes - ZREM
+  const virtualMembers = useMemo(() => {
+    const membersMap = new Map<string, { member: string; score: number; status: "original" | "added" | "modified" | "removed" }>();
+
+    for (const m of originalMembers) {
+      membersMap.set(m.member, { member: m.member, score: m.score, status: "original" });
+    }
+
+    for (const change of pendingChanges) {
+      const op = change.operation;
+      if (op.op === "ZADD") {
+        const existing = membersMap.get(op.member);
+        if (existing && existing.status !== "removed") {
+          membersMap.set(op.member, { member: op.member, score: op.score, status: op.isNew ? "added" : "modified" });
+        } else {
+          membersMap.set(op.member, { member: op.member, score: op.score, status: "added" });
+        }
+      } else if (op.op === "ZREM") {
+        const existing = membersMap.get(op.member);
+        if (existing) {
+          membersMap.set(op.member, { ...existing, status: "removed" });
+        }
+      }
+    }
+
+    return Array.from(membersMap.values());
+  }, [originalMembers, pendingChanges]);
+
+  const handleAdd = () => {
     if (!newMember.trim()) return;
 
     const score = parseFloat(newScore);
@@ -58,33 +106,22 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
       return;
     }
 
-    setIsSaving(true);
-    try {
-      await zsetAdd(connectionId, keyName, [{ member: newMember, score }]);
-      setNewMember("");
-      setNewScore("0");
-      await loadZSet();
-      toast({
-        title: "Member added",
-        description: `Member "${newMember}" added with score ${score}.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error adding member",
-        description: error instanceof Error ? error.message : "Failed to add member",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+    addChange({
+      connectionId,
+      key: keyName,
+      keyType: "zset",
+      operation: { op: "ZADD", member: newMember, score, isNew: true },
+    });
+    setNewMember("");
+    setNewScore("0");
   };
 
-  const handleEditScore = (member: RedisZSetMember) => {
-    setEditingMember(member.member);
-    setEditScore(member.score.toString());
+  const handleEditScore = (member: string, currentScore: number) => {
+    setEditingMember(member);
+    setEditScore(currentScore.toString());
   };
 
-  const handleSaveScore = async () => {
+  const handleSaveScore = () => {
     if (editingMember === null) return;
 
     const score = parseFloat(editScore);
@@ -97,24 +134,34 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
       return;
     }
 
-    setIsSaving(true);
-    try {
-      await zsetUpdateScore(connectionId, keyName, editingMember, score);
-      setEditingMember(null);
-      await loadZSet();
-      toast({
-        title: "Score updated",
-        description: `Score for "${editingMember}" updated to ${score}.`,
+    const originalMember = originalMembers.find((m) => m.member === editingMember);
+    const isNew = !originalMember;
+
+    // If reverting to original score, remove the pending change
+    if (originalMember && score === originalMember.score) {
+      const existingChange = pendingChanges.find(
+        (c) => c.operation.op === "ZADD" && c.operation.member === editingMember
+      );
+      if (existingChange) {
+        removeChange(existingChange.id);
+      }
+    } else {
+      // Remove any existing ZADD for this member first
+      const existingChange = pendingChanges.find(
+        (c) => c.operation.op === "ZADD" && c.operation.member === editingMember
+      );
+      if (existingChange) {
+        removeChange(existingChange.id);
+      }
+
+      addChange({
+        connectionId,
+        key: keyName,
+        keyType: "zset",
+        operation: { op: "ZADD", member: editingMember, score, isNew },
       });
-    } catch (error) {
-      toast({
-        title: "Error updating score",
-        description: error instanceof Error ? error.message : "Failed to update score",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
     }
+    setEditingMember(null);
   };
 
   const handleCancelEdit = () => {
@@ -122,23 +169,41 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
     setEditScore("");
   };
 
-  const handleRemove = async (member: string) => {
-    setIsSaving(true);
-    try {
-      await zsetRemove(connectionId, keyName, [member]);
-      await loadZSet();
-      toast({
-        title: "Member removed",
-        description: `Member "${member}" removed from sorted set.`,
+  const handleRemove = (member: string) => {
+    const isOriginal = originalMembers.some((m) => m.member === member);
+
+    if (isOriginal) {
+      // Remove any existing ZADD for this member
+      const existingChange = pendingChanges.find(
+        (c) => c.operation.op === "ZADD" && c.operation.member === member
+      );
+      if (existingChange) {
+        removeChange(existingChange.id);
+      }
+
+      addChange({
+        connectionId,
+        key: keyName,
+        keyType: "zset",
+        operation: { op: "ZREM", member },
       });
-    } catch (error) {
-      toast({
-        title: "Error removing member",
-        description: error instanceof Error ? error.message : "Failed to remove member",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
+    } else {
+      // Remove the ZADD change for newly added members
+      const existingChange = pendingChanges.find(
+        (c) => c.operation.op === "ZADD" && c.operation.member === member
+      );
+      if (existingChange) {
+        removeChange(existingChange.id);
+      }
+    }
+  };
+
+  const handleUndoRemove = (member: string) => {
+    const removeChangeItem = pendingChanges.find(
+      (c) => c.operation.op === "ZREM" && c.operation.member === member
+    );
+    if (removeChangeItem) {
+      removeChange(removeChangeItem.id);
     }
   };
 
@@ -173,7 +238,7 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
         <Button
           size="sm"
           onClick={handleAdd}
-          disabled={!newMember.trim() || isSaving}
+          disabled={!newMember.trim()}
         >
           <Plus className="h-4 w-4 mr-1" />
           ZADD
@@ -182,7 +247,14 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
 
       {/* Sorted set info and controls */}
       <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground border-b">
-        <span>{cardinality} members</span>
+        <span>
+          {cardinality} members
+          {pendingChanges.length > 0 && (
+            <span className="ml-2 text-amber-500">
+              ({pendingChanges.length} staged)
+            </span>
+          )}
+        </span>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -201,16 +273,37 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
 
       {/* Sorted set members */}
       <div className="flex-1 overflow-auto">
-        {members.map((member, index) => (
+        {virtualMembers.map((item, index) => (
           <div
-            key={member.member}
-            className="group flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:bg-muted/30"
+            key={item.member}
+            className={cn(
+              "group flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:bg-muted/30",
+              item.status === "added" && "bg-green-500/5",
+              item.status === "modified" && "bg-amber-500/5",
+              item.status === "removed" && "bg-red-500/5 opacity-60"
+            )}
           >
             <span className="text-xs text-muted-foreground w-8">{index + 1}</span>
 
-            <span className="flex-1 font-mono text-sm truncate">{member.member}</span>
+            <span className={cn(
+              "flex-1 font-mono text-sm truncate",
+              item.status === "added" && "text-green-600 dark:text-green-400",
+              item.status === "modified" && "text-amber-600 dark:text-amber-400",
+              item.status === "removed" && "line-through text-muted-foreground"
+            )}>
+              {item.member}
+            </span>
 
-            {editingMember === member.member ? (
+            {item.status === "removed" ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={() => handleUndoRemove(item.member)}
+              >
+                Undo
+              </Button>
+            ) : editingMember === item.member ? (
               <>
                 <Input
                   type="number"
@@ -233,16 +326,19 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
             ) : (
               <>
                 <span
-                  className="font-mono text-sm text-primary cursor-pointer hover:underline w-20 text-right"
-                  onClick={() => handleEditScore(member)}
+                  className={cn(
+                    "font-mono text-sm cursor-pointer hover:underline w-20 text-right",
+                    item.status === "modified" ? "text-amber-600 dark:text-amber-400" : "text-primary"
+                  )}
+                  onClick={() => handleEditScore(item.member, item.score)}
                 >
-                  {member.score}
+                  {item.score}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
-                  onClick={() => handleEditScore(member)}
+                  onClick={() => handleEditScore(item.member, item.score)}
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -250,7 +346,7 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
-                  onClick={() => handleRemove(member.member)}
+                  onClick={() => handleRemove(item.member)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -259,7 +355,7 @@ export function RedisZSetEditor({ connectionId, keyName }: RedisZSetEditorProps)
           </div>
         ))}
 
-        {members.length === 0 && (
+        {virtualMembers.length === 0 && (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <p className="text-sm">Sorted set is empty</p>
           </div>

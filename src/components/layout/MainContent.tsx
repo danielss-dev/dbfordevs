@@ -513,7 +513,10 @@ export function MainContent() {
             />
           ) : activeTab.type === "mongodb-document" && activeTab.mongoDatabase && activeTab.mongoCollection && activeTab.mongoDocumentId ? (
             <MongoDocumentViewer
-              document={JSON.parse(activeTab.mongoDocumentId)}
+              document={(() => { try { return JSON.parse(activeTab.mongoDocumentId); } catch { return null; } })()}
+              connectionId={activeTab.connectionId}
+              database={activeTab.mongoDatabase}
+              collection={activeTab.mongoCollection}
             />
           ) : activeTab.type === "mongodb-shell" ? (
             <MongoShell connectionId={activeTab.connectionId} />
