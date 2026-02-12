@@ -2,6 +2,16 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-02-12
+
+### Added
+- integrate Redis changes management into editors (#88)
+- enhance SQL completion provider to support additional SQL keywo… (#87)
+- implement data comparison feature with UI and backend support (#86)
+
+### Changed
+- enhance version bump script with improved CLI options and error handling
+
 ## [0.6.0] - 2026-02-03
 
 
