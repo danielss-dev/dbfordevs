@@ -529,6 +529,24 @@ export interface BookmarkFolder {
   createdAt: number;
 }
 
+// Bookmark export/import types
+
+export interface BookmarkExportFormat {
+  formatVersion: 1;
+  exportedAt: number;
+  appName: "dbfordevs";
+  bookmarks: Bookmark[];
+  folders: BookmarkFolder[];
+}
+
+export interface BookmarkImportResult {
+  success: boolean;
+  imported: number;
+  skipped: number;
+  foldersImported: number;
+  errors: string[];
+}
+
 // Oracle client setup types
 
 export interface OracleClientStatus {

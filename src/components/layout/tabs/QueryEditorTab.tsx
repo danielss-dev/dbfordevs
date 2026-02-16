@@ -39,6 +39,8 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
   const tablesByConnection = useQueryStore(state => state.tablesByConnection);
   const addQueryToHistory = useQueryStore(state => state.addQueryToHistory);
   const updateTab = useQueryStore(state => state.updateTab);
+  const pendingBookmarkQuery = useQueryStore(state => state.pendingBookmarkQuery);
+  const setPendingBookmarkQuery = useQueryStore(state => state.setPendingBookmarkQuery);
   const activeConnection = useConnectionsStore(selectActiveConnection);
   const connections = useConnectionsStore(state => state.connections);
   const getSchemas = useSchemaStore(state => state.getSchemas);
@@ -247,6 +249,15 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // Auto-execute pending bookmark query
+  useEffect(() => {
+    if (pendingBookmarkQuery && pendingBookmarkQuery.tabId === tab.id) {
+      setPendingBookmarkQuery(null);
+      setContent(pendingBookmarkQuery.sql);
+      handleExecuteRef.current(pendingBookmarkQuery.sql);
+    }
+  }, [pendingBookmarkQuery, tab.id, setPendingBookmarkQuery]);
 
   const handleSelectExample = (sql: string) => {
     setContent(sql);

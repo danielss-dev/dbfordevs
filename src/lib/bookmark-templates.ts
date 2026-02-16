@@ -343,3 +343,42 @@ export function extractVariables(sql: string): string[] {
 export function hasTemplateVariables(sql: string): boolean {
   return /\{\{\w+\}\}/.test(sql);
 }
+
+// Validate bookmark export data
+export function validateBookmarkExport(data: unknown): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  if (!data || typeof data !== "object") {
+    return { valid: false, errors: ["Invalid data: expected an object"] };
+  }
+
+  const obj = data as Record<string, unknown>;
+
+  if (obj.formatVersion !== 1) {
+    errors.push(`Invalid formatVersion: expected 1, got ${String(obj.formatVersion)}`);
+  }
+
+  if (obj.appName !== "dbfordevs") {
+    errors.push(`Invalid appName: expected "dbfordevs", got ${String(obj.appName)}`);
+  }
+
+  if (!Array.isArray(obj.bookmarks)) {
+    errors.push("Missing or invalid bookmarks array");
+  } else {
+    for (let i = 0; i < obj.bookmarks.length; i++) {
+      const b = obj.bookmarks[i] as Record<string, unknown>;
+      if (!b || typeof b.name !== "string") {
+        errors.push(`Bookmark at index ${i} is missing a valid "name" field`);
+      }
+      if (!b || typeof b.sql !== "string") {
+        errors.push(`Bookmark at index ${i} is missing a valid "sql" field`);
+      }
+    }
+  }
+
+  if (!Array.isArray(obj.folders)) {
+    errors.push("Missing or invalid folders array");
+  }
+
+  return { valid: errors.length === 0, errors };
+}
