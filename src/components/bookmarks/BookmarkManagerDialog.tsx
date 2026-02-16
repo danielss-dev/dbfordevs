@@ -12,7 +12,11 @@ import {
   Play,
   MoreHorizontal,
   Globe,
+  Download,
+  Upload,
 } from "lucide-react";
+import { save, open } from "@tauri-apps/plugin-dialog";
+import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +47,9 @@ import { useUIStore } from "@/stores/ui";
 import { useBookmarkStore } from "@/stores/bookmarks";
 import { builtInTemplates, hasTemplateVariables } from "@/lib/bookmark-templates";
 import { cn } from "@/lib/utils";
-import type { Bookmark as BookmarkType } from "@/types";
+import { validateBookmarkExport } from "@/lib/bookmark-templates";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-helpers";
+import type { Bookmark as BookmarkType, BookmarkExportFormat } from "@/types";
 
 type FilterCategory = "all" | "favorites" | "templates" | "folder";
 
@@ -68,6 +74,8 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
     addFolder,
     removeFolder,
     updateFolder,
+    exportBookmarks,
+    importBookmarks,
   } = useBookmarkStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -79,6 +87,8 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importData, setImportData] = useState<BookmarkExportFormat | null>(null);
 
   // Filter bookmarks based on category and search
   const filteredBookmarks = useMemo(() => {
@@ -176,6 +186,66 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
     }
   }, [editingFolderId, editingFolderName, updateFolder]);
 
+  const handleExport = useCallback(async () => {
+    try {
+      const data = exportBookmarks();
+      const filePath = await save({
+        title: "Export Bookmarks",
+        defaultPath: "dbfordevs-bookmarks.json",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (!filePath) return;
+      await writeTextFile(filePath, JSON.stringify(data, null, 2));
+      showSuccessToast("Bookmarks exported", `${data.bookmarks.length} bookmarks exported`);
+    } catch (err) {
+      showErrorToast("Export failed", err instanceof Error ? err.message : String(err));
+    }
+  }, [exportBookmarks]);
+
+  const handleImportFile = useCallback(async () => {
+    try {
+      const filePath = await open({
+        title: "Import Bookmarks",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+        multiple: false,
+        directory: false,
+      });
+      if (!filePath) return;
+
+      const content = await readTextFile(filePath);
+      const parsed = JSON.parse(content);
+      const validation = validateBookmarkExport(parsed);
+
+      if (!validation.valid) {
+        showErrorToast("Invalid file", validation.errors[0]);
+        return;
+      }
+
+      setImportData(parsed as BookmarkExportFormat);
+      setImportDialogOpen(true);
+    } catch (err) {
+      showErrorToast("Import failed", err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  const handleImportConfirm = useCallback(
+    (mode: "merge" | "replace") => {
+      if (!importData) return;
+      const result = importBookmarks(importData, mode);
+      if (result.success) {
+        showSuccessToast(
+          "Bookmarks imported",
+          `${result.imported} bookmarks and ${result.foldersImported} folders imported${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}`
+        );
+      } else {
+        showErrorToast("Import failed", result.errors[0]);
+      }
+      setImportDialogOpen(false);
+      setImportData(null);
+    },
+    [importData, importBookmarks]
+  );
+
   // Check if a bookmark is a built-in template (non-editable)
   const isBuiltIn = (bookmark: BookmarkType) => bookmark.id.startsWith("builtin-");
 
@@ -184,10 +254,22 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
       <Dialog open={showBookmarkManagerDialog} onOpenChange={setShowBookmarkManagerDialog}>
         <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0">
           <DialogHeader className="px-6 py-4 border-b">
-            <DialogTitle className="flex items-center gap-2">
-              <Bookmark className="h-5 w-5" />
-              Bookmark Manager
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <Bookmark className="h-5 w-5" />
+                Bookmark Manager
+              </DialogTitle>
+              <div className="flex items-center gap-2 mr-6">
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
+                  <Download className="h-3.5 w-3.5" />
+                  Export
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleImportFile}>
+                  <Upload className="h-3.5 w-3.5" />
+                  Import
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="flex flex-1 overflow-hidden">
@@ -519,6 +601,28 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Import confirmation dialog */}
+      <AlertDialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) setImportData(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import Bookmarks</AlertDialogTitle>
+            <AlertDialogDescription>
+              Found {importData?.bookmarks.length ?? 0} bookmarks and{" "}
+              {importData?.folders.length ?? 0} folders. How would you like to import them?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleImportConfirm("replace")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Replace All
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => handleImportConfirm("merge")}>
+              Merge
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

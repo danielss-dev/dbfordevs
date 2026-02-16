@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Bookmark, BookmarkFolder, DatabaseType } from "@/types";
+import type { Bookmark, BookmarkFolder, BookmarkExportFormat, BookmarkImportResult, DatabaseType } from "@/types";
 import { builtInTemplates } from "@/lib/bookmark-templates";
 
 interface BookmarkState {
@@ -33,6 +33,10 @@ interface BookmarkState {
   getFolderById: (id: string) => BookmarkFolder | undefined;
   getBookmarksInFolder: (folderId: string | null) => Bookmark[];
   getSubFolders: (parentId: string | null) => BookmarkFolder[];
+
+  // Export/Import
+  exportBookmarks: (bookmarkIds?: string[]) => BookmarkExportFormat;
+  importBookmarks: (data: BookmarkExportFormat, mode: "merge" | "replace") => BookmarkImportResult;
 }
 
 // Generate unique ID
@@ -223,6 +227,106 @@ export const useBookmarkStore = create<BookmarkState>()(
       getSubFolders: (parentId) => {
         const state = get();
         return state.folders.filter((f) => f.parentId === parentId);
+      },
+
+      exportBookmarks: (bookmarkIds) => {
+        const state = get();
+        let bookmarksToExport: Bookmark[];
+        let foldersToExport: BookmarkFolder[];
+
+        if (bookmarkIds && bookmarkIds.length > 0) {
+          bookmarksToExport = state.bookmarks.filter(
+            (b) => bookmarkIds.includes(b.id) && !b.id.startsWith("builtin-")
+          );
+          // Include folders referenced by exported bookmarks
+          const folderIds = new Set(
+            bookmarksToExport.map((b) => b.folderId).filter(Boolean) as string[]
+          );
+          foldersToExport = state.folders.filter((f) => folderIds.has(f.id));
+        } else {
+          bookmarksToExport = state.bookmarks.filter((b) => !b.id.startsWith("builtin-"));
+          foldersToExport = [...state.folders];
+        }
+
+        return {
+          formatVersion: 1,
+          exportedAt: Date.now(),
+          appName: "dbfordevs",
+          bookmarks: bookmarksToExport,
+          folders: foldersToExport,
+        };
+      },
+
+      importBookmarks: (data, mode) => {
+        const result: BookmarkImportResult = {
+          success: true,
+          imported: 0,
+          skipped: 0,
+          foldersImported: 0,
+          errors: [],
+        };
+
+        try {
+          // Build folder ID mapping (old -> new)
+          const folderIdMap = new Map<string, string>();
+          const newFolders: BookmarkFolder[] = [];
+          for (const folder of data.folders) {
+            const newId = generateId();
+            folderIdMap.set(folder.id, newId);
+            newFolders.push({
+              ...folder,
+              id: newId,
+              parentId: folder.parentId ? (folderIdMap.get(folder.parentId) ?? null) : null,
+              createdAt: Date.now(),
+            });
+            result.foldersImported++;
+          }
+
+          // Remap parent IDs that were set before their parent was processed
+          for (const folder of newFolders) {
+            if (folder.parentId === null) continue;
+            // Find the original folder to get its original parentId
+            const originalFolder = data.folders.find(
+              (f) => folderIdMap.get(f.id) === folder.id
+            );
+            if (originalFolder?.parentId) {
+              folder.parentId = folderIdMap.get(originalFolder.parentId) ?? null;
+            }
+          }
+
+          // Build new bookmarks
+          const now = Date.now();
+          const newBookmarks: Bookmark[] = [];
+          for (const bookmark of data.bookmarks) {
+            if (bookmark.id.startsWith("builtin-")) {
+              result.skipped++;
+              continue;
+            }
+            newBookmarks.push({
+              ...bookmark,
+              id: generateId(),
+              folderId: bookmark.folderId ? (folderIdMap.get(bookmark.folderId) ?? null) : null,
+              connectionId: null,
+              createdAt: now,
+              updatedAt: now,
+            });
+            result.imported++;
+          }
+
+          if (mode === "replace") {
+            set({ bookmarks: newBookmarks, folders: newFolders });
+          } else {
+            set((state) => ({
+              bookmarks: [...state.bookmarks, ...newBookmarks],
+              folders: [...state.folders, ...newFolders],
+            }));
+          }
+        } catch (err) {
+          result.success = false;
+          result.errors.push(err instanceof Error ? err.message : String(err));
+        }
+
+        return result;
       },
     }),
     {

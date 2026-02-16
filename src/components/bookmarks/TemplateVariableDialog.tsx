@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { FileCode, Play } from "lucide-react";
+import { FileCode, Play, Zap } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import { getTableFullName } from "@/lib/table-utils";
 
 interface TemplateVariableDialogProps {
   onApply: (sql: string) => void;
+  onExecute?: (sql: string) => void;
 }
 
 // Variable names that should have table autocomplete
@@ -60,7 +61,7 @@ function matchesPattern(varName: string, patterns: string[]): boolean {
   return patterns.some((pattern) => lowerName === pattern || lowerName.includes(pattern));
 }
 
-export function TemplateVariableDialog({ onApply }: TemplateVariableDialogProps) {
+export function TemplateVariableDialog({ onApply, onExecute }: TemplateVariableDialogProps) {
   const {
     showTemplateVariableDialog,
     setShowTemplateVariableDialog,
@@ -238,6 +239,14 @@ export function TemplateVariableDialog({ onApply }: TemplateVariableDialogProps)
     }
   }, [previewSql, onApply, setShowTemplateVariableDialog, setShowBookmarkManagerDialog]);
 
+  const handleExecuteQuery = useCallback(() => {
+    if (previewSql && onExecute) {
+      onExecute(previewSql);
+      setShowTemplateVariableDialog(false);
+      setShowBookmarkManagerDialog(false);
+    }
+  }, [previewSql, onExecute, setShowTemplateVariableDialog, setShowBookmarkManagerDialog]);
+
   const handleClose = useCallback(() => {
     setShowTemplateVariableDialog(false);
     setValues({});
@@ -325,6 +334,12 @@ export function TemplateVariableDialog({ onApply }: TemplateVariableDialogProps)
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
+          {onExecute && (
+            <Button variant="secondary" onClick={handleExecuteQuery} className="gap-2">
+              <Zap className="h-4 w-4" />
+              Run Query
+            </Button>
+          )}
           <Button onClick={handleApply} className="gap-2">
             <Play className="h-4 w-4" />
             Use Query

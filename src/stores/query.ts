@@ -21,6 +21,8 @@ interface QueryState {
   queryHistory: Record<string, QueryHistoryEntry[]>;
   // Query history settings
   historySettings: QueryHistorySettings;
+  // Pending bookmark query for direct execution
+  pendingBookmarkQuery: { sql: string; tabId: string } | null;
 
   // Actions
   addTab: (tab: Tab) => void;
@@ -45,6 +47,7 @@ interface QueryState {
   cleanupOldHistory: () => void;
   getHistoryStats: (connectionId: string) => QueryHistoryStats;
   exportHistory: (connectionId: string, format: 'json' | 'csv') => string;
+  setPendingBookmarkQuery: (query: { sql: string; tabId: string } | null) => void;
   // Tab context menu actions
   closeOtherTabs: (id: string) => void;
   closeTabsToRight: (id: string) => void;
@@ -76,6 +79,7 @@ export const useQueryStore = create<QueryState>()(
       error: null,
       queryHistory: {},
       historySettings: DEFAULT_HISTORY_SETTINGS,
+      pendingBookmarkQuery: null,
 
   addTab: (tab) =>
     set((state) => ({
@@ -324,6 +328,8 @@ export const useQueryStore = create<QueryState>()(
 
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   },
+
+  setPendingBookmarkQuery: (query) => set({ pendingBookmarkQuery: query }),
 
   closeOtherTabs: (id) =>
     set((state) => {
