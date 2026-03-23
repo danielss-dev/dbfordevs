@@ -2,6 +2,15 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] - 2026-03-23
+
+### Added
+- add aditional documentation (#90)
+- add bookmark import/export functionality and enhance bookmark m… (#89)
+
+### Changed
+- Enable TDS 7.3 for tiberius
+
 ## [0.7.0] - 2026-02-12
 
 ### Added
