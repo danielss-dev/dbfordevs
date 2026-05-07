@@ -365,18 +365,18 @@ export const PROVIDER_INFO: Record<AIProviderType, { name: string; displayName: 
 /** Available models per provider (frontend-defined, no backend call needed) */
 export const AVAILABLE_MODELS: AIModelsConfig = {
   anthropic: [
-    { id: "claude-opus-4-5-20251101", name: "Claude Opus 4.5" },
-    { id: "claude-sonnet-4-5-20251101", name: "Claude Sonnet 4.5" },
+    { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
+    { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
     { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", default: true },
   ],
   gemini: [
-    { id: "gemini-3-pro-preview", name: "Gemini 3 Pro" },
+    { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro" },
     { id: "gemini-3-flash-preview", name: "Gemini 3 Flash", default: true },
   ],
   openai: [
-    { id: "gpt-5.2-2025-12-11", name: "GPT-5.2", default: true },
-    { id: "gpt-5-mini-2025-08-07", name: "GPT-5 Mini" },
-    { id: "gpt-5.2-pro-2025-12-11", name: "GPT-5.2 Pro" },
+    { id: "gpt-5.5", name: "GPT-5.5" },
+    { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", default: true },
+    { id: "gpt-5.5-pro", name: "GPT-5.5 Pro" },
   ],
 };
 
@@ -384,22 +384,22 @@ export const AVAILABLE_MODELS: AIModelsConfig = {
 export const DEFAULT_MODELS: Record<AIProviderType, string> = {
   anthropic: "claude-haiku-4-5-20251001",
   gemini: "gemini-3-flash-preview",
-  openai: "gpt-5-mini-2025-08-07",
+  openai: "gpt-5.4-mini",
 };
 
-/** Model pricing (per 1M tokens) - approximate as of Dec 2024 */
+/** Model pricing (per 1M tokens) - approximate as of May 2026 */
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   // Anthropic
-  "claude-opus-4-5-20251101": { inputPer1M: 15, outputPer1M: 75 },
-  "claude-sonnet-4-5-20251101": { inputPer1M: 3, outputPer1M: 15 },
+  "claude-opus-4-7": { inputPer1M: 15, outputPer1M: 75 },
+  "claude-sonnet-4-6": { inputPer1M: 3, outputPer1M: 15 },
   "claude-haiku-4-5-20251001": { inputPer1M: 0.25, outputPer1M: 1.25 },
   // Gemini
-  "gemini-3-pro-preview": { inputPer1M: 1.25, outputPer1M: 5 },
+  "gemini-3.1-pro-preview": { inputPer1M: 1.25, outputPer1M: 5 },
   "gemini-3-flash-preview": { inputPer1M: 0.075, outputPer1M: 0.30 },
   // OpenAI
-  "gpt-5.2-2025-12-11": { inputPer1M: 1.75, outputPer1M: 14 },
-  "gpt-5-mini-2025-08-07": { inputPer1M: 0.25, outputPer1M: 2 },
-  "gpt-5.2-pro-2025-12-11": { inputPer1M: 21, outputPer1M: 168 },
+  "gpt-5.5": { inputPer1M: 5, outputPer1M: 30 },
+  "gpt-5.4-mini": { inputPer1M: 0.40, outputPer1M: 1.60 },
+  "gpt-5.5-pro": { inputPer1M: 30, outputPer1M: 180 },
 };
 
 

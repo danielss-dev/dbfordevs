@@ -58,9 +58,14 @@ export function getProviderModel(settings: AISettings) {
     const anthropic = createAnthropicProvider(apiKey);
     let modelId = settings.aiAnthropicModel || DEFAULT_MODELS.anthropic;
 
-    // Fix known buggy IDs from previous version
-    if (modelId === "claude-haiku-4-5-20250514") {
-      modelId = DEFAULT_MODELS.anthropic;
+    // Migrate deprecated model IDs from previous versions
+    const deprecatedAnthropicModels: Record<string, string> = {
+      "claude-haiku-4-5-20250514": DEFAULT_MODELS.anthropic,
+      "claude-opus-4-5-20251101": "claude-opus-4-7",
+      "claude-sonnet-4-5-20251101": "claude-sonnet-4-6",
+    };
+    if (modelId in deprecatedAnthropicModels) {
+      modelId = deprecatedAnthropicModels[modelId];
     }
 
     return anthropic(modelId);
@@ -74,9 +79,13 @@ export function getProviderModel(settings: AISettings) {
     const gemini = createGeminiProvider(apiKey);
     let modelId = settings.aiGeminiModel || DEFAULT_MODELS.gemini;
 
-    // Fix known buggy IDs from previous version
-    if (modelId === "gemini-flash-3") {
-      modelId = DEFAULT_MODELS.gemini;
+    // Migrate deprecated model IDs from previous versions
+    const deprecatedGeminiModels: Record<string, string> = {
+      "gemini-flash-3": DEFAULT_MODELS.gemini,
+      "gemini-3-pro-preview": "gemini-3.1-pro-preview",
+    };
+    if (modelId in deprecatedGeminiModels) {
+      modelId = deprecatedGeminiModels[modelId];
     }
 
     return gemini(modelId);
@@ -88,7 +97,17 @@ export function getProviderModel(settings: AISettings) {
       throw new Error("OpenAI API key is not configured");
     }
     const openai = createOpenAIProvider(apiKey);
-    const modelId = settings.aiOpenaiModel || DEFAULT_MODELS.openai;
+    let modelId = settings.aiOpenaiModel || DEFAULT_MODELS.openai;
+
+    // Migrate deprecated model IDs from previous versions
+    const deprecatedOpenaiModels: Record<string, string> = {
+      "gpt-5.2-2025-12-11": "gpt-5.5",
+      "gpt-5-mini-2025-08-07": "gpt-5.4-mini",
+      "gpt-5.2-pro-2025-12-11": "gpt-5.5-pro",
+    };
+    if (modelId in deprecatedOpenaiModels) {
+      modelId = deprecatedOpenaiModels[modelId];
+    }
 
     return openai(modelId);
   }
