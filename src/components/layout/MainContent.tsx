@@ -26,7 +26,8 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui";
-import { useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
+import { useQueryStore, useConnectionsStore, useUIStore, selectActiveConnection } from "@/stores";
+import { BrandIcon } from "@/components/ui";
 import { TablePropertiesTab, TableDiagramTab } from "@/components/table";
 import { QueryEditorTab } from "./tabs/QueryEditorTab";
 import { TableViewerTab } from "./tabs/TableViewerTab";
@@ -161,6 +162,9 @@ function TabItem({ tab, isActive, onClose, onClick }: {
 function EmptyState() {
   const { addTab, tabs, setActiveTab } = useQueryStore();
   const activeConnection = useConnectionsStore(selectActiveConnection);
+  const connections = useConnectionsStore((state) => state.connections);
+  const setActiveConnection = useConnectionsStore((state) => state.setActiveConnection);
+  const openConnectionModal = useUIStore((state) => state.openConnectionModal);
   const isRedis = activeConnection?.databaseType === "redis";
   const isMongoDB = activeConnection?.databaseType === "mongodb";
   const isCassandra = activeConnection?.databaseType === "cassandra";
@@ -228,6 +232,8 @@ function EmptyState() {
     }
   };
 
+  const hasConnections = connections.length > 0;
+
   return (
     <div className="flex h-full flex-col items-center justify-center text-muted-foreground animate-fade-in">
       <div className="relative mb-6">
@@ -236,7 +242,9 @@ function EmptyState() {
           <Terminal className="h-12 w-12 text-muted-foreground/50" />
         </div>
       </div>
-      <h2 className="mb-2 text-xl font-semibold text-foreground">No tabs open</h2>
+      <h2 className="mb-2 text-xl font-semibold text-foreground">
+        {activeConnection ? "No tabs open" : hasConnections ? "Pick a connection" : "Welcome to dbfordevs"}
+      </h2>
       <p className="mb-6 text-sm max-w-sm text-center">
         {activeConnection
           ? isRedis
@@ -246,8 +254,57 @@ function EmptyState() {
             : isCassandra
             ? "Start by opening the CQL Shell or selecting a table from the sidebar"
             : "Start by opening a new query or selecting a table from the sidebar"
-          : "Select a connection from the sidebar to get started"}
+          : hasConnections
+          ? "Choose one of your connections to get started"
+          : "Add your first database connection to get started"}
       </p>
+
+      {/* No connections yet: primary CTA to create one */}
+      {!activeConnection && !hasConnections && (
+        <Button onClick={() => openConnectionModal()} size="lg">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Connection
+        </Button>
+      )}
+
+      {/* Connections exist but none selected: pick from a list */}
+      {!activeConnection && hasConnections && (
+        <div className="w-full max-w-sm space-y-1">
+          {connections.slice(0, 6).map((connection) => (
+            <button
+              key={connection.id}
+              onClick={() => setActiveConnection(connection.id)}
+              className={cn(
+                "group flex w-full items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5 text-left transition-all duration-150 ease-swift",
+                "hover:border-border hover:bg-accent hover:text-accent-foreground",
+                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]"
+              )}
+            >
+              <BrandIcon name={connection.databaseType} className="h-4 w-4 shrink-0" />
+              <span className="flex-1 min-w-0">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {connection.name}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {connection.host ? `${connection.host} · ${connection.database}` : connection.database}
+                </span>
+              </span>
+              <span
+                className={cn(
+                  "h-2 w-2 shrink-0 rounded-full",
+                  connection.connected ? "bg-success" : "bg-muted-foreground/30"
+                )}
+              />
+            </button>
+          ))}
+          {connections.length > 6 && (
+            <p className="pt-1 text-center text-xs text-muted-foreground/70">
+              {connections.length - 6} more in the sidebar
+            </p>
+          )}
+        </div>
+      )}
+
       {activeConnection && (
         isRedis ? (
           <Button onClick={handleOpenCli} size="lg">
@@ -271,6 +328,23 @@ function EmptyState() {
           </Button>
         )
       )}
+
+      {/* Keyboard hints */}
+      <div className="mt-10 flex items-center gap-4 text-xs text-muted-foreground/70">
+        <span className="flex items-center gap-1.5">
+          <kbd>Ctrl</kbd>
+          <kbd>K</kbd>
+          Commands
+        </span>
+        {activeConnection && (
+          <span className="flex items-center gap-1.5">
+            <kbd>Ctrl</kbd>
+            <kbd>Shift</kbd>
+            <kbd>F</kbd>
+            Schema search
+          </span>
+        )}
+      </div>
     </div>
   );
 }

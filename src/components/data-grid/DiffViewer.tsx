@@ -205,6 +205,7 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
                   w-6 flex items-start justify-center font-bold shrink-0 pt-0.5
                   ${field.status === "added" ? "text-success" :
                     field.status === "removed" ? "text-destructive" :
+                    field.status === "changed" ? "text-warning" :
                     "text-muted-foreground/40"}
                 `}>
                   {field.status === "added" ? "+" :
@@ -426,6 +427,7 @@ function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRem
               w-6 flex items-start justify-center font-bold shrink-0 pt-0.5
               ${field.status === "added" ? "text-success" :
                 field.status === "removed" ? "text-destructive" :
+                field.status === "changed" ? "text-warning" :
                 "text-muted-foreground/40"}
             `}>
               {field.status === "added" ? "+" :

@@ -103,9 +103,19 @@ not porting strand's amber or its OKLCH palette; we port the *system*.
   themes are re-applied when the override clears. Verified live: prod connection = red app,
   ungrouped connection = theme accent.
 
+## Applied in pass 4
+
+- [x] **Empty-state upgrade** — the main pane is no longer a dead end: with no connections it
+  offers "Add Connection"; with connections but none active it lists them as clickable cards
+  (brand icon, host · database, live status dot) that select the connection; keyboard hints
+  (Ctrl+K commands, Ctrl+Shift+F schema search) educate at the bottom of every variant.
+- [x] **Contrast audit** — reviewed all 41 `text-muted-foreground/20-50` sites; nearly all are
+  intentional icon/separator dimming. Fixed the one real defect: the `~` changed-field marker in
+  DiffViewer was nearly invisible (`/40`) while its value was `text-warning` — both diff blocks
+  now color the marker `warning` to match.
+
 ## Roadmap (next passes)
 
-1. **Empty-state upgrade** — welcome screen with recent connections (strand shows recents, not a blank pane).
-2. **Decompose `Sidebar.tsx` (130KB) / `SidePanel.tsx` (75KB)** before deeper visual work there.
-3. **Contrast audit** of muted-on-muted text (`text-muted-foreground/60` on `bg-muted/30`).
-4. **Density, phase 2** — extend `--row-h` to query-history lists, bookmark lists, and menu items.
+1. **Decompose `Sidebar.tsx` (130KB) / `SidePanel.tsx` (75KB)** before deeper visual work there.
+2. **Density, phase 2** — extend `--row-h` to query-history lists, bookmark lists, and menu items
+   (needs a padding-based approach for multi-line rows).
