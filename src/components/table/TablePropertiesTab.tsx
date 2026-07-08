@@ -233,10 +233,10 @@ function ColumnsTable({ columns }: { columns: TableProperties["columns"] }) {
               <td className="px-4 py-2 font-mono text-xs">{col.name}</td>
               <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{col.dataType}</td>
               <td className="px-4 py-2 text-center">
-                {col.isPrimaryKey && <Key className="h-3.5 w-3.5 mx-auto text-amber-500" />}
+                {col.isPrimaryKey && <Key className="h-3.5 w-3.5 mx-auto text-warning" />}
               </td>
               <td className="px-4 py-2 text-center">
-                <span className={col.nullable ? "text-muted-foreground" : "text-green-500"}>
+                <span className={col.nullable ? "text-muted-foreground" : "text-success"}>
                   {col.nullable ? "Yes" : "No"}
                 </span>
               </td>
@@ -268,7 +268,7 @@ function PrimaryKeysTable({ keys }: { keys: string[] }) {
           {keys.map((key, idx) => (
             <tr key={key} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
               <td className="px-4 py-2 font-mono text-xs flex items-center gap-2">
-                <Key className="h-3.5 w-3.5 text-amber-500" />
+                <Key className="h-3.5 w-3.5 text-warning" />
                 {key}
               </td>
             </tr>
@@ -298,7 +298,7 @@ function ForeignKeysTable({ keys }: { keys: TableProperties["foreignKeys"] }) {
           {keys.map((fk, idx) => (
             <tr key={`${fk.column}-${fk.referencesTable}`} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
               <td className="px-4 py-2 font-mono text-xs">{fk.column}</td>
-              <td className="px-4 py-2 font-mono text-xs text-blue-500">{fk.referencesTable}</td>
+              <td className="px-4 py-2 font-mono text-xs text-info">{fk.referencesTable}</td>
               <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{fk.referencesColumn}</td>
             </tr>
           ))}
@@ -332,12 +332,12 @@ function IndexesTable({ indexes }: { indexes: TableProperties["indexes"] }) {
                 {idx.columns.join(", ")}
               </td>
               <td className="px-4 py-2 text-center">
-                <span className={idx.isUnique ? "text-green-500" : "text-muted-foreground"}>
+                <span className={idx.isUnique ? "text-success" : "text-muted-foreground"}>
                   {idx.isUnique ? "Yes" : "No"}
                 </span>
               </td>
               <td className="px-4 py-2 text-center">
-                {idx.isPrimary && <Key className="h-3.5 w-3.5 mx-auto text-amber-500" />}
+                {idx.isPrimary && <Key className="h-3.5 w-3.5 mx-auto text-warning" />}
               </td>
             </tr>
           ))}

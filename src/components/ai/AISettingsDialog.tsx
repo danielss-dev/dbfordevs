@@ -166,7 +166,7 @@ export function AISettingsDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Settings2 className="h-4 w-4" />
             </div>
             AI Assistant Settings
@@ -345,7 +345,7 @@ export function AISettingsDialog({
                 min={0}
                 max={2}
                 step={0.1}
-                className="w-full accent-violet-500"
+                className="w-full accent-primary"
               />
               <p className="text-xs text-muted-foreground">
                 Lower values produce more focused, deterministic output. Higher values are more creative.
@@ -382,7 +382,7 @@ export function AISettingsDialog({
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+            className="bg-primary hover:bg-primary/90"
           >
             {isSaving ? "Saving..." : "Save"}
           </Button>

@@ -239,7 +239,7 @@ export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistory
                 setFilter("success");
               }}
             >
-              <CheckCircle className="h-3 w-3 text-green-500" />
+              <CheckCircle className="h-3 w-3 text-success" />
               {stats.successfulQueries}
             </Button>
             <Button
@@ -251,7 +251,7 @@ export function QueryHistoryDropdown({ connectionId, onLoadQuery }: QueryHistory
                 setFilter("failed");
               }}
             >
-              <XCircle className="h-3 w-3 text-red-500" />
+              <XCircle className="h-3 w-3 text-destructive" />
               {stats.failedQueries}
             </Button>
             <Button

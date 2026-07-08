@@ -185,7 +185,7 @@ export function RedisAIHelper({
 
             {/* Error */}
             {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 text-red-500 text-sm">
+              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                 {error}
               </div>
             )}
@@ -212,7 +212,7 @@ export function RedisAIHelper({
                         onClick={handleCopy}
                       >
                         {copied ? (
-                          <Check className="h-3.5 w-3.5 text-green-500" />
+                          <Check className="h-3.5 w-3.5 text-success" />
                         ) : (
                           <Copy className="h-3.5 w-3.5" />
                         )}
@@ -257,7 +257,7 @@ export function RedisAIHelper({
                       onClick={handleCopy}
                     >
                       {copied ? (
-                        <Check className="h-3.5 w-3.5 text-green-500" />
+                        <Check className="h-3.5 w-3.5 text-success" />
                       ) : (
                         <Copy className="h-3.5 w-3.5" />
                       )}
@@ -317,7 +317,7 @@ export function RedisAIButton({
         className="gap-1.5 text-xs"
         onClick={() => setOpen(true)}
       >
-        <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
         AI Commands
       </Button>
       <RedisAIHelper

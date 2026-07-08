@@ -123,19 +123,19 @@ export function OracleSetupDialog({
     if (status?.isInstalled) {
       return (
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/50 p-4">
-            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/10 p-4">
+            <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-green-900 dark:text-green-100">
+              <p className="text-sm font-medium text-success">
                 Oracle Instant Client is installed
               </p>
               {status.installPath && (
-                <p className="text-xs text-green-700 dark:text-green-300 font-mono">
+                <p className="text-xs text-success/80 font-mono">
                   {status.installPath}
                 </p>
               )}
               {status.version && (
-                <p className="text-xs text-green-600 dark:text-green-400">
+                <p className="text-xs text-success/80">
                   Version: {status.version}
                 </p>
               )}
@@ -144,13 +144,13 @@ export function OracleSetupDialog({
 
           {/* Restart required message */}
           {justInstalled && (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50 p-4">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-4">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
               <div className="space-y-2">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                <p className="text-sm font-medium text-warning">
                   Restart Required
                 </p>
-                <p className="text-sm text-amber-700 dark:text-amber-300">
+                <p className="text-sm text-warning/80">
                   The application needs to be restarted to load the Oracle client libraries.
                 </p>
                 <Button
@@ -195,13 +195,13 @@ export function OracleSetupDialog({
     return (
       <div className="space-y-6">
         {/* Warning Banner */}
-        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50 p-4">
-          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-4">
+          <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            <p className="text-sm font-medium text-warning">
               Oracle Instant Client Required
             </p>
-            <p className="text-sm text-amber-700 dark:text-amber-300">
+            <p className="text-sm text-warning/80">
               To connect to Oracle databases, you need to install Oracle Instant Client.
               This is a requirement from Oracle for connecting to their databases.
             </p>
@@ -241,13 +241,13 @@ export function OracleSetupDialog({
 
         {/* Error Display */}
         {error && (
-          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/50 p-4">
-            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-red-900 dark:text-red-100">
+              <p className="text-sm font-medium text-destructive">
                 Setup Failed
               </p>
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              <p className="text-sm text-destructive/80">{error}</p>
             </div>
           </div>
         )}

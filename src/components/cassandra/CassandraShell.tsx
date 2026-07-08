@@ -180,12 +180,12 @@ export function CassandraShell({ connectionId }: CassandraShellProps) {
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </span>
                   {entry.error ? (
-                    <span className="flex items-center gap-1 text-red-500">
+                    <span className="flex items-center gap-1 text-destructive">
                       <AlertCircle className="h-3 w-3" />
                       Error
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-green-500">
+                    <span className="flex items-center gap-1 text-success">
                       <CheckCircle2 className="h-3 w-3" />
                       OK
                     </span>
@@ -194,7 +194,7 @@ export function CassandraShell({ connectionId }: CassandraShellProps) {
 
                 {/* Output/Error */}
                 {entry.error ? (
-                  <div className="ml-6 p-2 bg-red-500/10 border border-red-500/20 rounded text-red-500 text-xs">
+                  <div className="ml-6 p-2 bg-destructive/10 border border-destructive/20 rounded text-destructive text-xs">
                     {entry.error}
                   </div>
                 ) : entry.output ? (

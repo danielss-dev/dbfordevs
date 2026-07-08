@@ -502,12 +502,12 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                           <div className="flex-1 min-w-0 flex items-center gap-2">
                             <span className="font-medium truncate">{bookmark.name}</span>
                             {bookmark.isTemplate && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 flex-shrink-0">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary flex-shrink-0">
                                 Template
                               </span>
                             )}
                             {isBuiltIn(bookmark) && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex-shrink-0">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info flex-shrink-0">
                                 Built-in
                               </span>
                             )}

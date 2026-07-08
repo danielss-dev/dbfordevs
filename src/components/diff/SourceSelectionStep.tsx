@@ -171,7 +171,7 @@ export function SourceSelectionStep() {
           {/* Source side */}
           <div className="space-y-4 p-4 border rounded-lg bg-card">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Badge variant="outline" className="bg-info/10 text-info">
                 Source
               </Badge>
               {comparisonMode !== "snapshot" && (
@@ -238,7 +238,7 @@ export function SourceSelectionStep() {
           {/* Target side */}
           <div className="space-y-4 p-4 border rounded-lg bg-card">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400">
+              <Badge variant="outline" className="bg-success/10 text-success">
                 Target
               </Badge>
               {comparisonMode !== "snapshot" && (
@@ -366,15 +366,15 @@ export function SourceSelectionStep() {
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="source_to_target" id="dir-s2t" />
                 <Label htmlFor="dir-s2t" className="cursor-pointer text-sm">
-                  Make <span className="font-medium text-green-600 dark:text-green-400">target</span> match{" "}
-                  <span className="font-medium text-blue-600 dark:text-blue-400">source</span>
+                  Make <span className="font-medium text-success">target</span> match{" "}
+                  <span className="font-medium text-info">source</span>
                 </Label>
               </div>
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="target_to_source" id="dir-t2s" />
                 <Label htmlFor="dir-t2s" className="cursor-pointer text-sm">
-                  Make <span className="font-medium text-blue-600 dark:text-blue-400">source</span> match{" "}
-                  <span className="font-medium text-green-600 dark:text-green-400">target</span>
+                  Make <span className="font-medium text-info">source</span> match{" "}
+                  <span className="font-medium text-success">target</span>
                 </Label>
               </div>
             </RadioGroup>

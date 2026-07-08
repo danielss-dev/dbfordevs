@@ -558,7 +558,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
           return (
             <span className={cn(
               nullConfig.className,
-              isModified && "bg-amber-500/10 text-amber-500 border-amber-500/30"
+              isModified && "bg-warning/10 text-warning border-warning/30"
             )}>
               {nullConfig.text}
             </span>
@@ -644,7 +644,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
           content = (
             <span className={cn(
               "font-mono text-xs tabular-nums text-[hsl(var(--text-primary))]",
-              isNegative && "text-red-500"
+              isNegative && "text-destructive"
             )} style={cellStyle}>
               {formattedNum}
             </span>
@@ -654,7 +654,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
             <span className={cn(
               "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border",
               displayValue
-                ? "bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))] border-[hsl(var(--success)/0.2)]"
+                ? "bg-success/10 text-success border-success/20"
                 : "bg-muted text-muted-foreground/60 border-border/50"
             )}>
               {displayValue ? "true" : "false"}
@@ -682,7 +682,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
         return (
           <div className={cn(
             "relative group/cell min-h-[1.5rem] flex items-center",
-            isModified && "after:absolute after:top-0 after:right-0 after:w-2 after:h-2 after:bg-amber-500 after:rounded-bl-full"
+            isModified && "after:absolute after:top-0 after:right-0 after:w-2 after:h-2 after:bg-warning after:rounded-bl-full"
           )}>
             {content}
           </div>

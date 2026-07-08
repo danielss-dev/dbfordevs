@@ -19,14 +19,14 @@ export function QueryHistoryItem({ entry, onLoad, onDelete, onToggleFavorite }: 
       className={cn(
         "group flex flex-col gap-2 rounded-md border p-3 hover:bg-muted/50 cursor-pointer transition-colors",
         entry.success ? "border-border" : "border-destructive/50",
-        entry.isFavorite && "border-yellow-500/50 bg-yellow-500/5"
+        entry.isFavorite && "border-warning/50 bg-warning/5"
       )}
       onClick={() => onLoad(entry.sql)}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {entry.success ? (
-            <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+            <Check className="h-4 w-4 text-success flex-shrink-0" />
           ) : (
             <X className="h-4 w-4 text-destructive flex-shrink-0" />
           )}

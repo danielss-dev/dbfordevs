@@ -179,7 +179,7 @@ export function DataSourceSelectionStep() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Source */}
           <div className="space-y-4 p-4 border rounded-lg bg-card">
-            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <Badge variant="outline" className="bg-info/10 text-info">
               Source
             </Badge>
 
@@ -253,7 +253,7 @@ export function DataSourceSelectionStep() {
 
           {/* Target */}
           <div className="space-y-4 p-4 border rounded-lg bg-card">
-            <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400">
+            <Badge variant="outline" className="bg-success/10 text-success">
               Target
             </Badge>
 

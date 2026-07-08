@@ -73,20 +73,30 @@ not porting strand's amber or its OKLCH palette; we port the *system*.
 - [x] Column headers become tracked micro-labels (the single biggest "pro tool" signal in a DB app).
 - [x] Pinned-column shadows tokenized (were hardcoded black rgba, invisible on light themes).
 
-## Roadmap (next passes, not in this change)
+## Applied in pass 2 (branch `ui-improvments`)
 
-1. **Hardcoded color sweep** — migrate all 267 raw-palette usages to semantic tokens
-   (`ai/`, `data-diff/`, `explain/`, `bookmarks/`, `redis/`, `mongodb/` folders). Highest-leverage
-   theme-correctness fix; mechanical but wide.
-2. **Command palette** (Ctrl+K) — strand's single most delightful surface: fuzzy search across
-   connections, tables, saved queries, actions; scope pills; kbd footer. dbfordevs already has
-   schema search — unify into one palette.
-3. **Badge/status-dot unification** — delete the `.badge-*` CSS classes, extend the CVA `Badge`
-   with `success/warning/info` variants using the new foreground tokens.
-4. **Density setting** — strand-style compact/default/relaxed row heights (`--row-h`) for the
+- [x] **Hardcoded color sweep** — 463 raw-palette occurrences audited across 68 files; ~340
+  migrated to semantic tokens (`success`/`warning`/`destructive`/`info`/`primary`/`muted`), all
+  redundant `dark:` twins removed. The ~120 that remain are deliberate: categorical type hues
+  (Redis data types, BSON/CQL value types, schema-object kinds, data-type icons), DB brand colors
+  (Redis red, Mongo green, Oracle red), yellow favorite stars, fixed dark code panels, and
+  theme-editor swatches — those should not follow the theme.
+- [x] **AI accent unification** — the violet/purple "AI branding" scattered across `ai/`,
+  `bookmarks/`, `settings/`, `SidePanel`, and the Mongo/Redis AI helpers now uses the theme's
+  `primary` accent, so the AI surfaces re-theme with everything else.
+- [x] **Command palette upgraded** (it already existed at Ctrl+K) — strand recipe: 640px elevated
+  surface, hairline border + `shadow-pop`, pop-in motion, blur backdrop, tracked-uppercase group
+  headings, global kbd chips, accent-tinted icon on the selected row, quiet footer hints.
+- [x] **Badge/status-dot unification** — legacy `.badge-*` CSS classes deleted; `Badge` CVA
+  variants and `row-count-badge`/`execution-time-badge` now use clean token utilities.
+
+## Roadmap (next passes)
+
+1. **Density setting** — strand-style compact/default/relaxed row heights (`--row-h`) for the
    sidebar tree and data grid.
-5. **Per-connection accent** — strand re-themes per repo; dbfordevs could tint the accent per
-   connection (prod = red, staging = amber…), a killer safety feature for a DB tool.
-6. **Empty-state upgrade** — welcome screen with recent connections (strand shows recents, not a blank pane).
-7. **Decompose `Sidebar.tsx` (130KB) / `SidePanel.tsx` (75KB)** before deeper visual work there.
-8. **Contrast audit** of muted-on-muted text (`text-muted-foreground/60` on `bg-muted/30`).
+2. **Per-connection accent** — strand re-themes per repo; dbfordevs could tint the accent per
+   connection (prod = red, staging = amber…), a killer safety feature for a DB tool. Needs an
+   `accentColor` field on the connection config (Rust struct + TS type + modal UI).
+3. **Empty-state upgrade** — welcome screen with recent connections (strand shows recents, not a blank pane).
+4. **Decompose `Sidebar.tsx` (130KB) / `SidePanel.tsx` (75KB)** before deeper visual work there.
+5. **Contrast audit** of muted-on-muted text (`text-muted-foreground/60` on `bg-muted/30`).

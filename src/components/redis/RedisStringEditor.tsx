@@ -18,7 +18,7 @@ const JSON_COLORS = {
   string: "text-green-600 dark:text-green-400",
   number: "text-blue-500 dark:text-blue-400",
   boolean: "text-orange-500 dark:text-orange-400",
-  null: "text-gray-500 dark:text-gray-400",
+  null: "text-muted-foreground",
   bracket: "text-foreground",
   punctuation: "text-muted-foreground",
 };
@@ -238,7 +238,7 @@ function JsonViewer({ value }: { value: string }) {
 
   if (parsed.error) {
     return (
-      <div className="p-4 text-sm text-red-500">
+      <div className="p-4 text-sm text-destructive">
         Invalid JSON: {parsed.error}
       </div>
     );
@@ -468,7 +468,7 @@ export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorPr
             {encoding && <span className="mr-3">Encoding: {encoding}</span>}
             <span>{value.length} chars</span>
             {isJson && (
-              <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <span className="ml-2 px-1.5 py-0.5 rounded bg-info/10 text-info">
                 JSON
               </span>
             )}
@@ -518,7 +518,7 @@ export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorPr
             <TooltipTrigger asChild>
               <Button variant="ghost" size="sm" className="h-7 px-2" onClick={handleCopy}>
                 {copied ? (
-                  <Check className="h-3.5 w-3.5 text-green-500" />
+                  <Check className="h-3.5 w-3.5 text-success" />
                 ) : (
                   <Copy className="h-3.5 w-3.5" />
                 )}
@@ -549,7 +549,7 @@ export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorPr
       {/* Content */}
       <div className={cn(
         "flex-1 border rounded-md overflow-hidden bg-muted/30",
-        hasChanges && "border-amber-500/50"
+        hasChanges && "border-warning/50"
       )}>
         {isJson && viewMode === "formatted" ? (
           <div className="h-full overflow-auto">
@@ -570,7 +570,7 @@ export function RedisStringEditor({ connectionId, keyName }: RedisStringEditorPr
       </div>
 
       {hasChanges && (
-        <div className="mt-2 text-xs text-amber-500">
+        <div className="mt-2 text-xs text-warning">
           Staged change (commit from Changes panel)
         </div>
       )}

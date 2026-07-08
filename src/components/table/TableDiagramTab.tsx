@@ -783,7 +783,7 @@ function TableBoxComponent({ box, viewMode, simplified, isMatch, isCurrentMatch,
         className={cn(
           "fill-background",
           isCurrentMatch ? "stroke-primary stroke-2" :
-          isMatch ? "stroke-amber-500 stroke-[1.5]" :
+          isMatch ? "stroke-warning stroke-[1.5]" :
           box.isMain ? "stroke-primary stroke-[1.5]" : "stroke-border"
         )}
       />
@@ -859,7 +859,7 @@ function TableBoxComponent({ box, viewMode, simplified, isMatch, isCurrentMatch,
               <text
                 x="8"
                 y={y + 15}
-                className="fill-amber-500"
+                className="fill-warning"
                 style={{ fontSize: "9px", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}
               >
                 PK

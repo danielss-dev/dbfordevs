@@ -20,11 +20,11 @@ import type { ExplainWarning } from "@/types";
 const getSeverityIcon = (severity: ExplainWarning["severity"]) => {
   switch (severity) {
     case "critical":
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
     case "warning":
-      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+      return <AlertTriangle className="h-4 w-4 text-warning" />;
     default:
-      return <Info className="h-4 w-4 text-blue-500" />;
+      return <Info className="h-4 w-4 text-info" />;
   }
 };
 
@@ -205,11 +205,11 @@ export function ExplainPanel() {
                       className={cn(
                         "flex items-start gap-3 p-3 rounded-lg border",
                         warning.severity === "critical" &&
-                          "bg-red-500/10 border-red-500/20",
+                          "bg-destructive/10 border-destructive/20",
                         warning.severity === "warning" &&
-                          "bg-amber-500/10 border-amber-500/20",
+                          "bg-warning/10 border-warning/20",
                         warning.severity === "info" &&
-                          "bg-blue-500/10 border-blue-500/20"
+                          "bg-info/10 border-info/20"
                       )}
                     >
                       {getSeverityIcon(warning.severity)}

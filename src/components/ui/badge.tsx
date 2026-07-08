@@ -17,11 +17,11 @@ const badgeVariants = cva(
         outline:
           "text-foreground border-border hover:bg-muted/50",
         success:
-          "border-transparent bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success)/0.25)]",
+          "border-transparent bg-success/15 text-success hover:bg-success/25",
         warning:
-          "border-transparent bg-[hsl(var(--warning)/0.15)] text-[hsl(var(--warning))] hover:bg-[hsl(var(--warning)/0.25)]",
+          "border-transparent bg-warning/15 text-warning hover:bg-warning/25",
         info:
-          "border-transparent bg-[hsl(var(--info)/0.15)] text-[hsl(var(--info))] hover:bg-[hsl(var(--info)/0.25)]",
+          "border-transparent bg-info/15 text-info hover:bg-info/25",
       },
     },
     defaultVariants: {

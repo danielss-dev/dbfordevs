@@ -82,7 +82,7 @@ export function MigrationPreviewStep({ result }: MigrationPreviewStepProps) {
   if (result.isIdentical || result.migrationSql.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
+        <CheckCircle2 className="h-12 w-12 text-success mb-4" />
         <h3 className="text-lg font-medium mb-2">No migration needed</h3>
         <p className="text-muted-foreground">
           The schemas are identical or no changes require migration.
@@ -137,9 +137,9 @@ export function MigrationPreviewStep({ result }: MigrationPreviewStepProps) {
 
       {/* Warnings banner */}
       {destructiveCount > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/30">
-          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <span className="text-sm text-amber-700 dark:text-amber-300">
+        <div className="flex items-center gap-2 px-4 py-2 bg-warning/10 border-b border-warning/30">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <span className="text-sm text-warning">
             {destructiveCount} destructive{" "}
             {destructiveCount === 1 ? "statement" : "statements"} selected.
             Review carefully before execution.
@@ -161,7 +161,7 @@ export function MigrationPreviewStep({ result }: MigrationPreviewStepProps) {
               <div
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 bg-muted/50",
-                  stmt.isDestructive && "bg-red-500/10"
+                  stmt.isDestructive && "bg-destructive/10"
                 )}
               >
                 <Checkbox
@@ -179,7 +179,7 @@ export function MigrationPreviewStep({ result }: MigrationPreviewStepProps) {
                   {stmt.isDestructive && (
                     <Badge
                       variant="outline"
-                      className="bg-red-500/10 text-red-700 dark:text-red-300 border-transparent"
+                      className="bg-destructive/10 text-destructive border-transparent"
                     >
                       <AlertTriangle className="h-3 w-3 mr-1" />
                       Destructive
@@ -212,7 +212,7 @@ export function MigrationPreviewStep({ result }: MigrationPreviewStepProps) {
           selected
         </div>
         {result.warnings.length > 0 && (
-          <div className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-1 text-sm text-warning">
             <AlertTriangle className="h-4 w-4" />
             {result.warnings.length} warning{result.warnings.length > 1 ? "s" : ""}
           </div>

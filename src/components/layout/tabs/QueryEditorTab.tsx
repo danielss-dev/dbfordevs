@@ -331,7 +331,7 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
                   />
                   <span>{connection.name}</span>
                   {connection.connected && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-[hsl(var(--success))]" />
+                    <span className="ml-auto w-2 h-2 rounded-full bg-success" />
                   )}
                 </div>
               </SelectItem>

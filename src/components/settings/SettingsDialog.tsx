@@ -525,12 +525,12 @@ export function SettingsDialog() {
                           <>
                             <div className="rounded-xl border border-border bg-muted/50 p-4">
                               <div className="flex items-start gap-3">
-                                <Bot className="h-5 w-5 text-violet-500 mt-0.5" />
+                                <Bot className="h-5 w-5 text-primary mt-0.5" />
                                 <div className="flex-1 space-y-2">
                                   <h3 className="font-medium text-sm">Configure AI Settings</h3>
                                   <p className="text-xs text-muted-foreground leading-relaxed">
                                     To configure your AI provider, API keys, and model preferences, click the
-                                    <Sparkles className="inline h-3.5 w-3.5 mx-1 text-violet-500" />
+                                    <Sparkles className="inline h-3.5 w-3.5 mx-1 text-primary" />
                                     icon in the sidebar to open the AI Assistant panel, then click the settings icon.
                                   </p>
                                 </div>
@@ -1164,8 +1164,8 @@ export function SettingsDialog() {
                       </div>
                       <h2 className="text-2xl font-bold tracking-tight">dbfordevs</h2>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="badge badge-info">v{version || "..."}</span>
-                        <span className="badge bg-muted text-muted-foreground">Alpha</span>
+                        <span className="inline-flex items-center rounded-full bg-info/15 px-2 py-0.5 text-xs font-medium text-info">v{version || "..."}</span>
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Alpha</span>
                       </div>
 
                       <div className="mt-8 max-w-sm space-y-4">

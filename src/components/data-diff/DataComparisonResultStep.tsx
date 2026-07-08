@@ -82,19 +82,19 @@ export function DataComparisonResultStep({ result }: Props) {
       {/* Summary bar */}
       <div className="flex items-center gap-3 px-4 py-3 border-b flex-wrap">
         <Badge variant="secondary" className="gap-1">
-          <CheckCircle className="h-3 w-3 text-green-500" />
+          <CheckCircle className="h-3 w-3 text-success" />
           {result.summary.matchedRows} matched
         </Badge>
         <Badge variant="secondary" className="gap-1">
-          <Pencil className="h-3 w-3 text-blue-500" />
+          <Pencil className="h-3 w-3 text-warning" />
           {result.summary.modifiedRows} modified
         </Badge>
         <Badge variant="secondary" className="gap-1">
-          <PlusCircle className="h-3 w-3 text-emerald-500" />
+          <PlusCircle className="h-3 w-3 text-success" />
           {result.summary.addedRows} added
         </Badge>
         <Badge variant="secondary" className="gap-1">
-          <MinusCircle className="h-3 w-3 text-red-500" />
+          <MinusCircle className="h-3 w-3 text-destructive" />
           {result.summary.removedRows} removed
         </Badge>
         <div className="flex-1" />
@@ -103,7 +103,7 @@ export function DataComparisonResultStep({ result }: Props) {
           {result.summary.comparisonTimeMs}ms
         </span>
         {result.warnings.length > 0 && (
-          <Badge variant="outline" className="gap-1 text-amber-600 border-amber-300">
+          <Badge variant="outline" className="gap-1 text-warning border-warning/40">
             <AlertTriangle className="h-3 w-3" />
             {result.warnings.length} warning{result.warnings.length > 1 ? "s" : ""}
           </Badge>
@@ -112,9 +112,9 @@ export function DataComparisonResultStep({ result }: Props) {
 
       {/* Warnings */}
       {result.warnings.length > 0 && (
-        <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/20 border-b">
+        <div className="px-4 py-2 bg-warning/10 border-b">
           {result.warnings.map((w, i) => (
-            <p key={i} className="text-xs text-amber-700 dark:text-amber-400">{w}</p>
+            <p key={i} className="text-xs text-warning">{w}</p>
           ))}
         </div>
       )}
@@ -148,7 +148,7 @@ export function DataComparisonResultStep({ result }: Props) {
         <div className="grid grid-cols-2 h-full">
           {/* Source grid */}
           <div className="flex flex-col border-r overflow-hidden">
-            <div className="px-3 py-2 bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-medium border-b truncate">
+            <div className="px-3 py-2 bg-info/10 text-info text-xs font-medium border-b truncate">
               Source: {result.sourceLabel}
             </div>
             <div
@@ -165,7 +165,7 @@ export function DataComparisonResultStep({ result }: Props) {
                         key={col.name}
                         className={cn(
                           "px-2 py-1.5 text-left font-medium border-b whitespace-nowrap",
-                          diffColumnNames.has(col.name) && "text-amber-700 dark:text-amber-400"
+                          diffColumnNames.has(col.name) && "text-warning"
                         )}
                       >
                         {col.name}
@@ -194,7 +194,7 @@ export function DataComparisonResultStep({ result }: Props) {
 
           {/* Target grid */}
           <div className="flex flex-col overflow-hidden">
-            <div className="px-3 py-2 bg-green-500/10 text-green-700 dark:text-green-300 text-xs font-medium border-b truncate">
+            <div className="px-3 py-2 bg-success/10 text-success text-xs font-medium border-b truncate">
               Target: {result.targetLabel}
             </div>
             <div
@@ -211,7 +211,7 @@ export function DataComparisonResultStep({ result }: Props) {
                         key={col.name}
                         className={cn(
                           "px-2 py-1.5 text-left font-medium border-b whitespace-nowrap",
-                          diffColumnNames.has(col.name) && "text-amber-700 dark:text-amber-400"
+                          diffColumnNames.has(col.name) && "text-warning"
                         )}
                       >
                         {col.name}
@@ -260,7 +260,7 @@ function SourceRow({
   if (row.status === "added") {
     // Added rows only exist in target - show empty placeholder
     return (
-      <tr className="bg-emerald-500/5">
+      <tr className="bg-success/5">
         <td className="px-2 py-1 border-b text-muted-foreground">-</td>
         {columns.map((col) => (
           <td key={col} className="px-2 py-1 border-b text-muted-foreground/40">
@@ -273,9 +273,9 @@ function SourceRow({
 
   const rowBg =
     row.status === "removed"
-      ? "bg-red-500/10"
+      ? "bg-destructive/10"
       : row.status === "modified"
-      ? "bg-blue-500/5"
+      ? "bg-warning/5"
       : "";
 
   return (
@@ -294,7 +294,7 @@ function SourceRow({
             key={col}
             className={cn(
               "px-2 py-1 border-b whitespace-nowrap max-w-[200px] truncate",
-              isDiff && "bg-amber-500/20 font-medium"
+              isDiff && "bg-warning/20 font-medium"
             )}
             title={formatValue(value)}
           >
@@ -323,7 +323,7 @@ function TargetRow({
   if (row.status === "removed") {
     // Removed rows only exist in source - show empty placeholder
     return (
-      <tr className="bg-red-500/5">
+      <tr className="bg-destructive/5">
         <td className="px-2 py-1 border-b text-muted-foreground">-</td>
         {columns.map((col) => (
           <td key={col} className="px-2 py-1 border-b text-muted-foreground/40">
@@ -336,9 +336,9 @@ function TargetRow({
 
   const rowBg =
     row.status === "added"
-      ? "bg-emerald-500/10"
+      ? "bg-success/10"
       : row.status === "modified"
-      ? "bg-blue-500/5"
+      ? "bg-warning/5"
       : "";
 
   return (
@@ -357,7 +357,7 @@ function TargetRow({
             key={col}
             className={cn(
               "px-2 py-1 border-b whitespace-nowrap max-w-[200px] truncate",
-              isDiff && "bg-amber-500/20 font-medium"
+              isDiff && "bg-warning/20 font-medium"
             )}
             title={formatValue(value)}
           >

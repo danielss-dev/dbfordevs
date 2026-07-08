@@ -45,9 +45,9 @@ export function DmlPreviewView({ statements }: DmlPreviewViewProps) {
                 <span
                   className={cn(
                     "inline-flex items-center gap-1 text-xs font-bold uppercase px-2 py-0.5 rounded",
-                    operationType === "INSERT" && "bg-green-500/20 text-green-600 dark:text-green-400",
-                    operationType === "DELETE" && "bg-red-500/20 text-red-600 dark:text-red-400",
-                    operationType === "UPDATE" && "bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                    operationType === "INSERT" && "bg-success/20 text-success",
+                    operationType === "DELETE" && "bg-destructive/20 text-destructive",
+                    operationType === "UPDATE" && "bg-info/20 text-info"
                   )}
                 >
                   {getOperationIcon(operationType)}

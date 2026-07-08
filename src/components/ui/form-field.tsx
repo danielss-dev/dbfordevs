@@ -24,7 +24,7 @@ export function FormField({ label, htmlFor, hint, required, children }: FormFiel
       <div className="flex items-center gap-2">
         <Label htmlFor={htmlFor} className="text-sm font-medium">
           {label}
-          {required && <span className="text-red-500 ml-0.5">*</span>}
+          {required && <span className="text-destructive ml-0.5">*</span>}
         </Label>
         {hint && (
           <TooltipProvider delayDuration={300}>

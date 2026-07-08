@@ -172,7 +172,7 @@ function TreeItem({
           {isConnected !== undefined && (
             <span className={cn(
               "w-2 h-2 rounded-full shrink-0",
-              isConnected ? "bg-[hsl(var(--success))]" : "bg-muted-foreground/30"
+              isConnected ? "bg-success" : "bg-muted-foreground/30"
             )} />
           )}
         </button>
@@ -1476,7 +1476,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">current</span>
                                           )}
                                           {db.state !== "ONLINE" && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning">
                                               {db.state.toLowerCase()}
                                             </span>
                                           )}
@@ -2011,7 +2011,7 @@ function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                           label={idx.name}
                                           icon={<ListTree className={cn(
                                             "h-3.5 w-3.5",
-                                            idx.isPrimary ? "text-primary" : idx.isUnique ? "text-yellow-500" : "text-muted-foreground"
+                                            idx.isPrimary ? "text-primary" : idx.isUnique ? "text-warning" : "text-muted-foreground"
                                           )} />}
                                           level={2}
                                         />

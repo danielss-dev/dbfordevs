@@ -67,7 +67,7 @@ function PropertyItem({ icon, label, value, isSensitive, mono }: PropertyItemPro
           onClick={handleCopy}
         >
           {copied ? (
-            <Check className="h-3.5 w-3.5 text-green-500" />
+            <Check className="h-3.5 w-3.5 text-success" />
           ) : (
             <Copy className="h-3.5 w-3.5 text-muted-foreground" />
           )}
@@ -129,7 +129,7 @@ export function ConnectionPropertiesDialog({
                     <div
                       className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                         isConnected
-                          ? "bg-green-500/20 text-green-400"
+                          ? "bg-success/20 text-success"
                           : "bg-muted text-muted-foreground"
                       }`}
                     >

@@ -483,7 +483,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                                         <ContextMenuSeparator />
                                         <ContextMenuItem
                                           onSelect={() => setTruncateDialog({ keyspace: ks.name, table: tbl.name })}
-                                          className="gap-2 text-orange-500 focus:text-orange-500"
+                                          className="gap-2 text-warning focus:text-warning"
                                         >
                                           <Trash2 className="h-4 w-4" />
                                           Truncate Table
@@ -539,7 +539,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                   {systemKeyspaces.length > 0 && (
                     <TreeItem
                       label="System"
-                      icon={<FolderClosed className="h-3.5 w-3.5 text-gray-500" />}
+                      icon={<FolderClosed className="h-3.5 w-3.5 text-muted-foreground" />}
                       level={1}
                       count={systemKeyspaces.length}
                     >
@@ -547,7 +547,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                         <TreeItem
                           key={ks.name}
                           label={ks.name}
-                          icon={<Database className="h-3.5 w-3.5 text-gray-400" />}
+                          icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
                           level={2}
                           onClick={() => handleKeyspaceClick(ks.name)}
                         />
@@ -668,7 +668,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => truncateDialog && handleTruncateTable(truncateDialog.keyspace, truncateDialog.table)}
-              className="bg-orange-500 text-white hover:bg-orange-600"
+              className="bg-warning text-warning-foreground hover:bg-warning/90"
             >
               Truncate Table
             </AlertDialogAction>

@@ -163,7 +163,7 @@ export function DataTypeCombobox({
             <span className="font-medium text-foreground font-mono">{selectedType.name}</span>
             <span className="text-muted-foreground">({selectedType.categoryName})</span>
             {selectedType.supportsAutoIncrement && (
-              <span className="text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] bg-warning/20 text-warning px-1.5 py-0.5 rounded">
                 Auto Increment
               </span>
             )}

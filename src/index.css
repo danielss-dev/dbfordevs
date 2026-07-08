@@ -1031,12 +1031,12 @@
 }
 
 .status-dot-success {
-  @apply bg-[hsl(var(--success))];
+  @apply bg-success;
   box-shadow: 0 0 8px hsl(var(--success) / 0.5);
 }
 
 .status-dot-warning {
-  @apply bg-[hsl(var(--warning))];
+  @apply bg-warning;
   box-shadow: 0 0 8px hsl(var(--warning) / 0.5);
 }
 
@@ -1046,29 +1046,8 @@
 }
 
 .status-dot-info {
-  @apply bg-[hsl(var(--info))];
+  @apply bg-info;
   box-shadow: 0 0 8px hsl(var(--info) / 0.5);
-}
-
-/* Badge styles */
-.badge {
-  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
-}
-
-.badge-success {
-  @apply bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))];
-}
-
-.badge-warning {
-  @apply bg-[hsl(var(--warning)/0.15)] text-[hsl(var(--warning))];
-}
-
-.badge-error {
-  @apply bg-destructive/15 text-destructive;
-}
-
-.badge-info {
-  @apply bg-[hsl(var(--info)/0.15)] text-[hsl(var(--info))];
 }
 
 /* Code/mono text */

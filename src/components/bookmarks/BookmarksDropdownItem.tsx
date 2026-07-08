@@ -53,12 +53,12 @@ export function BookmarksDropdownItem({
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium truncate">{bookmark.name}</span>
                 {bookmark.isTemplate && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                     Template
                   </span>
                 )}
                 {bookmark.databaseType && !bookmark.connectionId && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info flex items-center gap-1">
                     <Database className="h-2.5 w-2.5" />
                     {bookmark.databaseType}
                   </span>

@@ -192,7 +192,7 @@ export function SchemaDiffDialog() {
                   className={cn(
                     "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors",
                     isActive && "bg-primary text-primary-foreground",
-                    isCompleted && "bg-green-500/20 text-green-700 dark:text-green-300",
+                    isCompleted && "bg-success/20 text-success",
                     !isActive && !isCompleted && "text-muted-foreground"
                   )}
                 >

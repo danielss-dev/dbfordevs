@@ -247,7 +247,7 @@ export function RedisListEditor({ connectionId, keyName }: RedisListEditorProps)
       <div className="px-3 py-2 text-xs text-muted-foreground border-b">
         Showing {originalValues.length} of {totalLength} elements
         {pendingChanges.length > 0 && (
-          <span className="ml-2 text-amber-500">
+          <span className="ml-2 text-warning">
             ({pendingChanges.length} staged)
           </span>
         )}
@@ -260,14 +260,14 @@ export function RedisListEditor({ connectionId, keyName }: RedisListEditorProps)
             key={`${item.index}-${displayIndex}`}
             className={cn(
               "group flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:bg-muted/30",
-              item.status === "pushed" && "bg-green-500/5",
-              item.status === "modified" && "bg-amber-500/5",
-              item.status === "removed" && "bg-red-500/5 opacity-60"
+              item.status === "pushed" && "bg-success/5",
+              item.status === "modified" && "bg-warning/5",
+              item.status === "removed" && "bg-destructive/5 opacity-60"
             )}
           >
             <span className={cn(
               "text-xs text-muted-foreground w-8",
-              item.status === "pushed" && "text-green-600 dark:text-green-400"
+              item.status === "pushed" && "text-success"
             )}>
               {item.status === "pushed" ? "new" : item.index}
             </span>
@@ -299,7 +299,7 @@ export function RedisListEditor({ connectionId, keyName }: RedisListEditorProps)
                   }}
                 />
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleSaveEdit(item.index)}>
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-success" />
                 </Button>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleCancelEdit}>
                   <X className="h-4 w-4 text-muted-foreground" />
@@ -309,8 +309,8 @@ export function RedisListEditor({ connectionId, keyName }: RedisListEditorProps)
               <>
                 <span className={cn(
                   "flex-1 font-mono text-sm truncate",
-                  item.status === "pushed" && "text-green-600 dark:text-green-400",
-                  item.status === "modified" && "text-amber-600 dark:text-amber-400"
+                  item.status === "pushed" && "text-success",
+                  item.status === "modified" && "text-warning"
                 )}>
                   {item.value}
                 </span>

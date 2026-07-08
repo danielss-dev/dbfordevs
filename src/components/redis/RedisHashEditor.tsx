@@ -231,7 +231,7 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
       <div className="px-3 py-2 text-xs text-muted-foreground border-b">
         {totalFields} fields
         {pendingChanges.length > 0 && (
-          <span className="ml-2 text-amber-500">
+          <span className="ml-2 text-warning">
             ({pendingChanges.length} staged)
           </span>
         )}
@@ -244,15 +244,15 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
             key={field.field}
             className={cn(
               "group flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:bg-muted/30",
-              field.status === "added" && "bg-green-500/5",
-              field.status === "modified" && "bg-amber-500/5",
-              field.status === "deleted" && "bg-red-500/5 opacity-60"
+              field.status === "added" && "bg-success/5",
+              field.status === "modified" && "bg-warning/5",
+              field.status === "deleted" && "bg-destructive/5 opacity-60"
             )}
           >
             <span className={cn(
               "font-mono text-sm text-muted-foreground w-1/4 truncate",
-              field.status === "added" && "text-green-600 dark:text-green-400",
-              field.status === "modified" && "text-amber-600 dark:text-amber-400",
+              field.status === "added" && "text-success",
+              field.status === "modified" && "text-warning",
               field.status === "deleted" && "line-through"
             )}>
               {field.field}
@@ -285,7 +285,7 @@ export function RedisHashEditor({ connectionId, keyName }: RedisHashEditorProps)
                   }}
                 />
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleSaveEdit}>
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-success" />
                 </Button>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleCancelEdit}>
                   <X className="h-4 w-4 text-muted-foreground" />
