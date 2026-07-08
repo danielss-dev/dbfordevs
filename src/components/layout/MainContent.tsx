@@ -87,7 +87,8 @@ function TabItem({ tab, isActive, onClose, onClick }: {
       role="button"
       tabIndex={0}
       className={cn(
-        "group relative flex items-center gap-2 text-sm transition-all duration-150 cursor-pointer outline-none",
+        "group relative flex items-center gap-2 text-sm transition-all duration-150 ease-swift cursor-pointer outline-none",
+        "focus-visible:shadow-[inset_0_0_0_1.5px_hsl(var(--ring)),inset_0_0_0_4px_var(--accent-glow)]",
         tab.isPinned ? "px-3 py-2" : "px-4 py-2",
         isActive
           ? "bg-background text-foreground"
@@ -108,10 +109,13 @@ function TabItem({ tab, isActive, onClose, onClick }: {
         }
       }}
     >
-      {/* Active indicator - top accent line */}
-      {isActive && (
-        <div className="absolute top-0 left-2 right-2 h-[2px] bg-primary rounded-b-full" />
-      )}
+      {/* Active indicator - accent underline that grows in */}
+      <div
+        className={cn(
+          "absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary transition-transform duration-200 ease-swift",
+          isActive ? "scale-x-100" : "scale-x-0"
+        )}
+      />
       {/* Bottom border for inactive tabs */}
       {!isActive && (
         <div className="absolute bottom-0 left-0 right-0 h-px bg-border/50" />
@@ -138,8 +142,9 @@ function TabItem({ tab, isActive, onClose, onClick }: {
         <button
           className={cn(
             "ml-1 rounded-md p-0.5 transition-all duration-150 shrink-0",
-            "opacity-0 group-hover:opacity-100",
-            "hover:bg-destructive/10 hover:text-destructive"
+            "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+            "hover:bg-destructive/10 hover:text-destructive",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]"
           )}
           onClick={(e) => {
             e.stopPropagation();

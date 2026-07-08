@@ -750,6 +750,31 @@
   }
 }
 
+/* Shared design tokens — inherited by every theme; dark-family themes override below */
+:root {
+  /* Elevation scale (warm-tinted for light themes) */
+  --shadow-1: 0 1px 2px rgba(60, 40, 20, 0.06), 0 2px 8px rgba(60, 40, 20, 0.06);
+  --shadow-2: 0 4px 16px rgba(60, 40, 20, 0.1);
+  --shadow-3: 0 12px 32px rgba(60, 40, 20, 0.14);
+  --shadow-pop: 0 12px 32px rgba(60, 40, 20, 0.16), 0 2px 8px rgba(60, 40, 20, 0.08);
+  /* Focus glow, derived from each theme's ring color */
+  --accent-glow: hsl(var(--ring) / 0.22);
+  /* House motion */
+  --ease-swift: cubic-bezier(0.2, 0.7, 0.4, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 0.7, 0.9);
+  /* Readable text on semantic fills */
+  --success-foreground: 0 0% 100%;
+  --warning-foreground: 30 15% 10%;
+  --info-foreground: 0 0% 100%;
+}
+
+.dark {
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
 /* Style-specific variations */
 .style-developer {
   --radius: 0.2rem;
@@ -1051,13 +1076,47 @@
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* Smooth transitions for theme changes */
+/* Keyboard shortcut chip */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  box-shadow: 0 0 0 1px hsl(var(--border)) inset, 0 1px 0 hsl(var(--border));
+}
+
+/* Tracked-uppercase section label */
+.micro-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Smooth transitions for theme changes and hover states */
 *,
 *::before,
 *::after {
-  transition-property: background-color, border-color;
-  transition-duration: 150ms;
-  transition-timing-function: ease;
+  transition-property: background-color, border-color, color;
+  transition-duration: 120ms;
+  transition-timing-function: var(--ease-swift);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Disable transitions for elements that shouldn't animate */

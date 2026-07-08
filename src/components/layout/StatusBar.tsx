@@ -106,7 +106,7 @@ export function StatusBar() {
   const tabInfo = getTabTypeInfo();
 
   return (
-    <footer className="flex h-7 items-center justify-between border-t border-border bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 px-3 text-xs">
+    <footer className="flex h-7 items-center justify-between border-t border-border bg-muted/30 px-3 text-xs tabular-nums">
       {/* Left side */}
       <div className="flex items-center gap-3">
         {/* Connection status */}

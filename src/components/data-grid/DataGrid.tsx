@@ -912,8 +912,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                           ? "px-1 py-0 w-14 text-center bg-muted/20 border-r border-border/30 sticky left-0 z-30 bg-[hsl(var(--table-header-bg))]"
                           : "min-w-[120px] border-r border-border/20 last:border-r-0",
                         header.column.id !== "rowNumber" && isPinned && "sticky z-20 bg-[hsl(var(--table-header-bg))]",
-                        header.column.id !== "rowNumber" && isPinned === "left" && "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]",
-                        header.column.id !== "rowNumber" && isPinned === "right" && "right-0 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
+                        header.column.id !== "rowNumber" && isPinned === "left" && "shadow-[2px_0_4px_-2px_hsl(var(--foreground)/0.12)]",
+                        header.column.id !== "rowNumber" && isPinned === "right" && "right-0 shadow-[-2px_0_4px_-2px_hsl(var(--foreground)/0.12)]"
                       )}
                       style={{
                         width: header.getSize(),
@@ -996,8 +996,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                             : "border-r border-[hsl(var(--border)/0.15)] last:border-r-0",
                           editingCell?.rowId === row.id && editingCell?.columnId === cell.column.id && "p-0 bg-background ring-2 ring-primary/50",
                           cell.column.id !== "rowNumber" && isPinned && "sticky z-10 bg-[hsl(var(--background))]",
-                          cell.column.id !== "rowNumber" && isPinned === "left" && "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]",
-                          cell.column.id !== "rowNumber" && isPinned === "right" && "right-0 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
+                          cell.column.id !== "rowNumber" && isPinned === "left" && "shadow-[2px_0_4px_-2px_hsl(var(--foreground)/0.12)]",
+                          cell.column.id !== "rowNumber" && isPinned === "right" && "right-0 shadow-[-2px_0_4px_-2px_hsl(var(--foreground)/0.12)]"
                         )}
                         style={{
                           width: cell.column.getSize(),

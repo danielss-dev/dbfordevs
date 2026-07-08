@@ -53,12 +53,15 @@ export default {
         },
         success: {
           DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
         },
         warning: {
           DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
         },
         info: {
           DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
         },
       },
       borderRadius: {
@@ -67,8 +70,18 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["JetBrains Mono", "Fira Code", "monospace"],
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
         mono: ["JetBrains Mono", "Fira Code", "monospace"],
+      },
+      boxShadow: {
+        "elev-1": "var(--shadow-1)",
+        "elev-2": "var(--shadow-2)",
+        "elev-3": "var(--shadow-3)",
+        pop: "var(--shadow-pop)",
+      },
+      transitionTimingFunction: {
+        swift: "cubic-bezier(0.2, 0.7, 0.4, 1)",
+        exit: "cubic-bezier(0.4, 0, 0.7, 0.9)",
       },
       keyframes: {
         "accordion-down": {
@@ -91,6 +104,10 @@ export default {
           "0%": { transform: "translateX(0)" },
           "100%": { transform: "translateX(100%)" },
         },
+        "pop-in": {
+          from: { opacity: "0", transform: "translateY(-6px) scale(0.985)" },
+          to: { opacity: "1", transform: "none" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -98,11 +115,13 @@ export default {
         "slide-in-right": "slide-in-right 0.3s ease-out",
         "slide-out-right": "slide-out-right 0.3s ease-out",
         "toast-progress": "toast-progress linear forwards",
+        "pop-in": "pop-in 0.14s cubic-bezier(0.2, 0.7, 0.4, 1)",
       },
     },
   },
   plugins: [
     require("@tailwindcss/typography"),
+    require("tailwindcss-animate"),
   ],
 }
 

@@ -128,21 +128,26 @@ function TreeItem({
           style={{ left: `${(level - 1) * 16 + 18}px` }}
         />
       )}
-      {/* Active indicator bar */}
-      {isActive && level === 0 && (
-        <div className="absolute left-0 top-1 bottom-1 w-0.5 bg-primary rounded-full z-10" />
+      {/* Active indicator bar - grows in */}
+      {level === 0 && (
+        <div
+          className={cn(
+            "absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-full bg-primary z-10 transition-all duration-150 ease-swift",
+            isActive ? "h-4 opacity-100" : "h-0 opacity-0"
+          )}
+        />
       )}
       <div
         className={cn(
-          "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
-          "hover:bg-sidebar-accent/60",
+          "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-150 ease-swift",
+          "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
           isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
           isHighlighted && "bg-primary/20 ring-1 ring-primary/50 animate-pulse"
         )}
         style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: '8px' }}
       >
         <button
-          className="flex flex-1 items-center gap-2 overflow-hidden"
+          className="flex flex-1 items-center gap-2 overflow-hidden rounded focus-visible:outline-none focus-visible:shadow-[0_0_0_1.5px_hsl(var(--ring)),0_0_0_4px_var(--accent-glow)]"
           onClick={() => {
             if (hasChildren) setIsOpen(!isOpen);
             onClick?.();
@@ -160,8 +165,8 @@ function TreeItem({
             <span className="w-3.5 shrink-0" />
           )}
           <span className={cn(
-            "shrink-0 flex items-center justify-center w-5 h-5 rounded bg-sidebar-accent/30",
-            isActive ? "text-sidebar-accent-foreground bg-sidebar-accent/50" : ""
+            "shrink-0 flex items-center justify-center w-5 h-5 rounded bg-sidebar-accent/30 transition-colors duration-150",
+            isActive ? "text-primary bg-primary/15" : ""
           )}>{icon}</span>
           <span className="truncate flex-1 text-left">{label}</span>
           {isConnected !== undefined && (
@@ -172,7 +177,7 @@ function TreeItem({
           )}
         </button>
         {rightElement && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             {rightElement}
           </div>
         )}
