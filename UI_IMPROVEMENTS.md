@@ -90,13 +90,22 @@ not porting strand's amber or its OKLCH palette; we port the *system*.
 - [x] **Badge/status-dot unification** — legacy `.badge-*` CSS classes deleted; `Badge` CVA
   variants and `row-count-badge`/`execution-time-badge` now use clean token utilities.
 
+## Applied in pass 3
+
+- [x] **Density setting** — compact/default/relaxed row heights via a `--row-h` token, applied to
+  the sidebar tree; persisted in the UI store, selectable in Settings → Appearance, applied as a
+  root class (`density-compact`/`density-relaxed`).
+- [x] **Environment accent** (per-connection accent) — no backend changes needed: connection
+  groups already carry colors (Production = red, Staging = amber…). When the active connection
+  belongs to a colored group, `--primary`/`--ring` re-tint to that color via inline overrides, so
+  every accent surface (buttons, tab underline, focus rings, selection) shows which environment
+  you're in. Toggleable in Settings → Appearance ("Environment Accent", on by default); custom
+  themes are re-applied when the override clears. Verified live: prod connection = red app,
+  ungrouped connection = theme accent.
+
 ## Roadmap (next passes)
 
-1. **Density setting** — strand-style compact/default/relaxed row heights (`--row-h`) for the
-   sidebar tree and data grid.
-2. **Per-connection accent** — strand re-themes per repo; dbfordevs could tint the accent per
-   connection (prod = red, staging = amber…), a killer safety feature for a DB tool. Needs an
-   `accentColor` field on the connection config (Rust struct + TS type + modal UI).
-3. **Empty-state upgrade** — welcome screen with recent connections (strand shows recents, not a blank pane).
-4. **Decompose `Sidebar.tsx` (130KB) / `SidePanel.tsx` (75KB)** before deeper visual work there.
-5. **Contrast audit** of muted-on-muted text (`text-muted-foreground/60` on `bg-muted/30`).
+1. **Empty-state upgrade** — welcome screen with recent connections (strand shows recents, not a blank pane).
+2. **Decompose `Sidebar.tsx` (130KB) / `SidePanel.tsx` (75KB)** before deeper visual work there.
+3. **Contrast audit** of muted-on-muted text (`text-muted-foreground/60` on `bg-muted/30`).
+4. **Density, phase 2** — extend `--row-h` to query-history lists, bookmark lists, and menu items.

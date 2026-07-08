@@ -243,6 +243,8 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Binary Data", description: "Preview options for binary data.", keywords: ["binary", "hex", "image", "blob"], tabValue: "datagrid" },
   // Appearance
   { label: "Theme", description: "Switch between light, dark, or system theme.", keywords: ["theme", "light", "dark", "system", "color"], tabValue: "appearance" },
+  { label: "Density", description: "Row height in lists and the connection tree.", keywords: ["density", "compact", "relaxed", "spacing", "row", "height"], tabValue: "appearance" },
+  { label: "Environment Accent", description: "Tint the accent color to the active connection's group color.", keywords: ["environment", "accent", "production", "staging", "group", "color", "safety"], tabValue: "appearance" },
   { label: "Enable Animations", description: "Enable smooth animations throughout the interface.", keywords: ["animation", "animations", "smooth", "motion", "transition", "effects"], tabValue: "appearance" },
   // Keybindings
   { label: "Keyboard Shortcuts", description: "Master dbfordevs with these handy keys.", keywords: ["keyboard", "shortcut", "key", "binding", "find", "replace", "search", "shortcuts"], tabValue: "keybindings" },
@@ -264,6 +266,8 @@ export function SettingsDialog() {
     setShowSettingsDialog,
     theme,
     setTheme,
+    density,
+    setDensity,
     editorSettings,
     updateEditorSettings,
     generalSettings,
@@ -930,6 +934,34 @@ export function SettingsDialog() {
                               )}
                             </SelectContent>
                           </Select>
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Density"
+                          description="Row height in lists and the connection tree."
+                        >
+                          <Select value={density} onValueChange={(v) => setDensity(v as "compact" | "default" | "relaxed")}>
+                            <SelectTrigger className="w-48">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="compact">Compact</SelectItem>
+                              <SelectItem value="default">Default</SelectItem>
+                              <SelectItem value="relaxed">Relaxed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Environment Accent"
+                          description="Tint the accent color to the active connection's group color (e.g. red for Production)."
+                        >
+                          <Checkbox
+                            checked={generalSettings.accentFollowsConnection ?? true}
+                            onCheckedChange={(checked: boolean) =>
+                              handleGeneralSettingChange("accentFollowsConnection", checked)
+                            }
+                          />
                         </SettingRow>
                         <Separator />
                         <SettingRow

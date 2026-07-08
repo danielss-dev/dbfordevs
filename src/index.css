@@ -766,6 +766,16 @@
   --success-foreground: 0 0% 100%;
   --warning-foreground: 30 15% 10%;
   --info-foreground: 0 0% 100%;
+  /* Density: list/tree row height */
+  --row-h: 30px;
+}
+
+.density-compact {
+  --row-h: 24px;
+}
+
+.density-relaxed {
+  --row-h: 36px;
 }
 
 .dark {

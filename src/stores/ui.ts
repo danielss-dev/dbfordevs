@@ -27,6 +27,7 @@ type BuiltInTheme = "light" | "dark" | "system" | "classic-light" | "classic-dar
  */
 type Theme = BuiltInTheme | `custom:${string}`;
 type AppStyle = "developer" | "web";
+export type Density = "compact" | "default" | "relaxed";
 
 interface EditorSettings {
   fontFamily: string;
@@ -49,6 +50,8 @@ interface GeneralSettings {
   checkUpdatesOnStartup: boolean;
   sendAnalytics: boolean;
   enableAnimations: boolean;
+  /** Tint the accent to the active connection's group color (e.g. red for Production) */
+  accentFollowsConnection?: boolean;
 }
 
 export type RightPanelTab = "fields" | "changes" | "preview" | "explain" | "ai" | "schema-search" | null;
@@ -57,6 +60,7 @@ interface UIState {
   // Theme
   theme: Theme;
   appStyle: AppStyle;
+  density: Density;
   // Sidebar
   sidebarOpen: boolean;
   sidebarWidth: number;
@@ -122,6 +126,7 @@ interface UIState {
   // Actions
   setTheme: (theme: Theme) => void;
   setAppStyle: (style: AppStyle) => void;
+  setDensity: (density: Density) => void;
   updateEditorSettings: (settings: Partial<EditorSettings>) => void;
   updateGeneralSettings: (settings: Partial<GeneralSettings>) => void;
   updateFormatterSettings: (settings: Partial<FormatterSettings>) => void;
@@ -179,6 +184,7 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       theme: "system",
       appStyle: "developer",
+      density: "default",
       sidebarOpen: true,
       sidebarWidth: 260,
       sidePanelOpen: false,
@@ -197,6 +203,7 @@ export const useUIStore = create<UIState>()(
         checkUpdatesOnStartup: true,
         sendAnalytics: false,
         enableAnimations: true,
+        accentFollowsConnection: true,
       },
       formatterSettings: {
         keywordCase: "upper",
@@ -318,6 +325,15 @@ export const useUIStore = create<UIState>()(
         root.classList.remove("style-developer", "style-web");
         root.classList.add(`style-${appStyle}`);
         set({ appStyle });
+      },
+
+      setDensity: (density) => {
+        const root = document.documentElement;
+        root.classList.remove("density-compact", "density-relaxed");
+        if (density !== "default") {
+          root.classList.add(`density-${density}`);
+        }
+        set({ density });
       },
 
       updateEditorSettings: (settings) =>
@@ -575,6 +591,7 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         theme: state.theme,
         appStyle: state.appStyle,
+        density: state.density,
         sidebarWidth: state.sidebarWidth,
         sidePanelWidth: state.sidePanelWidth,
         editorSettings: state.editorSettings,

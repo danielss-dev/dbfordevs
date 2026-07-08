@@ -139,7 +139,7 @@ function TreeItem({
       )}
       <div
         className={cn(
-          "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-150 ease-swift",
+          "group flex w-full items-center gap-2 rounded-md h-[var(--row-h)] text-sm transition-all duration-150 ease-swift",
           "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
           isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
           isHighlighted && "bg-primary/20 ring-1 ring-primary/50 animate-pulse"
