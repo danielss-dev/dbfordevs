@@ -28,7 +28,7 @@ export function QueryHistoryDropdownItem({
   return (
     <DropdownMenuItem
       className={cn(
-        "flex flex-col items-start gap-2 p-3 cursor-pointer transition-all duration-200 group",
+        "flex flex-col items-start gap-2 px-3 py-[var(--pad-card-y)] cursor-pointer transition-all duration-200 group",
         entry.success ? "border-l-2 border-l-transparent" : "border-l-2 border-l-destructive",
         entry.isFavorite && "border-l-warning bg-warning/5",
         isExpanded && "bg-muted/50"

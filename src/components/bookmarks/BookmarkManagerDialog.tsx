@@ -281,7 +281,7 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                   <button
                     type="button"
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm",
+                      "w-full flex items-center gap-2 px-3 py-[var(--pad-list-y)] rounded-md text-sm",
                       "hover:bg-accent transition-colors",
                       selectedCategory === "all" && "bg-accent"
                     )}
@@ -298,7 +298,7 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                   <button
                     type="button"
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm",
+                      "w-full flex items-center gap-2 px-3 py-[var(--pad-list-y)] rounded-md text-sm",
                       "hover:bg-accent transition-colors",
                       selectedCategory === "favorites" && "bg-accent"
                     )}
@@ -315,7 +315,7 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                   <button
                     type="button"
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm",
+                      "w-full flex items-center gap-2 px-3 py-[var(--pad-list-y)] rounded-md text-sm",
                       "hover:bg-accent transition-colors",
                       selectedCategory === "templates" && "bg-accent"
                     )}
@@ -393,7 +393,7 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                           <button
                             type="button"
                             className={cn(
-                              "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm",
+                              "w-full flex items-center gap-2 px-3 py-[var(--pad-list-y)] rounded-md text-sm",
                               "hover:bg-accent transition-colors",
                               selectedCategory === "folder" && selectedFolderId === folder.id && "bg-accent"
                             )}
@@ -480,7 +480,7 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                         className="group rounded-lg border hover:bg-accent/50 transition-colors overflow-hidden"
                       >
                         {/* Header row */}
-                        <div className="flex items-center gap-3 p-3 pb-2">
+                        <div className="flex items-center gap-3 px-3 pt-[var(--pad-card-y)] pb-2">
                           {/* Favorite toggle */}
                           <button
                             type="button"

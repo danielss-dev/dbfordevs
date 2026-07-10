@@ -766,16 +766,26 @@
   --success-foreground: 0 0% 100%;
   --warning-foreground: 30 15% 10%;
   --info-foreground: 0 0% 100%;
-  /* Density: list/tree row height */
+  /* Density: list/tree row height + vertical paddings for rows that can't be
+     fixed-height (menu items, list rows, multi-line cards) */
   --row-h: 30px;
+  --pad-menu-y: 6px;
+  --pad-list-y: 8px;
+  --pad-card-y: 12px;
 }
 
 .density-compact {
   --row-h: 24px;
+  --pad-menu-y: 4px;
+  --pad-list-y: 5px;
+  --pad-card-y: 8px;
 }
 
 .density-relaxed {
   --row-h: 36px;
+  --pad-menu-y: 8px;
+  --pad-list-y: 11px;
+  --pad-card-y: 16px;
 }
 
 .dark {

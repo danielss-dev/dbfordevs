@@ -114,8 +114,30 @@ not porting strand's amber or its OKLCH palette; we port the *system*.
   DiffViewer was nearly invisible (`/40`) while its value was `text-warning` — both diff blocks
   now color the marker `warning` to match.
 
+## Applied in pass 5
+
+- [x] **`Sidebar.tsx` decomposed** (2897 → 218 lines) — `layout/sidebar/` now holds `TreeItem`
+  and `ConnectionItem` (1220 lines: connection tree, MSSQL database explorer, tables tree,
+  context menu + dialogs), with all seven object sections — Security, Views, Indexes, Procedures,
+  Functions, Triggers, Sequences — extracted to `sidebar/sections/` as self-contained components
+  (own state, store subscriptions, copy-DDL/drop handlers, and confirm dialogs), each taking just
+  `{ connection }`. Render gates (`featureSupport.*`, `!isSqlite`) stayed at the call site so
+  nothing loads or renders differently.
+- [x] **`SidePanel.tsx` decomposed** (1940 → 120 lines) — panels extracted to
+  `layout/side-panel/`: `FieldEditor` (+ field-type helpers), `FieldsPanel`,
+  `ChangesPreviewPanel` (+ SQL/Redis preview formatters), `QueryPreviewPanel`,
+  `AIAssistantPanel`; shared `selectActiveTab` in `shared.ts`. Byte-identical move,
+  public `@/components/layout` API unchanged.
+- [x] **Density, phase 2** — new `--pad-menu-y` / `--pad-list-y` / `--pad-card-y` tokens ride the
+  existing `density-compact`/`density-relaxed` root classes (defaults preserve today's look
+  exactly: 6/8/12px). Applied to dropdown/context/select menu items, autocomplete suggestions,
+  bookmark dropdown + manager rows, and both query-history row variants — so Compact/Relaxed now
+  affects menus and multi-line list rows, not just the sidebar tree.
+
 ## Roadmap (next passes)
 
-1. **Decompose `Sidebar.tsx` (130KB) / `SidePanel.tsx` (75KB)** before deeper visual work there.
-2. **Density, phase 2** — extend `--row-h` to query-history lists, bookmark lists, and menu items
-   (needs a padding-based approach for multi-line rows).
+1. **Density, phase 3** — audit remaining dense surfaces (schema search results, command palette
+   rows) for `--pad-*` adoption.
+2. **Deduplicate `TreeItem`** — `RedisConnectionContent`, `MongoConnectionContent`, and
+   `CassandraConnectionContent` each carry a local copy; point them at
+   `layout/sidebar/TreeItem.tsx`.

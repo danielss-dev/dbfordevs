@@ -243,7 +243,7 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Binary Data", description: "Preview options for binary data.", keywords: ["binary", "hex", "image", "blob"], tabValue: "datagrid" },
   // Appearance
   { label: "Theme", description: "Switch between light, dark, or system theme.", keywords: ["theme", "light", "dark", "system", "color"], tabValue: "appearance" },
-  { label: "Density", description: "Row height in lists and the connection tree.", keywords: ["density", "compact", "relaxed", "spacing", "row", "height"], tabValue: "appearance" },
+  { label: "Density", description: "Row height and spacing in lists, menus, and the connection tree.", keywords: ["density", "compact", "relaxed", "spacing", "row", "height"], tabValue: "appearance" },
   { label: "Environment Accent", description: "Tint the accent color to the active connection's group color.", keywords: ["environment", "accent", "production", "staging", "group", "color", "safety"], tabValue: "appearance" },
   { label: "Enable Animations", description: "Enable smooth animations throughout the interface.", keywords: ["animation", "animations", "smooth", "motion", "transition", "effects"], tabValue: "appearance" },
   // Keybindings
@@ -938,7 +938,7 @@ export function SettingsDialog() {
                         <Separator />
                         <SettingRow
                           label="Density"
-                          description="Row height in lists and the connection tree."
+                          description="Row height and spacing in lists, menus, and the connection tree."
                         >
                           <Select value={density} onValueChange={(v) => setDensity(v as "compact" | "default" | "relaxed")}>
                             <SelectTrigger className="w-48">

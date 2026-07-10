@@ -17,7 +17,7 @@ export function QueryHistoryItem({ entry, onLoad, onDelete, onToggleFavorite }: 
   return (
     <div
       className={cn(
-        "group flex flex-col gap-2 rounded-md border p-3 hover:bg-muted/50 cursor-pointer transition-colors",
+        "group flex flex-col gap-2 rounded-md border px-3 py-[var(--pad-card-y)] hover:bg-muted/50 cursor-pointer transition-colors",
         entry.success ? "border-border" : "border-destructive/50",
         entry.isFavorite && "border-warning/50 bg-warning/5"
       )}

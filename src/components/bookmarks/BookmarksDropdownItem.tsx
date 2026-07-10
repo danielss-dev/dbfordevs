@@ -30,7 +30,7 @@ export function BookmarksDropdownItem({
         <button
           type="button"
           className={cn(
-            "w-full text-left px-2 py-1.5 rounded-sm cursor-pointer",
+            "w-full text-left px-2 py-[var(--pad-menu-y)] rounded-sm cursor-pointer",
             "hover:bg-accent hover:text-accent-foreground",
             "focus:bg-accent focus:text-accent-foreground focus:outline-none",
             "transition-colors duration-150"

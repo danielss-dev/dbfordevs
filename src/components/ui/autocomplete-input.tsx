@@ -196,7 +196,7 @@ const AutocompleteInput = React.forwardRef<HTMLInputElement, AutocompleteInputPr
                       type="button"
                       data-option
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer",
+                        "flex w-full items-center gap-2 rounded-sm px-2 py-[var(--pad-menu-y)] text-sm cursor-pointer",
                         "hover:bg-accent hover:text-accent-foreground",
                         "focus:bg-accent focus:text-accent-foreground focus:outline-none",
                         index === highlightedIndex && "bg-accent text-accent-foreground"
