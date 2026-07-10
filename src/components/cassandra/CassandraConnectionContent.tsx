@@ -6,7 +6,6 @@ import {
   Table2,
   Terminal,
   ServerCog,
-  ChevronRight,
   Loader2,
   RefreshCw,
   Trash2,
@@ -14,6 +13,7 @@ import {
   Key,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TreeItem } from "@/components/layout/sidebar/TreeItem";
 import {
   Button,
   Tooltip,
@@ -36,121 +36,6 @@ import {
 import { useCassandra, useToast } from "@/hooks";
 import { useCassandraStore, useQueryStore } from "@/stores";
 import type { Tab } from "@/types";
-
-interface TreeItemProps {
-  label: string;
-  icon: React.ReactNode;
-  children?: React.ReactNode;
-  level?: number;
-  onClick?: () => void;
-  isActive?: boolean;
-  isHighlighted?: boolean;
-  rightElement?: React.ReactNode;
-  defaultOpen?: boolean;
-  forceOpen?: boolean;
-  count?: number;
-  itemRef?: React.RefObject<HTMLDivElement>;
-  badge?: string;
-}
-
-function TreeItem({
-  label,
-  icon,
-  children,
-  level = 0,
-  onClick,
-  isActive,
-  isHighlighted,
-  rightElement,
-  defaultOpen = false,
-  forceOpen,
-  count,
-  itemRef,
-  badge,
-}: TreeItemProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const hasChildren = Boolean(children);
-
-  useEffect(() => {
-    if (forceOpen) {
-      setIsOpen(true);
-    }
-  }, [forceOpen]);
-
-  const effectiveOpen = isOpen || forceOpen;
-
-  return (
-    <div className="group/tree relative min-w-0" ref={itemRef}>
-      {level > 0 && (
-        <div
-          className="tree-guide"
-          style={{ left: `${(level - 1) * 16 + 18}px` }}
-        />
-      )}
-      <div
-        className={cn(
-          "group flex w-full items-center gap-1 rounded-md min-h-[var(--row-h)] text-sm transition-all duration-200 min-w-0",
-          "hover:bg-sidebar-accent/60",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-          isHighlighted && "animate-highlight-blink"
-        )}
-        style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: "8px" }}
-      >
-        <button
-          className="flex flex-1 items-center gap-1.5 overflow-hidden min-w-0"
-          onClick={() => {
-            if (hasChildren) setIsOpen(!isOpen);
-            onClick?.();
-          }}
-        >
-          {hasChildren ? (
-            <ChevronRight
-              className={cn(
-                "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-                effectiveOpen && "rotate-90",
-                isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
-              )}
-            />
-          ) : (
-            <span className="w-3.5 shrink-0" />
-          )}
-          <span
-            className={cn(
-              "shrink-0 flex items-center justify-center w-4 h-4 rounded",
-              isActive ? "text-sidebar-accent-foreground" : ""
-            )}
-          >
-            {icon}
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="truncate flex-1 text-left min-w-0">{label}</span>
-            </TooltipTrigger>
-            <TooltipContent side="right" align="start">
-              {label}
-            </TooltipContent>
-          </Tooltip>
-          {badge && (
-            <span className="shrink-0 text-[10px] text-muted-foreground/70 font-mono ml-1">
-              {badge}
-            </span>
-          )}
-          {count !== undefined && (
-            <span className="shrink-0 text-[10px] text-muted-foreground bg-muted/50 px-1 rounded ml-0.5">
-              {count}
-            </span>
-          )}
-        </button>
-        {rightElement && (
-          <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            {rightElement}
-          </div>
-        )}
-      </div>
-      {effectiveOpen && children && <div className="animate-slide-down">{children}</div>}
-    </div>
-  );
-}
 
 interface CassandraConnectionContentProps {
   connectionId: string;
@@ -362,6 +247,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
         <ContextMenuTrigger asChild>
           <div>
             <TreeItem
+              labelTooltip
               label="Keyspaces"
               icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
               level={0}
@@ -408,6 +294,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                         <ContextMenuTrigger asChild>
                           <div ref={setItemRef(`ks-${ks.name}`)}>
                             <TreeItem
+                              labelTooltip
                               label={ks.name}
                               icon={
                                 isExpanded || shouldForceOpenKs ? (
@@ -440,6 +327,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                                       <ContextMenuTrigger asChild>
                                         <div ref={setItemRef(`tbl-${ks.name}-${tbl.name}`)}>
                                           <TreeItem
+                                            labelTooltip
                                             label={tbl.name}
                                             icon={<Table2 className="h-3.5 w-3.5 text-blue-500" />}
                                             level={2}
@@ -538,6 +426,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                   {/* System Keyspaces (collapsed by default) */}
                   {systemKeyspaces.length > 0 && (
                     <TreeItem
+                      labelTooltip
                       label="System"
                       icon={<FolderClosed className="h-3.5 w-3.5 text-muted-foreground" />}
                       level={1}
@@ -545,6 +434,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                     >
                       {systemKeyspaces.map((ks) => (
                         <TreeItem
+                          labelTooltip
                           key={ks.name}
                           label={ks.name}
                           icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -575,6 +465,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
         <ContextMenuTrigger asChild>
           <div>
             <TreeItem
+              labelTooltip
               label="CQL Shell"
               icon={<Terminal className="h-3.5 w-3.5 text-muted-foreground" />}
               level={0}
@@ -595,6 +486,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
         <ContextMenuTrigger asChild>
           <div>
             <TreeItem
+              labelTooltip
               label="Cluster Info"
               icon={<ServerCog className="h-3.5 w-3.5 text-muted-foreground" />}
               level={0}

@@ -144,9 +144,18 @@ not porting strand's amber or its OKLCH palette; we port the *system*.
   its own per-grid row-height preference in the grid store, and the global density setting
   shouldn't fight it.
 
+## Applied in pass 7
+
+- [x] **`TreeItem` deduplicated** — the three local copies in `RedisConnectionContent`,
+  `MongoConnectionContent`, and `CassandraConnectionContent` (~330 lines) are gone; all trees
+  render `layout/sidebar/TreeItem.tsx`, extended with the union of the diverged props:
+  `count` (chip after the label), `badge` (tiny mono annotation, e.g. Cassandra RF), `itemRef`
+  (scroll-to-highlight), and opt-in `labelTooltip` (kept at all Cassandra call sites). NoSQL
+  trees pick up the canonical visuals they were missing — level-0 accent bar, icon chip,
+  focus-visible ring, house motion — and the SQL tree's search highlight switches from an
+  indefinite pulse to the same one-shot `animate-highlight-blink` the NoSQL trees used (the
+  highlight store auto-clears on a timer either way).
+
 ## Roadmap (next passes)
 
-1. **Deduplicate `TreeItem`** — `RedisConnectionContent`, `MongoConnectionContent`, and
-   `CassandraConnectionContent` each carry a diverged local copy (extra `count`/`itemRef`/`badge`
-   props, no `isConnected`/accent bar); reconcile the prop sets and point them at
-   `layout/sidebar/TreeItem.tsx`.
+_No queued items — next pass starts from a fresh audit._
