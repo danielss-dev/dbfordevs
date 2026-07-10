@@ -429,7 +429,7 @@ export function TableDiagramTab({ tab }: TableDiagramTabProps) {
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Search tables..."
-                  className="h-8 w-48 pl-7 pr-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="h-8 w-48 pl-7 pr-2 text-sm bg-background border border-border rounded-md outline-none transition-all duration-150 ease-swift focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]"
                   autoFocus
                 />
               </div>

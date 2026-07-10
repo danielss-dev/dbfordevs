@@ -182,7 +182,7 @@ const AutocompleteInput = React.forwardRef<HTMLInputElement, AutocompleteInputPr
         />
 
         {isOpen && (
-          <div className="absolute z-[100] mt-1 w-full rounded-md border border-border bg-popover shadow-lg">
+          <div className="absolute z-[100] mt-1 w-full rounded-md border border-border bg-popover shadow-pop">
             <ScrollArea className="max-h-[200px]">
               <div ref={listRef} className="p-1">
                 {filteredOptions.length === 0 ? (

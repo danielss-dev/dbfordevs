@@ -147,7 +147,7 @@ export function ConnectionPropertiesDialog({
                 <>
                   {/* Server Section */}
                   <div className="pb-3">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                    <p className="micro-label mb-2">
                       Server
                     </p>
                     <div className="space-y-0.5 rounded-lg border bg-card p-1">
@@ -172,7 +172,7 @@ export function ConnectionPropertiesDialog({
 
                   {/* Authentication Section */}
                   <div className="pb-3">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                    <p className="micro-label mb-2">
                       Authentication
                     </p>
                     <div className="space-y-0.5 rounded-lg border bg-card p-1">
@@ -193,7 +193,7 @@ export function ConnectionPropertiesDialog({
               ) : (
                 /* SQLite Section */
                 <div className="pb-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  <p className="micro-label mb-2">
                     Database File
                   </p>
                   <div className="space-y-0.5 rounded-lg border bg-card p-1">
@@ -209,7 +209,7 @@ export function ConnectionPropertiesDialog({
 
               {/* Connection ID */}
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                <p className="micro-label mb-2">
                   Identifier
                 </p>
                 <div className="rounded-lg border bg-card p-1">

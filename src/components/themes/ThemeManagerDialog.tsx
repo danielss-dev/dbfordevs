@@ -283,7 +283,7 @@ export function ThemeManagerDialog({ open, onOpenChange }: ThemeManagerDialogPro
               <div className="p-2 space-y-4">
                 {/* Built-in Themes */}
                 <div>
-                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <div className="micro-label px-2 py-1">
                     Built-in Themes
                   </div>
                   <div className="space-y-0.5">
@@ -308,7 +308,7 @@ export function ThemeManagerDialog({ open, onOpenChange }: ThemeManagerDialogPro
                 {/* Custom Themes */}
                 <div>
                   <div className="flex items-center justify-between px-2 py-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    <span className="micro-label">
                       Custom Themes
                     </span>
                     <Button

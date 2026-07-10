@@ -78,7 +78,7 @@ export function AIAssistantPanel() {
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
         <div className="relative mb-6">
           <div className="absolute inset-0 bg-primary/5 rounded-full blur-2xl scale-150" />
-          <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-sm">
+          <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-elev-1">
             <Sparkles className="h-10 w-10 text-muted-foreground/30" />
           </div>
         </div>

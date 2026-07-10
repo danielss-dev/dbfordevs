@@ -530,7 +530,7 @@ export function DateTimePicker({
           disabled={disabled}
           className={cn(
             "flex items-center gap-2 h-9 px-3 w-full rounded-md border border-input bg-background/50 text-sm font-mono transition-all",
-            "hover:bg-background focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+            "hover:bg-background focus:bg-background focus:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]",
             disabled && "cursor-not-allowed opacity-50 bg-muted/50",
             !value && "text-muted-foreground",
             className
@@ -556,7 +556,7 @@ export function DateTimePicker({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-auto p-0 bg-popover border shadow-xl"
+        className="w-auto p-0 bg-popover border shadow-pop"
         align="start"
         side="bottom"
         sideOffset={4}
@@ -843,7 +843,7 @@ export function TimePicker({
           disabled={disabled}
           className={cn(
             "flex items-center gap-2 h-9 px-3 w-full rounded-md border border-input bg-background/50 text-sm font-mono transition-all",
-            "hover:bg-background focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+            "hover:bg-background focus:bg-background focus:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]",
             disabled && "cursor-not-allowed opacity-50 bg-muted/50",
             !value && "text-muted-foreground",
             className
@@ -869,7 +869,7 @@ export function TimePicker({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-auto p-4 bg-popover border shadow-xl"
+        className="w-auto p-4 bg-popover border shadow-pop"
         align="start"
         side="bottom"
         sideOffset={4}

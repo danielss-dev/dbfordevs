@@ -273,7 +273,7 @@ export function ChangesPreviewPanel() {
               {pendingChangesList.length > 0 && (
                 pendingChangesList.map((change, idx) => (
                   <div key={change.id} className="space-y-2 pb-4 border-b border-border last:border-0">
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">
+                    <div className="micro-label flex items-center justify-between mb-1">
                       <span>Change #{idx + 1}: {change.type}</span>
                       <Button
                         variant="ghost"
@@ -362,13 +362,13 @@ export function ChangesPreviewPanel() {
               {redisPendingChanges.length > 0 && (
                 <>
                   {pendingChangesList.length > 0 && (
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider pt-2 pb-1 border-t border-border">
+                    <div className="micro-label pt-2 pb-1 border-t border-border">
                       Redis Commands
                     </div>
                   )}
                   {redisPendingChanges.map((change) => (
                     <div key={change.id} className="space-y-2 pb-4 border-b border-border last:border-0">
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">
+                      <div className="micro-label flex items-center justify-between mb-1">
                         <span className="flex items-center gap-1.5">
                           <span className="px-1 py-0.5 rounded bg-red-500/10 text-red-500 text-[9px] font-semibold normal-case">Redis</span>
                           {change.operation.op}
@@ -396,7 +396,7 @@ export function ChangesPreviewPanel() {
                 <div className="flex flex-col items-center justify-center text-muted-foreground p-8 text-center mt-8">
                   <div className="relative mb-6">
                     <div className="absolute inset-0 bg-success/5 rounded-full blur-2xl scale-150" />
-                    <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-sm">
+                    <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-elev-1">
                       <Code className="h-10 w-10 text-muted-foreground/30" />
                     </div>
                   </div>

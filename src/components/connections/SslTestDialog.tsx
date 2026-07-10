@@ -290,7 +290,7 @@ export function SslTestDialog({
                           </Badge>
                         )}
                         {supportInfo.supportsClientCert && (
-                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700">
+                          <Badge variant="outline" className="text-xs bg-info/10 text-info border-info/30">
                             Client Cert
                           </Badge>
                         )}

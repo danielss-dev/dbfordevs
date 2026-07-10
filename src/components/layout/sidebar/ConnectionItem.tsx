@@ -43,6 +43,7 @@ import {
   DialogTitle,
   Input,
   Label,
+  TreeRowsSkeleton,
 } from "@/components/ui";
 import { ConnectionPropertiesDialog } from "@/components/connections";
 import { RedisConnectionContent } from "@/components/redis";
@@ -657,10 +658,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                             defaultOpen={false}
                           >
                             {isLoadingDatabases ? (
-                              <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                <span>Loading...</span>
-                              </div>
+                              <TreeRowsSkeleton rows={4} level={1} />
                             ) : databases.length > 0 ? (
                               databases.map((db) => {
                                 const isExpanded = expandedDatabases.has(db.name);
@@ -717,10 +715,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                     {isExpanded && (
                                       <div className="ml-4 animate-slide-down">
                                         {isLoadingTables ? (
-                                          <div className="ml-4 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                            <span>Loading tables...</span>
-                                          </div>
+                                          <TreeRowsSkeleton rows={4} level={2} />
                                         ) : dbSchemaNames.length > 0 ? (
                                           dbSchemaNames.map((schemaName) => (
                                             <TreeItem
@@ -848,10 +843,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                         defaultOpen={true}
                       >
                         {isLoadingTables ? (
-                          <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            <span>Loading...</span>
-                          </div>
+                          <TreeRowsSkeleton rows={5} level={1} />
                         ) : schemaNames.length > 0 ? (
                           schemaNames.map((schemaName) => {
                             // Check if any table in this schema is highlighted

@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui";
@@ -331,7 +332,7 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                   {/* Folders section */}
                   <div className="pt-4">
                     <div className="flex items-center justify-between px-3 py-1">
-                      <span className="text-xs font-medium text-muted-foreground uppercase">
+                      <span className="micro-label">
                         Folders
                       </span>
                       <Button
@@ -507,9 +508,9 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                               </span>
                             )}
                             {isBuiltIn(bookmark) && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info flex-shrink-0">
+                              <Badge variant="info" className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0">
                                 Built-in
-                              </span>
+                              </Badge>
                             )}
                             {bookmark.connectionId === null && !isBuiltIn(bookmark) && (
                               <Globe className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />

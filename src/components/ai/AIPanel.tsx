@@ -121,8 +121,8 @@ export function AIPanel() {
       <div
         className={cn(
           "fixed right-0 top-0 bottom-0 z-50",
-          "border-l border-border bg-background shadow-2xl",
-          "animate-in slide-in-from-right duration-300 transition-all",
+          "border-l border-border bg-background shadow-pop",
+          "animate-in slide-in-from-right duration-150 ease-swift transition-all",
           panelExpanded ? "w-[720px] max-w-[50vw]" : "w-[420px]"
         )}
       >
@@ -130,7 +130,7 @@ export function AIPanel() {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-primary/10">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-elev-2">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
@@ -365,4 +365,3 @@ export function AIPanel() {
     </>
   );
 }
-

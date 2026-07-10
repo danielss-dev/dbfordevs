@@ -132,7 +132,7 @@ export function SchemaSearchResultItem({
       </div>
 
       {/* Object type badge */}
-      <div className="flex-shrink-0 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="micro-label flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         {result.objectType}
       </div>
     </button>

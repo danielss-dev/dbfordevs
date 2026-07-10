@@ -201,7 +201,7 @@ export function RedisAIHelper({
 
                 <div className="rounded-lg border border-border overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border">
-                    <span className="text-xs font-medium text-muted-foreground uppercase">
+                    <span className="micro-label">
                       Redis Commands
                     </span>
                     <div className="flex items-center gap-1">
@@ -247,7 +247,7 @@ export function RedisAIHelper({
               <div className="flex-1 min-h-0 space-y-3">
                 <div className="rounded-lg border border-border overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border">
-                    <span className="text-xs font-medium text-muted-foreground uppercase">
+                    <span className="micro-label">
                       Recommendation
                     </span>
                     <Button
@@ -275,7 +275,7 @@ export function RedisAIHelper({
 
                       {example && (
                         <div className="mt-4">
-                          <p className="text-xs font-medium text-muted-foreground uppercase mb-2">
+                          <p className="micro-label mb-2">
                             Example Commands
                           </p>
                           <pre className="p-3 rounded bg-[#1e1e2e] text-xs font-mono text-green-400 whitespace-pre-wrap">

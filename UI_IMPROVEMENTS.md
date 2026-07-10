@@ -156,6 +156,62 @@ not porting strand's amber or its OKLCH palette; we port the *system*.
   indefinite pulse to the same one-shot `animate-highlight-blink` the NoSQL trees used (the
   highlight store auto-clears on a timer either way).
 
-## Roadmap (next passes)
+## Applied in pass 8 (fresh three-way audit: consistency / hardcoded values / UX)
 
-_No queued items — next pass starts from a fresh audit._
+- [x] **Focus recipe finished in the primitives** — `tabs`, `switch`, `radio-group`, `toggle`,
+  `textarea`, `toast`, `badge`, `date-time-picker`, `color-picker`, `hsl-color-picker` all
+  dropped the legacy `ring-2 + ring-offset` for the canonical accent-glow ring (text fields use
+  the `border-ring + glow` variant, matching Input).
+- [x] **Shadows tokenized** — `Card` (`shadow-sm`→`shadow-elev-1`), `AlertDialog`
+  (`shadow-2xl shadow-black/20`→`shadow-pop`), toast, autocomplete dropdown, date-time-picker
+  popovers, AI dropdowns/popovers, DiffViewer cards, side-panel icon halos.
+- [x] **Motion normalized** — remaining `duration-200/300 ease-in-out` in `progress`,
+  `accordion`, `switch`, `checkbox`, `textarea`, `alert-dialog` and ~10 app components moved to
+  `duration-150 ease-swift` (progress fills keep 300ms with house easing).
+- [x] **Micro-label adoption** — ~30 open-coded `text-[10px]/text-xs uppercase tracking-*`
+  section headers across connections/settings/bookmarks/AI/side-panel/preview/data-grid now use
+  the `.micro-label` utility.
+- [x] **Pills → `Badge`, kbd → global style, density leftovers** — hand-rolled semantic chips in
+  ConnectionModal/BookmarkManager/Settings converted to `Badge` variants; ad-hoc styled `<kbd>`
+  stripped to the global chip; the last fixed-`py-1.5` menu rows in filter bars/dropdowns moved
+  to `--pad-menu-y`.
+- [x] **Color regressions** — SslTestDialog "Client Cert" purple badge → `info` tokens (its
+  sibling was already `success`); FieldEditor FK violet badge → `info`. Reviewed and kept:
+  `QueryDiffView` diff rows — they sit on a fixed dark code panel where theme tokens would break
+  light-theme legibility (deliberate-exception class).
+- [x] **Dead CSS deleted** — 10 unreferenced selectors + 2 keyframes (`focus-ring` (the old
+  recipe!), `glass`, `gradient-subtle`, `interactive-hover`, `subtle-pulse`, `glow-primary`,
+  `glow-success`, `card-hover`, `scale-in`, `font-code`). Kept `status-dot-error/info` — unused
+  but they complete the used 4-variant semantic set.
+
+## Applied in pass 9
+
+- [x] **Skeleton loaders** — added reusable `TreeRowsSkeleton` and `GridSkeleton` primitives.
+  Connection trees now preserve their row rhythm while schemas and tables load; query and table
+  result panes show a grid-shaped placeholder while executing instead of stale results or a
+  centered spinner. Schema search keeps its previous results mounted and visibly refreshes them.
+
+## Roadmap (next passes) — from the pass-8 UX audit
+
+1. **Shared structured error surface** — query errors are raw DB strings in centered pills,
+   duplicated in `QueryEditorTab` and `TableViewerTab`, with no Retry/Copy; AI errors are
+   string-sniffed (`content.startsWith("error:")`) red bubbles. Build one `<QueryError>` card
+   (left-aligned, mono detail, Retry + Copy, collapsible) modeled on ConnectionModal's good
+   test-failure card, and carry an explicit error flag in the AI store.
+2. **Tooltip routing** — ~40 icon-only buttons use native `title=` (AIPanel ×8, ThemeEditor ×8,
+   FindReplaceBar ×7, DataGrid ×5, MongoServerInfo ×5…) instead of the app `Tooltip`; also
+   standardize toolbar icon-button size (h-7 dense).
+3. **`<TreeEmpty>` component** — ~20 sidebar "No X found" one-liners (all object sections +
+   NoSQL trees) get icon + guidance + optional "Create…" action; same treatment for the DataGrid
+   no-columns fallback and schema-search no-results/not-connected dead ends.
+4. **Dialog standardization** — ConnectionModal lacks Cancel; ImportDialog's wizard footer
+   diverges from the other three wizards (Back pinned left); no dialog submits on Enter (wrap in
+   `<form>`, add quiet `kbd` footer hints); BookmarkManager import dialog orders destructive
+   "Replace All" between Cancel and primary.
+5. **Monaco theme coverage** — Nordic themes fall back to generic Monaco themes; custom themes
+   never re-color the editor even though `monaco-generator.ts` exists — wire it into
+   `getMonacoTheme()`.
+6. **Smaller follow-ups** — AI empty-state copy is SQL-only on NoSQL connections; "AI Disabled"
+   state lacks an Open Settings action; DataGrid right-aligns columns by name-substring guess
+   instead of `dataType`; floating AIPanel chrome (gradient bubbles, glow avatars) still reads
+   pre-redesign; schema-search rows lack listbox roles/scroll-into-view.

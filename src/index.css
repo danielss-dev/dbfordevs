@@ -856,23 +856,6 @@
   @apply bg-transparent;
 }
 
-/* Focus visible outline */
-.focus-ring {
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
-}
-
-/* Glass effect for elevated surfaces */
-.glass {
-  @apply backdrop-blur-md bg-background/80;
-}
-
-/* Subtle gradient backgrounds */
-.gradient-subtle {
-  background: linear-gradient(180deg,
-      hsl(var(--muted) / 0.3) 0%,
-      hsl(var(--muted) / 0.1) 100%);
-}
-
 /* Monaco editor overrides */
 .monaco-editor {
   @apply rounded-md;
@@ -919,51 +902,6 @@
   @apply bg-primary/10 border-l-2 border-l-primary;
 }
 
-/* Interactive element enhancements */
-.interactive-hover {
-  @apply transition-all duration-150 ease-out;
-}
-
-.interactive-hover:hover {
-  @apply transform scale-[1.02];
-}
-
-.interactive-hover:active {
-  @apply transform scale-[0.98];
-}
-
-/* Subtle pulse animation for loading states */
-@keyframes subtle-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.animate-subtle-pulse {
-  animation: subtle-pulse 2s ease-in-out infinite;
-}
-
-/* Glow effect for active states */
-.glow-primary {
-  box-shadow: 0 0 12px hsl(var(--primary) / 0.3);
-}
-
-.glow-success {
-  box-shadow: 0 0 12px hsl(var(--success) / 0.3);
-}
-
-/* Card hover enhancement */
-.card-hover {
-  @apply transition-all duration-200;
-}
-
-.card-hover:hover {
-  @apply shadow-md border-border/80;
-  transform: translateY(-1px);
-}
 
 /* Animation utilities */
 @keyframes fade-in {
@@ -1000,18 +938,6 @@
   }
 }
 
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
 }
@@ -1022,10 +948,6 @@
 
 .animate-slide-down {
   animation: slide-down 0.2s ease-out;
-}
-
-.animate-scale-in {
-  animation: scale-in 0.15s ease-out;
 }
 
 /* Highlight blink animation for search navigation */
@@ -1068,11 +990,6 @@
 .status-dot-info {
   @apply bg-info;
   box-shadow: 0 0 8px hsl(var(--info) / 0.5);
-}
-
-/* Code/mono text */
-.font-code {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 /* Keyboard shortcut chip */

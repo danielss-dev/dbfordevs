@@ -104,8 +104,8 @@ export function SchemaSearchResults({
     return -1;
   };
 
-  // Loading state
-  if (isSearching) {
+  // Keep prior results visible during a new search to avoid a disruptive layout pop.
+  if (isSearching && filteredResults.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -145,11 +145,18 @@ export function SchemaSearchResults({
 
   // Results grouped by type
   return (
-    <div className="space-y-2 py-1">
+    <div className="relative space-y-2 py-1" aria-busy={isSearching}>
+      {isSearching && (
+        <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-1.5 bg-popover/75 py-1 text-xs text-muted-foreground backdrop-blur-[1px]">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Searching...
+        </div>
+      )}
+      <div className={isSearching ? "pointer-events-none opacity-55" : undefined}>
       {groupedResults.map((group) => (
         <div key={group.objectType}>
           {/* Group header */}
-          <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider sticky top-0 bg-popover/95 backdrop-blur-sm">
+          <div className="micro-label px-2 py-1 sticky top-0 bg-popover/95 backdrop-blur-sm">
             {group.label} ({group.results.length})
           </div>
 
@@ -170,6 +177,7 @@ export function SchemaSearchResults({
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

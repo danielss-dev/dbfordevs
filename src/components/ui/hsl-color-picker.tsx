@@ -181,7 +181,7 @@ export function HSLColorPicker({
             disabled={disabled}
             className={cn(
               "flex items-center gap-2 px-2 py-1.5 rounded-md border border-input bg-background text-sm",
-              "hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+              "hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]",
               "disabled:opacity-50 disabled:cursor-not-allowed",
               "w-full justify-start"
             )}

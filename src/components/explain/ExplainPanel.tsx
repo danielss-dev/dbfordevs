@@ -73,7 +73,7 @@ export function ExplainPanel() {
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
         <div className="relative mb-6">
           <div className="absolute inset-0 bg-primary/5 rounded-full blur-2xl scale-150" />
-          <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-sm">
+          <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-elev-1">
             <TreeDeciduous className="h-10 w-10 text-muted-foreground/30" />
           </div>
         </div>
@@ -98,7 +98,7 @@ export function ExplainPanel() {
               size="sm"
               className={cn(
                 "h-7 px-3 text-[11px] gap-1.5 font-medium transition-all",
-                viewMode === "tree" && "shadow-sm"
+                viewMode === "tree" && "shadow-elev-1"
               )}
               onClick={() => setViewMode("tree")}
             >
@@ -110,7 +110,7 @@ export function ExplainPanel() {
               size="sm"
               className={cn(
                 "h-7 px-3 text-[11px] gap-1.5 font-medium transition-all",
-                viewMode === "raw" && "shadow-sm"
+                viewMode === "raw" && "shadow-elev-1"
               )}
               onClick={() => setViewMode("raw")}
             >
@@ -196,7 +196,7 @@ export function ExplainPanel() {
               {/* Warnings */}
               {explainResult.warnings.length > 0 && (
                 <div className="space-y-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <span className="micro-label">
                     Warnings & Suggestions
                   </span>
                   {explainResult.warnings.map((warning, idx) => (

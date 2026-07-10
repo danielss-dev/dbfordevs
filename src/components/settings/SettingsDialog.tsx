@@ -1,4 +1,5 @@
 import {
+  Badge,
   Dialog,
   DialogContent,
   Label,
@@ -474,7 +475,7 @@ export function SettingsDialog() {
                   >
                     <Search className="h-3.5 w-3.5" />
                     <span className="flex-1 text-left">Search...</span>
-                    <kbd className="text-[10px] text-muted-foreground">Cmd+F</kbd>
+                    <kbd>Cmd+F</kbd>
                   </Button>
                 )}
               </div>
@@ -1196,8 +1197,8 @@ export function SettingsDialog() {
                       </div>
                       <h2 className="text-2xl font-bold tracking-tight">dbfordevs</h2>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="inline-flex items-center rounded-full bg-info/15 px-2 py-0.5 text-xs font-medium text-info">v{version || "..."}</span>
-                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Alpha</span>
+                        <Badge variant="info" className="rounded-full px-2 py-0.5 font-medium">v{version || "..."}</Badge>
+                        <Badge variant="secondary" className="rounded-full px-2 py-0.5 font-medium">Alpha</Badge>
                       </div>
 
                       <div className="mt-8 max-w-sm space-y-4">

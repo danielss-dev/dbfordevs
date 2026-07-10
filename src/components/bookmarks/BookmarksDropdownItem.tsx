@@ -1,5 +1,6 @@
 import { Star, FileCode, Database } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
 import type { Bookmark } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -58,10 +59,10 @@ export function BookmarksDropdownItem({
                   </span>
                 )}
                 {bookmark.databaseType && !bookmark.connectionId && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info flex items-center gap-1">
+                  <Badge variant="info" className="text-[10px] px-1.5 py-0.5 rounded-full gap-1">
                     <Database className="h-2.5 w-2.5" />
                     {bookmark.databaseType}
-                  </span>
+                  </Badge>
                 )}
               </div>
               <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">

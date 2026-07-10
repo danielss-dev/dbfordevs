@@ -162,7 +162,7 @@ export function SchemaSearchFilters({ className, databaseType }: SchemaSearchFil
             <button
               key={objectType}
               className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors",
+                "flex items-center gap-2 px-2 py-[var(--pad-menu-y)] rounded-md text-xs transition-colors",
                 isEnabled
                   ? "bg-accent text-accent-foreground"
                   : "hover:bg-accent/50 text-muted-foreground"

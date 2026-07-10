@@ -23,6 +23,7 @@ export { Checkbox } from "./checkbox";
 export { Switch } from "./switch";
 export { LoadingSpinner } from "./loading-spinner";
 export * from "./skeleton";
+export * from "./loading-skeletons";
 export { ResizeHandle } from "./resize-handle";
 export { Progress } from "./progress";
 export { DateTimePicker, DatePicker, TimePicker } from "./date-time-picker";

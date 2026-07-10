@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Badge,
   Button,
   Input,
   Label,
@@ -25,6 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
   BrandIcon,
+  Textarea,
 } from "@/components/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUIStore } from "@/stores";
@@ -455,9 +457,9 @@ export function ConnectionModal() {
                         <Key className="h-4 w-4" />
                         Wallet
                         {getWalletStatus() && (
-                          <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-warning/20 text-warning">
+                          <Badge variant="warning" className="ml-1 text-xs px-1.5 py-0.5 rounded-full">
                             on
-                          </span>
+                          </Badge>
                         )}
                       </TabsTrigger>
                     )}
@@ -467,9 +469,9 @@ export function ConnectionModal() {
                         <Terminal className="h-4 w-4" />
                         SSH
                         {getSshStatus() && (
-                          <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-success/20 text-success">
+                          <Badge variant="success" className="ml-1 text-xs px-1.5 py-0.5 rounded-full">
                             on
-                          </span>
+                          </Badge>
                         )}
                       </TabsTrigger>
                     )}
@@ -491,7 +493,6 @@ export function ConnectionModal() {
                       placeholder="Production Database"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="transition-colors focus:ring-2"
                     />
                   </FormField>
 
@@ -592,7 +593,7 @@ export function ConnectionModal() {
                           htmlFor="connectionString"
                           hint="Paste your database connection string"
                         >
-                          <textarea
+                          <Textarea
                             id="connectionString"
                             placeholder={formData.databaseType === "mssql"
                               ? "Server=tcp:host,port;Database=db;User Id=user;Password=pass;"
@@ -602,7 +603,7 @@ export function ConnectionModal() {
                               setFormData({ ...formData, connectionString: e.target.value });
                               setParseError(null);
                             }}
-                            className="w-full min-h-[100px] px-3 py-2 text-sm font-mono rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                            className="min-h-[100px] font-mono"
                           />
                         </FormField>
                         <div className="flex items-center gap-2">

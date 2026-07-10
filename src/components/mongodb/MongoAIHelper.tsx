@@ -203,7 +203,7 @@ export function MongoAIHelper({
                 {/* Query/Pipeline */}
                 <div className="rounded-lg border border-border overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border">
-                    <span className="text-xs font-medium text-muted-foreground uppercase">
+                    <span className="micro-label">
                       {mode === "find" ? "Query" : "Pipeline"}
                     </span>
                     <div className="flex items-center gap-1">

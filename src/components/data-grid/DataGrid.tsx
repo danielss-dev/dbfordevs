@@ -1094,7 +1094,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
         {/* Pagination Controls */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 pr-3 border-r border-border/50">
-            <span className="text-[10px] font-semibold uppercase text-muted-foreground/60 tracking-wide">Rows:</span>
+            <span className="micro-label text-muted-foreground/60">Rows:</span>
             <Select
               value={String(storePageSize)}
               onValueChange={(value) => {

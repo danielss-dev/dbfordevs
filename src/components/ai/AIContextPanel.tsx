@@ -128,7 +128,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
 
       {/* Template Selector */}
       <div className="px-3 py-2 border-b border-border">
-        <label className="text-[10px] uppercase text-muted-foreground font-medium">
+        <label className="micro-label">
           Context Template
         </label>
         <div className="flex flex-wrap gap-1 mt-1.5">
@@ -199,7 +199,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
             className="flex items-center justify-between w-full text-left"
             onClick={() => setExpanded(!expanded)}
           >
-            <span className="text-[10px] uppercase text-muted-foreground font-medium">
+            <span className="micro-label">
               Tables in Context ({enhancedTables.length || context.tables.length})
             </span>
             {expanded ? (
@@ -239,7 +239,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
         {/* Manual Context Entries */}
         <div className="px-3 pb-3">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase text-muted-foreground font-medium">
+            <span className="micro-label">
               Custom Context
             </span>
             <Button

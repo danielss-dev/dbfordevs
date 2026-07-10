@@ -94,8 +94,8 @@ export function EmptyQueryState({ onSelectExample, databaseType }: EmptyQuerySta
             onClick={() => onSelectExample(example.sql)}
             className={cn(
               "group relative flex flex-col items-start gap-2 p-4 rounded-lg border border-border",
-              "bg-card hover:bg-accent/50 transition-all duration-200",
-              "text-left hover:border-primary/50 hover:shadow-sm"
+              "bg-card hover:bg-accent/50 transition-all duration-150 ease-swift",
+              "text-left hover:border-primary/50 hover:shadow-elev-1"
             )}
           >
             <div className="flex items-center gap-2 w-full">

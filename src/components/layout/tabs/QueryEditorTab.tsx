@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, TreeDeciduous } from "lucide-react";
-import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
+import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, GridSkeleton } from "@/components/ui";
 import {
   useQueryStore,
   useConnectionsStore,
@@ -422,7 +422,9 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           )}
         </div>
         <div className="flex-1 overflow-hidden">
-          {error ? (
+          {isExecuting ? (
+            <GridSkeleton className="h-full" />
+          ) : error ? (
             <div className="flex h-full items-center justify-center gap-3 p-4">
               <div className="flex items-center gap-3 text-destructive bg-destructive/10 px-4 py-3 rounded-lg border border-destructive/20">
                 <AlertCircle className="h-5 w-5 shrink-0" />

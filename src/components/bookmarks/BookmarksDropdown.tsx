@@ -114,7 +114,7 @@ export function BookmarksDropdown({
             {/* Favorites Section */}
             {favorites.length > 0 && (
               <>
-                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 px-2 py-[var(--pad-menu-y)] text-xs text-muted-foreground">
                   <Star className="h-3 w-3" />
                   <span className="font-medium">Favorites</span>
                 </div>
@@ -135,7 +135,7 @@ export function BookmarksDropdown({
             {/* Recent Section */}
             {recentBookmarks.length > 0 && (
               <>
-                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 px-2 py-[var(--pad-menu-y)] text-xs text-muted-foreground">
                   <Bookmark className="h-3 w-3" />
                   <span className="font-medium">Recent</span>
                 </div>
@@ -156,7 +156,7 @@ export function BookmarksDropdown({
             {/* Templates Section */}
             {templates.length > 0 && (
               <>
-                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 px-2 py-[var(--pad-menu-y)] text-xs text-muted-foreground">
                   <FileCode className="h-3 w-3" />
                   <span className="font-medium">Templates</span>
                 </div>

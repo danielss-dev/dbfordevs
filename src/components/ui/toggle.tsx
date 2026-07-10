@@ -23,9 +23,9 @@ const Toggle = React.forwardRef<HTMLButtonElement, ToggleProps>(
         data-state={pressed ? "on" : "off"}
         onClick={() => onPressedChange?.(!pressed)}
         className={cn(
-          "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors",
+          "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors duration-150 ease-swift",
           "hover:bg-muted hover:text-muted-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]",
           "disabled:pointer-events-none disabled:opacity-50",
           pressed && "bg-accent text-accent-foreground",
           sizeClasses[size],

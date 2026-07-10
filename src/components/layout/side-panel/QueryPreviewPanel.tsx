@@ -40,7 +40,7 @@ export function QueryPreviewPanel() {
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
         <div className="relative mb-6">
           <div className="absolute inset-0 bg-primary/5 rounded-full blur-2xl scale-150" />
-          <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-sm">
+          <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-elev-1">
             <Eye className="h-10 w-10 text-muted-foreground/30" />
           </div>
         </div>
@@ -122,7 +122,7 @@ export function QueryPreviewPanel() {
             </Button>
             <Button
               size="sm"
-              className="flex-1 text-xs gap-1.5 h-9 font-medium shadow-sm"
+              className="flex-1 text-xs gap-1.5 h-9 font-medium shadow-elev-1"
               onClick={handleApply}
               disabled={isPreviewLoading || !previewResult?.success}
             >

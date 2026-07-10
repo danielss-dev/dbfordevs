@@ -415,7 +415,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
             {isJsonField && (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 border border-border rounded-md p-0.5 bg-muted/30">
-                  <span className="text-[9px] text-muted-foreground px-1.5 uppercase tracking-wide">Format</span>
+                  <span className="micro-label px-1.5">Format</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -703,7 +703,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
           {isForeignKey && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30 shrink-0 cursor-help">
+                <Badge variant="info" className="text-[9px] px-1.5 py-0 h-4 shrink-0 cursor-help">
                   <Link2 className="h-2.5 w-2.5 mr-0.5" />
                   FK
                 </Badge>

@@ -562,7 +562,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
         className={cn(
           "relative flex items-end gap-2 rounded-xl border border-border bg-background p-2",
           "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50",
-          "transition-all duration-200"
+          "transition-all duration-150 ease-swift"
         )}
       >
         {/* @ Table/Collection/Key Reference Dropdown */}
@@ -585,7 +585,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
 
         {/* / Slash Command Dropdown */}
         {slashCommand.show && filteredCommands.length > 0 && (
-          <div className="absolute bottom-full left-0 mb-2 w-80 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+            <div className="absolute bottom-full left-0 mb-2 w-80 rounded-lg border border-border bg-popover shadow-elev-2 z-50 overflow-hidden">
             <div className="px-3 py-2 border-b border-border bg-muted/30">
               <span className="text-xs font-medium text-muted-foreground">Commands</span>
             </div>
@@ -614,7 +614,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
                     <div key={cmd.name}>
                       {showCategoryHeader && (
                         <div className={cn(
-                          "px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider",
+                          "px-3 py-1.5 micro-label",
                           categoryColors[cmd.category]
                         )}>
                           {categoryLabels[cmd.category]}
@@ -700,7 +700,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
             "bg-primary",
             "hover:bg-primary/90",
             "disabled:opacity-50 disabled:cursor-not-allowed",
-            "transition-all duration-200"
+            "transition-all duration-150 ease-swift"
           )}
         >
           {isLoading ? (
@@ -716,4 +716,3 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
     </div>
   );
 }
-
