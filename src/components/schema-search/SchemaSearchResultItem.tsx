@@ -84,7 +84,7 @@ export function SchemaSearchResultItem({
   return (
     <button
       className={cn(
-        "w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 group",
+        "w-full text-left px-2 py-[var(--pad-menu-y)] rounded-md transition-colors flex items-center gap-2 group",
         isSelected
           ? "bg-accent text-accent-foreground"
           : "hover:bg-accent/50"

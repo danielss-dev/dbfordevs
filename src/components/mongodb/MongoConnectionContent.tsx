@@ -89,7 +89,7 @@ function TreeItem({
       )}
       <div
         className={cn(
-          "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
+          "group flex w-full items-center gap-2 rounded-md min-h-[var(--row-h)] text-sm transition-all duration-200",
           "hover:bg-sidebar-accent/60",
           isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
           isHighlighted && "animate-highlight-blink"

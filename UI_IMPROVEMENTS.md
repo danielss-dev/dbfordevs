@@ -134,10 +134,19 @@ not porting strand's amber or its OKLCH palette; we port the *system*.
   bookmark dropdown + manager rows, and both query-history row variants — so Compact/Relaxed now
   affects menus and multi-line list rows, not just the sidebar tree.
 
+## Applied in pass 6
+
+- [x] **Density, phase 3** — schema search result rows (`--pad-menu-y`), command palette rows and
+  AI chat history items (`--pad-list-y`) now follow the density setting. The three local
+  `TreeItem` copies in the Redis/Mongo/Cassandra connection views swapped their fixed `py-1.5`
+  for `min-h-[var(--row-h)]`, so NoSQL trees now track density (and match the SQL tree's default
+  30px rows) instead of ignoring the setting. The data grid was deliberately left out — it has
+  its own per-grid row-height preference in the grid store, and the global density setting
+  shouldn't fight it.
+
 ## Roadmap (next passes)
 
-1. **Density, phase 3** — audit remaining dense surfaces (schema search results, command palette
-   rows) for `--pad-*` adoption.
-2. **Deduplicate `TreeItem`** — `RedisConnectionContent`, `MongoConnectionContent`, and
-   `CassandraConnectionContent` each carry a local copy; point them at
+1. **Deduplicate `TreeItem`** — `RedisConnectionContent`, `MongoConnectionContent`, and
+   `CassandraConnectionContent` each carry a diverged local copy (extra `count`/`itemRef`/`badge`
+   props, no `isConnected`/accent bar); reconcile the prop sets and point them at
    `layout/sidebar/TreeItem.tsx`.
