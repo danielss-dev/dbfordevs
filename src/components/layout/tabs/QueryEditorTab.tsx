@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, Table, Terminal, AlertCircle, RefreshCw, Eye, TreeDeciduous } from "lucide-react";
+import { Play, Loader2, Table, Terminal, RefreshCw, Eye, TreeDeciduous } from "lucide-react";
 import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, GridSkeleton } from "@/components/ui";
 import {
   useQueryStore,
@@ -21,6 +21,7 @@ import { SqlEditor, type SqlEditorHandle } from "@/components/editor";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { EmptyQueryState } from "@/components/query-editor/EmptyQueryState";
+import { QueryError } from "@/components/query-editor/QueryError";
 import { QueryHistoryDropdown } from "@/components/query-history/QueryHistoryDropdown";
 import { BookmarksDropdown } from "@/components/bookmarks";
 import { BrandIcon } from "@/components/ui";
@@ -425,12 +426,7 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
           {isExecuting ? (
             <GridSkeleton className="h-full" />
           ) : error ? (
-            <div className="flex h-full items-center justify-center gap-3 p-4">
-              <div className="flex items-center gap-3 text-destructive bg-destructive/10 px-4 py-3 rounded-lg border border-destructive/20">
-                <AlertCircle className="h-5 w-5 shrink-0" />
-                <span className="text-sm">{error}</span>
-              </div>
-            </div>
+            <QueryError error={error} onRetry={() => handleExecute()} />
           ) : results ? (
             <DataGrid data={results} connectionId={connectionId} />
           ) : !content.trim() ? (

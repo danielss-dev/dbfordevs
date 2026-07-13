@@ -191,27 +191,27 @@ not porting strand's amber or its OKLCH palette; we port the *system*.
   result panes show a grid-shaped placeholder while executing instead of stale results or a
   centered spinner. Schema search keeps its previous results mounted and visibly refreshes them.
 
+## Applied in pass 10
+
+- [x] **Shared query errors** — `QueryError` replaces the duplicated raw error pills in query
+  and table result panes. It presents expandable mono details plus Retry and Copy actions.
+
 ## Roadmap (next passes) — from the pass-8 UX audit
 
-1. **Shared structured error surface** — query errors are raw DB strings in centered pills,
-   duplicated in `QueryEditorTab` and `TableViewerTab`, with no Retry/Copy; AI errors are
-   string-sniffed (`content.startsWith("error:")`) red bubbles. Build one `<QueryError>` card
-   (left-aligned, mono detail, Retry + Copy, collapsible) modeled on ConnectionModal's good
-   test-failure card, and carry an explicit error flag in the AI store.
-2. **Tooltip routing** — ~40 icon-only buttons use native `title=` (AIPanel ×8, ThemeEditor ×8,
+1. **Tooltip routing** — ~40 icon-only buttons use native `title=` (AIPanel ×8, ThemeEditor ×8,
    FindReplaceBar ×7, DataGrid ×5, MongoServerInfo ×5…) instead of the app `Tooltip`; also
    standardize toolbar icon-button size (h-7 dense).
-3. **`<TreeEmpty>` component** — ~20 sidebar "No X found" one-liners (all object sections +
+2. **`<TreeEmpty>` component** — ~20 sidebar "No X found" one-liners (all object sections +
    NoSQL trees) get icon + guidance + optional "Create…" action; same treatment for the DataGrid
    no-columns fallback and schema-search no-results/not-connected dead ends.
-4. **Dialog standardization** — ConnectionModal lacks Cancel; ImportDialog's wizard footer
+3. **Dialog standardization** — ConnectionModal lacks Cancel; ImportDialog's wizard footer
    diverges from the other three wizards (Back pinned left); no dialog submits on Enter (wrap in
    `<form>`, add quiet `kbd` footer hints); BookmarkManager import dialog orders destructive
    "Replace All" between Cancel and primary.
-5. **Monaco theme coverage** — Nordic themes fall back to generic Monaco themes; custom themes
+4. **Monaco theme coverage** — Nordic themes fall back to generic Monaco themes; custom themes
    never re-color the editor even though `monaco-generator.ts` exists — wire it into
    `getMonacoTheme()`.
-6. **Smaller follow-ups** — AI empty-state copy is SQL-only on NoSQL connections; "AI Disabled"
+5. **Smaller follow-ups** — AI empty-state copy is SQL-only on NoSQL connections; "AI Disabled"
    state lacks an Open Settings action; DataGrid right-aligns columns by name-substring guess
    instead of `dataType`; floating AIPanel chrome (gradient bubbles, glow avatars) still reads
    pre-redesign; schema-search rows lack listbox roles/scroll-into-view.
