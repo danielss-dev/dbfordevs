@@ -196,7 +196,7 @@ export function ColumnEditor({ columns, databaseType, onChange }: ColumnEditorPr
                   {/* Name */}
                   <div className="flex items-center gap-1">
                     {column.isPrimaryKey && (
-                      <Key className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                      <Key className="h-3 w-3 text-warning flex-shrink-0" />
                     )}
                     <Input
                       value={column.name}

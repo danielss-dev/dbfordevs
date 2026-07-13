@@ -33,18 +33,18 @@ interface DiffVisualizationStepProps {
 
 const changeTypeStyles: Record<DiffChangeType, { bg: string; text: string; icon: React.ElementType }> = {
   added: {
-    bg: "bg-green-500/10",
-    text: "text-green-700 dark:text-green-300",
+    bg: "bg-success/10",
+    text: "text-success",
     icon: Plus,
   },
   removed: {
-    bg: "bg-red-500/10",
-    text: "text-red-700 dark:text-red-300",
+    bg: "bg-destructive/10",
+    text: "text-destructive",
     icon: Minus,
   },
   modified: {
-    bg: "bg-blue-500/20",
-    text: "text-blue-600 dark:text-blue-400",
+    bg: "bg-warning/20",
+    text: "text-warning",
     icon: RefreshCw,
   },
 };
@@ -194,7 +194,7 @@ export function DiffVisualizationStep({ result }: DiffVisualizationStepProps) {
   if (result.isIdentical) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
+        <CheckCircle2 className="h-12 w-12 text-success mb-4" />
         <h3 className="text-lg font-medium mb-2">Schemas are identical</h3>
         <p className="text-muted-foreground">
           No differences found between{" "}
@@ -213,11 +213,11 @@ export function DiffVisualizationStep({ result }: DiffVisualizationStepProps) {
           <div className="flex-1">
             <h3 className="font-medium">
               Comparing{" "}
-              <span className="font-mono text-blue-600 dark:text-blue-400">
+              <span className="font-mono text-info">
                 {result.sourceTable}
               </span>{" "}
               →{" "}
-              <span className="font-mono text-green-600 dark:text-green-400">
+              <span className="font-mono text-success">
                 {result.targetTable}
               </span>
             </h3>
@@ -226,7 +226,7 @@ export function DiffVisualizationStep({ result }: DiffVisualizationStepProps) {
             </p>
           </div>
           {result.requiresTableRecreation && (
-            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <div className="flex items-center gap-2 text-warning">
               <AlertTriangle className="h-5 w-5" />
               <span className="text-sm font-medium">Requires table recreation</span>
             </div>
@@ -235,11 +235,11 @@ export function DiffVisualizationStep({ result }: DiffVisualizationStepProps) {
 
         {/* Warnings */}
         {result.warnings.length > 0 && (
-          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <h4 className="font-medium text-amber-600 dark:text-amber-400 mb-2">
+          <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg">
+            <h4 className="font-medium text-warning mb-2">
               Warnings
             </h4>
-            <ul className="text-sm space-y-1 text-amber-700 dark:text-amber-300">
+            <ul className="text-sm space-y-1 text-warning">
               {result.warnings.map((warning, i) => (
                 <li key={i}>{warning}</li>
               ))}

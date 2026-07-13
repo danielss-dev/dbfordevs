@@ -56,7 +56,7 @@ export function StatusBar() {
         icon: <Loader2 className="h-3 w-3 animate-spin" />,
         text: "Connecting...",
         dotClass: "status-dot-warning",
-        textClass: "text-[hsl(var(--warning))]",
+        textClass: "text-warning",
       };
     }
     if (!activeConnection) {
@@ -72,7 +72,7 @@ export function StatusBar() {
         icon: <CheckCircle className="h-3 w-3" />,
         text: "Connected",
         dotClass: "status-dot-success",
-        textClass: "text-[hsl(var(--success))]",
+        textClass: "text-success",
       };
     }
     return {
@@ -106,7 +106,7 @@ export function StatusBar() {
   const tabInfo = getTabTypeInfo();
 
   return (
-    <footer className="flex h-7 items-center justify-between border-t border-border bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 px-3 text-xs">
+    <footer className="flex h-7 items-center justify-between border-t border-border bg-muted/30 px-3 text-xs tabular-nums">
       {/* Left side */}
       <div className="flex items-center gap-3">
         {/* Connection status */}
@@ -154,7 +154,7 @@ export function StatusBar() {
 
         {/* Query status */}
         {isExecuting && (
-          <div className="flex items-center gap-1.5 text-[hsl(var(--warning))] bg-[hsl(var(--warning)/0.1)] px-2 py-0.5 rounded">
+          <div className="flex items-center gap-1.5 text-warning bg-warning/10 px-2 py-0.5 rounded">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span className="font-medium">Executing...</span>
           </div>
@@ -162,7 +162,7 @@ export function StatusBar() {
 
         {/* Pending changes */}
         {pendingChanges.length > 0 && (
-          <div className="flex items-center gap-1.5 text-[hsl(var(--warning))] bg-[hsl(var(--warning)/0.1)] px-2 py-0.5 rounded">
+          <div className="flex items-center gap-1.5 text-warning bg-warning/10 px-2 py-0.5 rounded">
             <Clock className="h-3 w-3" />
             <span className="font-medium tabular-nums">{pendingChanges.length} pending</span>
           </div>

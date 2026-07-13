@@ -106,8 +106,8 @@ export function MongoShell({ connectionId }: MongoShellProps) {
           history.map((entry) => (
             <div key={entry.id} className="mb-4">
               <div className="flex items-center gap-2 text-muted-foreground">
-                <span className="text-green-500">{">"}</span>
-                <span className="text-cyan-500">{selectedDb}</span>
+                <span className="text-success">{">"}</span>
+                <span className="text-info">{selectedDb}</span>
                 <span>{entry.command}</span>
               </div>
               {entry.error ? (
@@ -135,7 +135,7 @@ export function MongoShell({ connectionId }: MongoShellProps) {
 
       {/* Input */}
       <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t p-2">
-        <span className="text-green-500 font-mono">{">"}</span>
+        <span className="text-success font-mono">{">"}</span>
         <Input
           value={command}
           onChange={(e) => setCommand(e.target.value)}

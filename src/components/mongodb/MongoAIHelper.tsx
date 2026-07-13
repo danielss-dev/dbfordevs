@@ -185,7 +185,7 @@ export function MongoAIHelper({
 
             {/* Error */}
             {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 text-red-500 text-sm">
+              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                 {error}
               </div>
             )}
@@ -203,7 +203,7 @@ export function MongoAIHelper({
                 {/* Query/Pipeline */}
                 <div className="rounded-lg border border-border overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border">
-                    <span className="text-xs font-medium text-muted-foreground uppercase">
+                    <span className="micro-label">
                       {mode === "find" ? "Query" : "Pipeline"}
                     </span>
                     <div className="flex items-center gap-1">
@@ -214,7 +214,7 @@ export function MongoAIHelper({
                         onClick={handleCopy}
                       >
                         {copied ? (
-                          <Check className="h-3.5 w-3.5 text-green-500" />
+                          <Check className="h-3.5 w-3.5 text-success" />
                         ) : (
                           <Copy className="h-3.5 w-3.5" />
                         )}
@@ -268,7 +268,7 @@ export function MongoAIButton({
         className="gap-1.5 text-xs"
         onClick={() => setOpen(true)}
       >
-        <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
         AI Query
       </Button>
       <MongoAIHelper

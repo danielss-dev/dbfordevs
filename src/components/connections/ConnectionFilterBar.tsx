@@ -89,7 +89,7 @@ export function ConnectionFilterBar() {
               {/* Groups Section */}
               {groups.length > 0 && (
                 <div className="p-1.5">
-                  <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <div className="micro-label px-2 py-1">
                     Groups
                   </div>
                   <div className="space-y-0.5">
@@ -99,7 +99,7 @@ export function ConnectionFilterBar() {
                         <button
                           key={group.id}
                           className={cn(
-                            "w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2",
+                            "w-full text-left px-2 py-[var(--pad-menu-y)] text-sm rounded-md transition-colors flex items-center gap-2",
                             activeGroupFilter === group.id
                               ? "bg-accent text-accent-foreground"
                               : "hover:bg-accent/50"
@@ -127,7 +127,7 @@ export function ConnectionFilterBar() {
               {/* Tags Section */}
               {tags.length > 0 && (
                 <div className="p-1.5 border-t border-border">
-                  <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <div className="micro-label px-2 py-1">
                     Tags
                   </div>
                   <div className="space-y-0.5">
@@ -135,7 +135,7 @@ export function ConnectionFilterBar() {
                       <button
                         key={tag.id}
                         className={cn(
-                          "w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2",
+                          "w-full text-left px-2 py-[var(--pad-menu-y)] text-sm rounded-md transition-colors flex items-center gap-2",
                           activeTagFilters.includes(tag.id)
                             ? "bg-accent text-accent-foreground"
                             : "hover:bg-accent/50"

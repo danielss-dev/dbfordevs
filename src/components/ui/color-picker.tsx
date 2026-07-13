@@ -22,7 +22,7 @@ export function ColorPicker({ value, onChange, className }: ColorPickerProps) {
           key={color}
           type="button"
           className={cn(
-            "w-6 h-6 rounded-md border-2 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            "w-6 h-6 rounded-md border-2 transition-all hover:scale-110 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]",
             value.toLowerCase() === color.toLowerCase()
               ? "border-foreground scale-110"
               : "border-transparent"

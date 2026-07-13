@@ -1,5 +1,6 @@
 import { Star, FileCode, Database } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
 import type { Bookmark } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,7 @@ export function BookmarksDropdownItem({
         <button
           type="button"
           className={cn(
-            "w-full text-left px-2 py-1.5 rounded-sm cursor-pointer",
+            "w-full text-left px-2 py-[var(--pad-menu-y)] rounded-sm cursor-pointer",
             "hover:bg-accent hover:text-accent-foreground",
             "focus:bg-accent focus:text-accent-foreground focus:outline-none",
             "transition-colors duration-150"
@@ -53,15 +54,15 @@ export function BookmarksDropdownItem({
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium truncate">{bookmark.name}</span>
                 {bookmark.isTemplate && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                     Template
                   </span>
                 )}
                 {bookmark.databaseType && !bookmark.connectionId && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                  <Badge variant="info" className="text-[10px] px-1.5 py-0.5 rounded-full gap-1">
                     <Database className="h-2.5 w-2.5" />
                     {bookmark.databaseType}
-                  </span>
+                  </Badge>
                 )}
               </div>
               <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">

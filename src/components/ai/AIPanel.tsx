@@ -121,16 +121,16 @@ export function AIPanel() {
       <div
         className={cn(
           "fixed right-0 top-0 bottom-0 z-50",
-          "border-l border-border bg-background shadow-2xl",
-          "animate-in slide-in-from-right duration-300 transition-all",
+          "border-l border-border bg-background shadow-pop",
+          "animate-in slide-in-from-right duration-150 ease-swift transition-all",
           panelExpanded ? "w-[720px] max-w-[50vw]" : "w-[420px]"
         )}
       >
         <div className="relative flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-primary/10">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-elev-2">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
@@ -144,7 +144,7 @@ export function AIPanel() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="flex items-center gap-1 text-violet-400">
+                          <span className="flex items-center gap-1 text-primary">
                             <Coins className="h-3 w-3" />
                             {usageStats.totalTokens >= 1000
                               ? `${(usageStats.totalTokens / 1000).toFixed(1)}k`
@@ -184,7 +184,7 @@ export function AIPanel() {
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-8 w-8", contextPanelOpen && "bg-violet-500/10 text-violet-500")}
+              className={cn("h-8 w-8", contextPanelOpen && "bg-primary/10 text-primary")}
               onClick={toggleContextPanel}
               title="Context Panel"
             >
@@ -268,7 +268,7 @@ export function AIPanel() {
             <div className="flex flex-col gap-6 p-4 pb-6 overflow-hidden">
               {!isConfigured && (
                 <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-warning/10 text-warning">
                     <AlertCircle className="h-8 w-8" />
                   </div>
                   <div>
@@ -291,7 +291,7 @@ export function AIPanel() {
 
               {isConfigured && messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-600/20 text-violet-500">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/20 text-primary">
                     <Bot className="h-8 w-8" />
                   </div>
                   <div>
@@ -330,8 +330,8 @@ export function AIPanel() {
 
               {isLoading && !isStreaming && (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
-                    <Loader2 className="h-4 w-4 text-white animate-spin" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                    <Loader2 className="h-4 w-4 text-primary-foreground animate-spin" />
                   </div>
                   <span className="text-sm text-muted-foreground">
                     Thinking...
@@ -365,4 +365,3 @@ export function AIPanel() {
     </>
   );
 }
-

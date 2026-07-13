@@ -46,7 +46,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         />
         <div
           className={cn(
-            "h-5 w-5 border-2 transition-all duration-200 flex items-center justify-center cursor-pointer",
+            "h-5 w-5 border-2 transition-all duration-150 ease-swift flex items-center justify-center cursor-pointer",
             isWebStyle ? "rounded-lg" : "rounded-md",
             isChecked
               ? "bg-primary border-primary"

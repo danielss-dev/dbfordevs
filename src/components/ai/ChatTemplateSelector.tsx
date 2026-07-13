@@ -55,7 +55,7 @@ function TemplateCard({
       onClick={onSelect}
     >
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-600/20 text-violet-500">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20 text-primary">
           <Icon className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">

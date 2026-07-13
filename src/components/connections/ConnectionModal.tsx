@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Badge,
   Button,
   Input,
   Label,
@@ -25,6 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
   BrandIcon,
+  Textarea,
 } from "@/components/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUIStore } from "@/stores";
@@ -97,7 +99,7 @@ function FormField({ label, htmlFor, hint, required, children }: FormFieldProps)
       <div className="flex items-center gap-2">
         <Label htmlFor={htmlFor} className="text-sm font-medium">
           {label}
-          {required && <span className="text-red-500 ml-0.5">*</span>}
+          {required && <span className="text-destructive ml-0.5">*</span>}
         </Label>
         {hint && (
           <TooltipProvider delayDuration={300}>
@@ -455,9 +457,9 @@ export function ConnectionModal() {
                         <Key className="h-4 w-4" />
                         Wallet
                         {getWalletStatus() && (
-                          <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-400">
+                          <Badge variant="warning" className="ml-1 text-xs px-1.5 py-0.5 rounded-full">
                             on
-                          </span>
+                          </Badge>
                         )}
                       </TabsTrigger>
                     )}
@@ -467,9 +469,9 @@ export function ConnectionModal() {
                         <Terminal className="h-4 w-4" />
                         SSH
                         {getSshStatus() && (
-                          <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+                          <Badge variant="success" className="ml-1 text-xs px-1.5 py-0.5 rounded-full">
                             on
-                          </span>
+                          </Badge>
                         )}
                       </TabsTrigger>
                     )}
@@ -491,7 +493,6 @@ export function ConnectionModal() {
                       placeholder="Production Database"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="transition-colors focus:ring-2"
                     />
                   </FormField>
 
@@ -592,7 +593,7 @@ export function ConnectionModal() {
                           htmlFor="connectionString"
                           hint="Paste your database connection string"
                         >
-                          <textarea
+                          <Textarea
                             id="connectionString"
                             placeholder={formData.databaseType === "mssql"
                               ? "Server=tcp:host,port;Database=db;User Id=user;Password=pass;"
@@ -602,7 +603,7 @@ export function ConnectionModal() {
                               setFormData({ ...formData, connectionString: e.target.value });
                               setParseError(null);
                             }}
-                            className="w-full min-h-[100px] px-3 py-2 text-sm font-mono rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                            className="min-h-[100px] font-mono"
                           />
                         </FormField>
                         <div className="flex items-center gap-2">
@@ -616,7 +617,7 @@ export function ConnectionModal() {
                             Parse & Fill Fields
                           </Button>
                           {parseError && (
-                            <span className="text-sm text-red-500">{parseError}</span>
+                            <span className="text-sm text-destructive">{parseError}</span>
                           )}
                         </div>
                       </div>
@@ -852,7 +853,7 @@ export function ConnectionModal() {
                         id="walletEnabled"
                         checked={formData.oracleWallet?.enabled || false}
                         onChange={(e) => updateWalletConfig({ enabled: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-border"
                       />
                       <Label htmlFor="walletEnabled" className="text-sm cursor-pointer">
                         Use Oracle Wallet for authentication
@@ -895,7 +896,7 @@ export function ConnectionModal() {
                             id="useAutoLogin"
                             checked={formData.oracleWallet?.useAutoLogin ?? true}
                             onChange={(e) => updateWalletConfig({ useAutoLogin: e.target.checked })}
-                            className="h-4 w-4 rounded border-gray-300"
+                            className="h-4 w-4 rounded border-border"
                           />
                           <div>
                             <Label htmlFor="useAutoLogin" className="text-sm cursor-pointer">
@@ -945,7 +946,7 @@ export function ConnectionModal() {
                         id="sshEnabled"
                         checked={formData.sshTunnel?.enabled || false}
                         onChange={(e) => updateSshConfig({ enabled: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-border"
                       />
                       <Label htmlFor="sshEnabled" className="text-sm cursor-pointer">
                         Connect through SSH tunnel
@@ -1095,32 +1096,32 @@ export function ConnectionModal() {
               <div
                 className={`flex items-start gap-3 rounded-lg border p-4 mt-4 transition-all ${
                   testResult.success
-                    ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/50"
-                    : "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/50"
+                    ? "border-success/30 bg-success/10"
+                    : "border-destructive/30 bg-destructive/10"
                 }`}
               >
                 {testResult.success ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                  <XCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 )}
                 <div className="space-y-2 min-w-0 flex-1">
                   <p className={`text-sm font-medium ${
                     testResult.success
-                      ? "text-green-900 dark:text-green-100"
-                      : "text-red-900 dark:text-red-100"
+                      ? "text-success"
+                      : "text-destructive"
                   }`}>
                     {testResult.success ? "Connection successful!" : "Connection failed"}
                   </p>
                   <p className={`text-sm ${
                     testResult.success
-                      ? "text-green-700 dark:text-green-300"
-                      : "text-red-700 dark:text-red-300"
+                      ? "text-success/80"
+                      : "text-destructive/80"
                   }`}>
                     {testResult.message}
                   </p>
                   {testResult.success && testResult.serverVersion && (
-                    <p className="text-xs text-green-600 dark:text-green-400 font-mono">
+                    <p className="text-xs text-success font-mono">
                       Server: {testResult.serverVersion}
                     </p>
                   )}

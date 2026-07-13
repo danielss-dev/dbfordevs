@@ -114,7 +114,7 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
 
   const getTypeStyles = (type: string) => {
     switch (type) {
-      case "update": return { color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/30" };
+      case "update": return { color: "text-info", bg: "bg-info/10", border: "border-info/30" };
       case "delete": return { color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" };
       case "insert": return { color: "text-success", bg: "bg-success/10", border: "border-success/30" };
       default: return { color: "text-muted-foreground", bg: "bg-muted", border: "border-border" };
@@ -148,7 +148,7 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
   const rowId = getRowIdentifier(change);
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+    <div className="bg-card rounded-xl border border-border shadow-elev-1 overflow-hidden">
       {/* Change header with type badge and row identifier */}
       <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b border-border">
         <div className="flex items-center gap-3">
@@ -177,7 +177,7 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
 
       {/* Table name subheader */}
       <div className="px-3 py-1.5 bg-muted/10 border-b border-border/50 flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/80">
+        <span className="micro-label text-muted-foreground/80">
           {change.tableName}
         </span>
         {change.type === "update" && change.originalData && (
@@ -205,6 +205,7 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
                   w-6 flex items-start justify-center font-bold shrink-0 pt-0.5
                   ${field.status === "added" ? "text-success" :
                     field.status === "removed" ? "text-destructive" :
+                    field.status === "changed" ? "text-warning" :
                     "text-muted-foreground/40"}
                 `}>
                   {field.status === "added" ? "+" :
@@ -219,7 +220,7 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
                   flex-1 break-all
                   ${field.status === "added" ? "text-success font-medium" :
                     field.status === "removed" ? "text-destructive line-through" :
-                    field.status === "changed" ? "text-amber-500" :
+                    field.status === "changed" ? "text-warning" :
                     "text-muted-foreground/70"}
                 `}>
                   {field.status === "added" && formatValue(field.newValue)}
@@ -360,7 +361,7 @@ function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRem
     switch (category) {
       case "added": return { color: "text-success", bg: "bg-success/10", border: "border-success/30" };
       case "removed": return { color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" };
-      default: return { color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/30" };
+      default: return { color: "text-info", bg: "bg-info/10", border: "border-info/30" };
     }
   })();
 
@@ -382,7 +383,7 @@ function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRem
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+    <div className="bg-card rounded-xl border border-border shadow-elev-1 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b border-border">
         <div className="flex items-center gap-3">
@@ -406,7 +407,7 @@ function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRem
       {/* Key subheader */}
       <div className="px-3 py-1.5 bg-muted/10 border-b border-border/50 flex items-center gap-1.5">
         <Key className="h-3 w-3 text-muted-foreground/50" />
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/80 font-mono">
+        <span className="micro-label text-muted-foreground/80 font-mono">
           {key}
         </span>
       </div>
@@ -426,6 +427,7 @@ function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRem
               w-6 flex items-start justify-center font-bold shrink-0 pt-0.5
               ${field.status === "added" ? "text-success" :
                 field.status === "removed" ? "text-destructive" :
+                field.status === "changed" ? "text-warning" :
                 "text-muted-foreground/40"}
             `}>
               {field.status === "added" ? "+" :
@@ -440,7 +442,7 @@ function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRem
               flex-1 break-all
               ${field.status === "added" ? "text-success font-medium" :
                 field.status === "removed" ? "text-destructive line-through" :
-                field.status === "changed" ? "text-amber-500" :
+                field.status === "changed" ? "text-warning" :
                 "text-muted-foreground/70"}
             `}>
               {field.status === "added" && formatValue(field.newValue)}

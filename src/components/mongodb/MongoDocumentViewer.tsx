@@ -35,7 +35,7 @@ function JsonNode({ keyName, value, level, isLast }: JsonNodeProps) {
 
   const getValueDisplay = () => {
     if (value === null) return <span className="text-orange-500">null</span>;
-    if (value === undefined) return <span className="text-gray-500">undefined</span>;
+    if (value === undefined) return <span className="text-muted-foreground">undefined</span>;
     if (typeof value === "boolean") return <span className="text-purple-500">{String(value)}</span>;
     if (typeof value === "number") return <span className="text-blue-500">{value}</span>;
     if (typeof value === "string") return <span className="text-green-500">"{value}"</span>;
@@ -105,7 +105,7 @@ function JsonNode({ keyName, value, level, isLast }: JsonNodeProps) {
               }}
             >
               {copied ? (
-                <Check className="h-3 w-3 text-green-500" />
+                <Check className="h-3 w-3 text-success" />
               ) : (
                 <Copy className="h-3 w-3" />
               )}

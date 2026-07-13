@@ -1,9 +1,10 @@
 import { useEffect, lazy, Suspense } from "react";
 import { TooltipProvider, Toaster } from "@/components/ui";
 import { Sidebar, MainContent, SidePanel, StatusBar, RightActivityBar } from "@/components/layout";
-import { useUIStore, useQueryStore } from "@/stores";
+import { useUIStore, useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
 import { useKeyboardShortcuts, useFocusZoneEffect } from "@/hooks";
 import { useCommandRegistration } from "@/lib/commands";
+import { applyConnectionAccent } from "@/lib/connection-accent";
 
 // Lazy-loaded dialogs - only loaded when opened
 const SettingsDialog = lazy(() => import("@/components/settings").then(m => ({ default: m.SettingsDialog })));
@@ -23,7 +24,12 @@ const UpdateNotification = lazy(() => import("@/components/updater/UpdateNotific
 const CommandPalette = lazy(() => import("@/components/command-palette").then(m => ({ default: m.CommandPalette })));
 
 function App() {
-  const { theme, setTheme, appStyle, setAppStyle } = useUIStore();
+  const { theme, setTheme, appStyle, setAppStyle, density, setDensity } = useUIStore();
+  const activeConnection = useConnectionsStore(selectActiveConnection);
+  const groups = useConnectionsStore((s) => s.groups);
+  const accentFollowsConnection = useUIStore(
+    (s) => s.generalSettings.accentFollowsConnection ?? true
+  );
 
   // Register all default commands (must come before useKeyboardShortcuts)
   useCommandRegistration();
@@ -38,6 +44,7 @@ function App() {
   useEffect(() => {
     setTheme(theme);
     setAppStyle(appStyle);
+    setDensity(density);
 
     // Run query history cleanup on startup
     const { historySettings, cleanupOldHistory } = useQueryStore.getState();
@@ -45,6 +52,15 @@ function App() {
       cleanupOldHistory();
     }
   }, []);
+
+  // Environment accent: tint the app accent to the active connection's group color
+  useEffect(() => {
+    const group =
+      accentFollowsConnection && activeConnection?.groupId
+        ? groups.find((g) => g.id === activeConnection.groupId)
+        : null;
+    applyConnectionAccent(group?.color ?? null);
+  }, [accentFollowsConnection, activeConnection, groups]);
 
   // Disable native context menu on non-editable elements (allow custom context menus)
   useEffect(() => {

@@ -99,13 +99,13 @@ export function CassandraServerInfo({ connectionId }: CassandraServerInfoProps) 
           <CardContent>
             <div className="text-3xl font-bold">{serverInfo.nodes.length}</div>
             <div className="flex items-center gap-2 mt-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
               <span className="text-sm text-muted-foreground">
                 {serverInfo.nodes.filter((n) => n.isUp).length} up
               </span>
               {serverInfo.nodes.some((n) => !n.isUp) && (
                 <>
-                  <XCircle className="h-4 w-4 text-red-500 ml-2" />
+                  <XCircle className="h-4 w-4 text-destructive ml-2" />
                   <span className="text-sm text-muted-foreground">
                     {serverInfo.nodes.filter((n) => !n.isUp).length} down
                   </span>
@@ -125,7 +125,7 @@ export function CassandraServerInfo({ connectionId }: CassandraServerInfoProps) 
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
               <span className="text-sm">Connected</span>
             </div>
             <div className="text-xs text-muted-foreground mt-2">
@@ -162,12 +162,12 @@ export function CassandraServerInfo({ connectionId }: CassandraServerInfoProps) 
                     <td className="py-2 px-4">{node.rack}</td>
                     <td className="py-2 px-4">
                       {node.isUp ? (
-                        <span className="flex items-center gap-1 text-green-600">
+                        <span className="flex items-center gap-1 text-success">
                           <CheckCircle2 className="h-4 w-4" />
                           Up
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-red-600">
+                        <span className="flex items-center gap-1 text-destructive">
                           <XCircle className="h-4 w-4" />
                           Down
                         </span>

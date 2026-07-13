@@ -194,18 +194,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-background",
           isUser
-            ? "bg-blue-500 ring-blue-500/20"
+            ? "bg-info ring-info/20"
             : isError
-            ? "bg-red-500 ring-red-500/20"
-            : "bg-gradient-to-br from-violet-500 to-purple-600 ring-violet-500/20"
+            ? "bg-destructive ring-destructive/20"
+            : "bg-primary ring-primary/20"
         )}
       >
         {isUser ? (
-          <User className="h-4 w-4 text-white" />
+          <User className="h-4 w-4 text-info-foreground" />
         ) : isError ? (
-          <AlertCircle className="h-4 w-4 text-white" />
+          <AlertCircle className="h-4 w-4 text-destructive-foreground" />
         ) : (
-          <Bot className="h-4 w-4 text-white" />
+          <Bot className="h-4 w-4 text-primary-foreground" />
         )}
       </div>
 
@@ -219,9 +219,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
         {/* Streaming indicator when no content yet */}
         {showStreamingIndicator && (
           <div className="flex items-center gap-1.5 px-4 py-3 rounded-2xl rounded-bl-md bg-muted/80 backdrop-blur-sm">
-            <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
           </div>
         )}
 
@@ -231,9 +231,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
             className={cn(
               "rounded-2xl px-4 py-3 text-sm shadow-sm",
               isUser
-                ? "bg-blue-500 text-white rounded-br-md"
+                ? "bg-info text-info-foreground rounded-br-md"
                 : isError
-                ? "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-900 dark:text-red-200 rounded-bl-md"
+                ? "bg-destructive/10 border border-destructive/30 text-destructive rounded-bl-md"
                 : "bg-muted/80 backdrop-blur-sm rounded-bl-md"
             )}
           >
@@ -242,7 +242,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 {cleanErrorMessage(message.content)}
               </p>
             ) : (
-              <div className="prose prose-sm dark:prose-invert prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-violet-400 prose-code:bg-violet-500/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none max-w-none break-words">
+              <div className="prose prose-sm dark:prose-invert prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none max-w-none break-words">
                 <ReactMarkdown
                   components={{
                     // Override code blocks to use our SQL highlighting when it looks like SQL
@@ -250,7 +250,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                       const isInline = !className;
                       if (isInline) {
                         return (
-                          <code className="text-violet-400 bg-violet-500/10 px-1 py-0.5 rounded text-xs" {...props}>
+                          <code className="text-primary bg-primary/10 px-1 py-0.5 rounded text-xs" {...props}>
                             {children}
                           </code>
                         );
@@ -264,7 +264,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                     pre: ({ children }) => <>{children}</>,
                     // Make links open in external browser
                     a: ({ href, children }) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:underline">
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                         {children}
                       </a>
                     ),
@@ -273,7 +273,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   {cleanErrorMessage(message.content)}
                 </ReactMarkdown>
                 {isStreaming && (
-                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-violet-500 rounded-sm animate-pulse" />
+                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-primary rounded-sm animate-pulse" />
                 )}
               </div>
             )}
@@ -286,7 +286,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
             {/* SQL header */}
             <div className="flex items-center justify-between px-3 py-2 bg-[#181825]/80 backdrop-blur-sm border-b border-border/30">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">
+                <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
                   Generated SQL
                 </span>
                 <QueryValidationBadge
@@ -303,7 +303,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   disabled={isRunning || !activeConnectionId}
                   title="Run Query"
                 >
-                  <Play className={cn("h-3.5 w-3.5 text-green-400", isRunning && "animate-pulse")} />
+                  <Play className={cn("h-3.5 w-3.5 text-success", isRunning && "animate-pulse")} />
                 </Button>
                 <Button
                   variant="ghost"
@@ -313,9 +313,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   title="Copy SQL"
                 >
                   {copied ? (
-                    <Check className="h-3.5 w-3.5 text-green-400" />
+                    <Check className="h-3.5 w-3.5 text-success" />
                   ) : (
-                    <Copy className="h-3.5 w-3.5 text-gray-400" />
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                   )}
                 </Button>
                 <Button
@@ -325,7 +325,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   onClick={handleInsertSQL}
                   title="Insert into Query Editor"
                 >
-                  <FileEdit className="h-3.5 w-3.5 text-blue-400" />
+                  <FileEdit className="h-3.5 w-3.5 text-info" />
                 </Button>
               </div>
             </div>

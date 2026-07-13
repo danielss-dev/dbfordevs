@@ -782,13 +782,13 @@ export function ImportDialog({
                       <p className="text-xs text-muted-foreground">Inserted</p>
                     </div>
                     <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-2xl font-bold text-blue-500">
+                      <p className="text-2xl font-bold text-info">
                         {progress.rowsUpdated}
                       </p>
                       <p className="text-xs text-muted-foreground">Updated</p>
                     </div>
                     <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-2xl font-bold text-yellow-500">
+                      <p className="text-2xl font-bold text-warning">
                         {progress.rowsSkipped}
                       </p>
                       <p className="text-xs text-muted-foreground">Skipped</p>
@@ -820,7 +820,7 @@ export function ImportDialog({
             <div className="space-y-6">
               <div className="text-center space-y-4">
                 {result.success ? (
-                  <CheckCircle2 className="h-16 w-16 mx-auto text-green-500" />
+                  <CheckCircle2 className="h-16 w-16 mx-auto text-success" />
                 ) : (
                   <XCircle className="h-16 w-16 mx-auto text-destructive" />
                 )}
@@ -841,13 +841,13 @@ export function ImportDialog({
                   <p className="text-xs text-muted-foreground">Inserted</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-2xl font-bold text-blue-500">
+                  <p className="text-2xl font-bold text-info">
                     {result.rowsUpdated}
                   </p>
                   <p className="text-xs text-muted-foreground">Updated</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-2xl font-bold text-yellow-500">
+                  <p className="text-2xl font-bold text-warning">
                     {result.rowsSkipped}
                   </p>
                   <p className="text-xs text-muted-foreground">Skipped</p>

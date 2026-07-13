@@ -8,7 +8,6 @@ import {
   CircleDot,
   ArrowUpDown,
   Activity,
-  ChevronRight,
   Loader2,
   RefreshCw,
   LayoutGrid,
@@ -22,6 +21,7 @@ import {
   Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TreeItem } from "@/components/layout/sidebar/TreeItem";
 import {
   Button,
   Tooltip,
@@ -45,108 +45,6 @@ import { useRedis, useToast } from "@/hooks";
 import { useRedisStore, useQueryStore } from "@/stores";
 import type { RedisKeyType, Tab } from "@/types";
 import { buildKeyTree, getAncestorPaths, type KeyTreeNode } from "./buildKeyTree";
-
-interface TreeItemProps {
-  label: string;
-  icon: React.ReactNode;
-  children?: React.ReactNode;
-  level?: number;
-  onClick?: () => void;
-  isActive?: boolean;
-  isHighlighted?: boolean;
-  rightElement?: React.ReactNode;
-  defaultOpen?: boolean;
-  forceOpen?: boolean;
-  count?: number;
-  itemRef?: React.RefObject<HTMLDivElement>;
-}
-
-function TreeItem({
-  label,
-  icon,
-  children,
-  level = 0,
-  onClick,
-  isActive,
-  isHighlighted,
-  rightElement,
-  defaultOpen = false,
-  forceOpen,
-  count,
-  itemRef,
-}: TreeItemProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const hasChildren = Boolean(children);
-
-  // Force open when forceOpen changes to true
-  useEffect(() => {
-    if (forceOpen) {
-      setIsOpen(true);
-    }
-  }, [forceOpen]);
-
-  const effectiveOpen = isOpen || forceOpen;
-
-  return (
-    <div className="group/tree relative" ref={itemRef}>
-      {level > 0 && (
-        <div
-          className="tree-guide"
-          style={{ left: `${(level - 1) * 16 + 18}px` }}
-        />
-      )}
-      <div
-        className={cn(
-          "group flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-all duration-200",
-          "hover:bg-sidebar-accent/60",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-          isHighlighted && "animate-highlight-blink"
-        )}
-        style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: "8px" }}
-      >
-        <button
-          className="flex flex-1 items-center gap-2 overflow-hidden"
-          onClick={() => {
-            if (hasChildren) setIsOpen(!isOpen);
-            onClick?.();
-          }}
-        >
-          {hasChildren ? (
-            <ChevronRight
-              className={cn(
-                "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-                effectiveOpen && "rotate-90",
-                isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
-              )}
-            />
-          ) : (
-            <span className="w-3.5 shrink-0" />
-          )}
-          <span
-            className={cn(
-              "shrink-0 flex items-center justify-center w-5 h-5 rounded bg-sidebar-accent/30",
-              isActive ? "text-sidebar-accent-foreground bg-sidebar-accent/50" : ""
-            )}
-          >
-            {icon}
-          </span>
-          <span className="truncate flex-1 text-left">{label}</span>
-          {count !== undefined && (
-            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-              {count}
-            </span>
-          )}
-        </button>
-        {rightElement && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-            {rightElement}
-          </div>
-        )}
-      </div>
-      {effectiveOpen && children && <div className="animate-slide-down">{children}</div>}
-    </div>
-  );
-}
 
 const KEY_TYPE_ICONS: Record<RedisKeyType, React.ReactNode> = {
   string: <Type className="h-3.5 w-3.5 text-blue-500" />,

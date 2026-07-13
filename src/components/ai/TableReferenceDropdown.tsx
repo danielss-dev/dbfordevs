@@ -181,7 +181,7 @@ export function TableReferenceDropdown({
       ref={listRef}
       className={cn(
         "absolute z-50 min-w-[200px] max-w-[350px] rounded-lg border border-border",
-        "bg-popover shadow-lg animate-in fade-in-0 zoom-in-95",
+        "bg-popover shadow-elev-2 animate-in fade-in-0 zoom-in-95",
         "bottom-full left-0 mb-2"
       )}
     >

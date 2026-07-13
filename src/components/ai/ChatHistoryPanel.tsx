@@ -93,8 +93,8 @@ export function ChatHistoryPanel({ open, onOpenChange }: ChatHistoryPanelProps) 
       className={cn(
         "absolute left-4 top-16 z-[60] flex flex-col",
         "w-[340px] h-[500px] max-h-[calc(100vh-8rem)]",
-        "border border-border rounded-xl bg-background shadow-2xl",
-        "animate-in fade-in-0 zoom-in-95 duration-200"
+        "border border-border rounded-xl bg-background shadow-pop",
+        "animate-in fade-in-0 zoom-in-95 duration-150 ease-swift"
       )}
     >
       {/* Header */}

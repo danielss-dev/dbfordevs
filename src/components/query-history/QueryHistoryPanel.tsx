@@ -271,17 +271,17 @@ export function QueryHistoryPanel({ connectionId, onLoadQuery }: QueryHistoryPan
             </div>
             <div className="flex items-center justify-between p-2 rounded-md bg-background">
               <span className="text-muted-foreground flex items-center gap-1">
-                <CheckCircle className="h-3 w-3 text-green-500" />
+                <CheckCircle className="h-3 w-3 text-success" />
                 Success
               </span>
-              <span className="font-medium text-green-600">{stats.successfulQueries}</span>
+              <span className="font-medium text-success">{stats.successfulQueries}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-md bg-background">
               <span className="text-muted-foreground flex items-center gap-1">
-                <XCircle className="h-3 w-3 text-red-500" />
+                <XCircle className="h-3 w-3 text-destructive" />
                 Failed
               </span>
-              <span className="font-medium text-red-600">{stats.failedQueries}</span>
+              <span className="font-medium text-destructive">{stats.failedQueries}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-md bg-background">
               <span className="text-muted-foreground flex items-center gap-1">

@@ -85,7 +85,7 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b border-border">
         <div className="flex items-center gap-2">
-          <ArrowRight className="h-4 w-4 text-violet-400" />
+          <ArrowRight className="h-4 w-4 text-primary" />
           <span className="font-medium text-sm">Query Optimization</span>
         </div>
         <div className="flex items-center gap-1">
@@ -96,7 +96,7 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
             onClick={copyToClipboard}
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-green-500" />
+              <Check className="h-3.5 w-3.5 text-success" />
             ) : (
               <Copy className="h-3.5 w-3.5" />
             )}
@@ -106,7 +106,7 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1 text-green-500 hover:text-green-600"
+              className="h-7 text-xs gap-1 text-success hover:text-success/80"
               onClick={() => onApply(diff.optimized)}
             >
               <Check className="h-3.5 w-3.5" />
@@ -117,7 +117,7 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1 text-red-500 hover:text-red-600"
+              className="h-7 text-xs gap-1 text-destructive hover:text-destructive/80"
               onClick={onDismiss}
             >
               <X className="h-3.5 w-3.5" />
@@ -129,12 +129,12 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
 
       {/* Changes summary */}
       {diff.changes && diff.changes.length > 0 && (
-        <div className="px-4 py-2 bg-violet-500/5 border-b border-border">
-          <p className="text-xs font-medium text-violet-400 mb-1">Changes:</p>
+        <div className="px-4 py-2 bg-primary/5 border-b border-border">
+          <p className="text-xs font-medium text-primary mb-1">Changes:</p>
           <ul className="text-xs text-muted-foreground space-y-0.5">
             {diff.changes.map((change, i) => (
               <li key={i} className="flex items-start gap-1">
-                <span className="text-violet-400 mt-0.5">-</span>
+                <span className="text-primary mt-0.5">-</span>
                 <span>{change}</span>
               </li>
             ))}
@@ -171,14 +171,14 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
         </summary>
         <div className="grid grid-cols-2 gap-2 p-4">
           <div>
-            <p className="text-xs font-medium text-red-400 mb-2">Original</p>
-            <pre className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-mono whitespace-pre-wrap text-red-200">
+            <p className="text-xs font-medium text-destructive mb-2">Original</p>
+            <pre className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-mono whitespace-pre-wrap text-destructive">
               {diff.original}
             </pre>
           </div>
           <div>
-            <p className="text-xs font-medium text-green-400 mb-2">Optimized</p>
-            <pre className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-xs font-mono whitespace-pre-wrap text-green-200">
+            <p className="text-xs font-medium text-success mb-2">Optimized</p>
+            <pre className="p-3 rounded-lg bg-success/10 border border-success/20 text-xs font-mono whitespace-pre-wrap text-success">
               {diff.optimized}
             </pre>
           </div>

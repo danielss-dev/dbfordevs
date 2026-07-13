@@ -84,7 +84,7 @@ export function SchemaSearchResultItem({
   return (
     <button
       className={cn(
-        "w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 group",
+        "w-full text-left px-2 py-[var(--pad-menu-y)] rounded-md transition-colors flex items-center gap-2 group",
         isSelected
           ? "bg-accent text-accent-foreground"
           : "hover:bg-accent/50"
@@ -132,7 +132,7 @@ export function SchemaSearchResultItem({
       </div>
 
       {/* Object type badge */}
-      <div className="flex-shrink-0 text-[9px] uppercase tracking-wider text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="micro-label flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         {result.objectType}
       </div>
     </button>

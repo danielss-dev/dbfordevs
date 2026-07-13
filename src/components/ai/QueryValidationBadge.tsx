@@ -47,9 +47,9 @@ function IssueItem({ issue }: { issue: ValidationIssue }) {
     <div
       className={cn(
         "flex gap-2 p-2 rounded text-xs",
-        issue.severity === "error" && "bg-red-500/10 text-red-400",
-        issue.severity === "warning" && "bg-yellow-500/10 text-yellow-400",
-        issue.severity === "info" && "bg-blue-500/10 text-blue-400"
+        issue.severity === "error" && "bg-destructive/10 text-destructive",
+        issue.severity === "warning" && "bg-warning/10 text-warning",
+        issue.severity === "info" && "bg-info/10 text-info"
       )}
     >
       <Icon className="h-4 w-4 shrink-0 mt-0.5" />
@@ -84,7 +84,7 @@ export function QueryValidationBadge({ sql, onRunAnyway }: QueryValidationBadgeP
   // Don't show badge if no issues
   if (validationResult.issues.length === 0) {
     return (
-      <div className="flex items-center gap-1 text-[10px] text-green-400">
+      <div className="flex items-center gap-1 text-[10px] text-success">
         <CheckCircle2 className="h-3.5 w-3.5" />
         <span>Valid</span>
       </div>
@@ -93,10 +93,10 @@ export function QueryValidationBadge({ sql, onRunAnyway }: QueryValidationBadgeP
 
   // Determine badge color based on most severe issue
   const badgeColor = counts.error > 0
-    ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+    ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
     : counts.warning > 0
-    ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
-    : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30";
+    ? "bg-warning/20 text-warning hover:bg-warning/30"
+    : "bg-info/20 text-info hover:bg-info/30";
 
   const BadgeIcon = counts.error > 0
     ? AlertCircle
@@ -182,19 +182,19 @@ export function ValidationIndicator({ sql }: { sql: string }) {
   return (
     <div className="flex items-center gap-2">
       {counts.error > 0 && (
-        <span className="flex items-center gap-1 text-[10px] text-red-400">
+        <span className="flex items-center gap-1 text-[10px] text-destructive">
           <AlertCircle className="h-3 w-3" />
           {counts.error}
         </span>
       )}
       {counts.warning > 0 && (
-        <span className="flex items-center gap-1 text-[10px] text-yellow-400">
+        <span className="flex items-center gap-1 text-[10px] text-warning">
           <AlertTriangle className="h-3 w-3" />
           {counts.warning}
         </span>
       )}
       {counts.info > 0 && (
-        <span className="flex items-center gap-1 text-[10px] text-blue-400">
+        <span className="flex items-center gap-1 text-[10px] text-info">
           <Info className="h-3 w-3" />
           {counts.info}
         </span>

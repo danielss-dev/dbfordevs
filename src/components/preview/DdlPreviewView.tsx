@@ -58,9 +58,9 @@ export function DdlPreviewView({ statements }: DdlPreviewViewProps) {
                 <span
                   className={cn(
                     "text-xs font-bold uppercase px-2 py-0.5 rounded",
-                    changeType === "create" && "bg-green-500/20 text-green-600 dark:text-green-400",
-                    changeType === "drop" && "bg-red-500/20 text-red-600 dark:text-red-400",
-                    changeType === "alter" && "bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                    changeType === "create" && "bg-success/20 text-success",
+                    changeType === "drop" && "bg-destructive/20 text-destructive",
+                    changeType === "alter" && "bg-info/20 text-info"
                   )}
                 >
                   {changeType}
@@ -73,16 +73,16 @@ export function DdlPreviewView({ statements }: DdlPreviewViewProps) {
 
             <div className="p-4">
               {changeType === "create" && stmt.schemaAfter && (
-                <div className="bg-green-500/10 p-3 rounded border border-green-500/20">
-                  <pre className="text-xs font-mono text-green-700 dark:text-green-300 whitespace-pre-wrap overflow-x-auto">
+                <div className="bg-success/10 p-3 rounded border border-success/20">
+                  <pre className="text-xs font-mono text-success whitespace-pre-wrap overflow-x-auto">
                     {stmt.schemaAfter}
                   </pre>
                 </div>
               )}
 
               {changeType === "drop" && stmt.schemaBefore && (
-                <div className="bg-red-500/10 p-3 rounded border border-red-500/20">
-                  <pre className="text-xs font-mono text-red-700 dark:text-red-300 whitespace-pre-wrap line-through opacity-75 overflow-x-auto">
+                <div className="bg-destructive/10 p-3 rounded border border-destructive/20">
+                  <pre className="text-xs font-mono text-destructive whitespace-pre-wrap line-through opacity-75 overflow-x-auto">
                     {stmt.schemaBefore}
                   </pre>
                 </div>
@@ -109,8 +109,8 @@ function DiffView({ before, after }: { before: string; after: string }) {
           key={idx}
           className={cn(
             "px-3 py-0.5 flex items-start gap-2",
-            line.type === "added" && "bg-green-500/10 text-green-700 dark:text-green-300",
-            line.type === "removed" && "bg-red-500/10 text-red-700 dark:text-red-300",
+            line.type === "added" && "bg-success/10 text-success",
+            line.type === "removed" && "bg-destructive/10 text-destructive",
             line.type === "unchanged" && "text-muted-foreground"
           )}
         >

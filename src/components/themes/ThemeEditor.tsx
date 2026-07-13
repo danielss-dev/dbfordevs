@@ -287,7 +287,7 @@ export function ThemeEditor({ theme, onChange, className }: ThemeEditorProps) {
         </ColorSection>
 
         {/* Text Colors */}
-        <ColorSection title="Text Hierarchy" icon={<Type className="h-4 w-4 text-gray-500" />} defaultOpen={false}>
+        <ColorSection title="Text Hierarchy" icon={<Type className="h-4 w-4 text-muted-foreground" />} defaultOpen={false}>
           <ColorRow
             label="Primary Text"
             description="High contrast text"

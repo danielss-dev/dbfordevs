@@ -28,9 +28,9 @@ export function QueryHistoryDropdownItem({
   return (
     <DropdownMenuItem
       className={cn(
-        "flex flex-col items-start gap-2 p-3 cursor-pointer transition-all duration-200 group",
+        "flex flex-col items-start gap-2 px-3 py-[var(--pad-card-y)] cursor-pointer transition-all duration-200 group",
         entry.success ? "border-l-2 border-l-transparent" : "border-l-2 border-l-destructive",
-        entry.isFavorite && "border-l-yellow-500 bg-yellow-500/5",
+        entry.isFavorite && "border-l-warning bg-warning/5",
         isExpanded && "bg-muted/50"
       )}
       onMouseEnter={onHover}
@@ -40,7 +40,7 @@ export function QueryHistoryDropdownItem({
       {/* Compact view - always visible */}
       <div className="flex items-center gap-2 w-full">
         {entry.success ? (
-          <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+          <Check className="h-3.5 w-3.5 text-success flex-shrink-0" />
         ) : (
           <X className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
         )}

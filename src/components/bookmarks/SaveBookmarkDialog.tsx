@@ -256,7 +256,7 @@ export function SaveBookmarkDialog() {
                 {detectedVariables.map((v) => (
                   <span
                     key={v}
-                    className="px-2 py-0.5 bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded text-xs font-mono"
+                    className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-mono"
                   >
                     {`{{${v}}}`}
                   </span>

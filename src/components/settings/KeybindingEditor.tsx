@@ -144,7 +144,7 @@ export function KeybindingEditor() {
           placeholder="Search commands..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition-all duration-150 ease-swift focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]"
         />
       </div>
 
@@ -181,7 +181,7 @@ export function KeybindingEditor() {
           return (
             <div key={category}>
               <div className="bg-muted/50 px-4 py-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="micro-label">
                   {CATEGORY_LABELS[category]}
                 </span>
               </div>
@@ -216,11 +216,7 @@ export function KeybindingEditor() {
                             {keys.map((key, i) => (
                               <kbd
                                 key={i}
-                                className={`inline-flex h-5 min-w-5 items-center justify-center rounded border px-1.5 text-[10px] font-medium ${
-                                  isCustom
-                                    ? "border-primary/50 bg-primary/10 text-primary"
-                                    : "border-border bg-muted text-muted-foreground"
-                                }`}
+                                className={isCustom ? "bg-primary/10 text-primary" : undefined}
                               >
                                 {key}
                               </kbd>

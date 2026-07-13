@@ -23,10 +23,10 @@ interface PlanTreeProps {
 const getNodeIcon = (nodeType: string) => {
   const type = nodeType.toLowerCase();
   if (type.includes("seq scan") || type.includes("table scan") || type.includes("full table scan")) {
-    return <Database className="h-4 w-4 text-amber-500" />;
+    return <Database className="h-4 w-4 text-warning" />;
   }
   if (type.includes("index")) {
-    return <Search className="h-4 w-4 text-green-500" />;
+    return <Search className="h-4 w-4 text-success" />;
   }
   if (type.includes("hash")) {
     return <Hash className="h-4 w-4 text-blue-500" />;
@@ -46,17 +46,17 @@ const getNodeIcon = (nodeType: string) => {
 const getCostColor = (cost: number, maxCost: number) => {
   if (maxCost === 0) return "text-muted-foreground";
   const ratio = cost / maxCost;
-  if (ratio > 0.7) return "text-red-500";
-  if (ratio > 0.4) return "text-amber-500";
-  return "text-green-500";
+  if (ratio > 0.7) return "text-destructive";
+  if (ratio > 0.4) return "text-warning";
+  return "text-success";
 };
 
 const getCostBarColor = (cost: number, maxCost: number) => {
   if (maxCost === 0) return "bg-muted";
   const ratio = cost / maxCost;
-  if (ratio > 0.7) return "bg-red-500";
-  if (ratio > 0.4) return "bg-amber-500";
-  return "bg-green-500";
+  if (ratio > 0.7) return "bg-destructive";
+  if (ratio > 0.4) return "bg-warning";
+  return "bg-success";
 };
 
 export function PlanTreeNode({ node, depth = 0, maxCost = 1 }: PlanTreeProps) {
@@ -77,7 +77,7 @@ export function PlanTreeNode({ node, depth = 0, maxCost = 1 }: PlanTreeProps) {
         className={cn(
           "flex items-start gap-2 py-1.5 px-2 rounded-md cursor-pointer transition-colors",
           "hover:bg-muted/50",
-          hasWarnings && "bg-amber-500/5"
+          hasWarnings && "bg-warning/5"
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => hasChildren && setExpanded(!expanded)}
@@ -108,13 +108,13 @@ export function PlanTreeNode({ node, depth = 0, maxCost = 1 }: PlanTreeProps) {
             {node.indexName && (
               <Badge
                 variant="outline"
-                className="text-[10px] h-5 text-green-600 border-green-500/30"
+                className="text-[10px] h-5 text-success border-success/30"
               >
                 {node.indexName}
               </Badge>
             )}
             {hasWarnings && (
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+              <AlertTriangle className="h-3.5 w-3.5 text-warning" />
             )}
           </div>
 
@@ -129,7 +129,7 @@ export function PlanTreeNode({ node, depth = 0, maxCost = 1 }: PlanTreeProps) {
               <span>Rows: {node.planRows.toLocaleString()}</span>
             )}
             {typeof node.actualRows === 'number' && (
-              <span className="text-blue-500">
+              <span className="text-info">
                 Actual: {node.actualRows.toLocaleString()}
               </span>
             )}

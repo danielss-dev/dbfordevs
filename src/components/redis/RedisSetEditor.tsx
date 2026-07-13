@@ -163,7 +163,7 @@ export function RedisSetEditor({ connectionId, keyName }: RedisSetEditorProps) {
       <div className="px-3 py-2 text-xs text-muted-foreground border-b">
         {cardinality} members
         {pendingChanges.length > 0 && (
-          <span className="ml-2 text-amber-500">
+          <span className="ml-2 text-warning">
             ({pendingChanges.length} staged)
           </span>
         )}
@@ -176,13 +176,13 @@ export function RedisSetEditor({ connectionId, keyName }: RedisSetEditorProps) {
             key={item.member}
             className={cn(
               "group flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:bg-muted/30",
-              item.status === "added" && "bg-green-500/5",
-              item.status === "removed" && "bg-red-500/5 opacity-60"
+              item.status === "added" && "bg-success/5",
+              item.status === "removed" && "bg-destructive/5 opacity-60"
             )}
           >
             <span className={cn(
               "flex-1 font-mono text-sm truncate",
-              item.status === "added" && "text-green-600 dark:text-green-400",
+              item.status === "added" && "text-success",
               item.status === "removed" && "line-through text-muted-foreground"
             )}>
               {item.member}

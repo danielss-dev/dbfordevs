@@ -71,7 +71,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <div className="flex items-center gap-2">
-          <Database className="h-4 w-4 text-violet-500" />
+          <Database className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">Context</span>
         </div>
         <div className="flex items-center gap-1">
@@ -109,9 +109,9 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
             variant="outline"
             className={cn(
               "text-[10px] h-5",
-              tokenColor === "green" && "border-green-500 text-green-500",
-              tokenColor === "yellow" && "border-yellow-500 text-yellow-500",
-              tokenColor === "red" && "border-red-500 text-red-500"
+              tokenColor === "green" && "border-success text-success",
+              tokenColor === "yellow" && "border-warning text-warning",
+              tokenColor === "red" && "border-destructive text-destructive"
             )}
           >
             {contextSize.estimatedTokens >= 1000
@@ -128,7 +128,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
 
       {/* Template Selector */}
       <div className="px-3 py-2 border-b border-border">
-        <label className="text-[10px] uppercase text-muted-foreground font-medium">
+        <label className="micro-label">
           Context Template
         </label>
         <div className="flex flex-wrap gap-1 mt-1.5">
@@ -142,7 +142,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
                 contextConfig.includeForeignKeys === template.includeForeignKeys &&
                   contextConfig.includeIndexes === template.includeIndexes &&
                   contextConfig.includeSampleData === template.includeSampleData &&
-                  "bg-violet-500/10 border-violet-500 text-violet-500"
+                  "bg-primary/10 border-primary text-primary"
               )}
               onClick={() => applyContextTemplate(template.id)}
             >
@@ -199,7 +199,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
             className="flex items-center justify-between w-full text-left"
             onClick={() => setExpanded(!expanded)}
           >
-            <span className="text-[10px] uppercase text-muted-foreground font-medium">
+            <span className="micro-label">
               Tables in Context ({enhancedTables.length || context.tables.length})
             </span>
             {expanded ? (
@@ -239,7 +239,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
         {/* Manual Context Entries */}
         <div className="px-3 pb-3">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase text-muted-foreground font-medium">
+            <span className="micro-label">
               Custom Context
             </span>
             <Button

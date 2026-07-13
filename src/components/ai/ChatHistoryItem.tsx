@@ -66,7 +66,7 @@ export function ChatHistoryItem({ session, isActive, onSelect }: ChatHistoryItem
   return (
     <div
       className={cn(
-        "group relative px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors",
+        "group relative px-3 py-[var(--pad-list-y)] hover:bg-muted/50 cursor-pointer transition-colors",
         isActive && "bg-muted border-l-2 border-primary"
       )}
       onClick={onSelect}
@@ -85,7 +85,7 @@ export function ChatHistoryItem({ session, isActive, onSelect }: ChatHistoryItem
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {session.isFavorite && (
-              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+              <Star className="h-3 w-3 fill-warning text-warning flex-shrink-0" />
             )}
             <TooltipProvider delayDuration={300}>
               <Tooltip>
@@ -110,7 +110,7 @@ export function ChatHistoryItem({ session, isActive, onSelect }: ChatHistoryItem
             >
               <Star className={cn(
                 "h-3 w-3",
-                session.isFavorite && "fill-yellow-400 text-yellow-400"
+                session.isFavorite && "fill-warning text-warning"
               )} />
             </Button>
             <Button

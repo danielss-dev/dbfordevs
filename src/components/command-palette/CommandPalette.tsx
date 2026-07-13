@@ -101,13 +101,13 @@ export function CommandPalette() {
     <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-in fade-in-0 duration-100"
         onClick={() => setShow(false)}
       />
 
       {/* Dialog */}
-      <div className="flex items-start justify-center pt-[20vh]">
-        <div className="relative w-full max-w-lg rounded-xl border border-border bg-popover shadow-2xl overflow-hidden animate-fade-in">
+      <div className="flex items-start justify-center pt-24">
+        <div className="relative w-full max-w-[640px] rounded-xl border border-border/70 bg-popover shadow-pop overflow-hidden animate-pop-in">
           <Command
             className="flex flex-col"
             loop
@@ -129,13 +129,13 @@ export function CommandPalette() {
               </svg>
               <Command.Input
                 placeholder="Type a command or search..."
-                className="flex h-11 w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-12 w-full bg-transparent py-3 text-[15px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 autoFocus
               />
             </div>
 
             {/* Command list */}
-            <Command.List className="max-h-[300px] overflow-y-auto overscroll-contain p-2">
+            <Command.List className="max-h-[min(420px,60vh)] overflow-y-auto overscroll-contain p-2">
               <Command.Empty className="py-6 text-center text-sm text-muted-foreground">
                 No commands found.
               </Command.Empty>
@@ -144,7 +144,7 @@ export function CommandPalette() {
               {recentCommandDefs.length > 0 && (
                 <Command.Group
                   heading="Recent"
-                  className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground"
+                  className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em] [&_[cmdk-group-heading]]:text-muted-foreground"
                 >
                   {recentCommandDefs.map((cmd) => (
                     <CommandItem key={`recent-${cmd.id}`} command={cmd} onSelect={handleSelect} valuePrefix="recent" />
@@ -160,7 +160,7 @@ export function CommandPalette() {
                   <Command.Group
                     key={category}
                     heading={CATEGORY_LABELS[category]}
-                    className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground"
+                    className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em] [&_[cmdk-group-heading]]:text-muted-foreground"
                   >
                     {cmds.map((cmd) => (
                       <CommandItem key={cmd.id} command={cmd} onSelect={handleSelect} />
@@ -171,27 +171,19 @@ export function CommandPalette() {
             </Command.List>
 
             {/* Footer */}
-            <div className="flex items-center justify-between border-t border-border px-3 py-2">
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center justify-between border-t border-border bg-muted/30 px-3 py-1.5">
+              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-border bg-muted px-1 text-[10px]">
-                    &uarr;
-                  </kbd>
-                  <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-border bg-muted px-1 text-[10px]">
-                    &darr;
-                  </kbd>
+                  <kbd>&uarr;</kbd>
+                  <kbd>&darr;</kbd>
                   Navigate
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-border bg-muted px-1 text-[10px]">
-                    &crarr;
-                  </kbd>
+                  <kbd>&crarr;</kbd>
                   Select
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-border bg-muted px-1 text-[10px]">
-                    Esc
-                  </kbd>
+                  <kbd>Esc</kbd>
                   Close
                 </span>
               </div>

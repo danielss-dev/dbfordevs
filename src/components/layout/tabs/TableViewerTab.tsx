@@ -1,9 +1,10 @@
 import { useEffect, useCallback, useMemo } from "react";
-import { Loader2, RefreshCw, AlertCircle, Save, RotateCcw, Plus, Trash2 } from "lucide-react";
-import { Button, Separator } from "@/components/ui";
+import { Loader2, RefreshCw, Save, RotateCcw, Plus, Trash2 } from "lucide-react";
+import { Button, GridSkeleton, Separator } from "@/components/ui";
 import { useQueryStore, useCRUDStore, useUIStore, useConnectionsStore, useSchemaStore } from "@/stores";
 import { useDatabase, useCRUD } from "@/hooks";
 import { DataGrid } from "@/components/data-grid";
+import { QueryError } from "@/components/query-editor/QueryError";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import { RowCountBadge } from "@/components/ui/row-count-badge";
 import { quoteIdentifier } from "@/lib/utils";
@@ -220,14 +221,11 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
 
       {/* Content Area */}
       <div className="flex-1 overflow-hidden">
-        {error && !tabResults ? (
-          <div className="flex h-full items-center justify-center gap-3 p-4">
-            <div className="flex items-center gap-3 text-destructive bg-destructive/10 px-4 py-3 rounded-lg border border-destructive/20">
-              <AlertCircle className="h-5 w-5 shrink-0" />
-              <span className="text-sm">{error}</span>
-            </div>
-          </div>
-        ) : dataGridData ? (
+          {isExecuting ? (
+            <GridSkeleton className="h-full" />
+          ) : error && !tabResults ? (
+            <QueryError error={error} onRetry={loadData} />
+          ) : dataGridData ? (
           <DataGrid
             data={dataGridData}
             tableName={tab.tableName || tab.title}
@@ -235,10 +233,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
             onDataChange={loadData}
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin mb-2 opacity-30" />
-            <span className="text-sm">Loading table data...</span>
-          </div>
+            <GridSkeleton className="h-full" />
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import {
+  Badge,
   Dialog,
   DialogContent,
   Label,
@@ -243,6 +244,8 @@ const ALL_SETTINGS: SettingItem[] = [
   { label: "Binary Data", description: "Preview options for binary data.", keywords: ["binary", "hex", "image", "blob"], tabValue: "datagrid" },
   // Appearance
   { label: "Theme", description: "Switch between light, dark, or system theme.", keywords: ["theme", "light", "dark", "system", "color"], tabValue: "appearance" },
+  { label: "Density", description: "Row height and spacing in lists, menus, and the connection tree.", keywords: ["density", "compact", "relaxed", "spacing", "row", "height"], tabValue: "appearance" },
+  { label: "Environment Accent", description: "Tint the accent color to the active connection's group color.", keywords: ["environment", "accent", "production", "staging", "group", "color", "safety"], tabValue: "appearance" },
   { label: "Enable Animations", description: "Enable smooth animations throughout the interface.", keywords: ["animation", "animations", "smooth", "motion", "transition", "effects"], tabValue: "appearance" },
   // Keybindings
   { label: "Keyboard Shortcuts", description: "Master dbfordevs with these handy keys.", keywords: ["keyboard", "shortcut", "key", "binding", "find", "replace", "search", "shortcuts"], tabValue: "keybindings" },
@@ -264,6 +267,8 @@ export function SettingsDialog() {
     setShowSettingsDialog,
     theme,
     setTheme,
+    density,
+    setDensity,
     editorSettings,
     updateEditorSettings,
     generalSettings,
@@ -470,7 +475,7 @@ export function SettingsDialog() {
                   >
                     <Search className="h-3.5 w-3.5" />
                     <span className="flex-1 text-left">Search...</span>
-                    <kbd className="text-[10px] text-muted-foreground">Cmd+F</kbd>
+                    <kbd>Cmd+F</kbd>
                   </Button>
                 )}
               </div>
@@ -525,12 +530,12 @@ export function SettingsDialog() {
                           <>
                             <div className="rounded-xl border border-border bg-muted/50 p-4">
                               <div className="flex items-start gap-3">
-                                <Bot className="h-5 w-5 text-violet-500 mt-0.5" />
+                                <Bot className="h-5 w-5 text-primary mt-0.5" />
                                 <div className="flex-1 space-y-2">
                                   <h3 className="font-medium text-sm">Configure AI Settings</h3>
                                   <p className="text-xs text-muted-foreground leading-relaxed">
                                     To configure your AI provider, API keys, and model preferences, click the
-                                    <Sparkles className="inline h-3.5 w-3.5 mx-1 text-violet-500" />
+                                    <Sparkles className="inline h-3.5 w-3.5 mx-1 text-primary" />
                                     icon in the sidebar to open the AI Assistant panel, then click the settings icon.
                                   </p>
                                 </div>
@@ -933,6 +938,34 @@ export function SettingsDialog() {
                         </SettingRow>
                         <Separator />
                         <SettingRow
+                          label="Density"
+                          description="Row height and spacing in lists, menus, and the connection tree."
+                        >
+                          <Select value={density} onValueChange={(v) => setDensity(v as "compact" | "default" | "relaxed")}>
+                            <SelectTrigger className="w-48">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="compact">Compact</SelectItem>
+                              <SelectItem value="default">Default</SelectItem>
+                              <SelectItem value="relaxed">Relaxed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
+                          label="Environment Accent"
+                          description="Tint the accent color to the active connection's group color (e.g. red for Production)."
+                        >
+                          <Checkbox
+                            checked={generalSettings.accentFollowsConnection ?? true}
+                            onCheckedChange={(checked: boolean) =>
+                              handleGeneralSettingChange("accentFollowsConnection", checked)
+                            }
+                          />
+                        </SettingRow>
+                        <Separator />
+                        <SettingRow
                           label="Enable Animations"
                           description="Enable smooth animations throughout the interface."
                         >
@@ -1164,8 +1197,8 @@ export function SettingsDialog() {
                       </div>
                       <h2 className="text-2xl font-bold tracking-tight">dbfordevs</h2>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="badge badge-info">v{version || "..."}</span>
-                        <span className="badge bg-muted text-muted-foreground">Alpha</span>
+                        <Badge variant="info" className="rounded-full px-2 py-0.5 font-medium">v{version || "..."}</Badge>
+                        <Badge variant="secondary" className="rounded-full px-2 py-0.5 font-medium">Alpha</Badge>
                       </div>
 
                       <div className="mt-8 max-w-sm space-y-4">

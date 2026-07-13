@@ -81,28 +81,28 @@ export function DataDiffExportStep({ result }: Props) {
           <h3 className="text-sm font-medium">Comparison Summary</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <CheckCircle className="h-4 w-4 text-success" />
               <div>
                 <p className="text-lg font-semibold">{result.summary.matchedRows}</p>
                 <p className="text-xs text-muted-foreground">Matched</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Pencil className="h-4 w-4 text-blue-500" />
+              <Pencil className="h-4 w-4 text-warning" />
               <div>
                 <p className="text-lg font-semibold">{result.summary.modifiedRows}</p>
                 <p className="text-xs text-muted-foreground">Modified</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <PlusCircle className="h-4 w-4 text-emerald-500" />
+              <PlusCircle className="h-4 w-4 text-success" />
               <div>
                 <p className="text-lg font-semibold">{result.summary.addedRows}</p>
                 <p className="text-xs text-muted-foreground">Added</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <MinusCircle className="h-4 w-4 text-red-500" />
+              <MinusCircle className="h-4 w-4 text-destructive" />
               <div>
                 <p className="text-lg font-semibold">{result.summary.removedRows}</p>
                 <p className="text-xs text-muted-foreground">Removed</p>
@@ -114,7 +114,7 @@ export function DataDiffExportStep({ result }: Props) {
             <span>Target: {result.summary.totalTargetRows} rows</span>
             <span>Time: {result.summary.comparisonTimeMs}ms</span>
             {result.truncated && (
-              <Badge variant="outline" className="text-amber-600">Truncated</Badge>
+              <Badge variant="outline" className="text-warning">Truncated</Badge>
             )}
           </div>
         </div>
@@ -181,7 +181,7 @@ export function DataDiffExportStep({ result }: Props) {
           <Button variant="outline" onClick={handleCopy} className="gap-2">
             {copied ? (
               <>
-                <CheckCircle className="h-4 w-4 text-green-500" />
+                <CheckCircle className="h-4 w-4 text-success" />
                 Copied!
               </>
             ) : (

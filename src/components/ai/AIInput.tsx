@@ -321,8 +321,8 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
             className={cn(
               "rounded px-0.5 -mx-0.5",
               part.isValid
-                ? "text-violet-500 bg-violet-500/10 font-medium"
-                : "text-orange-500 bg-orange-500/10"
+                ? "text-primary bg-primary/10 font-medium"
+                : "text-warning bg-warning/10"
             )}
           >
             {part.text}
@@ -336,8 +336,8 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
             className={cn(
               "rounded px-0.5 -mx-0.5 font-medium",
               part.isValid
-                ? "text-emerald-500 bg-emerald-500/10"
-                : "text-orange-500 bg-orange-500/10"
+                ? "text-success bg-success/10"
+                : "text-warning bg-warning/10"
             )}
           >
             {part.text}
@@ -561,8 +561,8 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
         ref={containerRef}
         className={cn(
           "relative flex items-end gap-2 rounded-xl border border-border bg-background p-2",
-          "focus-within:ring-2 focus-within:ring-violet-500/20 focus-within:border-violet-500/50",
-          "transition-all duration-200"
+          "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50",
+          "transition-all duration-150 ease-swift"
         )}
       >
         {/* @ Table/Collection/Key Reference Dropdown */}
@@ -585,7 +585,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
 
         {/* / Slash Command Dropdown */}
         {slashCommand.show && filteredCommands.length > 0 && (
-          <div className="absolute bottom-full left-0 mb-2 w-80 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
+            <div className="absolute bottom-full left-0 mb-2 w-80 rounded-lg border border-border bg-popover shadow-elev-2 z-50 overflow-hidden">
             <div className="px-3 py-2 border-b border-border bg-muted/30">
               <span className="text-xs font-medium text-muted-foreground">Commands</span>
             </div>
@@ -614,7 +614,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
                     <div key={cmd.name}>
                       {showCategoryHeader && (
                         <div className={cn(
-                          "px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider",
+                          "px-3 py-1.5 micro-label",
                           categoryColors[cmd.category]
                         )}>
                           {categoryLabels[cmd.category]}
@@ -625,7 +625,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
                         className={cn(
                           "flex items-center gap-3 w-full px-3 py-2 text-left transition-colors",
                           currentIndex === slashCommand.selectedIndex
-                            ? "bg-violet-500/10 text-violet-500"
+                            ? "bg-primary/10 text-primary"
                             : "hover:bg-muted/50"
                         )}
                         onClick={() => handleSlashCommandSelect(cmd)}
@@ -697,10 +697,10 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
           disabled={!value.trim() || isLoading || !configured}
           className={cn(
             "h-9 w-9 shrink-0 rounded-lg",
-            "bg-gradient-to-r from-violet-500 to-purple-600",
-            "hover:from-violet-600 hover:to-purple-700",
+            "bg-primary",
+            "hover:bg-primary/90",
             "disabled:opacity-50 disabled:cursor-not-allowed",
-            "transition-all duration-200"
+            "transition-all duration-150 ease-swift"
           )}
         >
           {isLoading ? (
@@ -716,4 +716,3 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
     </div>
   );
 }
-

@@ -163,7 +163,7 @@ export function GroupManagerDialog() {
                           <button
                             key={group.id}
                             className={cn(
-                              "w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2",
+                              "w-full text-left px-2 py-[var(--pad-menu-y)] text-sm rounded-md transition-colors flex items-center gap-2",
                               selectedGroupId === group.id && !isCreating
                                 ? "bg-accent text-accent-foreground"
                                 : "hover:bg-accent/50"

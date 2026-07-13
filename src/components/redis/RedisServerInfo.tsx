@@ -32,11 +32,11 @@ function StatCard({ icon, label, value, subValue, warning }: StatCardProps) {
   return (
     <div className={cn(
       "flex items-start gap-3 p-4 rounded-lg border bg-card",
-      warning && "border-amber-500/50"
+      warning && "border-warning/50"
     )}>
       <div className={cn(
         "p-2 rounded-lg",
-        warning ? "bg-amber-500/10 text-amber-500" : "bg-primary/10 text-primary"
+        warning ? "bg-warning/10 text-warning" : "bg-primary/10 text-primary"
       )}>
         {icon}
       </div>
@@ -107,7 +107,7 @@ export function RedisServerInfo({ connectionId }: RedisServerInfoProps) {
   if (error || !serverInfo) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-        <AlertTriangle className="h-8 w-8 mb-2 text-amber-500" />
+        <AlertTriangle className="h-8 w-8 mb-2 text-warning" />
         <p className="text-sm">{error || "Failed to load server info"}</p>
         <Button variant="outline" size="sm" className="mt-2" onClick={loadInfo}>
           <RefreshCw className="h-4 w-4 mr-2" />

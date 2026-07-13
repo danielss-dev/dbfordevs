@@ -286,7 +286,7 @@ export function TemplateVariableDialog({ onApply, onExecute }: TemplateVariableD
                 return (
                   <div key={variable.name} className="space-y-1">
                     <Label htmlFor={`var-${variable.name}`} className="text-xs">
-                      <code className="text-violet-600 dark:text-violet-400">
+                      <code className="text-primary">
                         {variable.placeholder}
                       </code>
                     </Label>

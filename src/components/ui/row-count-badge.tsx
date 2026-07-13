@@ -1,5 +1,6 @@
 import { Rows3 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface RowCountBadgeProps {
   rowCount?: number;
@@ -16,9 +17,9 @@ export function RowCountBadge({ rowCount, affectedRows, className }: RowCountBad
     : `${rowCount || 0} rows`;
 
   return (
-    <span className={cn("badge badge-success", className)}>
+    <Badge variant="success" className={cn("rounded-full px-2 py-0.5 font-medium", className)}>
       <Rows3 className="h-3 w-3 mr-1" />
       {label}
-    </span>
+    </Badge>
   );
 }

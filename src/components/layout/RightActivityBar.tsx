@@ -22,13 +22,22 @@ function ActivityBarItem({ icon, label, isActive, badge, onClick }: ActivityBarI
         <button
           onClick={onClick}
           className={cn(
-            "relative flex items-center justify-center w-10 h-10 rounded-lg transition-all",
+            "relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-150 ease-swift",
             "hover:bg-muted/80",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]",
             isActive
-              ? "bg-primary/10 text-primary border-r-2 border-primary"
+              ? "bg-primary/10 text-primary"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {/* Accent bar on the content-facing edge, grows when active */}
+          <span
+            aria-hidden
+            className={cn(
+              "absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-full bg-primary transition-all duration-150 ease-swift",
+              isActive ? "h-5 opacity-100" : "h-0 opacity-0"
+            )}
+          />
           {icon}
           {badge !== undefined && badge > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold rounded-full bg-primary text-primary-foreground">

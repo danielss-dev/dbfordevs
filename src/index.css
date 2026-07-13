@@ -750,6 +750,51 @@
   }
 }
 
+/* Shared design tokens — inherited by every theme; dark-family themes override below */
+:root {
+  /* Elevation scale (warm-tinted for light themes) */
+  --shadow-1: 0 1px 2px rgba(60, 40, 20, 0.06), 0 2px 8px rgba(60, 40, 20, 0.06);
+  --shadow-2: 0 4px 16px rgba(60, 40, 20, 0.1);
+  --shadow-3: 0 12px 32px rgba(60, 40, 20, 0.14);
+  --shadow-pop: 0 12px 32px rgba(60, 40, 20, 0.16), 0 2px 8px rgba(60, 40, 20, 0.08);
+  /* Focus glow, derived from each theme's ring color */
+  --accent-glow: hsl(var(--ring) / 0.22);
+  /* House motion */
+  --ease-swift: cubic-bezier(0.2, 0.7, 0.4, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 0.7, 0.9);
+  /* Readable text on semantic fills */
+  --success-foreground: 0 0% 100%;
+  --warning-foreground: 30 15% 10%;
+  --info-foreground: 0 0% 100%;
+  /* Density: list/tree row height + vertical paddings for rows that can't be
+     fixed-height (menu items, list rows, multi-line cards) */
+  --row-h: 30px;
+  --pad-menu-y: 6px;
+  --pad-list-y: 8px;
+  --pad-card-y: 12px;
+}
+
+.density-compact {
+  --row-h: 24px;
+  --pad-menu-y: 4px;
+  --pad-list-y: 5px;
+  --pad-card-y: 8px;
+}
+
+.density-relaxed {
+  --row-h: 36px;
+  --pad-menu-y: 8px;
+  --pad-list-y: 11px;
+  --pad-card-y: 16px;
+}
+
+.dark {
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
 /* Style-specific variations */
 .style-developer {
   --radius: 0.2rem;
@@ -811,23 +856,6 @@
   @apply bg-transparent;
 }
 
-/* Focus visible outline */
-.focus-ring {
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
-}
-
-/* Glass effect for elevated surfaces */
-.glass {
-  @apply backdrop-blur-md bg-background/80;
-}
-
-/* Subtle gradient backgrounds */
-.gradient-subtle {
-  background: linear-gradient(180deg,
-      hsl(var(--muted) / 0.3) 0%,
-      hsl(var(--muted) / 0.1) 100%);
-}
-
 /* Monaco editor overrides */
 .monaco-editor {
   @apply rounded-md;
@@ -874,51 +902,6 @@
   @apply bg-primary/10 border-l-2 border-l-primary;
 }
 
-/* Interactive element enhancements */
-.interactive-hover {
-  @apply transition-all duration-150 ease-out;
-}
-
-.interactive-hover:hover {
-  @apply transform scale-[1.02];
-}
-
-.interactive-hover:active {
-  @apply transform scale-[0.98];
-}
-
-/* Subtle pulse animation for loading states */
-@keyframes subtle-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.animate-subtle-pulse {
-  animation: subtle-pulse 2s ease-in-out infinite;
-}
-
-/* Glow effect for active states */
-.glow-primary {
-  box-shadow: 0 0 12px hsl(var(--primary) / 0.3);
-}
-
-.glow-success {
-  box-shadow: 0 0 12px hsl(var(--success) / 0.3);
-}
-
-/* Card hover enhancement */
-.card-hover {
-  @apply transition-all duration-200;
-}
-
-.card-hover:hover {
-  @apply shadow-md border-border/80;
-  transform: translateY(-1px);
-}
 
 /* Animation utilities */
 @keyframes fade-in {
@@ -955,18 +938,6 @@
   }
 }
 
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
 }
@@ -977,10 +948,6 @@
 
 .animate-slide-down {
   animation: slide-down 0.2s ease-out;
-}
-
-.animate-scale-in {
-  animation: scale-in 0.15s ease-out;
 }
 
 /* Highlight blink animation for search navigation */
@@ -1006,12 +973,12 @@
 }
 
 .status-dot-success {
-  @apply bg-[hsl(var(--success))];
+  @apply bg-success;
   box-shadow: 0 0 8px hsl(var(--success) / 0.5);
 }
 
 .status-dot-warning {
-  @apply bg-[hsl(var(--warning))];
+  @apply bg-warning;
   box-shadow: 0 0 8px hsl(var(--warning) / 0.5);
 }
 
@@ -1021,43 +988,51 @@
 }
 
 .status-dot-info {
-  @apply bg-[hsl(var(--info))];
+  @apply bg-info;
   box-shadow: 0 0 8px hsl(var(--info) / 0.5);
 }
 
-/* Badge styles */
-.badge {
-  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
-}
-
-.badge-success {
-  @apply bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))];
-}
-
-.badge-warning {
-  @apply bg-[hsl(var(--warning)/0.15)] text-[hsl(var(--warning))];
-}
-
-.badge-error {
-  @apply bg-destructive/15 text-destructive;
-}
-
-.badge-info {
-  @apply bg-[hsl(var(--info)/0.15)] text-[hsl(var(--info))];
-}
-
-/* Code/mono text */
-.font-code {
+/* Keyboard shortcut chip */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 4px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  box-shadow: 0 0 0 1px hsl(var(--border)) inset, 0 1px 0 hsl(var(--border));
 }
 
-/* Smooth transitions for theme changes */
+/* Tracked-uppercase section label */
+.micro-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Smooth transitions for theme changes and hover states */
 *,
 *::before,
 *::after {
-  transition-property: background-color, border-color;
-  transition-duration: 150ms;
-  transition-timing-function: ease;
+  transition-property: background-color, border-color, color;
+  transition-duration: 120ms;
+  transition-timing-function: var(--ease-swift);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Disable transitions for elements that shouldn't animate */

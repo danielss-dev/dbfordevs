@@ -90,18 +90,18 @@ export function SslTestDialog({
     if (!testResult) return <Shield className="h-8 w-8 text-muted-foreground" />;
 
     if (!testResult.supportsSsl) {
-      return <ShieldAlert className="h-8 w-8 text-yellow-500" />;
+      return <ShieldAlert className="h-8 w-8 text-warning" />;
     }
 
     if (testResult.success && testResult.sslEnabled) {
-      return <ShieldCheck className="h-8 w-8 text-green-500" />;
+      return <ShieldCheck className="h-8 w-8 text-success" />;
     }
 
     if (testResult.success && !testResult.sslEnabled) {
-      return <Unlock className="h-8 w-8 text-yellow-500" />;
+      return <Unlock className="h-8 w-8 text-warning" />;
     }
 
-    return <ShieldX className="h-8 w-8 text-red-500" />;
+    return <ShieldX className="h-8 w-8 text-destructive" />;
   };
 
   const getSslStatusBadge = () => {
@@ -109,7 +109,7 @@ export function SslTestDialog({
 
     if (!testResult.supportsSsl) {
       return (
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800">
+        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
           Not Supported
         </Badge>
       );
@@ -117,7 +117,7 @@ export function SslTestDialog({
 
     if (testResult.success && testResult.sslEnabled) {
       return (
-        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+        <Badge variant="outline" className="bg-success/10 text-success border-success/30">
           SSL Enabled
         </Badge>
       );
@@ -125,14 +125,14 @@ export function SslTestDialog({
 
     if (testResult.success && !testResult.sslEnabled) {
       return (
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800">
+        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
           SSL Disabled
         </Badge>
       );
     }
 
     return (
-      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
+      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
         Connection Failed
       </Badge>
     );
@@ -182,9 +182,9 @@ export function SslTestDialog({
 
           {/* Error Message */}
           {error && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-              <XCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            <div className="flex items-start gap-2 p-3 bg-destructive/10 rounded-lg border border-destructive/30">
+              <XCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
 
@@ -196,9 +196,9 @@ export function SslTestDialog({
               {/* Connection Status */}
               <div className="flex items-center gap-2">
                 {testResult.success ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                 ) : (
-                  <XCircle className="h-4 w-4 text-red-500" />
+                  <XCircle className="h-4 w-4 text-destructive" />
                 )}
                 <span className="text-sm">{testResult.message}</span>
               </div>
@@ -271,13 +271,13 @@ export function SslTestDialog({
               {supportInfo && (
                 <>
                   <Separator />
-                  <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-2 p-3 bg-info/10 rounded-lg border border-info/30">
+                    <Info className="h-4 w-4 text-info shrink-0 mt-0.5" />
                     <div className="text-sm">
-                      <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">
+                      <p className="font-medium text-info mb-1">
                         {config.databaseType} SSL Support
                       </p>
-                      <p className="text-blue-600 dark:text-blue-400 text-xs">
+                      <p className="text-info text-xs">
                         {supportInfo.notes}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2">
@@ -285,12 +285,12 @@ export function SslTestDialog({
                           {supportInfo.supportsSsl ? "SSL Supported" : "No SSL"}
                         </Badge>
                         {supportInfo.supportsCaCert && (
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700">
+                          <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
                             CA Cert
                           </Badge>
                         )}
                         {supportInfo.supportsClientCert && (
-                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700">
+                          <Badge variant="outline" className="text-xs bg-info/10 text-info border-info/30">
                             Client Cert
                           </Badge>
                         )}

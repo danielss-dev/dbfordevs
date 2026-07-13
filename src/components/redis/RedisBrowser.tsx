@@ -116,7 +116,7 @@ function KeyRow({ keyInfo, isSelected, onSelect, onView, onDelete, preview }: Ke
       {/* TTL */}
       <div className="shrink-0 w-24 text-xs text-muted-foreground text-right">
         {keyInfo.ttl !== undefined && (
-          <span className={cn(keyInfo.ttl > 0 && keyInfo.ttl < 60 && "text-amber-500")}>
+          <span className={cn(keyInfo.ttl > 0 && keyInfo.ttl < 60 && "text-warning")}>
             {formatTtl(keyInfo.ttl)}
           </span>
         )}
