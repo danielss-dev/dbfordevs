@@ -12,7 +12,14 @@ import {
   Sparkle,
   X,
 } from "@phosphor-icons/react";
-import { Button, GridSkeleton, Separator } from "@/components/ui";
+import {
+  Button,
+  GridSkeleton,
+  Separator,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui";
 import {
   useQueryStore,
   useCRUDStore,
@@ -22,7 +29,7 @@ import {
   useExplainStore,
 } from "@/stores";
 import { useDatabase, useCRUD } from "@/hooks";
-import { DataGrid } from "@/components/data-grid";
+import { DataGrid, ImportButton, ExportMenu } from "@/components/data-grid";
 import { QueryError } from "@/components/query-editor/QueryError";
 import { SqlEditor } from "@/components/editor";
 import { quoteIdentifier } from "@/lib/utils";
@@ -46,7 +53,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
   const setExplainResult = useExplainStore((s) => s.setExplainResult);
   const setExplainError = useExplainStore((s) => s.setExplainError);
   const setPanelOpen = useAIStore((s) => s.setPanelOpen);
-  const sendMessage = useAIStore((s) => s.sendMessage);
+  const setComposerDraft = useAIStore((s) => s.setComposerDraft);
   const isAIEnabled = useAIStore((s) => s.settings.aiEnabled ?? true);
 
   const tabResults = results[tab.id];
@@ -179,9 +186,9 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     setPanelOpen(true);
     const sql = sqlMode && sqlContent.trim() ? sqlContent : defaultSql;
     if (sql.trim()) {
-      sendMessage(`Help me with this table query for ${tableName}:\n\n\`\`\`sql\n${sql}\n\`\`\``);
+      setComposerDraft(`Help me with this table query for ${tableName}:\n\n\`\`\`sql\n${sql}\n\`\`\``);
     }
-  }, [isAIEnabled, setRightPanelTab, setPanelOpen, sendMessage, sqlMode, sqlContent, defaultSql, tableName]);
+  }, [isAIEnabled, setRightPanelTab, setPanelOpen, setComposerDraft, sqlMode, sqlContent, defaultSql, tableName]);
 
   useEffect(() => {
     if (!tabResults && !isExecuting && connectionId) {
@@ -210,14 +217,6 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [tab.id, connectionId, isExecuting, sqlMode, handleRunSql, loadData]);
-
-  const rowMeta = tabResults
-    ? `${tabResults.rows.length} rows`
-    : null;
-  const timeMeta =
-    tabResults?.executionTimeMs !== undefined
-      ? `${tabResults.executionTimeMs}ms`
-      : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -302,40 +301,50 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
               </Button>
             </>
           )}
-
-          {/* Quiet meta — not a badge farm */}
-          {(rowMeta || timeMeta) && (
-            <div className="ml-1.5 flex items-center gap-2 text-[11px] tabular-nums text-muted-foreground">
-              {rowMeta && <span>{rowMeta}</span>}
-              {timeMeta && (
-                <span className="font-medium text-success">{timeMeta}</span>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-0.5">
-          {isAIEnabled && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleAI}
-              className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <Sparkle weight="regular" className="h-3.5 w-3.5" />
-              AI
-            </Button>
+          {connectionId && (
+            <ImportButton
+              connectionId={connectionId}
+              tableName={tableName}
+              onImportComplete={loadData}
+            />
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleExplain}
-            disabled={!connectionId}
-            className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <TreeStructure weight="regular" className="h-3.5 w-3.5" />
-            EXPLAIN
-          </Button>
+          <ExportMenu tableName={tableName} />
+          {isAIEnabled && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleAI}
+                  aria-label="AI"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                >
+                  <Sparkle weight="regular" className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>AI</TooltipContent>
+            </Tooltip>
+          )}
+          {!sqlMode && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleExplain}
+                  disabled={!connectionId}
+                  aria-label="Explain"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                >
+                  <TreeStructure weight="regular" className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Explain</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 

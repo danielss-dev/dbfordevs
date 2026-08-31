@@ -1,14 +1,5 @@
 import { useMemo } from "react";
-import {
-  AlertCircle,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  Shield,
-  Gauge,
-  Code,
-  Zap,
-} from "lucide-react";
+import { WarningCircle, Info, CheckCircle, Shield, Gauge, Code, Lightning } from "@phosphor-icons/react";
 import {
   Popover,
   PopoverContent,
@@ -26,9 +17,9 @@ interface QueryValidationBadgeProps {
   onRunAnyway?: () => void;
 }
 
-const CATEGORY_ICONS: Record<ValidationCategory, typeof AlertCircle> = {
+const CATEGORY_ICONS: Record<ValidationCategory, typeof WarningCircle> = {
   syntax: Code,
-  semantic: Zap,
+  semantic: Lightning,
   performance: Gauge,
   security: Shield,
 };
@@ -52,7 +43,7 @@ function IssueItem({ issue }: { issue: ValidationIssue }) {
         issue.severity === "info" && "bg-info/10 text-info"
       )}
     >
-      <Icon className="h-4 w-4 shrink-0 mt-0.5" />
+      <Icon weight="regular" className="h-4 w-4 shrink-0 mt-0.5" />
       <div className="space-y-1">
         <p className="font-medium">{issue.message}</p>
         {issue.suggestion && (
@@ -85,7 +76,7 @@ export function QueryValidationBadge({ sql, onRunAnyway }: QueryValidationBadgeP
   if (validationResult.issues.length === 0) {
     return (
       <div className="flex items-center gap-1 text-[10px] text-success">
-        <CheckCircle2 className="h-3.5 w-3.5" />
+        <CheckCircle weight="regular" className="h-3.5 w-3.5" />
         <span>Valid</span>
       </div>
     );
@@ -99,9 +90,9 @@ export function QueryValidationBadge({ sql, onRunAnyway }: QueryValidationBadgeP
     : "bg-info/20 text-info hover:bg-info/30";
 
   const BadgeIcon = counts.error > 0
-    ? AlertCircle
+    ? WarningCircle
     : counts.warning > 0
-    ? AlertTriangle
+    ? WarningCircle
     : Info;
 
   return (
@@ -113,7 +104,7 @@ export function QueryValidationBadge({ sql, onRunAnyway }: QueryValidationBadgeP
             badgeColor
           )}
         >
-          <BadgeIcon className="h-3.5 w-3.5" />
+          <BadgeIcon weight="regular" className="h-3.5 w-3.5" />
           <span>
             {counts.error > 0 && `${counts.error} error${counts.error > 1 ? "s" : ""}`}
             {counts.error > 0 && counts.warning > 0 && ", "}
@@ -150,7 +141,7 @@ export function QueryValidationBadge({ sql, onRunAnyway }: QueryValidationBadgeP
               className="w-full text-xs"
               onClick={onRunAnyway}
             >
-              <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+              <WarningCircle weight="regular" className="h-3.5 w-3.5 mr-1.5" />
               Run Anyway
             </Button>
           </div>
@@ -183,19 +174,19 @@ export function ValidationIndicator({ sql }: { sql: string }) {
     <div className="flex items-center gap-2">
       {counts.error > 0 && (
         <span className="flex items-center gap-1 text-[10px] text-destructive">
-          <AlertCircle className="h-3 w-3" />
+          <WarningCircle weight="regular" className="h-3 w-3" />
           {counts.error}
         </span>
       )}
       {counts.warning > 0 && (
         <span className="flex items-center gap-1 text-[10px] text-warning">
-          <AlertTriangle className="h-3 w-3" />
+          <WarningCircle weight="regular" className="h-3 w-3" />
           {counts.warning}
         </span>
       )}
       {counts.info > 0 && (
         <span className="flex items-center gap-1 text-[10px] text-info">
-          <Info className="h-3 w-3" />
+          <Info weight="regular" className="h-3 w-3" />
           {counts.info}
         </span>
       )}

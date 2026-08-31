@@ -1,4 +1,4 @@
-import { Download, FileJson, FileText, Database } from "lucide-react";
+import { DownloadSimple, FileJs, FileText, Database } from "@phosphor-icons/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,45 +97,45 @@ export function ExportMenu({ tableName }: ExportMenuProps) {
     <DropdownMenu>
       <Tooltip>
         <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={disabled}
-              className="gap-2"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export
-            </Button>
-          </DropdownMenuTrigger>
+          <span className="inline-flex">
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={disabled}
+                aria-label="Export"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              >
+                <DownloadSimple weight="regular" className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+          </span>
         </TooltipTrigger>
-        <TooltipContent>
-          {disabled ? "Select rows to export" : `Export ${selectedRows.length} selected row(s)`}
-        </TooltipContent>
+        <TooltipContent>Export</TooltipContent>
       </Tooltip>
 
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={handleCopyAsInsert} disabled={disabled}>
-          <Database className="mr-2 h-4 w-4" />
+          <Database weight="regular" className="mr-2 h-4 w-4" />
           Copy as INSERT
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleCopyAsJSON} disabled={disabled}>
-          <FileJson className="mr-2 h-4 w-4" />
+          <FileJs weight="regular" className="mr-2 h-4 w-4" />
           Copy as JSON
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleCopyAsCSV} disabled={disabled}>
-          <FileText className="mr-2 h-4 w-4" />
+          <FileText weight="regular" className="mr-2 h-4 w-4" />
           Copy as CSV
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={handleDownloadJSON} disabled={disabled}>
-          <FileJson className="mr-2 h-4 w-4" />
+          <FileJs weight="regular" className="mr-2 h-4 w-4" />
           Download as JSON
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleDownloadCSV} disabled={disabled}>
-          <FileText className="mr-2 h-4 w-4" />
+          <FileText weight="regular" className="mr-2 h-4 w-4" />
           Download as CSV
         </DropdownMenuItem>
       </DropdownMenuContent>

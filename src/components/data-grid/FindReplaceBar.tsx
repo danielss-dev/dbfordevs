@@ -1,14 +1,5 @@
 import * as React from "react";
-import {
-  Search,
-  Replace,
-  ChevronUp,
-  ChevronDown,
-  X,
-  CaseSensitive,
-  WholeWord,
-  Regex,
-} from "lucide-react";
+import { MagnifyingGlass, ArrowsLeftRight, CaretUp, CaretDown, X, TextAa, Textbox, Asterisk } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
@@ -190,12 +181,12 @@ export function FindReplaceBar({
           onClick={() => setShowReplace(!showReplace)}
           title="Toggle Replace (Ctrl+H)"
         >
-          <Replace className="h-4 w-4" />
+          <ArrowsLeftRight weight="regular" className="h-4 w-4" />
         </Button>
 
         {/* Find input */}
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlass weight="regular" className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={findInputRef}
             value={findText}
@@ -232,7 +223,7 @@ export function FindReplaceBar({
             className="h-7 w-7 p-0"
             title="Match Case"
           >
-            <CaseSensitive className="h-4 w-4" />
+            <TextAa weight="regular" className="h-4 w-4" />
           </Toggle>
           <Toggle
             size="sm"
@@ -241,7 +232,7 @@ export function FindReplaceBar({
             className="h-7 w-7 p-0"
             title="Match Whole Word"
           >
-            <WholeWord className="h-4 w-4" />
+            <Textbox weight="regular" className="h-4 w-4" />
           </Toggle>
           <Toggle
             size="sm"
@@ -250,7 +241,7 @@ export function FindReplaceBar({
             className="h-7 w-7 p-0"
             title="Use Regular Expression"
           >
-            <Regex className="h-4 w-4" />
+            <Asterisk weight="regular" className="h-4 w-4" />
           </Toggle>
         </div>
 
@@ -271,7 +262,7 @@ export function FindReplaceBar({
             disabled={matches.length === 0}
             title="Previous Match (Shift+Enter)"
           >
-            <ChevronUp className="h-4 w-4" />
+            <CaretUp weight="regular" className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -281,7 +272,7 @@ export function FindReplaceBar({
             disabled={matches.length === 0}
             title="Next Match (Enter)"
           >
-            <ChevronDown className="h-4 w-4" />
+            <CaretDown weight="regular" className="h-4 w-4" />
           </Button>
         </div>
 
@@ -293,7 +284,7 @@ export function FindReplaceBar({
           onClick={closeFindReplace}
           title="Close (Escape)"
         >
-          <X className="h-4 w-4" />
+          <X weight="regular" className="h-4 w-4" />
         </Button>
       </div>
 
@@ -301,7 +292,7 @@ export function FindReplaceBar({
       {showReplace && (
         <div className="flex items-center gap-2 mt-1.5 pl-9">
           <div className="relative flex-1 max-w-sm">
-            <Replace className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <ArrowsLeftRight weight="regular" className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={replaceText}
               onChange={(e) => setReplaceText(e.target.value)}
@@ -317,7 +308,7 @@ export function FindReplaceBar({
             onClick={handleReplace}
             disabled={matches.length === 0 || !onReplace}
           >
-            Replace
+            ArrowsLeftRight
           </Button>
           <Button
             variant="outline"
@@ -326,7 +317,7 @@ export function FindReplaceBar({
             onClick={handleReplaceAll}
             disabled={matches.length === 0 || !onReplaceAll}
           >
-            Replace All ({matches.length})
+            ArrowsLeftRight All ({matches.length})
           </Button>
         </div>
       )}

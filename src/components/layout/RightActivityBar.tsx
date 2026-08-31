@@ -20,7 +20,9 @@ function ActivityBarItem({ icon, label, isActive, badge, onClick }: ActivityBarI
     <Tooltip>
       <TooltipTrigger asChild>
         <button
+          type="button"
           onClick={onClick}
+          aria-label={label}
           className={cn(
             "relative flex items-center justify-center w-8 h-8 rounded-md transition-colors",
             "hover:bg-muted/60",

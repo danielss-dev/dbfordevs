@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Save, Trash2, RotateCcw, Code, GitCommit } from "lucide-react";
+import { FloppyDisk, Trash, ArrowCounterClockwise, Code, GitCommit } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import { useCRUDStore, useQueryStore, useConnectionsStore, useSchemaStore } from "@/stores";
@@ -247,7 +247,7 @@ export function ChangesPreviewPanel() {
               )}
               onClick={() => setViewMode("sql")}
             >
-              <Code className="h-3.5 w-3.5" />
+              <Code weight="regular" className="h-3.5 w-3.5" />
               Query
             </Button>
             <Button
@@ -259,7 +259,7 @@ export function ChangesPreviewPanel() {
               )}
               onClick={() => setViewMode("diff")}
             >
-              <GitCommit className="h-3.5 w-3.5" />
+              <GitCommit weight="regular" className="h-3.5 w-3.5" />
               Diff
             </Button>
           </div>
@@ -281,7 +281,7 @@ export function ChangesPreviewPanel() {
                         className="h-4 w-4 hover:text-destructive"
                         onClick={() => removePendingChange(JSON.stringify(change.primaryKey))}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash weight="regular" className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="bg-muted/50 p-3 rounded border border-border">
@@ -379,7 +379,7 @@ export function ChangesPreviewPanel() {
                           className="h-4 w-4 hover:text-destructive"
                           onClick={() => removeRedisChange(change.id)}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash weight="regular" className="h-3 w-3" />
                         </Button>
                       </div>
                       <div className="bg-muted/50 p-3 rounded border border-border">
@@ -397,7 +397,7 @@ export function ChangesPreviewPanel() {
                   <div className="relative mb-6">
                     <div className="absolute inset-0 bg-success/5 rounded-full blur-2xl scale-150" />
                     <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-elev-1">
-                      <Code className="h-10 w-10 text-muted-foreground/30" />
+                      <Code weight="regular" className="h-10 w-10 text-muted-foreground/30" />
                     </div>
                   </div>
                   <p className="text-sm font-medium text-foreground/60 mb-2">No pending changes</p>
@@ -423,7 +423,7 @@ export function ChangesPreviewPanel() {
             onClick={handleClearAll}
             disabled={totalChangesCount === 0}
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <ArrowCounterClockwise weight="regular" className="h-3.5 w-3.5" />
             Clear All
           </Button>
           <Button
@@ -437,7 +437,7 @@ export function ChangesPreviewPanel() {
             disabled={totalChangesCount === 0}
             onClick={handleCommit}
           >
-            <Save className="h-3.5 w-3.5" />
+            <FloppyDisk weight="regular" className="h-3.5 w-3.5" />
             Commit ({totalChangesCount})
           </Button>
         </div>

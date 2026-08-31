@@ -475,7 +475,7 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
             <TreeItem
               label="Browser"
               icon={<LayoutGrid className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={0}
+              level={1}
               onClick={handleOpenBrowser}
             />
           </div>
@@ -495,7 +495,7 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
             <TreeItem
               label="Keys"
               icon={<Hash className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={0}
+              level={1}
               defaultOpen={true}
               count={keys.length}
               rightElement={
@@ -564,7 +564,7 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
                         <TreeItem
                           label={KEY_TYPE_LABELS[type as RedisKeyType]}
                           icon={KEY_TYPE_ICONS[type as RedisKeyType]}
-                          level={1}
+                          level={2}
                           count={typeKeys.length}
                           defaultOpen={false}
                           forceOpen={highlightedKeyType === type}
@@ -576,7 +576,7 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
                                   <TreeItem
                                     label={keyInfo.key}
                                     icon={KEY_TYPE_ICONS[keyInfo.keyType]}
-                                    level={2}
+                                    level={3}
                                     onClick={() => handleKeyClick(keyInfo.key)}
                                     isHighlighted={highlightedKey === keyInfo.key}
                                     rightElement={
@@ -641,7 +641,7 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
               ) : (
                 <KeyTreeView
                   nodes={keyTree}
-                  level={1}
+                  level={2}
                   highlightedKey={highlightedKey}
                   highlightedAncestors={highlightedAncestors}
                   onKeyClick={handleKeyClick}
@@ -671,7 +671,7 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
             <TreeItem
               label="CLI"
               icon={<Terminal className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={0}
+              level={1}
               onClick={handleOpenCli}
             />
           </div>
@@ -691,7 +691,7 @@ export function RedisConnectionContent({ connectionId }: RedisConnectionContentP
             <TreeItem
               label="Server Info"
               icon={<ServerCog className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={0}
+              level={1}
               onClick={handleOpenServerInfo}
             />
           </div>

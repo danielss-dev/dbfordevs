@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 import {
   Button,
   ScrollArea,
-  ScrollBar,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -487,7 +486,11 @@ export function MainContent() {
             </div>
           )}
           
-          <ScrollArea ref={scrollRef} className="flex-1 h-full" scrollHideDelay={100}>
+          <ScrollArea
+            ref={scrollRef}
+            className="flex-1 h-full [&_[data-radix-scroll-area-scrollbar]]:hidden"
+            scrollHideDelay={100}
+          >
             <div className="flex h-full items-center">
               {tabs.map((tab) => (
                 <TabContextMenu key={tab.id} tab={tab}>
@@ -500,7 +503,6 @@ export function MainContent() {
                 </TabContextMenu>
               ))}
             </div>
-            <ScrollBar orientation="horizontal" className="h-1" />
           </ScrollArea>
 
           {showRightArrow && (
@@ -548,12 +550,13 @@ export function MainContent() {
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
+                  aria-label="New Query"
                   onClick={handleNewTab}
                 >
                   <Plus weight="regular" className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>New Tab</TooltipContent>
+              <TooltipContent>New Query</TooltipContent>
             </Tooltip>
           )}
         </div>

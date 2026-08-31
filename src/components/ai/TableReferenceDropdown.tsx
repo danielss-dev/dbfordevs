@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Table, Columns, Check, Leaf, Key } from "lucide-react";
+import { Table, Columns, Check, Leaf, Key } from "@phosphor-icons/react";
 import { ScrollArea } from "@/components/ui";
 import type { TableInfo } from "@/lib/ai/types";
 import type { RedisKeyInfo } from "@/types";
@@ -169,10 +169,10 @@ export function TableReferenceDropdown({
 
   const getItemIcon = (type: string) => {
     switch (type) {
-      case "mongo": return <Leaf className="h-3.5 w-3.5 text-green-500" />;
-      case "redis": return <Key className="h-3.5 w-3.5 text-red-500" />;
-      case "table": return <Table className="h-3.5 w-3.5 text-muted-foreground" />;
-      default: return <Columns className="h-3.5 w-3.5 text-muted-foreground" />;
+      case "mongo": return <Leaf weight="regular" className="h-3.5 w-3.5 text-green-500" />;
+      case "redis": return <Key weight="regular" className="h-3.5 w-3.5 text-red-500" />;
+      case "table": return <Table weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />;
+      default: return <Columns weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />;
     }
   };
 
@@ -218,7 +218,7 @@ export function TableReferenceDropdown({
               {getItemIcon(item.type)}
               <span className="flex-1 truncate font-mono text-xs">{item.displayName}</span>
               {selectedIndex === index && (
-                <Check className="h-3.5 w-3.5 text-primary" />
+                <Check weight="regular" className="h-3.5 w-3.5 text-primary" />
               )}
             </button>
           ))}

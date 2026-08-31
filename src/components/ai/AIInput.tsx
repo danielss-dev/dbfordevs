@@ -1,5 +1,21 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, Sparkles, Search, PlusCircle, RefreshCw, Trash2, GitMerge, Database, Table2, FileCode, Leaf, Layers, Key, HardDrive } from "lucide-react";
+import {
+  PaperPlaneTilt,
+  Sparkle,
+  MagnifyingGlass,
+  PlusCircle,
+  ArrowsClockwise,
+  Trash,
+  GitMerge,
+  Database,
+  Table,
+  FileCode,
+  Leaf,
+  Stack,
+  Key,
+  HardDrives,
+  type Icon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui";
 import { useAIStore } from "@/lib/ai/store";
 import { useMongoDBStore } from "@/stores/mongodb";
@@ -26,7 +42,7 @@ interface SlashCommand {
   name: string;
   description: string;
   prompt: string;
-  icon: React.ElementType;
+  icon: Icon;
   category: "sql" | "mongodb" | "redis";
 }
 
@@ -36,7 +52,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
     name: "select",
     description: "Generate a SELECT query",
     prompt: "Generate a SELECT query to ",
-    icon: Search,
+    icon: MagnifyingGlass,
     category: "sql",
   },
   {
@@ -50,14 +66,14 @@ const SLASH_COMMANDS: SlashCommand[] = [
     name: "update",
     description: "Generate an UPDATE statement",
     prompt: "Generate an UPDATE statement to modify ",
-    icon: RefreshCw,
+    icon: ArrowsClockwise,
     category: "sql",
   },
   {
     name: "delete",
     description: "Generate a DELETE statement",
     prompt: "Generate a DELETE statement to remove ",
-    icon: Trash2,
+    icon: Trash,
     category: "sql",
   },
   {
@@ -71,7 +87,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
     name: "create",
     description: "Generate a CREATE TABLE statement",
     prompt: "Generate a CREATE TABLE statement for ",
-    icon: Table2,
+    icon: Table,
     category: "sql",
   },
   {
@@ -100,7 +116,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
     name: "mongo-aggregate",
     description: "Generate a MongoDB aggregation pipeline",
     prompt: "[MongoDB] Generate an aggregation pipeline to ",
-    icon: Layers,
+    icon: Stack,
     category: "mongodb",
   },
   {
@@ -114,7 +130,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
     name: "mongo-update",
     description: "Generate a MongoDB update operation",
     prompt: "[MongoDB] Generate an update operation to ",
-    icon: RefreshCw,
+    icon: ArrowsClockwise,
     category: "mongodb",
   },
   // Redis Commands
@@ -129,7 +145,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
     name: "redis-structure",
     description: "Recommend a Redis data structure",
     prompt: "[Redis] Recommend the best Redis data structure for ",
-    icon: HardDrive,
+    icon: HardDrives,
     category: "redis",
   },
   {
@@ -147,9 +163,15 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
   const highlightRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { context, isConfigured: checkConfigured } = useAIStore();
+  const { context, isConfigured: checkConfigured, composerDraft, setComposerDraft } = useAIStore();
   const tables = context.tables || [];
   const configured = checkConfigured();
+
+  const placeholder = !configured
+    ? "Configure an API key to chat"
+    : context.selectedTable
+      ? `Ask about ${context.selectedTable}…`
+      : "Ask a question…";
 
   // Get active connection info
   const activeConnection = useConnectionsStore(selectActiveConnection);
@@ -247,6 +269,13 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
     filter: "",
     atIndex: -1,
   });
+
+  useEffect(() => {
+    if (!composerDraft) return;
+    setValue(composerDraft);
+    setComposerDraft("");
+    textareaRef.current?.focus();
+  }, [composerDraft, setComposerDraft]);
 
   // Auto-resize textarea and sync highlight scroll
   useEffect(() => {
@@ -633,10 +662,13 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
                           setSlashCommand((prev) => ({ ...prev, selectedIndex: currentIndex }))
                         }
                       >
-                        <Icon className={cn(
-                          "h-4 w-4 shrink-0",
-                          categoryColors[cmd.category]
-                        )} />
+                        <Icon
+                          weight="regular"
+                          className={cn(
+                            "h-4 w-4 shrink-0",
+                            categoryColors[cmd.category]
+                          )}
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm">/{cmd.name}</span>
@@ -678,7 +710,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onScroll={handleScroll}
-            placeholder={configured ? "Ask a question... / for commands, @ for tables, @mongo: @redis:" : "Please configure API key to chat"}
+            placeholder={placeholder}
             disabled={isLoading || !configured}
             rows={1}
             className={cn(
@@ -695,6 +727,7 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
           size="icon"
           onClick={handleSubmit}
           disabled={!value.trim() || isLoading || !configured}
+          aria-label="Send"
           className={cn(
             "h-9 w-9 shrink-0 rounded-lg",
             "bg-primary",
@@ -704,14 +737,14 @@ export function AIInput({ onSend, isLoading }: AIInputProps) {
           )}
         >
           {isLoading ? (
-            <Sparkles className="h-4 w-4 animate-pulse" />
+            <Sparkle weight="regular" className="h-4 w-4 animate-pulse" />
           ) : (
-            <Send className="h-4 w-4" />
+            <PaperPlaneTilt weight="regular" className="h-4 w-4" />
           )}
         </Button>
       </div>
       <p className="mt-2 text-[10px] text-muted-foreground text-center">
-        Enter to send, Shift+Enter new line, / commands, @ tables, @mongo: collections, @redis: keys
+        Enter to send · Shift+Enter for a new line · / commands · @ tables
       </p>
     </div>
   );

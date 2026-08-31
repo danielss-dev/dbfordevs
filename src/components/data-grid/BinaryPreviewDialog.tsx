@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Binary, Image, Copy, Download, FileText, Code } from "lucide-react";
+import { Binary, Image, Copy, DownloadSimple, FileText, Code } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -106,7 +106,7 @@ export function BinaryPreviewDialog() {
       <DialogContent className="sm:max-w-2xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Binary className="h-5 w-5" />
+            <Binary weight="regular" className="h-5 w-5" />
             Binary Data Preview
             <span className="text-sm font-normal text-muted-foreground">
               ({byteSize})
@@ -118,21 +118,21 @@ export function BinaryPreviewDialog() {
           <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="hex" className="gap-1.5">
-                <Code className="h-3.5 w-3.5" />
+                <Code weight="regular" className="h-3.5 w-3.5" />
                 Hex
               </TabsTrigger>
               <TabsTrigger value="base64" className="gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
+                <FileText weight="regular" className="h-3.5 w-3.5" />
                 Base64
               </TabsTrigger>
               {imageInfo && (
                 <TabsTrigger value="image" className="gap-1.5">
-                  <Image className="h-3.5 w-3.5" />
+                  <Image weight="regular" className="h-3.5 w-3.5" />
                   Image
                 </TabsTrigger>
               )}
               <TabsTrigger value="text" className="gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
+                <FileText weight="regular" className="h-3.5 w-3.5" />
                 Text
               </TabsTrigger>
             </TabsList>
@@ -144,7 +144,7 @@ export function BinaryPreviewDialog() {
                 className="h-7 gap-1.5"
                 onClick={activeTab === "base64" ? handleCopyBase64 : handleCopyHex}
               >
-                <Copy className="h-3.5 w-3.5" />
+                <Copy weight="regular" className="h-3.5 w-3.5" />
                 Copy
               </Button>
               <Button
@@ -153,8 +153,8 @@ export function BinaryPreviewDialog() {
                 className="h-7 gap-1.5"
                 onClick={handleDownload}
               >
-                <Download className="h-3.5 w-3.5" />
-                Download
+                <DownloadSimple weight="regular" className="h-3.5 w-3.5" />
+                DownloadSimple
               </Button>
             </div>
           </div>

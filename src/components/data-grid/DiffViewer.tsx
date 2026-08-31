@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Hash, Trash2, Plus, Pencil, Key } from "lucide-react";
+import { Hash, Trash, Plus, PencilSimple, Key } from "@phosphor-icons/react";
 import type { PendingChange } from "@/types";
 import type { RedisPendingChange } from "@/types/redis";
 
@@ -123,9 +123,9 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case "update": return <Pencil className="h-3 w-3" />;
-      case "delete": return <Trash2 className="h-3 w-3" />;
-      case "insert": return <Plus className="h-3 w-3" />;
+      case "update": return <PencilSimple weight="regular" className="h-3 w-3" />;
+      case "delete": return <Trash weight="regular" className="h-3 w-3" />;
+      case "insert": return <Plus weight="regular" className="h-3 w-3" />;
       default: return null;
     }
   };
@@ -159,7 +159,7 @@ function DiffItem({ change, onRemove }: { change: PendingChange; onRemove: () =>
           </span>
           {/* Row identifier */}
           <div className="flex items-center gap-1.5 text-xs">
-            <Hash className="h-3 w-3 text-muted-foreground/50" />
+            <Hash weight="regular" className="h-3 w-3 text-muted-foreground/50" />
             <span className="text-muted-foreground/70">{rowId.label}:</span>
             <span className="font-mono font-semibold text-foreground">{rowId.value}</span>
           </div>
@@ -367,9 +367,9 @@ function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRem
 
   const opIcon = (() => {
     switch (category) {
-      case "added": return <Plus className="h-3 w-3" />;
-      case "removed": return <Trash2 className="h-3 w-3" />;
-      default: return <Pencil className="h-3 w-3" />;
+      case "added": return <Plus weight="regular" className="h-3 w-3" />;
+      case "removed": return <Trash weight="regular" className="h-3 w-3" />;
+      default: return <PencilSimple weight="regular" className="h-3 w-3" />;
     }
   })();
 
@@ -406,7 +406,7 @@ function RedisDiffItem({ change, onRemove }: { change: RedisPendingChange; onRem
 
       {/* Key subheader */}
       <div className="px-3 py-1.5 bg-muted/10 border-b border-border/50 flex items-center gap-1.5">
-        <Key className="h-3 w-3 text-muted-foreground/50" />
+        <Key weight="regular" className="h-3 w-3 text-muted-foreground/50" />
         <span className="micro-label text-muted-foreground/80 font-mono">
           {key}
         </span>

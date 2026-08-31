@@ -1,16 +1,5 @@
 import { useState } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  Database,
-  Key,
-  List,
-  Rows,
-  X,
-  Settings,
-  Plus,
-  FileText,
-} from "lucide-react";
+import { CaretDown, CaretUp, Database, Key, List, Rows, X, Gear, Plus, FileText } from "@phosphor-icons/react";
 import {
   Button,
   ScrollArea,
@@ -71,7 +60,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <div className="flex items-center gap-2">
-          <Database className="h-4 w-4 text-primary" />
+          <Database weight="regular" className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">Context</span>
         </div>
         <div className="flex items-center gap-1">
@@ -84,7 +73,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
                   className="h-6 w-6"
                   onClick={onOpenConfig}
                 >
-                  <Settings className="h-3.5 w-3.5" />
+                  <Gear weight="regular" className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Configure Context</TooltipContent>
@@ -96,7 +85,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
             className="h-6 w-6"
             onClick={() => setContextPanelOpen(false)}
           >
-            <X className="h-3.5 w-3.5" />
+            <X weight="regular" className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
@@ -156,7 +145,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
       <div className="px-3 py-2 border-b border-border space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Key className="h-3 w-3 text-muted-foreground" />
+            <Key weight="regular" className="h-3 w-3 text-muted-foreground" />
             <span className="text-xs">Foreign Keys</span>
           </div>
           <Switch
@@ -168,7 +157,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <List className="h-3 w-3 text-muted-foreground" />
+            <List weight="regular" className="h-3 w-3 text-muted-foreground" />
             <span className="text-xs">Indexes</span>
           </div>
           <Switch
@@ -180,7 +169,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Rows className="h-3 w-3 text-muted-foreground" />
+            <Rows weight="regular" className="h-3 w-3 text-muted-foreground" />
             <span className="text-xs">Sample Data</span>
           </div>
           <Switch
@@ -203,9 +192,9 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
               Tables in Context ({enhancedTables.length || context.tables.length})
             </span>
             {expanded ? (
-              <ChevronUp className="h-3 w-3 text-muted-foreground" />
+              <CaretUp weight="regular" className="h-3 w-3 text-muted-foreground" />
             ) : (
-              <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              <CaretDown weight="regular" className="h-3 w-3 text-muted-foreground" />
             )}
           </button>
 
@@ -217,7 +206,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
                     key={table.name}
                     className="flex items-center gap-2 px-2 py-1 rounded bg-muted/50 text-xs"
                   >
-                    <Database className="h-3 w-3 text-muted-foreground" />
+                    <Database weight="regular" className="h-3 w-3 text-muted-foreground" />
                     <span className="truncate flex-1">
                       {table.schema ? `${table.schema}.` : ""}
                       {table.name}
@@ -248,7 +237,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
               className="h-5 w-5"
               onClick={() => setShowManualInput(!showManualInput)}
             >
-              <Plus className="h-3 w-3" />
+              <Plus weight="regular" className="h-3 w-3" />
             </Button>
           </div>
 
@@ -291,7 +280,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
                   key={entry.id}
                   className="flex items-start gap-2 px-2 py-1.5 rounded bg-muted/50 text-xs"
                 >
-                  <FileText className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                  <FileText weight="regular" className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                   <span className="flex-1 line-clamp-2">
                     {entry.customText}
                   </span>
@@ -301,7 +290,7 @@ export function AIContextPanel({ onOpenConfig }: AIContextPanelProps) {
                     className="h-4 w-4 shrink-0"
                     onClick={() => removeManualContextEntry(entry.id)}
                   >
-                    <X className="h-3 w-3" />
+                    <X weight="regular" className="h-3 w-3" />
                   </Button>
                 </div>
               ))}

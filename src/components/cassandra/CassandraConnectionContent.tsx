@@ -250,7 +250,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
               labelTooltip
               label="Keyspaces"
               icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={0}
+              level={1}
               defaultOpen={true}
               count={userKeyspaces.length}
               rightElement={
@@ -303,7 +303,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                                   <FolderClosed className="h-3.5 w-3.5 text-purple-500" />
                                 )
                               }
-                              level={1}
+                              level={2}
                               count={ks.tableCount}
                               badge={ks.replicationStrategy === "SimpleStrategy" ? `RF=${ks.replicationFactor}` : "NTS"}
                               defaultOpen={isExpanded}
@@ -330,7 +330,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                                             labelTooltip
                                             label={tbl.name}
                                             icon={<Table2 className="h-3.5 w-3.5 text-blue-500" />}
-                                            level={2}
+                                            level={3}
                                             count={tbl.columnCount}
                                             isHighlighted={isTableHighlighted}
                                             onClick={() => handleTableClick(ks.name, tbl.name)}
@@ -429,7 +429,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                       labelTooltip
                       label="System"
                       icon={<FolderClosed className="h-3.5 w-3.5 text-muted-foreground" />}
-                      level={1}
+                      level={2}
                       count={systemKeyspaces.length}
                     >
                       {systemKeyspaces.map((ks) => (
@@ -438,7 +438,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
                           key={ks.name}
                           label={ks.name}
                           icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
-                          level={2}
+                          level={3}
                           onClick={() => handleKeyspaceClick(ks.name)}
                         />
                       ))}
@@ -468,7 +468,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
               labelTooltip
               label="CQL Shell"
               icon={<Terminal className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={0}
+              level={1}
               onClick={handleOpenShell}
             />
           </div>
@@ -489,7 +489,7 @@ export function CassandraConnectionContent({ connectionId }: CassandraConnection
               labelTooltip
               label="Cluster Info"
               icon={<ServerCog className="h-3.5 w-3.5 text-muted-foreground" />}
-              level={0}
+              level={1}
               onClick={handleOpenServerInfo}
             />
           </div>

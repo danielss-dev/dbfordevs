@@ -1,14 +1,5 @@
 import * as React from "react";
-import {
-  Copy,
-  FileJson,
-  FileText,
-  Table,
-  Eye,
-  Edit,
-  Trash,
-  Binary,
-} from "lucide-react";
+import { Copy, FileJs, FileText, Table, Eye, PencilSimple, Trash, Binary } from "@phosphor-icons/react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -128,34 +119,34 @@ export function CellContextMenu({
       <ContextMenuContent className="w-56">
         {/* Copy operations */}
         <ContextMenuItem onClick={handleCopyCell}>
-          <Copy className="mr-2 h-4 w-4" />
+          <Copy weight="regular" className="mr-2 h-4 w-4" />
           Copy Cell
           <ContextMenuShortcut>Ctrl+C</ContextMenuShortcut>
         </ContextMenuItem>
 
         <ContextMenuSub>
           <ContextMenuSubTrigger>
-            <Table className="mr-2 h-4 w-4" />
+            <Table weight="regular" className="mr-2 h-4 w-4" />
             Copy Row
           </ContextMenuSubTrigger>
           <ContextMenuSubContent>
             <ContextMenuItem onClick={handleCopyRowAsJSON}>
-              <FileJson className="mr-2 h-4 w-4" />
+              <FileJs weight="regular" className="mr-2 h-4 w-4" />
               As JSON
             </ContextMenuItem>
             <ContextMenuItem onClick={handleCopyRowAsCSV}>
-              <FileText className="mr-2 h-4 w-4" />
+              <FileText weight="regular" className="mr-2 h-4 w-4" />
               As CSV
             </ContextMenuItem>
             <ContextMenuItem onClick={handleCopyRowAsInsert}>
-              <Table className="mr-2 h-4 w-4" />
+              <Table weight="regular" className="mr-2 h-4 w-4" />
               As INSERT
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
 
         <ContextMenuItem onClick={handleCopyColumn}>
-          <Copy className="mr-2 h-4 w-4" />
+          <Copy weight="regular" className="mr-2 h-4 w-4" />
           Copy Column ({columnId})
         </ContextMenuItem>
 
@@ -165,13 +156,13 @@ export function CellContextMenu({
             <ContextMenuSeparator />
             {isJson && (
               <ContextMenuItem onClick={handleViewJson}>
-                <Eye className="mr-2 h-4 w-4" />
+                <Eye weight="regular" className="mr-2 h-4 w-4" />
                 View JSON
               </ContextMenuItem>
             )}
             {isBinary && value && (
               <ContextMenuItem onClick={handleViewBinary}>
-                <Binary className="mr-2 h-4 w-4" />
+                <Binary weight="regular" className="mr-2 h-4 w-4" />
                 View Binary Data
               </ContextMenuItem>
             )}
@@ -184,8 +175,8 @@ export function CellContextMenu({
             <ContextMenuSeparator />
             {onEdit && (
               <ContextMenuItem onClick={onEdit}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Cell
+                <PencilSimple weight="regular" className="mr-2 h-4 w-4" />
+                PencilSimple Cell
               </ContextMenuItem>
             )}
             {onDelete && (
@@ -193,7 +184,7 @@ export function CellContextMenu({
                 onClick={onDelete}
                 className="text-destructive focus:text-destructive"
               >
-                <Trash className="mr-2 h-4 w-4" />
+                <Trash weight="regular" className="mr-2 h-4 w-4" />
                 Delete Row
               </ContextMenuItem>
             )}

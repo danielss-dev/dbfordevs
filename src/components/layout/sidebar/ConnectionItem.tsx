@@ -4,7 +4,6 @@ import {
   TreeStructure,
   Table,
   Plus,
-  CaretRight,
   CircleNotch,
   PencilSimple,
   Trash,
@@ -114,10 +113,8 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   const isMssql = connection.databaseType === "mssql";
   const [databases, setDatabases] = useState<DatabaseInfo[]>([]);
   const [isLoadingDatabases, setIsLoadingDatabases] = useState(false);
-  const [databasesOpen, setDatabasesOpen] = useState(false);
   // Track tables per database for MSSQL explorer view
   const [tablesByDatabase, setTablesByDatabase] = useState<Record<string, TableInfo[]>>({});
-  const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(new Set());
   const [loadingDatabaseTables, setLoadingDatabaseTables] = useState<Set<string>>(new Set());
   // MSSQL database management state (only for generic connections without specific database)
   const [databaseToDelete, setDatabaseToDelete] = useState<string | null>(null);
@@ -241,8 +238,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
   };
 
   const handleDatabasesClick = () => {
-    setDatabasesOpen(!databasesOpen);
-    if (!databasesOpen && connection.connected && databases.length === 0) {
+    if (connection.connected && databases.length === 0) {
       loadDatabases();
     }
   };
@@ -267,21 +263,8 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
     }
   };
 
-  // Toggle database expansion (MSSQL)
-  const handleDatabaseToggle = (databaseName: string) => {
-    const isExpanding = !expandedDatabases.has(databaseName);
-    setExpandedDatabases(prev => {
-      const next = new Set(prev);
-      if (isExpanding) {
-        next.add(databaseName);
-      } else {
-        next.delete(databaseName);
-      }
-      return next;
-    });
-
-    // Load tables if expanding and not already loaded
-    if (isExpanding && !tablesByDatabase[databaseName]) {
+  const handleDatabaseClick = (databaseName: string) => {
+    if (!tablesByDatabase[databaseName]) {
       loadTablesForDatabase(databaseName);
     }
   };
@@ -468,12 +451,6 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
         showSuccessToast(`Database "${databaseToDelete}" deleted successfully`);
         setDatabaseToDelete(null);
         setDeleteConfirmationInput("");
-        // Remove from expanded set if it was expanded
-        setExpandedDatabases(prev => {
-          const next = new Set(prev);
-          next.delete(databaseToDelete);
-          return next;
-        });
         // Clear tables for this database
         setTablesByDatabase(prev => {
           const next = { ...prev };
@@ -625,6 +602,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
             <TreeItem
               label={connection.name}
               icon={getIcon()}
+              level={0}
               isActive={isActive}
               isConnected={connection.connected}
               onClick={handleConnectionClick}
@@ -654,15 +632,15 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                           <TreeItem
                             label="Databases"
                             icon={<Database className="h-3.5 w-3.5 text-muted-foreground" />}
+                            level={1}
                             onClick={handleDatabasesClick}
                             defaultOpen={false}
                           >
                             {isLoadingDatabases ? (
-                              <TreeRowsSkeleton rows={4} level={1} />
+                              <TreeRowsSkeleton rows={4} level={2} />
                             ) : databases.length > 0 ? (
                               databases.map((db) => {
-                                const isExpanded = expandedDatabases.has(db.name);
-                                const isLoadingTables = loadingDatabaseTables.has(db.name);
+                                const isLoadingDbTables = loadingDatabaseTables.has(db.name);
                                 const dbTables = tablesByDatabase[db.name] || [];
 
                                 // Group tables by schema for this database
@@ -681,115 +659,100 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                   sysDb => sysDb.toLowerCase() === db.name.toLowerCase()
                                 );
 
+                                const dbBadge = db.isCurrent
+                                  ? "current"
+                                  : db.state !== "ONLINE"
+                                    ? db.state.toLowerCase()
+                                    : undefined;
+
                                 return (
                                   <ContextMenu key={db.name}>
                                     <ContextMenuTrigger asChild>
-                                      <div className="ml-2">
-                                        <div
-                                          className={cn(
-                                            "group flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-all duration-200 cursor-pointer",
-                                            "hover:bg-sidebar-accent/50",
-                                            db.isCurrent && "bg-primary/10 font-medium"
-                                          )}
-                                          onClick={() => handleDatabaseToggle(db.name)}
+                                      <div>
+                                        <TreeItem
+                                          label={db.name}
+                                          icon={<Database className={cn("h-3.5 w-3.5", db.isCurrent ? "text-primary" : "text-muted-foreground")} />}
+                                          level={2}
+                                          isActive={db.isCurrent}
+                                          badge={dbBadge}
+                                          onClick={() => handleDatabaseClick(db.name)}
+                                          defaultOpen={false}
                                         >
-                                          <CaretRight
-                                            className={cn(
-                                              "h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-muted-foreground",
-                                              isExpanded && "rotate-90"
-                                            )}
-                                          />
-                                          <Database className={cn("h-3.5 w-3.5", db.isCurrent ? "text-primary" : "text-muted-foreground")} />
-                                          <span className="truncate flex-1 text-left">{db.name}</span>
-                                          {db.isCurrent && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">current</span>
+                                          {isLoadingDbTables ? (
+                                            <TreeRowsSkeleton rows={4} level={3} />
+                                          ) : dbSchemaNames.length > 0 ? (
+                                            dbSchemaNames.map((schemaName) => (
+                                              <TreeItem
+                                                key={schemaName}
+                                                label={schemaName}
+                                                icon={<TreeStructure className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                                                level={3}
+                                                defaultOpen={dbSchemaNames.length === 1}
+                                              >
+                                                {dbTablesBySchema[schemaName].map((table) => (
+                                                  <ContextMenu key={table.name}>
+                                                    <ContextMenuTrigger asChild>
+                                                      <div>
+                                                        <TreeItem
+                                                          label={table.name}
+                                                          icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
+                                                          level={4}
+                                                          onClick={() => handleTableClick(`${db.name}.${schemaName}.${table.name}`, table.name)}
+                                                        />
+                                                      </div>
+                                                    </ContextMenuTrigger>
+                                                    <ContextMenuContent className="w-56">
+                                                      <ContextMenuItem onSelect={() => handleTableClick(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
+                                                        <Table className="h-4 w-4" />
+                                                        View Data
+                                                      </ContextMenuItem>
+                                                      <ContextMenuItem onSelect={() => handleViewProperties(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
+                                                        <Info className="h-4 w-4" />
+                                                        View Properties
+                                                      </ContextMenuItem>
+                                                      <ContextMenuItem onSelect={() => handleViewDiagram(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
+                                                        <Graph className="h-4 w-4" />
+                                                        View Diagram
+                                                      </ContextMenuItem>
+                                                      <ContextMenuSeparator />
+                                                      <ContextMenuItem onSelect={() => handleCopyDdl(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
+                                                        <Copy className="h-4 w-4" />
+                                                        Copy
+                                                      </ContextMenuItem>
+                                                      <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
+                                                        <ClipboardText className="h-4 w-4" />
+                                                        Paste
+                                                      </ContextMenuItem>
+                                                      <ContextMenuSeparator />
+                                                      <ContextMenuItem onSelect={() => handleRenameTable(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
+                                                        <PencilSimple className="h-4 w-4" />
+                                                        Rename Table
+                                                      </ContextMenuItem>
+                                                      <ContextMenuItem onSelect={() => handleSaveTableSnapshot(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
+                                                        <Camera className="h-4 w-4" />
+                                                        Save Snapshot
+                                                      </ContextMenuItem>
+                                                      <ContextMenuItem onSelect={() => openDataCompareDialog(connection.id, `${db.name}.${schemaName}.${table.name}`)} className="gap-2">
+                                                        <Rows className="h-4 w-4" />
+                                                        Compare Data...
+                                                      </ContextMenuItem>
+                                                      <ContextMenuSeparator />
+                                                      <ContextMenuItem
+                                                        onSelect={() => handleTableDelete(`${db.name}.${schemaName}.${table.name}`)}
+                                                        className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                      >
+                                                        <Trash className="h-4 w-4" />
+                                                        Drop Table
+                                                      </ContextMenuItem>
+                                                    </ContextMenuContent>
+                                                  </ContextMenu>
+                                                ))}
+                                              </TreeItem>
+                                            ))
+                                          ) : (
+                                            <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${3 * 14 + 6}px` }}>No tables found</div>
                                           )}
-                                          {db.state !== "ONLINE" && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning">
-                                              {db.state.toLowerCase()}
-                                            </span>
-                                          )}
-                                        </div>
-
-                                        {/* Expanded database content - show tables */}
-                                    {isExpanded && (
-                                      <div className="ml-4 animate-slide-down">
-                                        {isLoadingTables ? (
-                                          <TreeRowsSkeleton rows={4} level={2} />
-                                        ) : dbSchemaNames.length > 0 ? (
-                                          dbSchemaNames.map((schemaName) => (
-                                            <TreeItem
-                                              key={schemaName}
-                                              label={schemaName}
-                                              icon={<TreeStructure className="h-3.5 w-3.5 text-muted-foreground/50" />}
-                                              level={1}
-                                              defaultOpen={dbSchemaNames.length === 1}
-                                            >
-                                              {dbTablesBySchema[schemaName].map((table) => (
-                                                <ContextMenu key={table.name}>
-                                                  <ContextMenuTrigger asChild>
-                                                    <div>
-                                                      <TreeItem
-                                                        label={table.name}
-                                                        icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
-                                                        level={2}
-                                                        onClick={() => handleTableClick(`${db.name}.${schemaName}.${table.name}`, table.name)}
-                                                      />
-                                                    </div>
-                                                  </ContextMenuTrigger>
-                                                  <ContextMenuContent className="w-56">
-                                                    <ContextMenuItem onSelect={() => handleTableClick(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
-                                                      <Table className="h-4 w-4" />
-                                                      View Data
-                                                    </ContextMenuItem>
-                                                    <ContextMenuItem onSelect={() => handleViewProperties(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
-                                                      <Info className="h-4 w-4" />
-                                                      View Properties
-                                                    </ContextMenuItem>
-                                                    <ContextMenuItem onSelect={() => handleViewDiagram(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
-                                                      <Graph className="h-4 w-4" />
-                                                      View Diagram
-                                                    </ContextMenuItem>
-                                                    <ContextMenuSeparator />
-                                                    <ContextMenuItem onSelect={() => handleCopyDdl(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
-                                                      <Copy className="h-4 w-4" />
-                                                      Copy
-                                                    </ContextMenuItem>
-                                                    <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
-                                                      <ClipboardText className="h-4 w-4" />
-                                                      Paste
-                                                    </ContextMenuItem>
-                                                    <ContextMenuSeparator />
-                                                    <ContextMenuItem onSelect={() => handleRenameTable(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
-                                                      <PencilSimple className="h-4 w-4" />
-                                                      Rename Table
-                                                    </ContextMenuItem>
-                                                    <ContextMenuItem onSelect={() => handleSaveTableSnapshot(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
-                                                      <Camera className="h-4 w-4" />
-                                                      Save Snapshot
-                                                    </ContextMenuItem>
-                                                    <ContextMenuItem onSelect={() => openDataCompareDialog(connection.id, `${db.name}.${schemaName}.${table.name}`)} className="gap-2">
-                                                      <Rows className="h-4 w-4" />
-                                                      Compare Data...
-                                                    </ContextMenuItem>
-                                                    <ContextMenuSeparator />
-                                                    <ContextMenuItem
-                                                      onSelect={() => handleTableDelete(`${db.name}.${schemaName}.${table.name}`)}
-                                                      className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
-                                                    >
-                                                      <Trash className="h-4 w-4" />
-                                                      Drop Table
-                                                    </ContextMenuItem>
-                                                  </ContextMenuContent>
-                                                </ContextMenu>
-                                              ))}
-                                            </TreeItem>
-                                          ))
-                                        ) : (
-                                          <div className="ml-4 py-2 text-xs text-muted-foreground">No tables found</div>
-                                        )}
-                                      </div>
-                                    )}
+                                        </TreeItem>
                                       </div>
                                     </ContextMenuTrigger>
                                     {/* Only show delete option for non-system databases when no specific database is configured */}
@@ -807,9 +770,9 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                   </ContextMenu>
                                 );
                               })
-                            ) : databasesOpen ? (
-                              <div className="ml-6 py-2 text-xs text-muted-foreground">No databases found</div>
-                            ) : null}
+                            ) : (
+                              <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>No databases found</div>
+                            )}
                           </TreeItem>
                         </div>
                       </ContextMenuTrigger>
@@ -839,11 +802,12 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                       <TreeItem
                         label="Schemas"
                         icon={<TreeStructure className="h-3.5 w-3.5 text-muted-foreground" />}
+                        level={1}
                         onClick={handleTablesClick}
                         defaultOpen={true}
                       >
                         {isLoadingTables ? (
-                          <TreeRowsSkeleton rows={5} level={1} />
+                          <TreeRowsSkeleton rows={5} level={2} />
                         ) : schemaNames.length > 0 ? (
                           schemaNames.map((schemaName) => {
                             // Check if any table in this schema is highlighted
@@ -856,7 +820,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                   <TreeItem
                                     label={schemaName}
                                     icon={<TreeStructure className="h-3.5 w-3.5 text-muted-foreground/50" />}
-                                    level={1}
+                                    level={2}
                                     defaultOpen={isSingleSchema}
                                     forceOpen={hasHighlightedTable}
                                   >
@@ -874,7 +838,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         <TreeItem
                                           label={table.name}
                                           icon={<Table className="h-3.5 w-3.5 text-muted-foreground" />}
-                                          level={2}
+                                          level={3}
                                           onClick={() => handleTableClick(tableId, table.name)}
                                           isHighlighted={isTableHighlighted}
                                         />
@@ -950,7 +914,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                           );
                           })
                         ) : tablesOpen ? (
-                          <div className="ml-6 py-2 text-xs text-muted-foreground">No schemas found</div>
+                          <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>No schemas found</div>
                         ) : null}
                       </TreeItem>
                     </div>

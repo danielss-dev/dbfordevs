@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  Table,
-  Loader2,
-  Trash2,
-  RefreshCw,
-  Copy,
-  ListTree,
-} from "lucide-react";
+import { Table, CircleNotch, Trash, ArrowsClockwise, Copy, ListNumbers } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -138,13 +131,14 @@ export function IndexesSection({ connection }: { connection: ConnectionInfo }) {
           <div>
             <TreeItem
               label="Indexes"
-              icon={<ListTree className="h-3.5 w-3.5 text-muted-foreground" />}
+              icon={<ListNumbers weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={1}
               onClick={handleIndexesClick}
               defaultOpen={false}
             >
               {isLoadingIndexes ? (
-                <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>
+                  <CircleNotch weight="regular" className="h-3 w-3 animate-spin" />
                   <span>Loading indexes...</span>
                 </div>
               ) : indexTableNames.length > 0 ? (
@@ -152,8 +146,8 @@ export function IndexesSection({ connection }: { connection: ConnectionInfo }) {
                   <TreeItem
                     key={tableName}
                     label={tableName}
-                    icon={<Table className="h-3.5 w-3.5 text-muted-foreground/50" />}
-                    level={1}
+                    icon={<Table weight="regular" className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                    level={2}
                     defaultOpen={false}
                   >
                     {indexesByTable[tableName].map((idx) => (
@@ -162,17 +156,17 @@ export function IndexesSection({ connection }: { connection: ConnectionInfo }) {
                           <div>
                             <TreeItem
                               label={idx.name}
-                              icon={<ListTree className={cn(
+                              icon={<ListNumbers weight="regular" className={cn(
                                 "h-3.5 w-3.5",
                                 idx.isPrimary ? "text-primary" : idx.isUnique ? "text-warning" : "text-muted-foreground"
                               )} />}
-                              level={2}
+                              level={3}
                             />
                           </div>
                         </ContextMenuTrigger>
                         <ContextMenuContent className="w-48">
                           <ContextMenuItem onSelect={() => handleCopyIndexDdl(idx.name, idx.tableName)} className="gap-2">
-                            <Copy className="h-4 w-4" />
+                            <Copy weight="regular" className="h-4 w-4" />
                             Copy DDL
                           </ContextMenuItem>
                           {!idx.isPrimary && (
@@ -182,7 +176,7 @@ export function IndexesSection({ connection }: { connection: ConnectionInfo }) {
                                 onSelect={() => setIndexToDrop({ name: idx.name, tableName: idx.tableName })}
                                 className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash weight="regular" className="h-4 w-4" />
                                 Drop Index
                               </ContextMenuItem>
                             </>
@@ -198,10 +192,10 @@ export function IndexesSection({ connection }: { connection: ConnectionInfo }) {
                   </TreeItem>
                 ))
               ) : indexesByConnection[connection.id] ? (
-                <div className="ml-6 py-2 text-xs text-muted-foreground">No indexes found</div>
+                <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>No indexes found</div>
               ) : (
-                <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>
+                  <CircleNotch weight="regular" className="h-3 w-3 animate-spin" />
                   <span>Loading indexes...</span>
                 </div>
               )}
@@ -210,7 +204,7 @@ export function IndexesSection({ connection }: { connection: ConnectionInfo }) {
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           <ContextMenuItem onSelect={loadConnectionIndexes} className="gap-2">
-            <RefreshCw className={cn("h-4 w-4", isLoadingIndexes && "animate-spin")} />
+            <ArrowsClockwise weight="regular" className={cn("h-4 w-4", isLoadingIndexes && "animate-spin")} />
             Refresh
           </ContextMenuItem>
         </ContextMenuContent>

@@ -1,16 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  EyeOff,
-  Pin,
-  PinOff,
-  BarChart3,
-  Filter,
-  Copy,
-  ChevronDown,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowsDownUp, EyeSlash, PushPin, PushPinSlash, ChartBar, Funnel, Copy, CaretDown } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -115,14 +104,14 @@ export function ColumnHeaderMenu({
       <>
         {/* Sorting */}
         <MenuItem onClick={() => handleSort(false)}>
-          <ArrowUp className="mr-2 h-4 w-4" />
+          <ArrowUp weight="regular" className="mr-2 h-4 w-4" />
           Sort Ascending
           {isSorted === "asc" && (
             <span className="ml-auto text-xs text-primary">Active</span>
           )}
         </MenuItem>
         <MenuItem onClick={() => handleSort(true)}>
-          <ArrowDown className="mr-2 h-4 w-4" />
+          <ArrowDown weight="regular" className="mr-2 h-4 w-4" />
           Sort Descending
           {isSorted === "desc" && (
             <span className="ml-auto text-xs text-primary">Active</span>
@@ -130,7 +119,7 @@ export function ColumnHeaderMenu({
         </MenuItem>
         {isSorted && (
           <MenuItem onClick={() => handleSort(undefined)}>
-            <ArrowUpDown className="mr-2 h-4 w-4" />
+            <ArrowsDownUp weight="regular" className="mr-2 h-4 w-4" />
             Clear Sort
           </MenuItem>
         )}
@@ -141,8 +130,8 @@ export function ColumnHeaderMenu({
         {onShowFilter && (
           <>
             <MenuItem onClick={onShowFilter}>
-              <Filter className="mr-2 h-4 w-4" />
-              Filter...
+              <Funnel weight="regular" className="mr-2 h-4 w-4" />
+              Funnel...
             </MenuItem>
             <MenuSeparator />
           </>
@@ -151,18 +140,18 @@ export function ColumnHeaderMenu({
         {/* Pinning */}
         <MenuSub>
           <MenuSubTrigger>
-            <Pin className="mr-2 h-4 w-4" />
-            Pin Column
+            <PushPin weight="regular" className="mr-2 h-4 w-4" />
+            PushPin Column
           </MenuSubTrigger>
           <MenuSubContent>
             <MenuItem onClick={() => handlePin("left")}>
-              Pin to Left
+              PushPin to Left
               {isPinned === "left" && (
                 <span className="ml-auto text-xs text-primary">Active</span>
               )}
             </MenuItem>
             <MenuItem onClick={() => handlePin("right")}>
-              Pin to Right
+              PushPin to Right
               {isPinned === "right" && (
                 <span className="ml-auto text-xs text-primary">Active</span>
               )}
@@ -171,7 +160,7 @@ export function ColumnHeaderMenu({
               <>
                 <MenuSeparator />
                 <MenuItem onClick={() => handlePin(false)}>
-                  <PinOff className="mr-2 h-4 w-4" />
+                  <PushPinSlash weight="regular" className="mr-2 h-4 w-4" />
                   Unpin
                 </MenuItem>
               </>
@@ -181,7 +170,7 @@ export function ColumnHeaderMenu({
 
         {/* Visibility */}
         <MenuItem onClick={handleHide}>
-          <EyeOff className="mr-2 h-4 w-4" />
+          <EyeSlash weight="regular" className="mr-2 h-4 w-4" />
           Hide Column
         </MenuItem>
 
@@ -189,13 +178,13 @@ export function ColumnHeaderMenu({
 
         {/* Copy */}
         <MenuItem onClick={handleCopyColumn}>
-          <Copy className="mr-2 h-4 w-4" />
+          <Copy weight="regular" className="mr-2 h-4 w-4" />
           Copy Column Values
         </MenuItem>
 
         {/* Statistics */}
         <MenuItem onClick={handleShowStatistics}>
-          <BarChart3 className="mr-2 h-4 w-4" />
+          <ChartBar weight="regular" className="mr-2 h-4 w-4" />
           Column Statistics
         </MenuItem>
       </>
@@ -212,7 +201,7 @@ export function ColumnHeaderMenu({
             size="sm"
             className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <ChevronDown className="h-3.5 w-3.5" />
+            <CaretDown weight="regular" className="h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
@@ -297,14 +286,14 @@ export function ColumnHeaderContextMenu({
       <ContextMenuContent className="w-48">
         {/* Sorting */}
         <ContextMenuItem onClick={() => handleSort(false)}>
-          <ArrowUp className="mr-2 h-4 w-4" />
+          <ArrowUp weight="regular" className="mr-2 h-4 w-4" />
           Sort Ascending
           {isSorted === "asc" && (
             <span className="ml-auto text-xs text-primary">Active</span>
           )}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => handleSort(true)}>
-          <ArrowDown className="mr-2 h-4 w-4" />
+          <ArrowDown weight="regular" className="mr-2 h-4 w-4" />
           Sort Descending
           {isSorted === "desc" && (
             <span className="ml-auto text-xs text-primary">Active</span>
@@ -312,7 +301,7 @@ export function ColumnHeaderContextMenu({
         </ContextMenuItem>
         {isSorted && (
           <ContextMenuItem onClick={() => handleSort(undefined)}>
-            <ArrowUpDown className="mr-2 h-4 w-4" />
+            <ArrowsDownUp weight="regular" className="mr-2 h-4 w-4" />
             Clear Sort
           </ContextMenuItem>
         )}
@@ -322,18 +311,18 @@ export function ColumnHeaderContextMenu({
         {/* Pinning */}
         <ContextMenuSub>
           <ContextMenuSubTrigger>
-            <Pin className="mr-2 h-4 w-4" />
-            Pin Column
+            <PushPin weight="regular" className="mr-2 h-4 w-4" />
+            PushPin Column
           </ContextMenuSubTrigger>
           <ContextMenuSubContent>
             <ContextMenuItem onClick={() => handlePin("left")}>
-              Pin to Left
+              PushPin to Left
               {isPinned === "left" && (
                 <span className="ml-auto text-xs text-primary">Active</span>
               )}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => handlePin("right")}>
-              Pin to Right
+              PushPin to Right
               {isPinned === "right" && (
                 <span className="ml-auto text-xs text-primary">Active</span>
               )}
@@ -342,7 +331,7 @@ export function ColumnHeaderContextMenu({
               <>
                 <ContextMenuSeparator />
                 <ContextMenuItem onClick={() => handlePin(false)}>
-                  <PinOff className="mr-2 h-4 w-4" />
+                  <PushPinSlash weight="regular" className="mr-2 h-4 w-4" />
                   Unpin
                 </ContextMenuItem>
               </>
@@ -352,7 +341,7 @@ export function ColumnHeaderContextMenu({
 
         {/* Visibility */}
         <ContextMenuItem onClick={handleHide}>
-          <EyeOff className="mr-2 h-4 w-4" />
+          <EyeSlash weight="regular" className="mr-2 h-4 w-4" />
           Hide Column
         </ContextMenuItem>
 
@@ -360,13 +349,13 @@ export function ColumnHeaderContextMenu({
 
         {/* Copy */}
         <ContextMenuItem onClick={handleCopyColumn}>
-          <Copy className="mr-2 h-4 w-4" />
+          <Copy weight="regular" className="mr-2 h-4 w-4" />
           Copy Column Values
         </ContextMenuItem>
 
         {/* Statistics */}
         <ContextMenuItem onClick={handleShowStatistics}>
-          <BarChart3 className="mr-2 h-4 w-4" />
+          <ChartBar weight="regular" className="mr-2 h-4 w-4" />
           Column Statistics
         </ContextMenuItem>
       </ContextMenuContent>

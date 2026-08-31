@@ -59,12 +59,19 @@ export function TreeItem({
   );
 
   return (
-    <div className="group/tree relative min-w-0" ref={itemRef}>
+    <div
+      className={cn(
+        "group/tree relative min-w-0",
+        // Small gap after an expanded connection so the next peer isn't flush
+        level === 0 && effectiveOpen && hasChildren && "mb-1.5"
+      )}
+      ref={itemRef}
+    >
       {/* Indentation guide lines for nested items */}
       {level > 0 && (
         <div
           className="tree-guide"
-          style={{ left: `${(level - 1) * 16 + 18}px` }}
+          style={{ left: `${(level - 1) * 14 + 18}px` }}
         />
       )}
       {/* Active indicator bar - grows in */}

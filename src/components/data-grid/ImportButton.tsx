@@ -30,18 +30,16 @@ export function ImportButton({ connectionId, tableName, onImportComplete }: Impo
         <TooltipTrigger asChild>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             disabled={disabled}
             onClick={() => setShowDialog(true)}
-            className="gap-1.5 h-7 text-xs"
+            aria-label="Import"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
           >
             <UploadSimple weight="regular" className="h-3.5 w-3.5" />
-            Import
           </Button>
         </TooltipTrigger>
-        <TooltipContent>
-          {disabled ? "Select a table to import data" : "Import data from file"}
-        </TooltipContent>
+        <TooltipContent>Import</TooltipContent>
       </Tooltip>
 
       {tableName && (

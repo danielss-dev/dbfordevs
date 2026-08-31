@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Ban } from "lucide-react";
+import { Prohibit } from "@phosphor-icons/react";
 
 interface EditableCellProps {
   value: unknown;
@@ -133,7 +133,7 @@ export function EditableCell({
           data-null-button="true"
           title={value === null ? "Set to empty" : "Set to NULL"}
         >
-          <Ban className="h-3.5 w-3.5" />
+          <Prohibit weight="regular" className="h-3.5 w-3.5" />
         </Button>
       )}
     </div>

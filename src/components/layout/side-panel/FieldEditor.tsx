@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, Check, Sparkles, Clock, Braces, Minimize2, Dices, PenLine, Ban, Hash, Type, Calendar, Link2, CheckCircle2, XCircle } from "lucide-react";
+import { CircleNotch, Check, Sparkle, Clock, BracketsCurly, CornersIn, DiceFive, PencilSimpleLine, Prohibit, Hash, TextT, Calendar, Link, CheckCircle, XCircle } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   Button,
@@ -103,8 +103,8 @@ function getFieldTypeIcon(category: FieldCategory) {
     case "datetime": return Calendar;
     case "date": return Calendar;
     case "time": return Clock;
-    case "json": return Braces;
-    default: return Type;
+    case "json": return BracketsCurly;
+    default: return TextT;
   }
 }
 
@@ -232,7 +232,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
               }
             }}
           >
-            <Ban className={cn(
+            <Prohibit weight="regular" className={cn(
               "h-3.5 w-3.5 transition-colors",
               isNull ? "text-warning" : "group-hover/null:text-warning"
             )} />
@@ -267,13 +267,13 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
             disabled={fkValidationState === "checking"}
           >
             {fkValidationState === "checking" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <CircleNotch weight="regular" className="h-3.5 w-3.5 animate-spin" />
             ) : fkValidationState === "valid" ? (
-              <CheckCircle2 className="h-3.5 w-3.5" />
+              <CheckCircle weight="regular" className="h-3.5 w-3.5" />
             ) : fkValidationState === "invalid" ? (
-              <XCircle className="h-3.5 w-3.5" />
+              <XCircle weight="regular" className="h-3.5 w-3.5" />
             ) : (
-              <Link2 className="h-3.5 w-3.5" />
+              <Link weight="regular" className="h-3.5 w-3.5" />
             )}
           </Button>
         </TooltipTrigger>
@@ -425,7 +425,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
                         onClick={prettifyJson}
                         disabled={isNull || !isValidJson}
                       >
-                        <Braces className="h-3 w-3" />
+                        <BracketsCurly weight="regular" className="h-3 w-3" />
                         Prettify
                       </Button>
                     </TooltipTrigger>
@@ -440,7 +440,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
                         onClick={minifyJson}
                         disabled={isNull || !isValidJson}
                       >
-                        <Minimize2 className="h-3 w-3" />
+                        <CornersIn weight="regular" className="h-3 w-3" />
                         Minify
                       </Button>
                     </TooltipTrigger>
@@ -456,7 +456,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
                       onClick={openJsonDialog}
                       disabled={isFieldDisabled || isNullDisabled}
                     >
-                      <PenLine className="h-3 w-3" />
+                      <PencilSimpleLine weight="regular" className="h-3 w-3" />
                       Edit
                     </Button>
                   </TooltipTrigger>
@@ -490,7 +490,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
             <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Braces className="h-4 w-4" />
+                  <BracketsCurly weight="regular" className="h-4 w-4" />
                   Edit {name}
                 </DialogTitle>
               </DialogHeader>
@@ -515,7 +515,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
                         } catch { /* ignore */ }
                       }}
                     >
-                      <Braces className="h-3.5 w-3.5 mr-1.5" />
+                      <BracketsCurly weight="regular" className="h-3.5 w-3.5 mr-1.5" />
                       Prettify
                     </Button>
                     <Button
@@ -528,7 +528,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
                         } catch { /* ignore */ }
                       }}
                     >
-                      <Minimize2 className="h-3.5 w-3.5 mr-1.5" />
+                      <CornersIn weight="regular" className="h-3.5 w-3.5 mr-1.5" />
                       Minify
                     </Button>
                   </>
@@ -538,7 +538,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
                   Cancel
                 </Button>
                 <Button onClick={saveJsonDialog}>
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                  <Check weight="regular" className="h-3.5 w-3.5 mr-1.5" />
                   Save
                 </Button>
               </DialogFooter>
@@ -643,7 +643,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
                 onClick={generateUuid}
                 disabled={isFieldDisabled || isNullDisabled}
               >
-                <Dices className="h-4 w-4" />
+                <DiceFive weight="regular" className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Generate new UUID</TooltipContent>
@@ -680,7 +680,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
         <div className="flex items-center gap-2 min-w-0">
           {/* Type icon */}
           {TypeIcon && (
-            <TypeIcon className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+            <TypeIcon weight="regular" className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
           )}
           {/* Field name */}
           <Label className={cn(
@@ -704,7 +704,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge variant="info" className="text-[9px] px-1.5 py-0 h-4 shrink-0 cursor-help">
-                  <Link2 className="h-2.5 w-2.5 mr-0.5" />
+                  <Link weight="regular" className="h-2.5 w-2.5 mr-0.5" />
                   FK
                 </Badge>
               </TooltipTrigger>
@@ -732,7 +732,7 @@ export function FieldEditor({ name, value, type, nullable, isPrimaryKey, isAutoI
       <div className="flex items-center gap-2">
         {showAutoGenerated ? (
           <div className="flex-1 h-9 px-3 flex items-center bg-muted/50 rounded-md border border-dashed border-info/30 text-sm text-info italic">
-            <Sparkles className="h-3.5 w-3.5 mr-2 opacity-60" />
+            <Sparkle weight="regular" className="h-3.5 w-3.5 mr-2 opacity-60" />
             Auto-generated
           </div>
         ) : (

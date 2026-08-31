@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Filter, X } from "lucide-react";
+import { Funnel, X } from "@phosphor-icons/react";
 import {
   Popover,
   PopoverContent,
@@ -84,14 +84,14 @@ export function ColumnFilterPopover({
             currentFilter ? "text-primary" : "text-muted-foreground/50"
           }`}
         >
-          <Filter className="h-3 w-3" />
+          <Funnel weight="regular" className="h-3 w-3" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="start">
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className="font-medium text-sm">Filter: {columnName}</h4>
+              <h4 className="font-medium text-sm">Funnel: {columnName}</h4>
               {currentFilter && (
                 <Button
                   variant="ghost"
@@ -99,7 +99,7 @@ export function ColumnFilterPopover({
                   onClick={handleClear}
                   className="h-6 text-xs"
                 >
-                  <X className="h-3 w-3 mr-1" />
+                  <X weight="regular" className="h-3 w-3 mr-1" />
                   Clear
                 </Button>
               )}
@@ -190,7 +190,7 @@ export function ColumnFilterPopover({
 
           <div className="flex gap-2">
             <Button onClick={handleApply} size="sm" className="flex-1">
-              Apply Filter
+              Apply Funnel
             </Button>
             <Button
               onClick={() => setOpen(false)}

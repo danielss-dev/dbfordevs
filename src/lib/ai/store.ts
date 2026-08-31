@@ -141,6 +141,8 @@ interface AIState {
   // AI Panel state
   panelOpen: boolean;
   panelExpanded: boolean;
+  /** Prefill for the composer. Not sent until the user submits. */
+  composerDraft: string;
   isLoading: boolean;
   isStreaming: boolean;
   streamingMessageId: string | null;
@@ -192,6 +194,7 @@ interface AIState {
 
   // Actions
   setPanelOpen: (open: boolean) => void;
+  setComposerDraft: (draft: string) => void;
   togglePanel: () => void;
   togglePanelExpanded: () => void;
   sendMessage: (message: string, useStreaming?: boolean) => Promise<void>;
@@ -206,6 +209,8 @@ interface AIState {
 
   // Session actions (replaces clearMessages, addToHistory, clearHistory)
   createNewChatSession: () => void;
+  /** Restore a valid session, or create one. Safe to call when the panel opens. */
+  ensureActiveSession: () => string;
   switchChatSession: (sessionId: string) => void;
   deleteChatSession: (sessionId: string) => void;
   updateChatSessionTitle: (sessionId: string, title: string) => void;
@@ -263,6 +268,7 @@ export const useAIStore = create<AIState>()(
       modelsLoading: false,
       panelOpen: false,
       panelExpanded: false,
+      composerDraft: "",
       isLoading: false,
       isStreaming: false,
       streamingMessageId: null,
@@ -377,28 +383,21 @@ export const useAIStore = create<AIState>()(
       // Panel actions
       setPanelOpen: (open: boolean) => set({ panelOpen: open }),
 
+      setComposerDraft: (draft: string) => set({ composerDraft: draft }),
+
       togglePanel: () => set((state) => ({ panelOpen: !state.panelOpen })),
 
       togglePanelExpanded: () => set((state) => ({ panelExpanded: !state.panelExpanded })),
 
       // Chat actions
       sendMessage: async (message: string, useStreaming: boolean = true) => {
-        const { context, activeChatSessionId, settings, createNewChatSession, getCurrentModel } = get();
+        const { context, settings, ensureActiveSession, getCurrentModel } = get();
 
         console.log("[AI Store] sendMessage called with:", message);
         console.log("[AI Store] Current context:", JSON.stringify(context, null, 2));
 
-        // Create new session if none active
-        let sessionId = activeChatSessionId;
-        if (!sessionId) {
-          createNewChatSession();
-          sessionId = get().activeChatSessionId;
-        }
-
-        // Re-fetch chatSessions after potential session creation
-        const chatSessions = get().chatSessions;
-
-        const activeSession = chatSessions.find(s => s.id === sessionId);
+        const sessionId = ensureActiveSession();
+        const activeSession = get().chatSessions.find(s => s.id === sessionId);
         if (!activeSession) {
           console.error("[AI Store] No active session found");
           return;
@@ -727,6 +726,24 @@ export const useAIStore = create<AIState>()(
         }));
       },
 
+      ensureActiveSession: () => {
+        const { chatSessions, activeChatSessionId, createNewChatSession } = get();
+        if (activeChatSessionId && chatSessions.some((s) => s.id === activeChatSessionId)) {
+          return activeChatSessionId;
+        }
+        if (chatSessions.length > 0) {
+          const nextId = chatSessions[0].id;
+          set({ activeChatSessionId: nextId });
+          return nextId;
+        }
+        createNewChatSession();
+        const createdId = get().activeChatSessionId;
+        if (!createdId) {
+          throw new Error("Failed to create chat session");
+        }
+        return createdId;
+      },
+
       switchChatSession: (sessionId: string) => {
         set({ activeChatSessionId: sessionId });
       },
@@ -1048,7 +1065,12 @@ export const useAIStore = create<AIState>()(
           );
         }
 
-        console.log(`[AI Store] Rehydration complete. ${state.chatSessions.length} chat sessions loaded.`);
+        const sessions = state.chatSessions ?? [];
+        if (state.activeChatSessionId && !sessions.some((s) => s.id === state.activeChatSessionId)) {
+          state.activeChatSessionId = sessions[0]?.id ?? null;
+        }
+
+        console.log(`[AI Store] Rehydration complete. ${sessions.length} chat sessions loaded.`);
       },
     }
   )

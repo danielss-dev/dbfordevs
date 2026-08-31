@@ -188,7 +188,7 @@ export const useUIStore = create<UIState>()(
       sidebarOpen: true,
       sidebarWidth: 212,
       sidePanelOpen: false,
-      sidePanelWidth: 400,
+      sidePanelWidth: 320,
       rightPanelTab: null,
       pendingChanges: [],
       editorSettings: {
