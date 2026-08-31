@@ -19,54 +19,59 @@
 @tailwind utilities;
 
 @layer base {
-  /* Default Light Theme - Warm white with orange accents */
+  /* Default Light Theme — Instrument + Calm hybrid (dense, cool, blue accent) */
   :root {
-    --background: 30 20% 97%;
-    --foreground: 20 10% 15%;
-    --card: 30 30% 99%;
-    --card-foreground: 20 10% 15%;
-    --popover: 30 30% 100%;
-    --popover-foreground: 20 10% 15%;
-    --primary: 24 95% 50%;
+    /* V4 hybrid light: bg #f5f5f7, panel #ffffff, soft #f0f0f3, text #1a1a20, muted #6a6a76, accent #2f6fed, ok #0f9f6e */
+    --background: 240 11% 96%;
+    --foreground: 240 9% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 9% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 9% 11%;
+    --primary: 217 84% 56%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 30 10% 92%;
-    --secondary-foreground: 20 10% 25%;
-    --muted: 30 10% 94%;
-    --muted-foreground: 20 5% 45%;
-    --accent: 24 40% 95%;
-    --accent-foreground: 20 10% 15%;
+    --secondary: 240 10% 95%;
+    --secondary-foreground: 240 9% 20%;
+    --muted: 240 10% 95%;
+    --muted-foreground: 240 5% 44%;
+    --accent: 217 84% 96%;
+    --accent-foreground: 240 9% 11%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 30 15% 88%;
-    --input: 30 10% 92%;
-    --ring: 24 95% 50%;
-    --radius: 0.5rem;
+    --border: 240 10% 88%;
+    --input: 240 10% 92%;
+    --ring: 217 84% 56%;
+    --radius: 0.25rem;
+    --sel: 217 70% 92%;
+    --sel-strong: 217 70% 86%;
+    --line: 240 10% 88%;
+    --line2: 240 10% 92%;
 
     /* Semantic colors */
-    --success: 142 71% 40%;
+    --success: 160 83% 34%;
     --warning: 38 92% 50%;
-    --info: 270 60% 55%;
+    --info: 217 84% 56%;
 
-    /* Sidebar - Slightly warmer than main */
-    --sidebar-background: 30 25% 98%;
-    --sidebar-foreground: 20 10% 20%;
-    --sidebar-primary: 24 95% 50%;
+    /* Sidebar — panel white, hairline borders */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 9% 18%;
+    --sidebar-primary: 217 84% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 24 30% 94%;
-    --sidebar-accent-foreground: 20 10% 15%;
-    --sidebar-border: 30 15% 90%;
-    --sidebar-ring: 24 95% 50%;
+    --sidebar-accent: 217 70% 94%;
+    --sidebar-accent-foreground: 240 9% 11%;
+    --sidebar-border: 240 10% 90%;
+    --sidebar-ring: 217 84% 56%;
 
     /* Table Specifics */
-    --table-header-bg: 30 15% 94%;
-    --table-row-odd: 30 30% 99%;
-    --table-row-even: 30 20% 97%;
-    --table-row-hover: 24 40% 93%;
+    --table-header-bg: 240 10% 96%;
+    --table-row-odd: 0 0% 100%;
+    --table-row-even: 240 11% 98%;
+    --table-row-hover: 217 70% 94%;
 
     /* Text Hierarchy */
-    --text-primary: 20 10% 15%;
-    --text-secondary: 20 5% 35%;
-    --text-dim: 20 5% 55%;
+    --text-primary: 240 9% 11%;
+    --text-secondary: 240 5% 32%;
+    --text-dim: 240 5% 44%;
 
     /* Database Icon Colors - Light Theme */
     --db-postgresql: #4169E1;
@@ -81,55 +86,60 @@
     --db-cassandra: #1287B1;
   }
 
-  /* Default Dark Theme - Near-black with orange accents */
+  /* Default Dark Theme — Instrument + Calm hybrid */
   .dark {
-    --background: 0 0% 10%;
-    --foreground: 0 0% 92%;
-    --card: 0 0% 13%;
-    --card-foreground: 0 0% 92%;
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 92%;
-    --primary: 24 95% 53%;
+    /* V4 hybrid dark: bg #0d0d0f, panel #121214, soft #18181c, text #ececef, muted #8b8b96, accent #4f8cff, ok #3ecf8e */
+    --background: 240 7% 5%;
+    --foreground: 240 7% 93%;
+    --card: 240 5% 8%;
+    --card-foreground: 240 7% 93%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 240 7% 93%;
+    --primary: 217 100% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 92%;
-    --muted: 0 0% 16%;
-    --muted-foreground: 0 0% 55%;
-    --accent: 24 30% 18%;
-    --accent-foreground: 0 0% 92%;
+    --secondary: 240 7% 10%;
+    --secondary-foreground: 240 7% 93%;
+    --muted: 240 7% 10%;
+    --muted-foreground: 240 5% 57%;
+    --accent: 217 40% 16%;
+    --accent-foreground: 240 7% 93%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 20%;
-    --input: 0 0% 18%;
-    --ring: 24 95% 53%;
+    --border: 240 5% 16%;
+    --input: 240 7% 12%;
+    --ring: 217 100% 65%;
+    --sel: 217 45% 18%;
+    --sel-strong: 217 50% 24%;
+    --line: 240 5% 16%;
+    --line2: 240 5% 12%;
 
     /* Semantic colors */
-    --success: 142 71% 45%;
+    --success: 152 61% 53%;
     --warning: 45 93% 58%;
-    --info: 270 60% 60%;
+    --info: 217 100% 65%;
 
     /* Table Specifics */
-    --table-header-bg: 0 0% 8%;
-    --table-row-odd: 0 0% 10%;
-    --table-row-even: 0 0% 12%;
-    --table-row-hover: 24 30% 15%;
+    --table-header-bg: 240 5% 7%;
+    --table-row-odd: 240 7% 5%;
+    --table-row-even: 240 6% 6%;
+    --table-row-hover: 217 40% 14%;
 
     /* Text Hierarchy */
-    --text-primary: 0 0% 92%;
-    --text-secondary: 0 0% 65%;
-    --text-dim: 0 0% 45%;
+    --text-primary: 240 7% 93%;
+    --text-secondary: 240 5% 70%;
+    --text-dim: 240 5% 45%;
 
-    /* Sidebar - Darker than main */
-    --sidebar-background: 0 0% 7%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 24 95% 53%;
+    /* Sidebar — panel #121214 */
+    --sidebar-background: 240 5% 8%;
+    --sidebar-foreground: 240 5% 85%;
+    --sidebar-primary: 217 100% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 14%;
-    --sidebar-accent-foreground: 0 0% 92%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 24 95% 53%;
+    --sidebar-accent: 217 40% 16%;
+    --sidebar-accent-foreground: 240 7% 93%;
+    --sidebar-border: 240 5% 16%;
+    --sidebar-ring: 217 100% 65%;
 
-    /* Database Icon Colors - Dark Theme (warm-tinted for visibility) */
+    /* Database Icon Colors - Dark Theme */
     --db-postgresql: #6B8DD6;
     --db-mysql: #6BA0C2;
     --db-mariadb: #5DBDAD;
@@ -795,19 +805,18 @@
   --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
-/* Style-specific variations */
+/* Style-specific variations — hybrid chrome: Inter UI, mono only for data */
 .style-developer {
   --radius: 0.2rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+.style-developer .font-mono,
+.style-developer .tabular-nums,
+.style-developer [data-grid-cell],
+.style-developer .monaco-editor,
+.style-developer .monaco-editor * {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
-}
-
-.style-developer * {
-  font-family: inherit;
-}
-
-/* Re-allow icons to use their own font if necessary, though Lucide usually uses SVG */
-.style-developer .lucide {
-  font-family: unset !important;
 }
 
 .style-developer .codicon {

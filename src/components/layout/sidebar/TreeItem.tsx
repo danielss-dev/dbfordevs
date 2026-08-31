@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronRight } from "lucide-react";
+import { CaretRight } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -78,34 +78,35 @@ export function TreeItem({
       )}
       <div
         className={cn(
-          "group flex w-full items-center gap-2 rounded-md min-h-[var(--row-h)] text-sm transition-all duration-150 ease-swift min-w-0",
+          "group flex w-full items-center gap-1.5 rounded-sm min-h-[var(--row-h)] text-[12px] transition-colors min-w-0",
           "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+          isActive && "bg-[hsl(var(--sel))] text-sidebar-accent-foreground font-medium",
           isHighlighted && "animate-highlight-blink"
         )}
-        style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: '8px' }}
+        style={{ paddingLeft: `${level * 14 + 6}px`, paddingRight: '6px' }}
       >
         <button
-          className="flex flex-1 items-center gap-2 overflow-hidden min-w-0 rounded focus-visible:outline-none focus-visible:shadow-[0_0_0_1.5px_hsl(var(--ring)),0_0_0_4px_var(--accent-glow)]"
+          className="flex flex-1 items-center gap-1.5 overflow-hidden min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           onClick={() => {
             if (hasChildren) setIsOpen(!isOpen);
             onClick?.();
           }}
         >
           {hasChildren ? (
-            <ChevronRight
+            <CaretRight
+              weight="regular"
               className={cn(
-                "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+                "h-3 w-3 shrink-0 transition-transform duration-150",
                 effectiveOpen && "rotate-90",
-                isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
+                isActive ? "text-primary" : "text-muted-foreground"
               )}
             />
           ) : (
-            <span className="w-3.5 shrink-0" />
+            <span className="w-3 shrink-0" />
           )}
           <span className={cn(
-            "shrink-0 flex items-center justify-center w-5 h-5 rounded bg-sidebar-accent/30 transition-colors duration-150",
-            isActive ? "text-primary bg-primary/15" : ""
+            "shrink-0 flex items-center justify-center text-muted-foreground",
+            isActive && "text-primary"
           )}>{icon}</span>
           {labelTooltip ? (
             <Tooltip>

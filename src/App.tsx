@@ -1,6 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
 import { TooltipProvider, Toaster } from "@/components/ui";
-import { Sidebar, MainContent, SidePanel, StatusBar, RightActivityBar } from "@/components/layout";
+import { IconRail, Sidebar, MainContent, SidePanel, StatusBar, RightActivityBar } from "@/components/layout";
 import { useUIStore, useQueryStore, useConnectionsStore, selectActiveConnection } from "@/stores";
 import { useKeyboardShortcuts, useFocusZoneEffect } from "@/hooks";
 import { useCommandRegistration } from "@/lib/commands";
@@ -90,6 +90,7 @@ function App() {
       <div className="flex h-screen flex-col overflow-hidden">
         {/* Main Layout */}
         <div className="flex flex-1 overflow-hidden">
+          <IconRail />
           <Sidebar />
           <MainContent />
           <SidePanel />

@@ -1,24 +1,24 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Database,
-  FolderTree,
+  TreeStructure,
   Table,
   Plus,
-  ChevronRight,
-  Loader2,
-  Pencil,
-  Trash2,
+  CaretRight,
+  CircleNotch,
+  PencilSimple,
+  Trash,
   Info,
-  Plug,
-  Unplug,
-  RefreshCw,
+  Plugs,
+  PlugsConnected,
+  ArrowClockwise,
   Copy,
-  ClipboardPaste,
-  Network,
-  GitCompare,
+  ClipboardText,
+  Graph,
+  GitDiff,
   Camera,
-  Rows3,
-} from "lucide-react";
+  Rows,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   Button,
@@ -693,7 +693,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                           )}
                                           onClick={() => handleDatabaseToggle(db.name)}
                                         >
-                                          <ChevronRight
+                                          <CaretRight
                                             className={cn(
                                               "h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-muted-foreground",
                                               isExpanded && "rotate-90"
@@ -721,7 +721,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                             <TreeItem
                                               key={schemaName}
                                               label={schemaName}
-                                              icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                                              icon={<TreeStructure className="h-3.5 w-3.5 text-muted-foreground/50" />}
                                               level={1}
                                               defaultOpen={dbSchemaNames.length === 1}
                                             >
@@ -747,7 +747,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                                       View Properties
                                                     </ContextMenuItem>
                                                     <ContextMenuItem onSelect={() => handleViewDiagram(`${db.name}.${schemaName}.${table.name}`, table.name)} className="gap-2">
-                                                      <Network className="h-4 w-4" />
+                                                      <Graph className="h-4 w-4" />
                                                       View Diagram
                                                     </ContextMenuItem>
                                                     <ContextMenuSeparator />
@@ -756,12 +756,12 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                                       Copy
                                                     </ContextMenuItem>
                                                     <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
-                                                      <ClipboardPaste className="h-4 w-4" />
+                                                      <ClipboardText className="h-4 w-4" />
                                                       Paste
                                                     </ContextMenuItem>
                                                     <ContextMenuSeparator />
                                                     <ContextMenuItem onSelect={() => handleRenameTable(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
-                                                      <Pencil className="h-4 w-4" />
+                                                      <PencilSimple className="h-4 w-4" />
                                                       Rename Table
                                                     </ContextMenuItem>
                                                     <ContextMenuItem onSelect={() => handleSaveTableSnapshot(`${db.name}.${schemaName}.${table.name}`)} className="gap-2">
@@ -769,7 +769,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                                       Save Snapshot
                                                     </ContextMenuItem>
                                                     <ContextMenuItem onSelect={() => openDataCompareDialog(connection.id, `${db.name}.${schemaName}.${table.name}`)} className="gap-2">
-                                                      <Rows3 className="h-4 w-4" />
+                                                      <Rows className="h-4 w-4" />
                                                       Compare Data...
                                                     </ContextMenuItem>
                                                     <ContextMenuSeparator />
@@ -777,7 +777,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                                       onSelect={() => handleTableDelete(`${db.name}.${schemaName}.${table.name}`)}
                                                       className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                                                     >
-                                                      <Trash2 className="h-4 w-4" />
+                                                      <Trash className="h-4 w-4" />
                                                       Drop Table
                                                     </ContextMenuItem>
                                                   </ContextMenuContent>
@@ -799,7 +799,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                           onSelect={() => setDatabaseToDelete(db.name)}
                                           className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                                         >
-                                          <Trash2 className="h-4 w-4" />
+                                          <Trash className="h-4 w-4" />
                                           Delete Database
                                         </ContextMenuItem>
                                       </ContextMenuContent>
@@ -824,7 +824,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                           </>
                         )}
                         <ContextMenuItem onSelect={loadDatabases} className="gap-2">
-                          <RefreshCw className={cn("h-4 w-4", isLoadingDatabases && "animate-spin")} />
+                          <ArrowClockwise className={cn("h-4 w-4", isLoadingDatabases && "animate-spin")} />
                           Refresh
                         </ContextMenuItem>
                       </ContextMenuContent>
@@ -838,7 +838,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                     <div>
                       <TreeItem
                         label="Schemas"
-                        icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground" />}
+                        icon={<TreeStructure className="h-3.5 w-3.5 text-muted-foreground" />}
                         onClick={handleTablesClick}
                         defaultOpen={true}
                       >
@@ -855,7 +855,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                 <div>
                                   <TreeItem
                                     label={schemaName}
-                                    icon={<FolderTree className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                                    icon={<TreeStructure className="h-3.5 w-3.5 text-muted-foreground/50" />}
                                     level={1}
                                     defaultOpen={isSingleSchema}
                                     forceOpen={hasHighlightedTable}
@@ -890,7 +890,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         View Properties
                                       </ContextMenuItem>
                                       <ContextMenuItem onSelect={() => handleViewDiagram(tableId, table.name)} className="gap-2">
-                                        <Network className="h-4 w-4" />
+                                        <Graph className="h-4 w-4" />
                                         View Diagram
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
@@ -899,12 +899,12 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         Copy
                                       </ContextMenuItem>
                                       <ContextMenuItem onSelect={() => handlePasteAsNewTable()} className="gap-2">
-                                        <ClipboardPaste className="h-4 w-4" />
+                                        <ClipboardText className="h-4 w-4" />
                                         Paste
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
                                       <ContextMenuItem onSelect={() => handleRenameTable(tableId)} className="gap-2">
-                                        <Pencil className="h-4 w-4" />
+                                        <PencilSimple className="h-4 w-4" />
                                         Rename Table
                                       </ContextMenuItem>
                                       <ContextMenuItem onSelect={() => handleSaveTableSnapshot(tableId)} className="gap-2">
@@ -912,7 +912,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         Save Snapshot
                                       </ContextMenuItem>
                                       <ContextMenuItem onSelect={() => openDataCompareDialog(connection.id, tableId)} className="gap-2">
-                                        <Rows3 className="h-4 w-4" />
+                                        <Rows className="h-4 w-4" />
                                         Compare Data...
                                       </ContextMenuItem>
                                       <ContextMenuSeparator />
@@ -920,7 +920,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                         onSelect={() => handleTableDelete(tableId)}
                                         className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                                       >
-                                        <Trash2 className="h-4 w-4" />
+                                        <Trash className="h-4 w-4" />
                                         Drop Table
                                       </ContextMenuItem>
                                     </ContextMenuContent>
@@ -937,12 +937,12 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                                 </ContextMenuItem>
                                 <ContextMenuSeparator />
                                 <ContextMenuItem onSelect={() => handleViewSchemaDiagram(schemaName)} className="gap-2">
-                                  <Network className="h-4 w-4" />
+                                  <Graph className="h-4 w-4" />
                                   View Diagram
                                 </ContextMenuItem>
                                 <ContextMenuSeparator />
                                 <ContextMenuItem onSelect={() => handleCompareSchema(schemaName)} className="gap-2">
-                                  <GitCompare className="h-4 w-4" />
+                                  <GitDiff className="h-4 w-4" />
                                   Compare Schema...
                                 </ContextMenuItem>
                               </ContextMenuContent>
@@ -957,7 +957,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
                   </ContextMenuTrigger>
                   <ContextMenuContent className="w-48">
                     <ContextMenuItem onSelect={loadTables} className="gap-2">
-                      <RefreshCw className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
+                      <ArrowClockwise className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
                       Refresh
                     </ContextMenuItem>
                   </ContextMenuContent>
@@ -1003,27 +1003,27 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
           {connection.connected ? (
             <>
               <ContextMenuItem onSelect={handleDisconnect} className="gap-2">
-                <Unplug className="h-4 w-4" />
+                <PlugsConnected className="h-4 w-4" />
                 Disconnect
               </ContextMenuItem>
               <ContextMenuItem onSelect={loadTables} className="gap-2">
-                <RefreshCw className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
+                <ArrowClockwise className={cn("h-4 w-4", isLoadingTables && "animate-spin")} />
                 Refresh
               </ContextMenuItem>
             </>
           ) : (
             <ContextMenuItem onSelect={handleConnect} className="gap-2">
-              <Plug className="h-4 w-4" />
+              <Plugs className="h-4 w-4" />
               Connect
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={handleEdit} className="gap-2">
-            <Pencil className="h-4 w-4" />
+            <PencilSimple className="h-4 w-4" />
             Edit Connection
           </ContextMenuItem>
           <ContextMenuItem onSelect={handleRename} className="gap-2">
-            <Pencil className="h-4 w-4" />
+            <PencilSimple className="h-4 w-4" />
             Rename Connection
           </ContextMenuItem>
           <ContextMenuItem onSelect={handleDuplicate} className="gap-2">
@@ -1036,7 +1036,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={() => openAssignGroupDialog(connection.id)} className="gap-2">
-            <FolderTree className="h-4 w-4" />
+            <TreeStructure className="h-4 w-4" />
             Assign to Group...
           </ContextMenuItem>
           <ContextMenuSeparator />
@@ -1044,7 +1044,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
             onSelect={handleDelete}
             className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash className="h-4 w-4" />
             Delete Connection
           </ContextMenuItem>
         </ContextMenuContent>
@@ -1140,7 +1140,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
             >
               {isCreatingDatabase ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <CircleNotch className="h-4 w-4 mr-2 animate-spin" />
                   Creating...
                 </>
               ) : (
@@ -1197,7 +1197,7 @@ export function ConnectionItem({ connection }: { connection: ConnectionInfo }) {
             >
               {isDeletingDatabase ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <CircleNotch className="h-4 w-4 mr-2 animate-spin" />
                   Deleting...
                 </>
               ) : (

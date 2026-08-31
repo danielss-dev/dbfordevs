@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Upload } from "lucide-react";
+import { useState, useEffect } from "react";
+import { UploadSimple } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ImportDialog } from "./ImportDialog";
@@ -15,6 +15,15 @@ export function ImportButton({ connectionId, tableName, onImportComplete }: Impo
 
   const disabled = !tableName;
 
+  // Icon rail / global import action
+  useEffect(() => {
+    const handler = () => {
+      if (tableName) setShowDialog(true);
+    };
+    window.addEventListener("dbfordevs:open-import", handler);
+    return () => window.removeEventListener("dbfordevs:open-import", handler);
+  }, [tableName]);
+
   return (
     <>
       <Tooltip>
@@ -24,9 +33,9 @@ export function ImportButton({ connectionId, tableName, onImportComplete }: Impo
             size="sm"
             disabled={disabled}
             onClick={() => setShowDialog(true)}
-            className="gap-2"
+            className="gap-1.5 h-7 text-xs"
           >
-            <Upload className="h-3.5 w-3.5" />
+            <UploadSimple weight="regular" className="h-3.5 w-3.5" />
             Import
           </Button>
         </TooltipTrigger>

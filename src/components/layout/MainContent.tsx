@@ -4,14 +4,14 @@ import {
   Plus,
   Code,
   Info,
-  Network,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
+  TreeStructure,
+  CaretLeft,
+  CaretRight,
+  CaretDown,
   Table,
-  Terminal,
-  Pin,
-} from "lucide-react";
+  TerminalWindow,
+  PushPin,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   Button,
@@ -47,39 +47,39 @@ function TabItem({ tab, isActive, onClose, onClick }: {
   const getIcon = () => {
     switch (tab.type) {
       case "query":
-        return <Code className="h-3.5 w-3.5" />;
+        return <Code weight="regular" className="h-3.5 w-3.5" />;
       case "table":
-        return <Table className="h-3.5 w-3.5" />;
+        return <Table weight="regular" className="h-3.5 w-3.5" />;
       case "properties":
-        return <Info className="h-3.5 w-3.5" />;
+        return <Info weight="regular" className="h-3.5 w-3.5" />;
       case "diagram":
-        return <Network className="h-3.5 w-3.5" />;
+        return <TreeStructure weight="regular" className="h-3.5 w-3.5" />;
       case "redis-key":
-        return <Table className="h-3.5 w-3.5" />;
+        return <Table weight="regular" className="h-3.5 w-3.5" />;
       case "redis-cli":
-        return <Terminal className="h-3.5 w-3.5" />;
+        return <TerminalWindow weight="regular" className="h-3.5 w-3.5" />;
       case "redis-info":
-        return <Info className="h-3.5 w-3.5" />;
+        return <Info weight="regular" className="h-3.5 w-3.5" />;
       case "redis-browser":
-        return <Table className="h-3.5 w-3.5" />;
+        return <Table weight="regular" className="h-3.5 w-3.5" />;
       case "mongodb-browser":
-        return <Table className="h-3.5 w-3.5" />;
+        return <Table weight="regular" className="h-3.5 w-3.5" />;
       case "mongodb-document":
-        return <Code className="h-3.5 w-3.5" />;
+        return <Code weight="regular" className="h-3.5 w-3.5" />;
       case "mongodb-shell":
-        return <Terminal className="h-3.5 w-3.5" />;
+        return <TerminalWindow weight="regular" className="h-3.5 w-3.5" />;
       case "mongodb-info":
-        return <Info className="h-3.5 w-3.5" />;
+        return <Info weight="regular" className="h-3.5 w-3.5" />;
       case "mongodb-aggregation":
-        return <Network className="h-3.5 w-3.5" />;
+        return <TreeStructure weight="regular" className="h-3.5 w-3.5" />;
       case "cassandra-browser":
-        return <Table className="h-3.5 w-3.5" />;
+        return <Table weight="regular" className="h-3.5 w-3.5" />;
       case "cassandra-shell":
-        return <Terminal className="h-3.5 w-3.5" />;
+        return <TerminalWindow weight="regular" className="h-3.5 w-3.5" />;
       case "cassandra-info":
-        return <Info className="h-3.5 w-3.5" />;
+        return <Info weight="regular" className="h-3.5 w-3.5" />;
       default:
-        return <Code className="h-3.5 w-3.5" />;
+        return <Code weight="regular" className="h-3.5 w-3.5" />;
     }
   };
 
@@ -88,16 +88,15 @@ function TabItem({ tab, isActive, onClose, onClick }: {
       role="button"
       tabIndex={0}
       className={cn(
-        "group relative flex items-center gap-2 text-sm transition-all duration-150 ease-swift cursor-pointer outline-none",
-        "focus-visible:shadow-[inset_0_0_0_1.5px_hsl(var(--ring)),inset_0_0_0_4px_var(--accent-glow)]",
-        tab.isPinned ? "px-3 py-2" : "px-4 py-2",
+        "group relative flex h-8 items-center gap-1.5 text-xs cursor-pointer outline-none",
+        "focus-visible:ring-1 focus-visible:ring-ring",
+        tab.isPinned ? "px-2.5" : "px-3",
         isActive
           ? "bg-background text-foreground"
           : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
       )}
       onClick={onClick}
       onMouseDown={(e) => {
-        // Middle-click to close tab (but not pinned tabs)
         if (e.button === 1 && !tab.isPinned) {
           e.preventDefault();
           onClose();
@@ -110,49 +109,43 @@ function TabItem({ tab, isActive, onClose, onClick }: {
         }
       }}
     >
-      {/* Active indicator - accent underline that grows in */}
+      {/* Accent reserved for selected tab underline */}
       <div
         className={cn(
-          "absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary transition-transform duration-200 ease-swift",
+          "absolute bottom-0 left-2 right-2 h-[2px] bg-primary transition-transform duration-150",
           isActive ? "scale-x-100" : "scale-x-0"
         )}
       />
-      {/* Bottom border for inactive tabs */}
-      {!isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-border/50" />
-      )}
-      {/* Pin icon for pinned tabs */}
       {tab.isPinned && (
-        <Pin className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+        <PushPin weight="regular" className="h-3 w-3 shrink-0 text-muted-foreground/70" />
       )}
       <span className={cn(
-        "transition-colors shrink-0",
+        "shrink-0",
         isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground/70"
       )}>
         {getIcon()}
       </span>
       <span className={cn(
-        "truncate transition-colors",
+        "truncate",
         tab.isPinned ? "max-w-[80px]" : "max-w-[120px]",
-        isActive ? "font-semibold" : "font-medium"
+        isActive ? "font-medium" : "font-normal"
       )}>
         {tab.title}
       </span>
-      {/* Close button - hidden for pinned tabs */}
       {!tab.isPinned && (
         <button
           className={cn(
-            "ml-1 rounded-md p-0.5 transition-all duration-150 shrink-0",
+            "ml-0.5 rounded-sm p-0.5 shrink-0",
             "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
             "hover:bg-destructive/10 hover:text-destructive",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]"
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           )}
           onClick={(e) => {
             e.stopPropagation();
             onClose();
           }}
         >
-          <X className="h-3 w-3" />
+          <X weight="regular" className="h-3 w-3" />
         </button>
       )}
     </div>
@@ -235,34 +228,29 @@ function EmptyState() {
   const hasConnections = connections.length > 0;
 
   return (
-    <div className="flex h-full flex-col items-center justify-center text-muted-foreground animate-fade-in">
-      <div className="relative mb-6">
-        <div className="absolute inset-0 bg-primary/10 rounded-full blur-2xl" />
-        <div className="relative bg-muted/50 p-6 rounded-2xl border border-border">
-          <Terminal className="h-12 w-12 text-muted-foreground/50" />
-        </div>
-      </div>
-      <h2 className="mb-2 text-xl font-semibold text-foreground">
+    <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+      <Table weight="regular" className="mb-4 h-8 w-8 text-muted-foreground/40" />
+      <h2 className="mb-1.5 text-base font-medium text-foreground">
         {activeConnection ? "No tabs open" : hasConnections ? "Pick a connection" : "Welcome to dbfordevs"}
       </h2>
-      <p className="mb-6 text-sm max-w-sm text-center">
+      <p className="mb-5 text-xs max-w-sm text-center text-muted-foreground">
         {activeConnection
           ? isRedis
-            ? "Start by opening the CLI or selecting a key from the sidebar"
+            ? "Open the CLI or select a key from the sidebar"
             : isMongoDB
-            ? "Start by opening the Shell or selecting a collection from the sidebar"
+            ? "Open the Shell or select a collection from the sidebar"
             : isCassandra
-            ? "Start by opening the CQL Shell or selecting a table from the sidebar"
-            : "Start by opening a new query or selecting a table from the sidebar"
+            ? "Open the CQL Shell or select a table from the sidebar"
+            : "Select a table from the sidebar to browse data"
           : hasConnections
-          ? "Choose one of your connections to get started"
+          ? "Choose a connection to get started"
           : "Add your first database connection to get started"}
       </p>
 
       {/* No connections yet: primary CTA to create one */}
       {!activeConnection && !hasConnections && (
-        <Button onClick={() => openConnectionModal()} size="lg">
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={() => openConnectionModal()} size="sm" className="h-8">
+          <Plus weight="regular" className="mr-1.5 h-3.5 w-3.5" />
           Add Connection
         </Button>
       )}
@@ -305,39 +293,45 @@ function EmptyState() {
         </div>
       )}
 
-      {activeConnection && (
-        isRedis ? (
-          <Button onClick={handleOpenCli} size="lg">
-            <Terminal className="mr-2 h-4 w-4" />
-            Open CLI
-          </Button>
-        ) : isMongoDB ? (
-          <Button onClick={handleOpenMongoShell} size="lg">
-            <Terminal className="mr-2 h-4 w-4" />
-            Open Shell
-          </Button>
-        ) : isCassandra ? (
-          <Button onClick={handleOpenCassandraShell} size="lg">
-            <Terminal className="mr-2 h-4 w-4" />
-            Open CQL Shell
-          </Button>
-        ) : (
-          <Button onClick={handleNewQuery} size="lg">
-            <Plus className="mr-2 h-4 w-4" />
-            New Query
-          </Button>
-        )
+      {activeConnection && !isRedis && !isMongoDB && !isCassandra && (
+        <p className="text-[11px] text-muted-foreground/60">
+          Or open a{" "}
+          <button
+            type="button"
+            onClick={handleNewQuery}
+            className="text-primary hover:underline"
+          >
+            SQL query
+          </button>
+        </p>
+      )}
+      {activeConnection && isRedis && (
+        <Button onClick={handleOpenCli} size="sm" className="h-8">
+          <TerminalWindow weight="regular" className="mr-1.5 h-3.5 w-3.5" />
+          Open CLI
+        </Button>
+      )}
+      {activeConnection && isMongoDB && (
+        <Button onClick={handleOpenMongoShell} size="sm" className="h-8">
+          <TerminalWindow weight="regular" className="mr-1.5 h-3.5 w-3.5" />
+          Open Shell
+        </Button>
+      )}
+      {activeConnection && isCassandra && (
+        <Button onClick={handleOpenCassandraShell} size="sm" className="h-8">
+          <TerminalWindow weight="regular" className="mr-1.5 h-3.5 w-3.5" />
+          Open CQL Shell
+        </Button>
       )}
 
-      {/* Keyboard hints */}
-      <div className="mt-10 flex items-center gap-4 text-xs text-muted-foreground/70">
-        <span className="flex items-center gap-1.5">
+      <div className="mt-8 flex items-center gap-3 text-[11px] text-muted-foreground/60">
+        <span className="flex items-center gap-1">
           <kbd>Ctrl</kbd>
           <kbd>K</kbd>
           Commands
         </span>
         {activeConnection && (
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1">
             <kbd>Ctrl</kbd>
             <kbd>Shift</kbd>
             <kbd>F</kbd>
@@ -477,18 +471,18 @@ export function MainContent() {
 
   return (
     <main data-focus-zone="editor" className="flex h-full flex-1 flex-col bg-background overflow-hidden">
-      {/* Tab Bar */}
-      <div className="flex h-10 items-center border-b border-border bg-muted/30 relative group/tabbar">
+      {/* Tab Bar ~32px */}
+      <div className="flex h-8 items-center border-b border-border bg-[hsl(var(--sidebar-background))] relative group/tabbar">
         <div className="flex-1 h-full relative overflow-hidden flex items-center">
           {showLeftArrow && (
-            <div className="absolute left-0 z-20 flex h-full items-center bg-gradient-to-r from-background via-background to-transparent pr-8 pl-1">
+            <div className="absolute left-0 z-20 flex h-full items-center bg-gradient-to-r from-background via-background to-transparent pr-6 pl-0.5">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 hover:bg-muted"
+                className="h-6 w-6 hover:bg-muted"
                 onClick={() => scroll("left")}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <CaretLeft weight="regular" className="h-3.5 w-3.5" />
               </Button>
             </div>
           )}
@@ -506,39 +500,39 @@ export function MainContent() {
                 </TabContextMenu>
               ))}
             </div>
-            <ScrollBar orientation="horizontal" className="h-1.5" />
+            <ScrollBar orientation="horizontal" className="h-1" />
           </ScrollArea>
 
           {showRightArrow && (
-            <div className="absolute right-0 z-20 flex h-full items-center bg-gradient-to-l from-background via-background to-transparent pl-8 pr-1">
+            <div className="absolute right-0 z-20 flex h-full items-center bg-gradient-to-l from-background via-background to-transparent pl-6 pr-0.5">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 hover:bg-muted"
+                className="h-6 w-6 hover:bg-muted"
                 onClick={() => scroll("right")}
               >
-                <ChevronRight className="h-4 w-4" />
+                <CaretRight weight="regular" className="h-3.5 w-3.5" />
               </Button>
             </div>
           )}
         </div>
 
-        <div className="flex items-center px-1 border-l border-border bg-background/50 backdrop-blur-sm z-30">
+        <div className="flex items-center px-0.5 border-l border-border z-30">
           {tabs.length > 0 && (
             <Select value={activeTabId || ""} onValueChange={setActiveTab}>
-              <SelectTrigger className="h-8 w-8 p-0 border-none bg-transparent hover:bg-muted shadow-none ring-0 focus:ring-0 [&>svg]:hidden">
-                <SelectValue placeholder={<ChevronDown className="h-4 w-4" />}>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <SelectTrigger className="h-6 w-6 p-0 border-none bg-transparent hover:bg-muted shadow-none ring-0 focus:ring-0 [&>svg]:hidden">
+                <SelectValue placeholder={<CaretDown weight="regular" className="h-3.5 w-3.5" />}>
+                  <CaretDown weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />
                 </SelectValue>
               </SelectTrigger>
               <SelectContent align="end" className="w-[200px]">
                 {tabs.map((tab) => (
                   <SelectItem key={tab.id} value={tab.id}>
                     <div className="flex items-center gap-2">
-                      {tab.type === "query" && <Code className="h-3.5 w-3.5" />}
-                      {tab.type === "table" && <Table className="h-3.5 w-3.5" />}
-                      {tab.type === "properties" && <Info className="h-3.5 w-3.5" />}
-                      {tab.type === "diagram" && <Network className="h-3.5 w-3.5" />}
+                      {tab.type === "query" && <Code weight="regular" className="h-3.5 w-3.5" />}
+                      {tab.type === "table" && <Table weight="regular" className="h-3.5 w-3.5" />}
+                      {tab.type === "properties" && <Info weight="regular" className="h-3.5 w-3.5" />}
+                      {tab.type === "diagram" && <TreeStructure weight="regular" className="h-3.5 w-3.5" />}
                       <span className="truncate">{tab.title}</span>
                     </div>
                   </SelectItem>
@@ -553,10 +547,10 @@ export function MainContent() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-6 w-6"
                   onClick={handleNewTab}
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus weight="regular" className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>New Tab</TooltipContent>

@@ -436,8 +436,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                     {getTypeIcon(col.dataType)}
                   </span>
                   <span className={cn(
-                    "font-semibold tracking-tight text-xs transition-colors",
-                    sorted ? "text-primary" : "text-foreground/70 group-hover:text-foreground"
+                    "text-[10px] font-semibold uppercase tracking-[0.06em] transition-colors",
+                    sorted ? "text-primary" : "text-muted-foreground group-hover:text-foreground/80"
                   )}>
                     {col.name}
                   </span>
@@ -970,7 +970,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                     "transition-all cursor-pointer group",
                     idx % 2 === 0 ? "bg-[hsl(var(--table-row-odd))]" : "bg-[hsl(var(--table-row-even))]",
                     "hover:bg-[hsl(var(--table-row-hover))]",
-                    row.getIsSelected() && "bg-primary/15 hover:bg-primary/20 ring-1 ring-inset ring-primary/30",
+                    row.getIsSelected() && "bg-[hsl(var(--sel))] hover:bg-[hsl(var(--sel-strong))]",
                     isPendingDelete && "opacity-40 grayscale line-through decoration-destructive/70 decoration-2",
                     isPendingInsert && "bg-success/10 hover:bg-success/15 ring-1 ring-inset ring-success/30"
                   )}

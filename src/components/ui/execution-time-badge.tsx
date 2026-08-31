@@ -6,20 +6,17 @@ interface ExecutionTimeBadgeProps {
 }
 
 /**
- * Badge component that displays query execution time with a success indicator
+ * Quiet meta for query execution time — not a bright badge.
  */
 export function ExecutionTimeBadge({ timeMs, className }: ExecutionTimeBadgeProps) {
   return (
-    <div
+    <span
       className={cn(
-        "flex items-center gap-2 px-2 py-0.5 rounded",
-        "bg-success/5 border border-success/10",
-        "text-[10px] font-mono text-success font-bold uppercase tracking-wider",
+        "text-[11px] font-medium tabular-nums text-success",
         className
       )}
     >
-      <div className="h-1 w-1 rounded-full bg-success" />
-      <span className="tabular-nums">{timeMs}ms</span>
-    </div>
+      {timeMs}ms
+    </span>
   );
 }
