@@ -5,7 +5,7 @@
  */
 
 import { useEffect } from "react";
-import { ChevronDown, Sparkles, Cpu, Check, Brain } from "lucide-react";
+import { CaretDown, Sparkle, Cpu, Check, Brain } from "@phosphor-icons/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,9 +21,9 @@ import { PROVIDER_INFO, type AIProviderType } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
 
 const PROVIDER_ICONS: Record<AIProviderType, React.ReactNode> = {
-  anthropic: <Sparkles className="h-3.5 w-3.5" />,
-  gemini: <Cpu className="h-3.5 w-3.5" />,
-  openai: <Brain className="h-3.5 w-3.5" />,
+  anthropic: <Sparkle weight="regular" className="h-3.5 w-3.5" />,
+  gemini: <Cpu weight="regular" className="h-3.5 w-3.5" />,
+  openai: <Brain weight="regular" className="h-3.5 w-3.5" />,
 };
 
 export function ProviderModelSwitcher() {
@@ -75,7 +75,7 @@ export function ProviderModelSwitcher() {
         >
           {PROVIDER_ICONS[currentProvider]}
           <span className="max-w-[120px] truncate">{currentModelName}</span>
-          <ChevronDown className="h-3 w-3 opacity-50" />
+          <CaretDown weight="regular" className="h-3 w-3 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
@@ -108,7 +108,7 @@ export function ProviderModelSwitcher() {
                 >
                   <span className="flex-1">{model.name}</span>
                   {currentProvider === provider && currentModel === model.id && (
-                    <Check className="h-3.5 w-3.5 text-primary" />
+                    <Check weight="regular" className="h-3.5 w-3.5 text-primary" />
                   )}
                 </DropdownMenuItem>
               ))}

@@ -1,3 +1,4 @@
+export { IconRail } from "./IconRail";
 export { Sidebar } from "./Sidebar";
 export { MainContent } from "./MainContent";
 export { SidePanel } from "./SidePanel";

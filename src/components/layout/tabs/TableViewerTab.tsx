@@ -1,13 +1,40 @@
-import { useEffect, useCallback, useMemo } from "react";
-import { Loader2, RefreshCw, Save, RotateCcw, Plus, Trash2 } from "lucide-react";
-import { Button, GridSkeleton, Separator } from "@/components/ui";
-import { useQueryStore, useCRUDStore, useUIStore, useConnectionsStore, useSchemaStore } from "@/stores";
+import { useEffect, useCallback, useMemo, useState } from "react";
+import {
+  ArrowClockwise,
+  FloppyDisk,
+  ArrowCounterClockwise,
+  Plus,
+  Trash,
+  CircleNotch,
+  TerminalWindow,
+  Play,
+  TreeStructure,
+  Sparkle,
+  X,
+} from "@phosphor-icons/react";
+import {
+  Button,
+  GridSkeleton,
+  Separator,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui";
+import {
+  useQueryStore,
+  useCRUDStore,
+  useUIStore,
+  useConnectionsStore,
+  useSchemaStore,
+  useExplainStore,
+} from "@/stores";
 import { useDatabase, useCRUD } from "@/hooks";
-import { DataGrid } from "@/components/data-grid";
+import { DataGrid, ImportButton, ExportMenu } from "@/components/data-grid";
 import { QueryError } from "@/components/query-editor/QueryError";
-import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
-import { RowCountBadge } from "@/components/ui/row-count-badge";
+import { SqlEditor } from "@/components/editor";
 import { quoteIdentifier } from "@/lib/utils";
+import { useAIStore } from "@/lib/ai/store";
+import { cn } from "@/lib/utils";
 import type { Tab, ColumnInfo } from "@/types";
 
 interface TableViewerTabProps {
@@ -17,11 +44,18 @@ interface TableViewerTabProps {
 export function TableViewerTab({ tab }: TableViewerTabProps) {
   const { isExecuting, error, results } = useQueryStore();
   const { pendingChanges, clearPendingChanges, selectedRows, startCreatingRow, markSelectedForDeletion } = useCRUDStore();
-  const { setRightPanelTab } = useUIStore();
+  const { setRightPanelTab, theme, formatterSettings } = useUIStore();
   const { connections } = useConnectionsStore();
   const { getSchema } = useSchemaStore();
-  const { executeQuery, getTableSchema } = useDatabase();
+  const { executeQuery, getTableSchema, explainQuery } = useDatabase();
   const { commitChanges } = useCRUD();
+  const openExplain = useExplainStore((s) => s.openExplain);
+  const setExplainResult = useExplainStore((s) => s.setExplainResult);
+  const setExplainError = useExplainStore((s) => s.setExplainError);
+  const setPanelOpen = useAIStore((s) => s.setPanelOpen);
+  const setComposerDraft = useAIStore((s) => s.setComposerDraft);
+  const isAIEnabled = useAIStore((s) => s.settings.aiEnabled ?? true);
+
   const tabResults = results[tab.id];
   const connectionId = tab.connectionId;
   const connection = connections.find((c) => c.id === connectionId);
@@ -30,23 +64,19 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
   const pendingCount = Object.keys(pendingChanges).length;
   const selectedCount = selectedRows.length;
 
-  // Get cached schema for this table (used for empty tables fallback)
+  const [sqlMode, setSqlMode] = useState(false);
+  const [sqlContent, setSqlContent] = useState("");
+
   const cachedSchema = getSchema(connectionId, tableName);
 
-  // Get columns from results or cached schema (for empty tables)
-  // Note: tabResults?.columns might be empty array when table has 0 rows,
-  // so we need to explicitly check length, not just truthiness
   const columns: ColumnInfo[] =
     (tabResults?.columns && tabResults.columns.length > 0)
       ? tabResults.columns
       : cachedSchema?.columns || [];
 
-  // Create merged data for DataGrid that uses cached schema columns for empty tables
   const dataGridData = useMemo(() => {
     if (!tabResults) return null;
-    // If query returned columns, use them directly
     if (tabResults.columns.length > 0) return tabResults;
-    // If no columns from query but we have cached schema, use those columns
     if (cachedSchema?.columns && cachedSchema.columns.length > 0) {
       return {
         ...tabResults,
@@ -56,23 +86,28 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     return tabResults;
   }, [tabResults, cachedSchema]);
 
-  // Add a new row - opens the side panel in create mode
+  const defaultSql = useMemo(() => {
+    if (!connection) return "";
+    const tableIdentifier = tab.tableName ?? tab.title;
+    const quotedTable = quoteIdentifier(tableIdentifier, connection.databaseType);
+    return `SELECT *\nFROM ${quotedTable}\nLIMIT 100;`;
+  }, [connection, tab.tableName, tab.title]);
+
+  useEffect(() => {
+    if (sqlMode && !sqlContent) {
+      setSqlContent(defaultSql);
+    }
+  }, [sqlMode, sqlContent, defaultSql]);
+
   const handleAddRow = useCallback(() => {
     if (!tableName || columns.length === 0) return;
-
-    // Prefer cached schema columns (which include IDENTITY/auto-increment info)
-    // over query result columns (which don't have type metadata like IDENTITY)
     const columnsForCreate = cachedSchema?.columns && cachedSchema.columns.length > 0
       ? cachedSchema.columns
       : columns;
-
-    // Start creating a new row (opens side panel in create mode)
     startCreatingRow(tableName, columnsForCreate);
-    // Open the fields panel to edit the new row
     setRightPanelTab("fields");
   }, [tableName, columns, cachedSchema, startCreatingRow, setRightPanelTab]);
 
-  // Delete selected rows
   const handleDeleteSelected = useCallback(() => {
     if (selectedCount === 0 || columns.length === 0) return;
     markSelectedForDeletion(tableName, columns);
@@ -93,14 +128,67 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     );
   }, [connectionId, connection, tab.tableName, tab.title, tab.id, executeQuery]);
 
-  // Commit changes and refresh the table on success
   const handleCommit = useCallback(async () => {
     const successCount = await commitChanges();
     if (successCount && successCount > 0) {
-      // Refresh the table data to show the committed changes
       await loadData();
     }
   }, [commitChanges, loadData]);
+
+  const handleRunSql = useCallback(async () => {
+    if (!connectionId || !sqlContent.trim()) return;
+    await executeQuery(
+      {
+        connectionId,
+        sql: sqlContent,
+      },
+      tab.id
+    );
+  }, [connectionId, sqlContent, tab.id, executeQuery]);
+
+  const handleExplain = useCallback(async () => {
+    if (!connectionId) return;
+    const sql = sqlMode && sqlContent.trim()
+      ? sqlContent
+      : defaultSql;
+    if (!sql.trim()) return;
+    openExplain(sql, connectionId, false);
+    setRightPanelTab("explain");
+    try {
+      const result = await explainQuery({
+        connectionId,
+        sql,
+        analyze: false,
+      });
+      if (result) {
+        setExplainResult(result);
+      } else {
+        setExplainError("Failed to get execution plan");
+      }
+    } catch (err) {
+      setExplainError(err instanceof Error ? err.message : String(err));
+    }
+  }, [
+    connectionId,
+    sqlMode,
+    sqlContent,
+    defaultSql,
+    openExplain,
+    setRightPanelTab,
+    explainQuery,
+    setExplainResult,
+    setExplainError,
+  ]);
+
+  const handleAI = useCallback(() => {
+    if (!isAIEnabled) return;
+    setRightPanelTab("ai");
+    setPanelOpen(true);
+    const sql = sqlMode && sqlContent.trim() ? sqlContent : defaultSql;
+    if (sql.trim()) {
+      setComposerDraft(`Help me with this table query for ${tableName}:\n\n\`\`\`sql\n${sql}\n\`\`\``);
+    }
+  }, [isAIEnabled, setRightPanelTab, setPanelOpen, setComposerDraft, sqlMode, sqlContent, defaultSql, tableName]);
 
   useEffect(() => {
     if (!tabResults && !isExecuting && connectionId) {
@@ -108,124 +196,217 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
     }
   }, [tab.id, connectionId]);
 
-  // Fetch schema to get primary key info (needed for proper WHERE clause generation)
-  // Also needed for empty tables to know the column structure
   useEffect(() => {
     if (connectionId && tableName && !cachedSchema) {
       getTableSchema(connectionId, tableName);
     }
   }, [connectionId, tableName, cachedSchema, getTableSchema]);
 
-  // Handle F5 refresh
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only refresh if this tab is active
       if (e.key === "F5") {
         e.preventDefault();
-        loadData();
+        if (sqlMode) {
+          handleRunSql();
+        } else {
+          loadData();
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [tab.id, connectionId, isExecuting]);
+  }, [tab.id, connectionId, isExecuting, sqlMode, handleRunSql, loadData]);
 
   return (
     <div className="flex h-full flex-col">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2">
-        <div className="flex items-center gap-3">
+      {/* Dense toolbar ~30px */}
+      <div className="flex h-[30px] shrink-0 items-center justify-between border-b border-border px-2">
+        <div className="flex items-center gap-1.5">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            onClick={() => loadData()}
+            onClick={() => (sqlMode ? handleRunSql() : loadData())}
             disabled={isExecuting || !connectionId}
-            className="gap-2"
+            className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             {isExecuting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <CircleNotch weight="regular" className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
+              <ArrowClockwise weight="regular" className="h-3.5 w-3.5" />
             )}
             Refresh
           </Button>
 
-          <Separator orientation="vertical" className="h-4" />
+          <Button
+            variant={sqlMode ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setSqlMode((v) => !v)}
+            className={cn(
+              "h-6 gap-1 px-1.5 text-xs",
+              sqlMode
+                ? "bg-[hsl(var(--sel))] text-primary hover:bg-[hsl(var(--sel-strong))]"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <TerminalWindow weight="regular" className="h-3.5 w-3.5" />
+            SQL
+          </Button>
+
+          <Separator orientation="vertical" className="mx-0.5 h-3.5" />
 
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={handleAddRow}
             disabled={isExecuting || !connectionId || columns.length === 0}
-            className="gap-2"
+            className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
-            <Plus className="h-3.5 w-3.5" />
-            Add Row
+            <Plus weight="regular" className="h-3.5 w-3.5" />
+            Add
           </Button>
 
           {selectedCount > 0 && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleDeleteSelected}
-              className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="h-6 gap-1 px-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash weight="regular" className="h-3.5 w-3.5" />
               Delete ({selectedCount})
             </Button>
           )}
-       
-                 {pendingCount > 0 && (
-            <>
-              <Separator orientation="vertical" className="h-4" />
-              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearPendingChanges}
-                  className="text-muted-foreground hover:text-foreground gap-1.5 h-8 px-2"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Discard
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleCommit}
-                  className="bg-success hover:bg-success/90 text-success-foreground gap-1.5 h-8 px-3"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  Commit ({pendingCount})
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRightPanelTab("changes")}
-                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-muted-foreground/30 px-1"
-                >
-                  View changes
-                </Button>
-              </div>
-            </>
-          )}
 
-          {tabResults && (
-            <div className="flex items-center gap-2 text-sm ml-2">
-              <RowCountBadge rowCount={tabResults.rows.length} affectedRows={tabResults.affectedRows} />
-              <ExecutionTimeBadge timeMs={tabResults.executionTimeMs} />
-            </div>
+          {pendingCount > 0 && (
+            <>
+              <Separator orientation="vertical" className="mx-0.5 h-3.5" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearPendingChanges}
+                className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ArrowCounterClockwise weight="regular" className="h-3.5 w-3.5" />
+                Discard
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleCommit}
+                className="h-6 gap-1 bg-success px-2 text-xs text-success-foreground hover:bg-success/90"
+              >
+                <FloppyDisk weight="regular" className="h-3.5 w-3.5" />
+                Commit ({pendingCount})
+              </Button>
+            </>
           )}
         </div>
 
+        <div className="flex items-center gap-0.5">
+          {connectionId && (
+            <ImportButton
+              connectionId={connectionId}
+              tableName={tableName}
+              onImportComplete={loadData}
+            />
+          )}
+          <ExportMenu tableName={tableName} />
+          {isAIEnabled && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleAI}
+                  aria-label="AI"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                >
+                  <Sparkle weight="regular" className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>AI</TooltipContent>
+            </Tooltip>
+          )}
+          {!sqlMode && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleExplain}
+                  disabled={!connectionId}
+                  aria-label="Explain"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                >
+                  <TreeStructure weight="regular" className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Explain</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
-      {/* Content Area */}
+      {/* SQL mode pane — entered from toolbar, not first paint */}
+      {sqlMode && (
+        <div className="flex shrink-0 flex-col border-b border-border">
+          <div className="flex h-7 items-center gap-1 border-b border-border/60 px-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRunSql}
+              disabled={isExecuting || !connectionId || !sqlContent.trim()}
+              className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              {isExecuting ? (
+                <CircleNotch weight="regular" className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play weight="regular" className="h-3.5 w-3.5" />
+              )}
+              Run
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExplain}
+              disabled={!connectionId || !sqlContent.trim()}
+              className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <TreeStructure weight="regular" className="h-3.5 w-3.5" />
+              EXPLAIN
+            </Button>
+            <div className="flex-1" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSqlMode(false)}
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              aria-label="Close SQL mode"
+            >
+              <X weight="regular" className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="h-[140px]">
+            <SqlEditor
+              value={sqlContent}
+              onChange={setSqlContent}
+              onExecute={handleRunSql}
+              theme={theme as "light" | "dark" | "system"}
+              databaseType={connection?.databaseType}
+              formatterOptions={formatterSettings}
+              height="140px"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-hidden">
-          {isExecuting ? (
-            <GridSkeleton className="h-full" />
-          ) : error && !tabResults ? (
-            <QueryError error={error} onRetry={loadData} />
-          ) : dataGridData ? (
+        {isExecuting && !tabResults ? (
+          <GridSkeleton className="h-full" />
+        ) : error && !tabResults ? (
+          <QueryError error={error} onRetry={loadData} />
+        ) : dataGridData ? (
           <DataGrid
             data={dataGridData}
             tableName={tab.tableName || tab.title}
@@ -233,7 +414,7 @@ export function TableViewerTab({ tab }: TableViewerTabProps) {
             onDataChange={loadData}
           />
         ) : (
-            <GridSkeleton className="h-full" />
+          <GridSkeleton className="h-full" />
         )}
       </div>
     </div>

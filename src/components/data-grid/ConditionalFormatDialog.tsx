@@ -1,12 +1,5 @@
 import * as React from "react";
-import {
-  Paintbrush,
-  Plus,
-  Trash2,
-  GripVertical,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { PaintBrush, Plus, Trash, DotsSixVertical, CaretDown, CaretUp } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -108,7 +101,7 @@ export function ConditionalFormatDialog({
       <DialogContent className="sm:max-w-xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Paintbrush className="h-5 w-5" />
+            <PaintBrush weight="regular" className="h-5 w-5" />
             Conditional Formatting Rules
           </DialogTitle>
         </DialogHeader>
@@ -117,7 +110,7 @@ export function ConditionalFormatDialog({
           <div className="space-y-2">
             {conditionalRules.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Paintbrush className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <PaintBrush weight="regular" className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>No conditional formatting rules</p>
                 <p className="text-sm">Add a rule to highlight cells based on their values</p>
               </div>
@@ -146,7 +139,7 @@ export function ConditionalFormatDialog({
 
         <DialogFooter className="flex-row justify-between sm:justify-between">
           <Button variant="outline" className="gap-1.5" onClick={handleAddRule}>
-            <Plus className="h-4 w-4" />
+            <Plus weight="regular" className="h-4 w-4" />
             Add Rule
           </Button>
           <Button onClick={() => onOpenChange(false)}>Done</Button>
@@ -197,7 +190,7 @@ function RuleEditor({
         className="flex items-center gap-2 p-2 cursor-pointer"
         onClick={onToggleExpand}
       >
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
+        <DotsSixVertical weight="regular" className="h-4 w-4 text-muted-foreground" />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -223,7 +216,7 @@ function RuleEditor({
             onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
             disabled={!canMoveUp}
           >
-            <ChevronUp className="h-3.5 w-3.5" />
+            <CaretUp weight="regular" className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"
@@ -232,7 +225,7 @@ function RuleEditor({
             onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
             disabled={!canMoveDown}
           >
-            <ChevronDown className="h-3.5 w-3.5" />
+            <CaretDown weight="regular" className="h-3.5 w-3.5" />
           </Button>
           <Switch
             checked={rule.enabled}
@@ -245,7 +238,7 @@ function RuleEditor({
             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash weight="regular" className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>

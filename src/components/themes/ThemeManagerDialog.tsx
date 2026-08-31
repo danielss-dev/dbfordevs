@@ -261,10 +261,11 @@ export function ThemeManagerDialog({ open, onOpenChange }: ThemeManagerDialogPro
           {/* Left Panel - Theme List */}
           <div className="w-72 border-r border-border flex flex-col bg-muted/30">
             {/* Header */}
-            <div className="px-4 py-3 border-b border-border">
-              <div className="flex items-center gap-2 mb-3">
-                <Palette className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">Theme Manager</h2>
+            <div className="border-b border-border px-3 py-2">
+              <div className="mb-2">
+                <h2 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Themes
+                </h2>
               </div>
               {/* Search */}
               <div className="relative">
@@ -294,8 +295,8 @@ export function ThemeManagerDialog({ open, onOpenChange }: ThemeManagerDialogPro
                         className={cn(
                           "w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors",
                           selectedTheme?.type === "builtin" && selectedTheme.id === theme.id
-                            ? "bg-accent text-accent-foreground"
-                            : "hover:bg-accent/50 text-foreground"
+                            ? "bg-[hsl(var(--sel))] text-primary"
+                            : "hover:bg-muted/60 text-foreground"
                         )}
                       >
                         {theme.icon}
@@ -398,8 +399,8 @@ export function ThemeManagerDialog({ open, onOpenChange }: ThemeManagerDialogPro
                           className={cn(
                             "group flex items-center gap-2 px-2 py-1.5 rounded transition-colors cursor-pointer",
                             selectedTheme?.type === "custom" && selectedTheme.theme.id === theme.id
-                              ? "bg-accent"
-                              : "hover:bg-accent/50"
+                              ? "bg-[hsl(var(--sel))] text-primary"
+                              : "hover:bg-muted/60"
                           )}
                           onClick={() => handleSelectCustom(theme)}
                         >

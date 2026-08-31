@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  Loader2,
-  Trash2,
-  RefreshCw,
-  Copy,
-  FunctionSquare,
-} from "lucide-react";
+import { CircleNotch, Trash, ArrowsClockwise, Copy, Function } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -123,13 +117,14 @@ export function FunctionsSection({ connection }: { connection: ConnectionInfo })
           <div>
             <TreeItem
               label="Functions"
-              icon={<FunctionSquare className="h-3.5 w-3.5 text-muted-foreground" />}
+              icon={<Function weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={1}
               onClick={handleFunctionsClick}
               defaultOpen={false}
             >
               {isLoadingFunctions ? (
-                <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>
+                  <CircleNotch weight="regular" className="h-3 w-3 animate-spin" />
                   <span>Loading functions...</span>
                 </div>
               ) : connectionFunctions.length > 0 ? (
@@ -139,14 +134,14 @@ export function FunctionsSection({ connection }: { connection: ConnectionInfo })
                       <div>
                         <TreeItem
                           label={func.name}
-                          icon={<FunctionSquare className="h-3.5 w-3.5 text-muted-foreground" />}
-                          level={1}
+                          icon={<Function weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+                          level={2}
                         />
                       </div>
                     </ContextMenuTrigger>
                     <ContextMenuContent className="w-48">
                       <ContextMenuItem onSelect={() => handleCopyFunctionDdl(func.name)} className="gap-2">
-                        <Copy className="h-4 w-4" />
+                        <Copy weight="regular" className="h-4 w-4" />
                         Copy DDL
                       </ContextMenuItem>
                       <ContextMenuSeparator />
@@ -154,17 +149,17 @@ export function FunctionsSection({ connection }: { connection: ConnectionInfo })
                         onSelect={() => setFunctionToDrop(func.name)}
                         className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash weight="regular" className="h-4 w-4" />
                         Drop Function
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
                 ))
               ) : functionsByConnection[connection.id] ? (
-                <div className="ml-6 py-2 text-xs text-muted-foreground">No functions found</div>
+                <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>No functions found</div>
               ) : (
-                <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>
+                  <CircleNotch weight="regular" className="h-3 w-3 animate-spin" />
                   <span>Loading functions...</span>
                 </div>
               )}
@@ -173,7 +168,7 @@ export function FunctionsSection({ connection }: { connection: ConnectionInfo })
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           <ContextMenuItem onSelect={loadConnectionFunctions} className="gap-2">
-            <RefreshCw className={cn("h-4 w-4", isLoadingFunctions && "animate-spin")} />
+            <ArrowsClockwise weight="regular" className={cn("h-4 w-4", isLoadingFunctions && "animate-spin")} />
             Refresh
           </ContextMenuItem>
         </ContextMenuContent>

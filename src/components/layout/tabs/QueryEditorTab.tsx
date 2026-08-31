@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Loader2, Table, Terminal, RefreshCw, Eye, TreeDeciduous } from "lucide-react";
+import { Play, CircleNotch, Table, TerminalWindow, ArrowClockwise, Eye, TreeStructure } from "@phosphor-icons/react";
 import { Button, SplitButton, Tooltip, TooltipTrigger, TooltipContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, GridSkeleton } from "@/components/ui";
 import {
   useQueryStore,
@@ -276,29 +276,29 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Toolbar */}
-      <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-2">
+      {/* SQL toolbar */}
+      <div className="flex h-[30px] items-center gap-2 border-b border-border px-2">
         <SplitButton
           size="sm"
           onPrimaryClick={() => handleExecute()}
           disabled={isExecuting || !connectionId || !content.trim()}
-          className="gap-2"
+          className="gap-1.5 h-6 text-xs"
           dropdownItems={[
             {
               label: "Preview Changes",
-              icon: <Eye className="h-3.5 w-3.5" />,
+              icon: <Eye weight="regular" className="h-3.5 w-3.5" />,
               onClick: handlePreview,
               disabled: isExecuting || !connectionId || !content.trim(),
             },
             {
               label: "Explain Plan",
-              icon: <TreeDeciduous className="h-3.5 w-3.5" />,
+              icon: <TreeStructure weight="regular" className="h-3.5 w-3.5" />,
               onClick: () => handleExplain(false),
               disabled: isExecuting || !connectionId || !content.trim(),
             },
             {
               label: "Explain Analyze",
-              icon: <TreeDeciduous className="h-3.5 w-3.5" />,
+              icon: <TreeStructure weight="regular" className="h-3.5 w-3.5" />,
               onClick: () => handleExplain(true),
               disabled: isExecuting || !connectionId || !content.trim(),
             },
@@ -306,20 +306,19 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
         >
           {isExecuting ? (
             <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Running...
+              <CircleNotch weight="regular" className="h-3.5 w-3.5 animate-spin" />
+              Running…
             </>
           ) : (
             <>
-              <Play className="h-3.5 w-3.5" />
-              Run Query
+              <Play weight="regular" className="h-3.5 w-3.5" />
+              Run
             </>
           )}
         </SplitButton>
 
-        {/* Connection Selector */}
         <Select value={connectionId || ""} onValueChange={handleConnectionChange}>
-          <SelectTrigger className="h-8 w-[200px] text-xs">
+          <SelectTrigger className="h-6 w-[180px] text-[11px]">
             <SelectValue placeholder="Select connection" />
           </SelectTrigger>
           <SelectContent>
@@ -375,9 +374,9 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
                 className="h-8 w-8"
               >
                 {isRefreshing ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <CircleNotch weight="regular" className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  <ArrowClockwise weight="regular" className="h-3.5 w-3.5" />
                 )}
               </Button>
             </TooltipTrigger>
@@ -413,12 +412,12 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
 
       {/* Results Area */}
       <div className="h-2/5 min-h-[200px] border-t border-border flex flex-col">
-        <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-4 py-2">
-          <Table className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Results</span>
+        <div className="flex h-7 items-center gap-1.5 border-b border-border px-2">
+          <Table weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium">Results</span>
           {results && (
-            <span className="text-xs text-muted-foreground">
-              ({results.rows.length} rows)
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {results.rows.length} rows
             </span>
           )}
         </div>
@@ -436,8 +435,8 @@ export function QueryEditorTab({ tab: tabProp }: QueryEditorTabProps) {
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-              <Terminal className="h-8 w-8 mb-2 opacity-30" />
-              <span className="text-sm">Execute a query to see results</span>
+              <TerminalWindow weight="regular" className="h-6 w-6 mb-2 opacity-30" />
+              <span className="text-xs">Execute a query to see results</span>
             </div>
           )}
         </div>

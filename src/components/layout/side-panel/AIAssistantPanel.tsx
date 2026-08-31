@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { AlertCircle, Loader2, Sparkles, Settings, Bot, History, Plus, Coins } from "lucide-react";
+import { CircleNotch, Coins, Gear, Robot, Sparkle, WarningCircle } from "@phosphor-icons/react";
 import {
   Button,
   ScrollArea,
@@ -16,6 +16,8 @@ import { ChatMessage } from "@/components/ai/ChatMessage";
 import { AIInput } from "@/components/ai/AIInput";
 import { AISettingsDialog } from "@/components/ai/AISettingsDialog";
 import { ChatHistoryPanel } from "@/components/ai/ChatHistoryPanel";
+
+const OPEN_AI_SETTINGS_EVENT = "dbfordevs:open-ai-settings";
 
 // AI Assistant Panel
 export function AIAssistantPanel() {
@@ -35,12 +37,7 @@ export function AIAssistantPanel() {
     getCurrentProvider,
     historyPanelOpen,
     setHistoryPanelOpen,
-    toggleHistoryPanel,
-    getActiveSession,
-    createNewChatSession,
   } = useAIStore();
-
-  const activeSession = getActiveSession();
 
   // Get active connection and its tables
   const activeConnection = useConnectionsStore(selectActiveConnection);
@@ -57,6 +54,14 @@ export function AIAssistantPanel() {
 
   const currentProvider = getCurrentProvider();
   const providerDisplayName = PROVIDER_INFO[currentProvider]?.displayName || "AI";
+  const selectedTable = context.selectedTable;
+  const emptySuggestions = selectedTable
+    ? [
+        `Show latest rows from ${selectedTable}`,
+        `Count rows in ${selectedTable}`,
+        `Describe ${selectedTable}`,
+      ]
+    : ["Write a select", "Explain this query"];
 
   // Sync tables and current query from active connection to AI context
   useEffect(() => {
@@ -70,8 +75,29 @@ export function AIAssistantPanel() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    messagesEndRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
   }, [messages, isLoading, isStreaming]);
+
+  useEffect(() => {
+    const persistApi = useAIStore.persist;
+    const startSession = () => {
+      useAIStore.getState().ensureActiveSession();
+    };
+    if (persistApi.hasHydrated()) {
+      startSession();
+      return;
+    }
+    return persistApi.onFinishHydration(startSession);
+  }, []);
+
+  useEffect(() => {
+    const openSettings = () => setShowSettings(true);
+    window.addEventListener(OPEN_AI_SETTINGS_EVENT, openSettings);
+    return () => window.removeEventListener(OPEN_AI_SETTINGS_EVENT, openSettings);
+  }, []);
 
   if (!isEnabled) {
     return (
@@ -79,7 +105,7 @@ export function AIAssistantPanel() {
         <div className="relative mb-6">
           <div className="absolute inset-0 bg-primary/5 rounded-full blur-2xl scale-150" />
           <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-elev-1">
-            <Sparkles className="h-10 w-10 text-muted-foreground/30" />
+            <Sparkle weight="regular" className="h-10 w-10 text-muted-foreground/30" />
           </div>
         </div>
         <p className="text-sm font-medium text-foreground/60 mb-2">AI Disabled</p>
@@ -90,21 +116,32 @@ export function AIAssistantPanel() {
     );
   }
 
+  const hasUsage = Boolean(usageStats && usageStats.totalTokens > 0);
+
   return (
     <div className="relative flex flex-col h-full">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20 shrink-0">
-        <div className="flex items-center gap-2">
-          {activeSession && (
-            <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-              {activeSession.title}
-            </span>
+      {/* Context indicator + usage */}
+      {(selectedTable || hasUsage) && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border-b border-border text-xs shrink-0">
+          {selectedTable && (
+            <>
+              <span className="text-muted-foreground">Context:</span>
+              <Badge variant="secondary" className="text-[10px] h-5">
+                {selectedTable}
+              </Badge>
+              {context.databaseType && (
+                <Badge variant="outline" className="text-[10px] h-5">
+                  {context.databaseType}
+                </Badge>
+              )}
+            </>
           )}
-          {usageStats && usageStats.totalTokens > 0 && (
+          <div className="flex-1" />
+          {hasUsage && usageStats && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="flex items-center gap-1 text-[10px] text-primary">
-                  <Coins className="h-3 w-3" />
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Coins weight="regular" className="h-3 w-3" />
                   {usageStats.totalTokens >= 1000
                     ? `${(usageStats.totalTokens / 1000).toFixed(1)}k`
                     : usageStats.totalTokens}
@@ -120,32 +157,6 @@ export function AIAssistantPanel() {
             </Tooltip>
           )}
         </div>
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleHistoryPanel} title="Chat History">
-            <History className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowSettings(true)} title="Settings">
-            <Settings className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={createNewChatSession} title="New Chat">
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Context indicator */}
-      {context.selectedTable && (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border-b border-border text-xs shrink-0">
-          <span className="text-muted-foreground">Context:</span>
-          <Badge variant="secondary" className="text-[10px] h-5">
-            {context.selectedTable}
-          </Badge>
-          {context.databaseType && (
-            <Badge variant="outline" className="text-[10px] h-5">
-              {context.databaseType}
-            </Badge>
-          )}
-        </div>
       )}
 
       {/* Messages area */}
@@ -154,7 +165,7 @@ export function AIAssistantPanel() {
           {!isConfigured && (
             <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10 text-warning">
-                <AlertCircle className="h-6 w-6" />
+                <WarningCircle weight="regular" className="h-6 w-6" />
               </div>
               <div>
                 <h3 className="font-medium text-sm">API Key Required</h3>
@@ -163,7 +174,7 @@ export function AIAssistantPanel() {
                 </p>
               </div>
               <Button variant="default" size="sm" onClick={() => setShowSettings(true)}>
-                <Settings className="h-3.5 w-3.5 mr-1.5" />
+                <Gear weight="regular" className="h-3.5 w-3.5 mr-1.5" />
                 Configure
               </Button>
             </div>
@@ -172,7 +183,7 @@ export function AIAssistantPanel() {
           {isConfigured && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Bot className="h-6 w-6" />
+                <Robot weight="regular" className="h-6 w-6" />
               </div>
               <div>
                 <h3 className="font-medium text-sm">Ask me about SQL</h3>
@@ -181,7 +192,7 @@ export function AIAssistantPanel() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5 justify-center mt-1">
-                {["Show all users", "Count by category"].map((suggestion) => (
+                {emptySuggestions.map((suggestion) => (
                   <Button
                     key={suggestion}
                     variant="outline"
@@ -203,9 +214,9 @@ export function AIAssistantPanel() {
           {isLoading && !isStreaming && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
               <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
-                <Loader2 className="h-3 w-3 text-primary-foreground animate-spin" />
+                <CircleNotch weight="regular" className="h-3 w-3 text-primary-foreground animate-spin" />
               </div>
-              <span className="text-xs text-muted-foreground">Thinking...</span>
+              <span className="text-xs text-muted-foreground">Thinking…</span>
             </div>
           )}
 

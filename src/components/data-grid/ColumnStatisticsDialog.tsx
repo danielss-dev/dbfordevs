@@ -1,5 +1,5 @@
 import * as React from "react";
-import { BarChart3, Hash, Calendar, Type, Binary } from "lucide-react";
+import { ChartBar, Hash, Calendar, TextT, Binary } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -52,10 +52,10 @@ export function ColumnStatisticsDialog({
   const isDate = /date|time|timestamp/i.test(columnInfo.dataType);
 
   const getTypeIcon = () => {
-    if (isNumeric) return <Hash className="h-4 w-4" />;
-    if (isDate) return <Calendar className="h-4 w-4" />;
-    if (isString) return <Type className="h-4 w-4" />;
-    return <Binary className="h-4 w-4" />;
+    if (isNumeric) return <Hash weight="regular" className="h-4 w-4" />;
+    if (isDate) return <Calendar weight="regular" className="h-4 w-4" />;
+    if (isString) return <TextT weight="regular" className="h-4 w-4" />;
+    return <Binary weight="regular" className="h-4 w-4" />;
   };
 
   const formatNumber = (num: number | undefined): string => {
@@ -85,7 +85,7 @@ export function ColumnStatisticsDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
+            <ChartBar weight="regular" className="h-5 w-5" />
             Column Statistics
           </DialogTitle>
         </DialogHeader>

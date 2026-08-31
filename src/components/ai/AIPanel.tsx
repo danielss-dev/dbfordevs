@@ -1,20 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import {
-  X,
-  Sparkles,
-  Settings,
-  Bot,
-  AlertCircle,
-  Loader2,
-  History,
-  Plus,
-  Coins,
-  Maximize2,
-  Minimize2,
-  Database,
-  Download,
-  LayoutTemplate,
-} from "lucide-react";
+import { X, Sparkle, Gear, Robot, WarningCircle, CircleNotch, ClockCounterClockwise, Plus, Coins, CornersOut, CornersIn, Database, DownloadSimple, Layout } from "@phosphor-icons/react";
 import {
   Button,
   ScrollArea,
@@ -131,7 +116,7 @@ export function AIPanel() {
           <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-primary/10">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-elev-2">
-              <Sparkles className="h-5 w-5" />
+              <Sparkle weight="regular" className="h-5 w-5" />
             </div>
             <div>
               <h2 className="font-semibold text-sm">
@@ -145,7 +130,7 @@ export function AIPanel() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="flex items-center gap-1 text-primary">
-                            <Coins className="h-3 w-3" />
+                            <Coins weight="regular" className="h-3 w-3" />
                             {usageStats.totalTokens >= 1000
                               ? `${(usageStats.totalTokens / 1000).toFixed(1)}k`
                               : usageStats.totalTokens}
@@ -176,9 +161,9 @@ export function AIPanel() {
               title={panelExpanded ? "Collapse Panel" : "Expand Panel"}
             >
               {panelExpanded ? (
-                <Minimize2 className="h-4 w-4" />
+                <CornersIn weight="regular" className="h-4 w-4" />
               ) : (
-                <Maximize2 className="h-4 w-4" />
+                <CornersOut weight="regular" className="h-4 w-4" />
               )}
             </Button>
             <Button
@@ -188,7 +173,7 @@ export function AIPanel() {
               onClick={toggleContextPanel}
               title="Context Panel"
             >
-              <Database className="h-4 w-4" />
+              <Database weight="regular" className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -197,7 +182,7 @@ export function AIPanel() {
               onClick={toggleHistoryPanel}
               title="Chat History"
             >
-              <History className="h-4 w-4" />
+              <ClockCounterClockwise weight="regular" className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -207,7 +192,7 @@ export function AIPanel() {
               title="Export Chat"
               disabled={!activeSession || activeSession.messages.length === 0}
             >
-              <Download className="h-4 w-4" />
+              <DownloadSimple weight="regular" className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -216,7 +201,7 @@ export function AIPanel() {
               onClick={() => setShowTemplates(true)}
               title="Chat Templates"
             >
-              <LayoutTemplate className="h-4 w-4" />
+              <Layout weight="regular" className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -225,7 +210,7 @@ export function AIPanel() {
               onClick={() => setShowSettings(true)}
               title="Settings"
             >
-              <Settings className="h-4 w-4" />
+              <Gear weight="regular" className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -234,7 +219,7 @@ export function AIPanel() {
               onClick={createNewChatSession}
               title="New Chat"
             >
-              <Plus className="h-4 w-4" />
+              <Plus weight="regular" className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -243,7 +228,7 @@ export function AIPanel() {
               onClick={close}
               title="Close"
             >
-              <X className="h-4 w-4" />
+              <X weight="regular" className="h-4 w-4" />
             </Button>
           </div>
           </div>
@@ -269,7 +254,7 @@ export function AIPanel() {
               {!isConfigured && (
                 <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-warning/10 text-warning">
-                    <AlertCircle className="h-8 w-8" />
+                    <WarningCircle weight="regular" className="h-8 w-8" />
                   </div>
                   <div>
                     <h3 className="font-medium">API Key Required</h3>
@@ -283,7 +268,7 @@ export function AIPanel() {
                     size="sm"
                     onClick={() => setShowSettings(true)}
                   >
-                    <Settings className="h-4 w-4 mr-2" />
+                    <Gear weight="regular" className="h-4 w-4 mr-2" />
                     Configure API Key
                   </Button>
                 </div>
@@ -292,7 +277,7 @@ export function AIPanel() {
               {isConfigured && messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/20 text-primary">
-                    <Bot className="h-8 w-8" />
+                    <Robot weight="regular" className="h-8 w-8" />
                   </div>
                   <div>
                     <h3 className="font-medium">Ask me anything about SQL</h3>
@@ -331,7 +316,7 @@ export function AIPanel() {
               {isLoading && !isStreaming && (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                    <Loader2 className="h-4 w-4 text-primary-foreground animate-spin" />
+                    <CircleNotch weight="regular" className="h-4 w-4 text-primary-foreground animate-spin" />
                   </div>
                   <span className="text-sm text-muted-foreground">
                     Thinking...

@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  MessageSquarePlus,
-  Zap,
-  Search,
-  Sparkles,
-  Trash2,
-  Plus,
-} from "lucide-react";
+import { Chat, Lightning, MagnifyingGlass, Sparkle, Trash, Plus } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -29,10 +22,10 @@ interface ChatTemplateSelectorProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const TEMPLATE_ICONS: Record<string, typeof MessageSquarePlus> = {
-  "query-builder": MessageSquarePlus,
-  "query-optimization": Zap,
-  "data-exploration": Search,
+const TEMPLATE_ICONS: Record<string, typeof Chat> = {
+  "query-builder": Chat,
+  "query-optimization": Lightning,
+  "data-exploration": MagnifyingGlass,
 };
 
 function TemplateCard({
@@ -44,7 +37,7 @@ function TemplateCard({
   onSelect: () => void;
   onDelete?: () => void;
 }) {
-  const Icon = TEMPLATE_ICONS[template.id] || Sparkles;
+  const Icon = TEMPLATE_ICONS[template.id] || Sparkle;
 
   return (
     <div
@@ -56,7 +49,7 @@ function TemplateCard({
     >
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20 text-primary">
-          <Icon className="h-5 w-5" />
+          <Icon weight="regular" className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm">{template.name}</h4>
@@ -89,7 +82,7 @@ function TemplateCard({
             onDelete();
           }}
         >
-          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+          <Trash weight="regular" className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
         </Button>
       )}
     </div>
@@ -185,7 +178,7 @@ export function ChatTemplateSelector({
                     className="w-full gap-2"
                     onClick={() => setShowSaveTemplate(true)}
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus weight="regular" className="h-4 w-4" />
                     Save Current Chat as Template
                   </Button>
                 ) : (

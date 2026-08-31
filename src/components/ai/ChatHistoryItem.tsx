@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { Edit2, Trash2, Star } from "lucide-react";
+import { PencilSimple, Trash, Star } from "@phosphor-icons/react";
 import { Button, Input, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui";
 import { useAIStore } from "@/lib/ai/store";
 import type { AIChatSession } from "@/lib/ai/types";
@@ -85,7 +85,7 @@ export function ChatHistoryItem({ session, isActive, onSelect }: ChatHistoryItem
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {session.isFavorite && (
-              <Star className="h-3 w-3 fill-warning text-warning flex-shrink-0" />
+              <Star weight="regular" className="h-3 w-3 fill-warning text-warning flex-shrink-0" />
             )}
             <TooltipProvider delayDuration={300}>
               <Tooltip>
@@ -108,7 +108,7 @@ export function ChatHistoryItem({ session, isActive, onSelect }: ChatHistoryItem
               onClick={handleToggleFavorite}
               title={session.isFavorite ? "Remove from favorites" : "Add to favorites"}
             >
-              <Star className={cn(
+              <Star weight="regular" className={cn(
                 "h-3 w-3",
                 session.isFavorite && "fill-warning text-warning"
               )} />
@@ -120,7 +120,7 @@ export function ChatHistoryItem({ session, isActive, onSelect }: ChatHistoryItem
               onClick={handleEdit}
               title="Edit title"
             >
-              <Edit2 className="h-3 w-3" />
+              <PencilSimple weight="regular" className="h-3 w-3" />
             </Button>
             <Button
               variant="ghost"
@@ -129,7 +129,7 @@ export function ChatHistoryItem({ session, isActive, onSelect }: ChatHistoryItem
               onClick={handleDelete}
               title="Delete chat"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash weight="regular" className="h-3 w-3" />
             </Button>
           </div>
         </div>

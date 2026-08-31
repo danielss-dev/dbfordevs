@@ -1,14 +1,5 @@
 import { useState, useMemo } from "react";
-import {
-  Copy,
-  Check,
-  FileEdit,
-  Bot,
-  User,
-  AlertCircle,
-  Play,
-  Coins,
-} from "lucide-react";
+import { Copy, Check, NotePencil, Robot, User, WarningCircle, Play, Coins } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -201,11 +192,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
         )}
       >
         {isUser ? (
-          <User className="h-4 w-4 text-info-foreground" />
+          <User weight="regular" className="h-4 w-4 text-info-foreground" />
         ) : isError ? (
-          <AlertCircle className="h-4 w-4 text-destructive-foreground" />
+          <WarningCircle weight="regular" className="h-4 w-4 text-destructive-foreground" />
         ) : (
-          <Bot className="h-4 w-4 text-primary-foreground" />
+          <Robot weight="regular" className="h-4 w-4 text-primary-foreground" />
         )}
       </div>
 
@@ -303,7 +294,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   disabled={isRunning || !activeConnectionId}
                   title="Run Query"
                 >
-                  <Play className={cn("h-3.5 w-3.5 text-success", isRunning && "animate-pulse")} />
+                  <Play weight="regular" className={cn("h-3.5 w-3.5 text-success", isRunning && "animate-pulse")} />
                 </Button>
                 <Button
                   variant="ghost"
@@ -313,9 +304,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   title="Copy SQL"
                 >
                   {copied ? (
-                    <Check className="h-3.5 w-3.5 text-success" />
+                    <Check weight="regular" className="h-3.5 w-3.5 text-success" />
                   ) : (
-                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Copy weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />
                   )}
                 </Button>
                 <Button
@@ -325,7 +316,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   onClick={handleInsertSQL}
                   title="Insert into Query Editor"
                 >
-                  <FileEdit className="h-3.5 w-3.5 text-info" />
+                  <NotePencil weight="regular" className="h-3.5 w-3.5 text-info" />
                 </Button>
               </div>
             </div>
@@ -381,7 +372,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         {/* Token usage indicator */}
         {message.usage && !isUser && (
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
-            <Coins className="h-3 w-3" />
+            <Coins weight="regular" className="h-3 w-3" />
             <span>{formatTokens(message.usage.totalTokens)} tokens</span>
           </div>
         )}

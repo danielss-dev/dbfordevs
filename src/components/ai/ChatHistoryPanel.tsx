@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Plus, X } from "lucide-react";
+import { MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import {
   Button,
   Input,
@@ -107,7 +107,7 @@ export function ChatHistoryPanel({ open, onOpenChange }: ChatHistoryPanelProps) 
             className="h-7 px-2 text-xs gap-1"
             onClick={handleNewChat}
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus weight="regular" className="h-3.5 w-3.5" />
             New Chat
           </Button>
           <Button
@@ -116,7 +116,7 @@ export function ChatHistoryPanel({ open, onOpenChange }: ChatHistoryPanelProps) 
             className="h-7 w-7"
             onClick={() => onOpenChange(false)}
           >
-            <X className="h-4 w-4" />
+            <X weight="regular" className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -124,7 +124,7 @@ export function ChatHistoryPanel({ open, onOpenChange }: ChatHistoryPanelProps) 
       {/* Search */}
       <div className="px-4 py-2 border-b border-border">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlass weight="regular" className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search chats..."
             value={searchQuery}

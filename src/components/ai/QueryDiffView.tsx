@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Check, X, Copy, ArrowRight } from "lucide-react";
+import { Check, X, Copy, ArrowRight } from "@phosphor-icons/react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { QueryDiff } from "@/lib/ai/types";
@@ -85,7 +85,7 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b border-border">
         <div className="flex items-center gap-2">
-          <ArrowRight className="h-4 w-4 text-primary" />
+          <ArrowRight weight="regular" className="h-4 w-4 text-primary" />
           <span className="font-medium text-sm">Query Optimization</span>
         </div>
         <div className="flex items-center gap-1">
@@ -96,9 +96,9 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
             onClick={copyToClipboard}
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-success" />
+              <Check weight="regular" className="h-3.5 w-3.5 text-success" />
             ) : (
-              <Copy className="h-3.5 w-3.5" />
+              <Copy weight="regular" className="h-3.5 w-3.5" />
             )}
             Copy
           </Button>
@@ -109,7 +109,7 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
               className="h-7 text-xs gap-1 text-success hover:text-success/80"
               onClick={() => onApply(diff.optimized)}
             >
-              <Check className="h-3.5 w-3.5" />
+              <Check weight="regular" className="h-3.5 w-3.5" />
               Apply
             </Button>
           )}
@@ -120,7 +120,7 @@ export function QueryDiffView({ diff, onApply, onDismiss }: QueryDiffViewProps) 
               className="h-7 text-xs gap-1 text-destructive hover:text-destructive/80"
               onClick={onDismiss}
             >
-              <X className="h-3.5 w-3.5" />
+              <X weight="regular" className="h-3.5 w-3.5" />
               Dismiss
             </Button>
           )}

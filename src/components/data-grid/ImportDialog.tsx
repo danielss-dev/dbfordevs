@@ -20,20 +20,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Upload,
-  FileJson,
-  FileText,
-  Database,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  ArrowRight,
-  Wand2,
-  X,
-  File,
-} from "lucide-react";
+import { UploadSimple, FileJs, FileText, Database, CircleNotch, CheckCircle, XCircle, WarningCircle, ArrowRight, MagicWand, X, File } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { useImport } from "@/hooks/useImport";
 import { useDatabase } from "@/hooks/useDatabase";
@@ -327,7 +314,7 @@ export function ImportDialog({
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
+            <UploadSimple weight="regular" className="h-5 w-5" />
             Import Data to {tableName}
           </DialogTitle>
           <DialogDescription>
@@ -368,7 +355,7 @@ export function ImportDialog({
               <div className="border-2 border-dashed rounded-lg p-8 text-center">
                 {fileName ? (
                   <div className="space-y-2">
-                    <File className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <File weight="regular" className="h-12 w-12 mx-auto text-muted-foreground" />
                     <p className="font-medium">{fileName}</p>
                     <p className="text-sm text-muted-foreground">
                       {formatFileSize(fileSize)} - {format.toUpperCase()}
@@ -379,7 +366,7 @@ export function ImportDialog({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <UploadSimple weight="regular" className="h-12 w-12 mx-auto text-muted-foreground" />
                     <p className="text-muted-foreground">
                       Drag and drop or click to select a file
                     </p>
@@ -403,19 +390,19 @@ export function ImportDialog({
                       <SelectContent>
                         <SelectItem value="csv">
                           <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
+                            <FileText weight="regular" className="h-4 w-4" />
                             CSV
                           </div>
                         </SelectItem>
                         <SelectItem value="json">
                           <div className="flex items-center gap-2">
-                            <FileJson className="h-4 w-4" />
+                            <FileJs weight="regular" className="h-4 w-4" />
                             JSON
                           </div>
                         </SelectItem>
                         <SelectItem value="sql">
                           <div className="flex items-center gap-2">
-                            <Database className="h-4 w-4" />
+                            <Database weight="regular" className="h-4 w-4" />
                             SQL
                           </div>
                         </SelectItem>
@@ -457,7 +444,7 @@ export function ImportDialog({
 
               {error && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <WarningCircle weight="regular" className="h-4 w-4 shrink-0" />
                   {error}
                 </div>
               )}
@@ -472,7 +459,7 @@ export function ImportDialog({
                   Map source columns to target columns
                 </h3>
                 <Button variant="outline" size="sm" onClick={handleAutoMap}>
-                  <Wand2 className="h-4 w-4 mr-2" />
+                  <MagicWand weight="regular" className="h-4 w-4 mr-2" />
                   Auto Map
                 </Button>
               </div>
@@ -519,7 +506,7 @@ export function ImportDialog({
                             {mapping.sourceColumn}
                           </td>
                           <td className="px-4 py-2">
-                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                            <ArrowRight weight="regular" className="h-4 w-4 text-muted-foreground" />
                           </td>
                           <td className="px-4 py-2">
                             <Select
@@ -567,7 +554,7 @@ export function ImportDialog({
                                 className="h-6 w-6"
                                 onClick={() => clearMapping(mapping.sourceColumn)}
                               >
-                                <X className="h-3 w-3" />
+                                <X weight="regular" className="h-3 w-3" />
                               </Button>
                             )}
                           </td>
@@ -741,7 +728,7 @@ export function ImportDialog({
           {step === "progress" && (
             <div className="space-y-6">
               <div className="text-center space-y-4">
-                <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
+                <CircleNotch weight="regular" className="h-12 w-12 mx-auto animate-spin text-primary" />
                 <p className="font-medium">
                   {progress?.status === "preparing"
                     ? "Preparing import..."
@@ -820,9 +807,9 @@ export function ImportDialog({
             <div className="space-y-6">
               <div className="text-center space-y-4">
                 {result.success ? (
-                  <CheckCircle2 className="h-16 w-16 mx-auto text-success" />
+                  <CheckCircle weight="regular" className="h-16 w-16 mx-auto text-success" />
                 ) : (
-                  <XCircle className="h-16 w-16 mx-auto text-destructive" />
+                  <XCircle weight="regular" className="h-16 w-16 mx-auto text-destructive" />
                 )}
                 <div>
                   <h3 className="text-lg font-medium">
@@ -868,7 +855,7 @@ export function ImportDialog({
               {result.errors.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                    <WarningCircle weight="regular" className="h-4 w-4 text-destructive" />
                     Errors ({result.errors.length})
                   </h4>
                   <ScrollArea className="h-[120px] border rounded-lg">
@@ -907,7 +894,7 @@ export function ImportDialog({
             <Button onClick={handlePreview} disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <CircleNotch weight="regular" className="mr-2 h-4 w-4 animate-spin" />
                   Loading...
                 </>
               ) : format === "sql" ? (

@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Table, Paintbrush } from "lucide-react";
 import {
   Label,
   Select,
@@ -31,10 +30,10 @@ interface SettingRowProps {
 
 function SettingRow({ label, description, children }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between py-4 px-3">
-      <div className="space-y-1">
-        <Label className="text-sm font-medium">{label}</Label>
-        <p className="text-xs text-muted-foreground max-w-[280px]">
+    <div className="flex items-center justify-between gap-4 px-3 py-2.5">
+      <div className="space-y-0.5">
+        <Label className="text-[13px] font-medium">{label}</Label>
+        <p className="text-[11px] text-muted-foreground max-w-[280px]">
           {description}
         </p>
       </div>
@@ -64,23 +63,17 @@ export function GridSettingsTab() {
     React.useState(false);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <div>
-        <h2 className="text-xl font-semibold mb-1">Data Grid</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-sm font-medium mb-0.5">Data Grid</h2>
+        <p className="text-xs text-muted-foreground">
           Customize how data is displayed in the grid.
         </p>
       </div>
 
-      {/* Display Settings */}
-      <div>
-        <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
-          <Table className="h-4 w-4" />
-          Display
-        </h3>
-      </div>
+      <h3 className="micro-label">Display</h3>
 
-      <div className="rounded-xl border border-border bg-card p-1">
+      <div className="rounded-md border border-border">
         <SettingRow
           label="Row Height"
           description="Default height for rows in the data grid."
@@ -103,12 +96,9 @@ export function GridSettingsTab() {
         </SettingRow>
       </div>
 
-      {/* Date/Time Formatting */}
-      <div>
-        <h3 className="text-lg font-medium mb-3">Date & Time Formatting</h3>
-      </div>
+      <h3 className="micro-label">Date & Time Formatting</h3>
 
-      <div className="rounded-xl border border-border bg-card p-1">
+      <div className="rounded-md border border-border">
         <SettingRow
           label="Date Format"
           description="How dates are displayed in cells."
@@ -163,12 +153,9 @@ export function GridSettingsTab() {
         </SettingRow>
       </div>
 
-      {/* Number Formatting */}
-      <div>
-        <h3 className="text-lg font-medium mb-3">Number Formatting</h3>
-      </div>
+      <h3 className="micro-label">Number Formatting</h3>
 
-      <div className="rounded-xl border border-border bg-card p-1">
+      <div className="rounded-md border border-border">
         <SettingRow
           label="Number Format"
           description="How numeric values are displayed."
@@ -232,12 +219,9 @@ export function GridSettingsTab() {
         </SettingRow>
       </div>
 
-      {/* NULL Display */}
-      <div>
-        <h3 className="text-lg font-medium mb-3">NULL Value Display</h3>
-      </div>
+      <h3 className="micro-label">NULL Value Display</h3>
 
-      <div className="rounded-xl border border-border bg-card p-1">
+      <div className="rounded-md border border-border">
         <SettingRow
           label="NULL Text"
           description="Text displayed for NULL values."
@@ -290,12 +274,9 @@ export function GridSettingsTab() {
         </div>
       </div>
 
-      {/* JSON Display */}
-      <div>
-        <h3 className="text-lg font-medium mb-3">JSON Display</h3>
-      </div>
+      <h3 className="micro-label">JSON Display</h3>
 
-      <div className="rounded-xl border border-border bg-card p-1">
+      <div className="rounded-md border border-border">
         <SettingRow
           label="JSON Display Mode"
           description="How JSON objects are shown in cells."
@@ -316,12 +297,9 @@ export function GridSettingsTab() {
         </SettingRow>
       </div>
 
-      {/* Binary Data */}
-      <div>
-        <h3 className="text-lg font-medium mb-3">Binary Data</h3>
-      </div>
+      <h3 className="micro-label">Binary Data</h3>
 
-      <div className="rounded-xl border border-border bg-card p-1">
+      <div className="rounded-md border border-border">
         <SettingRow
           label="Auto-detect Images"
           description="Automatically detect and show images in binary data."
@@ -357,15 +335,9 @@ export function GridSettingsTab() {
         </SettingRow>
       </div>
 
-      {/* Conditional Formatting */}
-      <div>
-        <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
-          <Paintbrush className="h-4 w-4" />
-          Conditional Formatting
-        </h3>
-      </div>
+      <h3 className="micro-label">Conditional Formatting</h3>
 
-      <div className="rounded-xl border border-border bg-card p-1">
+      <div className="rounded-md border border-border">
         <SettingRow
           label="Formatting Rules"
           description={`${conditionalRules.length} rule${conditionalRules.length !== 1 ? "s" : ""} configured.`}

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Eye, EyeOff, Columns } from "lucide-react";
+import { Eye, EyeSlash, Columns } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -70,7 +70,7 @@ export function ColumnVisibilityPopover({
           size="sm"
           className="h-7 gap-1.5 text-xs"
         >
-          <Columns className="h-3.5 w-3.5" />
+          <Columns weight="regular" className="h-3.5 w-3.5" />
           <span>
             {visibleCount}/{totalCount}
           </span>
@@ -87,7 +87,7 @@ export function ColumnVisibilityPopover({
                 className="h-6 px-2 text-xs"
                 onClick={handleShowAll}
               >
-                <Eye className="h-3 w-3 mr-1" />
+                <Eye weight="regular" className="h-3 w-3 mr-1" />
                 All
               </Button>
               <Button
@@ -96,7 +96,7 @@ export function ColumnVisibilityPopover({
                 className="h-6 px-2 text-xs"
                 onClick={handleHideAll}
               >
-                <EyeOff className="h-3 w-3 mr-1" />
+                <EyeSlash weight="regular" className="h-3 w-3 mr-1" />
                 None
               </Button>
             </div>

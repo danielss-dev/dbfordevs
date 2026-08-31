@@ -1,4 +1,4 @@
-import { Search, X, Filter, Check } from "lucide-react";
+import { MagnifyingGlass, X, Funnel, Check } from "@phosphor-icons/react";
 import { Input, Button } from "@/components/ui";
 import {
   Popover,
@@ -29,29 +29,26 @@ export function ConnectionFilterBar() {
   const hasGroupsOrTags = groups.length > 0 || tags.length > 0;
 
   return (
-    <div className="px-2 py-1.5 border-b border-sidebar-border">
-      {/* Single row: Search + Filter */}
-      <div className="flex items-center gap-1.5">
-        {/* Search Input */}
+    <div className="px-1.5 py-1 border-b border-sidebar-border">
+      <div className="flex items-center gap-1">
         <div className="relative flex-1">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <MagnifyingGlass weight="regular" className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
-            className="h-7 pl-7 pr-7 text-xs bg-sidebar-accent/50"
+            placeholder="Search…"
+            className="h-6 pl-6 pr-6 text-[11px] bg-transparent border-border/70"
           />
           {searchQuery && (
             <button
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               onClick={() => setSearchQuery("")}
             >
-              <X className="h-3.5 w-3.5" />
+              <X weight="regular" className="h-3 w-3" />
             </button>
           )}
         </div>
 
-        {/* Filter Button with Popover */}
         {hasGroupsOrTags && (
           <Popover>
             <PopoverTrigger asChild>
@@ -59,13 +56,13 @@ export function ConnectionFilterBar() {
                 variant={hasActiveFilters ? "secondary" : "ghost"}
                 size="icon"
                 className={cn(
-                  "h-7 w-7 flex-shrink-0 relative",
+                  "h-6 w-6 flex-shrink-0 relative",
                   hasActiveFilters && "text-primary"
                 )}
               >
-                <Filter className="h-3.5 w-3.5" />
+                <Funnel weight="regular" className="h-3 w-3" />
                 {activeFilterCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-[9px] font-medium text-primary-foreground flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-sm bg-primary text-[8px] font-medium text-primary-foreground flex items-center justify-center">
                     {activeFilterCount}
                   </span>
                 )}
@@ -116,7 +113,7 @@ export function ConnectionFilterBar() {
                           />
                           <span className="truncate flex-1">{group.name}</span>
                           {activeGroupFilter === group.id && (
-                            <Check className="h-3.5 w-3.5 flex-shrink-0" />
+                            <Check weight="regular" className="h-3.5 w-3.5 flex-shrink-0" />
                           )}
                         </button>
                       ))}
@@ -148,7 +145,7 @@ export function ConnectionFilterBar() {
                         />
                         <span className="truncate flex-1">{tag.name}</span>
                         {activeTagFilters.includes(tag.id) && (
-                          <Check className="h-3.5 w-3.5 flex-shrink-0" />
+                          <Check weight="regular" className="h-3.5 w-3.5 flex-shrink-0" />
                         )}
                       </button>
                     ))}

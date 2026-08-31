@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, ExternalLink, Settings2, Sparkles, Cpu, Brain } from "lucide-react";
+import { Eye, EyeSlash, ArrowSquareOut, Sparkle, Cpu, Brain } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -29,9 +29,9 @@ interface AISettingsDialogProps {
 }
 
 const PROVIDER_ICONS: Record<AIProviderType, React.ReactNode> = {
-  anthropic: <Sparkles className="h-4 w-4" />,
-  gemini: <Cpu className="h-4 w-4" />,
-  openai: <Brain className="h-4 w-4" />,
+  anthropic: <Sparkle weight="regular" className="h-4 w-4" />,
+  gemini: <Cpu weight="regular" className="h-4 w-4" />,
+  openai: <Brain weight="regular" className="h-4 w-4" />,
 };
 
 export function AISettingsDialog({
@@ -165,12 +165,7 @@ export function AISettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Settings2 className="h-4 w-4" />
-            </div>
-            AI Assistant Settings
-          </DialogTitle>
+          <DialogTitle>AI Assistant Settings</DialogTitle>
           <DialogDescription>
             Configure your AI provider, models, and generation parameters.
           </DialogDescription>
@@ -234,9 +229,9 @@ export function AISettingsDialog({
                   onClick={() => toggleShowKey(currentProvider)}
                 >
                   {showKeys[currentProvider] ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeSlash weight="regular" className="h-4 w-4" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye weight="regular" className="h-4 w-4" />
                   )}
                 </Button>
               </div>
@@ -257,7 +252,7 @@ export function AISettingsDialog({
                 className="text-xs"
                 onClick={() => handleOpenConsole(currentProvider)}
               >
-                <ExternalLink className="h-3 w-3 mr-1.5" />
+                <ArrowSquareOut weight="regular" className="h-3 w-3 mr-1.5" />
                 Open {PROVIDER_INFO[currentProvider].displayName} Console
               </Button>
             </div>

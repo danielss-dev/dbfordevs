@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  Table,
-  Loader2,
-  Trash2,
-  RefreshCw,
-  Copy,
-  Eye,
-} from "lucide-react";
+import { Table, CircleNotch, Trash, ArrowsClockwise, Copy, Eye } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -152,13 +145,14 @@ export function ViewsSection({ connection }: { connection: ConnectionInfo }) {
           <div>
             <TreeItem
               label="Views"
-              icon={<Eye className="h-3.5 w-3.5 text-muted-foreground" />}
+              icon={<Eye weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={1}
               onClick={handleViewsClick}
               defaultOpen={false}
             >
               {isLoadingViews ? (
-                <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>
+                  <CircleNotch weight="regular" className="h-3 w-3 animate-spin" />
                   <span>Loading views...</span>
                 </div>
               ) : connectionViews.length > 0 ? (
@@ -168,19 +162,19 @@ export function ViewsSection({ connection }: { connection: ConnectionInfo }) {
                       <div>
                         <TreeItem
                           label={view.name}
-                          icon={<Eye className="h-3.5 w-3.5 text-muted-foreground" />}
-                          level={1}
+                          icon={<Eye weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+                          level={2}
                           onClick={() => handleViewClick(view.name)}
                         />
                       </div>
                     </ContextMenuTrigger>
                     <ContextMenuContent className="w-48">
                       <ContextMenuItem onSelect={() => handleViewClick(view.name)} className="gap-2">
-                        <Table className="h-4 w-4" />
+                        <Table weight="regular" className="h-4 w-4" />
                         View Data
                       </ContextMenuItem>
                       <ContextMenuItem onSelect={() => handleCopyViewDdl(view.name)} className="gap-2">
-                        <Copy className="h-4 w-4" />
+                        <Copy weight="regular" className="h-4 w-4" />
                         Copy DDL
                       </ContextMenuItem>
                       <ContextMenuSeparator />
@@ -188,17 +182,17 @@ export function ViewsSection({ connection }: { connection: ConnectionInfo }) {
                         onSelect={() => setViewToDrop(view.name)}
                         className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash weight="regular" className="h-4 w-4" />
                         Drop View
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
                 ))
               ) : viewsByConnection[connection.id] ? (
-                <div className="ml-6 py-2 text-xs text-muted-foreground">No views found</div>
+                <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>No views found</div>
               ) : (
-                <div className="ml-6 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>
+                  <CircleNotch weight="regular" className="h-3 w-3 animate-spin" />
                   <span>Loading views...</span>
                 </div>
               )}
@@ -207,7 +201,7 @@ export function ViewsSection({ connection }: { connection: ConnectionInfo }) {
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           <ContextMenuItem onSelect={loadConnectionViews} className="gap-2">
-            <RefreshCw className={cn("h-4 w-4", isLoadingViews && "animate-spin")} />
+            <ArrowsClockwise weight="regular" className={cn("h-4 w-4", isLoadingViews && "animate-spin")} />
             Refresh
           </ContextMenuItem>
         </ContextMenuContent>

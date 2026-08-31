@@ -3,7 +3,7 @@ import { eventToKeybindingString, normalizeKeybinding } from "@/lib/commands/key
 import { getCommand, executeCommand } from "@/lib/commands/registry";
 import { evaluateCondition } from "@/lib/commands/conditions";
 import { useKeybindingsStore } from "@/stores/keybindings";
-import { useUIStore } from "@/stores";
+import { useUIStore, useCRUDStore } from "@/stores";
 
 /**
  * Global keyboard shortcut handler.
@@ -23,6 +23,18 @@ export function useKeyboardShortcuts() {
         if (ui.showConnectionModal) { ui.setShowConnectionModal(false); return; }
         if (ui.showSettingsDialog) { ui.setShowSettingsDialog(false); return; }
         if (ui.showDiffModal) { ui.setShowDiffModal(false); return; }
+
+        if (useCRUDStore.getState().editingCell) return;
+
+        const target = e.target as HTMLElement;
+        const isEditingFocus =
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable ||
+          !!target.closest?.(".monaco-editor");
+        if (isEditingFocus) return;
+
         if (ui.rightPanelTab) { ui.setRightPanelTab(null); return; }
         return;
       }

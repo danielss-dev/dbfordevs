@@ -1,11 +1,5 @@
 import { useState, useMemo } from "react";
-import {
-  Download,
-  Copy,
-  Check,
-  FileText,
-  FileJson,
-} from "lucide-react";
+import { DownloadSimple, Copy, Check, FileText, FileJs } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -96,11 +90,11 @@ export function ChatExportDialog({ open, onOpenChange }: ChatExportDialogProps) 
           >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="markdown" className="gap-2">
-                <FileText className="h-4 w-4" />
+                <FileText weight="regular" className="h-4 w-4" />
                 Markdown
               </TabsTrigger>
               <TabsTrigger value="json" className="gap-2">
-                <FileJson className="h-4 w-4" />
+                <FileJs weight="regular" className="h-4 w-4" />
                 JSON
               </TabsTrigger>
             </TabsList>
@@ -166,12 +160,12 @@ export function ChatExportDialog({ open, onOpenChange }: ChatExportDialogProps) 
               >
                 {copied ? (
                   <>
-                    <Check className="h-3.5 w-3.5" />
+                    <Check weight="regular" className="h-3.5 w-3.5" />
                     Copied
                   </>
                 ) : (
                   <>
-                    <Copy className="h-3.5 w-3.5" />
+                    <Copy weight="regular" className="h-3.5 w-3.5" />
                     Copy
                   </>
                 )}
@@ -195,8 +189,8 @@ export function ChatExportDialog({ open, onOpenChange }: ChatExportDialogProps) 
             Cancel
           </Button>
           <Button onClick={handleDownload} className="gap-2">
-            <Download className="h-4 w-4" />
-            Download {format === "json" ? ".json" : ".md"}
+            <DownloadSimple weight="regular" className="h-4 w-4" />
+            DownloadSimple {format === "json" ? ".json" : ".md"}
           </Button>
         </DialogFooter>
       </DialogContent>

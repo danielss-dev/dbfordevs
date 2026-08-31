@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { ConnectionGroup } from "@/types";
 
@@ -28,9 +28,9 @@ export function ConnectionGroupItem({
         onClick={onToggleCollapse}
       >
         {isCollapsed ? (
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          <CaretRight weight="regular" className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
         ) : (
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          <CaretDown weight="regular" className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
         )}
         <span
           className="w-2.5 h-2.5 rounded-full flex-shrink-0"

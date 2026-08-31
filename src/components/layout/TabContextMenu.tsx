@@ -8,7 +8,7 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { X, Pin, PinOff } from "lucide-react";
+import { X, PushPin, PushPinSlash } from "@phosphor-icons/react";
 
 interface TabContextMenuProps {
   tab: Tab;
@@ -61,7 +61,7 @@ export function TabContextMenu({ tab, children }: TabContextMenuProps) {
           onClick={handleClose}
           disabled={isCloseDisabled}
         >
-          <X className="h-4 w-4 mr-2" />
+          <X weight="regular" className="h-4 w-4 mr-2" />
           <span className="flex-1">Close</span>
           <ContextMenuShortcut>⌃W</ContextMenuShortcut>
         </ContextMenuItem>
@@ -87,9 +87,9 @@ export function TabContextMenu({ tab, children }: TabContextMenuProps) {
         <ContextMenuSeparator />
         <ContextMenuItem onClick={handleTogglePin}>
           {tab.isPinned ? (
-            <PinOff className="h-4 w-4 mr-2" />
+            <PushPinSlash weight="regular" className="h-4 w-4 mr-2" />
           ) : (
-            <Pin className="h-4 w-4 mr-2" />
+            <PushPin weight="regular" className="h-4 w-4 mr-2" />
           )}
           <span className="flex-1">{tab.isPinned ? "Unpin Tab" : "Pin Tab"}</span>
           <ContextMenuShortcut>⌃⇧P</ContextMenuShortcut>

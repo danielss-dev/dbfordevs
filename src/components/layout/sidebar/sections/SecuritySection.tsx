@@ -1,15 +1,5 @@
 import { useState } from "react";
-import {
-  Plus,
-  Loader2,
-  Trash2,
-  RefreshCw,
-  Shield,
-  Users,
-  UserCog,
-  User,
-  KeyRound,
-} from "lucide-react";
+import { Plus, CircleNotch, Trash, ArrowsClockwise, Shield, Users, UserGear, User, Key } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -169,12 +159,13 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
           <div>
             <TreeItem
               label="Security"
-              icon={<Shield className="h-3.5 w-3.5 text-muted-foreground" />}
+              icon={<Shield weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+              level={1}
               onClick={handleSecurityClick}
               defaultOpen={false}
             >
               {supportsUsers === false ? (
-                <div className="ml-6 py-2 text-xs text-muted-foreground">
+                <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${2 * 14 + 6}px` }}>
                   User management not supported
                 </div>
               ) : (
@@ -185,13 +176,13 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                       <div>
                         <TreeItem
                           label="Users"
-                          icon={<Users className="h-3.5 w-3.5 text-muted-foreground" />}
-                          level={1}
+                          icon={<Users weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+                          level={2}
                           defaultOpen={false}
                         >
                           {isLoadingUsers ? (
-                            <div className="ml-4 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                              <Loader2 className="h-3 w-3 animate-spin" />
+                            <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${3 * 14 + 6}px` }}>
+                              <CircleNotch weight="regular" className="h-3 w-3 animate-spin" />
                               <span>Loading...</span>
                             </div>
                           ) : connectionUsers.length > 0 ? (
@@ -205,8 +196,8 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                                     <div>
                                       <TreeItem
                                         label={userDisplayName}
-                                        icon={<User className="h-3.5 w-3.5 text-muted-foreground" />}
-                                        level={2}
+                                        icon={<User weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+                                        level={3}
                                       />
                                     </div>
                                   </ContextMenuTrigger>
@@ -215,14 +206,14 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                                       onSelect={() => openManagePermissionsDialog(connection.id, user.name, user.host ?? undefined)}
                                       className="gap-2"
                                     >
-                                      <Shield className="h-4 w-4" />
+                                      <Shield weight="regular" className="h-4 w-4" />
                                       Manage Permissions
                                     </ContextMenuItem>
                                     <ContextMenuItem
                                       onSelect={() => openChangePasswordDialog(connection.id, user.name, user.host ?? undefined)}
                                       className="gap-2"
                                     >
-                                      <KeyRound className="h-4 w-4" />
+                                      <Key weight="regular" className="h-4 w-4" />
                                       Change Password
                                     </ContextMenuItem>
                                     <ContextMenuSeparator />
@@ -230,7 +221,7 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                                       onSelect={() => setUserToDelete({ name: user.name, host: user.host ?? undefined })}
                                       className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                                     >
-                                      <Trash2 className="h-4 w-4" />
+                                      <Trash weight="regular" className="h-4 w-4" />
                                       Delete User
                                     </ContextMenuItem>
                                   </ContextMenuContent>
@@ -238,19 +229,19 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                               );
                             })
                           ) : securityOpen ? (
-                            <div className="ml-4 py-2 text-xs text-muted-foreground">No users found</div>
+                            <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${3 * 14 + 6}px` }}>No users found</div>
                           ) : null}
                         </TreeItem>
                       </div>
                     </ContextMenuTrigger>
                     <ContextMenuContent className="w-48">
                       <ContextMenuItem onSelect={() => openCreateUserDialog(connection.id)} className="gap-2">
-                        <Plus className="h-4 w-4" />
+                        <Plus weight="regular" className="h-4 w-4" />
                         Create User
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem onSelect={loadSecurityUsers} className="gap-2">
-                        <RefreshCw className={cn("h-4 w-4", isLoadingUsers && "animate-spin")} />
+                        <ArrowsClockwise weight="regular" className={cn("h-4 w-4", isLoadingUsers && "animate-spin")} />
                         Refresh
                       </ContextMenuItem>
                     </ContextMenuContent>
@@ -262,13 +253,13 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                       <div>
                         <TreeItem
                           label="Roles"
-                          icon={<UserCog className="h-3.5 w-3.5 text-muted-foreground" />}
-                          level={1}
+                          icon={<UserGear weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+                          level={2}
                           defaultOpen={false}
                         >
                           {isLoadingRoles ? (
-                            <div className="ml-4 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                              <Loader2 className="h-3 w-3 animate-spin" />
+                            <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${3 * 14 + 6}px` }}>
+                              <CircleNotch weight="regular" className="h-3 w-3 animate-spin" />
                               <span>Loading...</span>
                             </div>
                           ) : connectionRoles.length > 0 ? (
@@ -278,8 +269,8 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                                   <div>
                                     <TreeItem
                                       label={role.name}
-                                      icon={<UserCog className="h-3.5 w-3.5 text-muted-foreground" />}
-                                      level={2}
+                                      icon={<UserGear weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />}
+                                      level={3}
                                     />
                                   </div>
                                 </ContextMenuTrigger>
@@ -289,7 +280,7 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                                       onSelect={() => setRoleToDelete(role.name)}
                                       className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                                     >
-                                      <Trash2 className="h-4 w-4" />
+                                      <Trash weight="regular" className="h-4 w-4" />
                                       Delete Role
                                     </ContextMenuItem>
                                   )}
@@ -302,19 +293,19 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
                               </ContextMenu>
                             ))
                           ) : securityOpen ? (
-                            <div className="ml-4 py-2 text-xs text-muted-foreground">No roles found</div>
+                            <div className="py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: `${3 * 14 + 6}px` }}>No roles found</div>
                           ) : null}
                         </TreeItem>
                       </div>
                     </ContextMenuTrigger>
                     <ContextMenuContent className="w-48">
                       <ContextMenuItem onSelect={() => openCreateRoleDialog(connection.id)} className="gap-2">
-                        <Plus className="h-4 w-4" />
+                        <Plus weight="regular" className="h-4 w-4" />
                         Create Role
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem onSelect={loadSecurityRoles} className="gap-2">
-                        <RefreshCw className={cn("h-4 w-4", isLoadingRoles && "animate-spin")} />
+                        <ArrowsClockwise weight="regular" className={cn("h-4 w-4", isLoadingRoles && "animate-spin")} />
                         Refresh
                       </ContextMenuItem>
                     </ContextMenuContent>
@@ -326,7 +317,7 @@ export function SecuritySection({ connection }: { connection: ConnectionInfo }) 
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           <ContextMenuItem onSelect={() => { loadSecurityUsers(); loadSecurityRoles(); }} className="gap-2">
-            <RefreshCw className={cn("h-4 w-4", (isLoadingUsers || isLoadingRoles) && "animate-spin")} />
+            <ArrowsClockwise weight="regular" className={cn("h-4 w-4", (isLoadingUsers || isLoadingRoles) && "animate-spin")} />
             Refresh All
           </ContextMenuItem>
         </ContextMenuContent>

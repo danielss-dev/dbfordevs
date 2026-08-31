@@ -19,28 +19,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
+  CaretLeft,
+  CaretRight,
+  ArrowsDownUp,
   ArrowUp,
   ArrowDown,
-  CheckCircle2,
+  CheckCircle,
   Hash,
-  Type,
+  TextT,
   Calendar,
   ToggleLeft,
   Database,
-  Search,
+  MagnifyingGlass,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { cn, formatTimestamp } from "@/lib/utils";
 import { ExecutionTimeBadge } from "@/components/ui/execution-time-badge";
 import type { QueryResult, ColumnInfo } from "@/types";
 import { useCRUDStore, useUIStore, useSchemaStore, useGridStore } from "@/stores";
 import { EditableCell } from "./EditableCell";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
-import { ExportMenu } from "./ExportMenu";
-import { ImportButton } from "./ImportButton";
 import { ColumnVisibilityPopover } from "./ColumnVisibilityPopover";
 import { ColumnHeaderMenu, ColumnHeaderContextMenu } from "./ColumnHeaderMenu";
 import { ColumnStatisticsDialog } from "./ColumnStatisticsDialog";
@@ -82,10 +80,9 @@ interface DataGridProps {
   onDataChange?: () => void;
 }
 
-const getTypeIcon = (dataType: string) => {
+function isNumericDataType(dataType: string): boolean {
   const type = dataType.toLowerCase();
-  // Numeric types (integers, decimals, floats)
-  if (
+  return (
     type.includes("int") ||
     type.includes("decimal") ||
     type.includes("numeric") ||
@@ -95,8 +92,13 @@ const getTypeIcon = (dataType: string) => {
     type.includes("money") ||
     type.includes("serial") ||
     type === "number"
-  ) {
-    return <Hash className="h-3 w-3 text-blue-500/70" />;
+  );
+}
+
+const getTypeIcon = (dataType: string) => {
+  const type = dataType.toLowerCase();
+  if (isNumericDataType(dataType)) {
+    return <Hash weight="regular" className="h-3 w-3 text-blue-500/70" />;
   }
   // Text/string types
   if (
@@ -110,7 +112,7 @@ const getTypeIcon = (dataType: string) => {
     type.includes("enum") ||
     type.includes("citext")
   ) {
-    return <Type className="h-3 w-3 text-amber-500/70" />;
+    return <TextT weight="regular" className="h-3 w-3 text-amber-500/70" />;
   }
   // Date/time types
   if (
@@ -119,13 +121,13 @@ const getTypeIcon = (dataType: string) => {
     type.includes("timestamp") ||
     type.includes("interval")
   ) {
-    return <Calendar className="h-3 w-3 text-emerald-500/70" />;
+    return <Calendar weight="regular" className="h-3 w-3 text-emerald-500/70" />;
   }
   // Boolean types
   if (type.includes("bool") || type.includes("bit")) {
-    return <ToggleLeft className="h-3 w-3 text-purple-500/70" />;
+    return <ToggleLeft weight="regular" className="h-3 w-3 text-purple-500/70" />;
   }
-  return <Database className="h-3 w-3 text-muted-foreground/50" />;
+  return <Database weight="regular" className="h-3 w-3 text-muted-foreground/50" />;
 };
 
 // Custom filter function for TanStack Table
@@ -170,7 +172,7 @@ const customColumnFilter: FilterFn<any> = (row, columnId, filterValue) => {
   return true;
 };
 
-export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChange }: DataGridProps) {
+export function DataGrid({ data, onRowClick, tableName, connectionId }: DataGridProps) {
   // Use granular selectors to avoid re-renders on unrelated CRUD store changes
   const selectedRowIds = useCRUDStore(state => state.selectedRowIds);
   const addSelectedRow = useCRUDStore(state => state.addSelectedRow);
@@ -272,6 +274,16 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       isPrimaryKey: col.isPrimaryKey || pkSet.has(col.name),
     }));
   }, [data.columns, connectionId, tableName, getSchema]);
+
+  const numericColumnIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const col of columnsWithPK) {
+      if (isNumericDataType(col.dataType)) {
+        ids.add(col.name);
+      }
+    }
+    return ids;
+  }, [columnsWithPK]);
 
   // Handle Cmd+F / Ctrl+F to focus search, Cmd+H for find/replace
   useEffect(() => {
@@ -436,8 +448,8 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                     {getTypeIcon(col.dataType)}
                   </span>
                   <span className={cn(
-                    "font-semibold tracking-tight text-xs transition-colors",
-                    sorted ? "text-primary" : "text-foreground/70 group-hover:text-foreground"
+                    "text-xs font-medium transition-colors",
+                    sorted ? "text-primary" : "text-muted-foreground group-hover:text-foreground/80"
                   )}>
                     {col.name}
                   </span>
@@ -447,11 +459,11 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                   sorted ? "opacity-100 text-primary" : "opacity-0 group-hover:opacity-40 text-muted-foreground"
                 )}>
                   {sorted === "asc" ? (
-                    <ArrowUp className="h-3 w-3" />
+                    <ArrowUp weight="regular" className="h-3 w-3" />
                   ) : sorted === "desc" ? (
-                    <ArrowDown className="h-3 w-3" />
+                    <ArrowDown weight="regular" className="h-3 w-3" />
                   ) : (
-                    <ArrowUpDown className="h-3 w-3" />
+                    <ArrowsDownUp weight="regular" className="h-3 w-3" />
                   )}
                 </span>
               </button>
@@ -840,7 +852,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       return (
         <div className="flex h-full flex-col items-center justify-center text-center p-8 animate-fade-in">
           <div className="mb-4 rounded-full bg-success/10 p-4 text-success">
-            <CheckCircle2 className="h-8 w-8" />
+            <CheckCircle weight="regular" className="h-8 w-8" />
           </div>
           <h3 className="text-lg font-semibold text-foreground">Query executed successfully</h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -896,9 +908,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="bg-[hsl(var(--table-header-bg))] border-b border-border shadow-sm">
                 {headerGroup.headers.map((header) => {
-                  const isNumeric = header.column.id.toLowerCase().includes("id") ||
-                                  header.column.id.toLowerCase().includes("count") ||
-                                  header.column.id.toLowerCase().includes("amount");
+                  const isNumeric = numericColumnIds.has(header.column.id);
                   const isPinned = header.column.getIsPinned();
 
                   return (
@@ -950,7 +960,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
               <tr>
                 <td colSpan={columns.length} className="px-4 py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <Database className="h-10 w-10 text-muted-foreground/30" />
+                    <Database weight="regular" className="h-10 w-10 text-muted-foreground/30" />
                     <div className="text-muted-foreground/60">
                       <p className="font-medium">No rows found</p>
                       <p className="text-xs mt-1">Add rows using the toolbar or import data</p>
@@ -970,7 +980,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                     "transition-all cursor-pointer group",
                     idx % 2 === 0 ? "bg-[hsl(var(--table-row-odd))]" : "bg-[hsl(var(--table-row-even))]",
                     "hover:bg-[hsl(var(--table-row-hover))]",
-                    row.getIsSelected() && "bg-primary/15 hover:bg-primary/20 ring-1 ring-inset ring-primary/30",
+                    row.getIsSelected() && "bg-[hsl(var(--sel))] hover:bg-[hsl(var(--sel-strong))]",
                     isPendingDelete && "opacity-40 grayscale line-through decoration-destructive/70 decoration-2",
                     isPendingInsert && "bg-success/10 hover:bg-success/15 ring-1 ring-inset ring-success/30"
                   )}
@@ -980,9 +990,7 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
                   }}
                 >
                   {row.getVisibleCells().map((cell) => {
-                    const isNumeric = cell.column.id.toLowerCase().includes("id") ||
-                                    cell.column.id.toLowerCase().includes("count") ||
-                                    cell.column.id.toLowerCase().includes("amount");
+                    const isNumeric = numericColumnIds.has(cell.column.id);
                     const isPinned = cell.column.getIsPinned();
 
                     return (
@@ -1027,46 +1035,37 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-border bg-gradient-to-r from-muted/30 via-muted/50 to-muted/30 px-4 py-2">
+      <div className="flex items-center justify-between border-t border-border bg-[hsl(var(--sidebar-background))] px-4 py-2">
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          {/* Global Search */}
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+            <MagnifyingGlass weight="regular" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
             <Input
               ref={searchInputRef}
               type="text"
-              placeholder="Search..."
+              placeholder="Search…"
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
+              aria-label="Search grid"
               className="h-7 w-[160px] pl-8 pr-8 text-xs bg-background/70 border-border/50"
             />
             {globalFilter && (
               <button
                 onClick={() => setGlobalFilter("")}
+                aria-label="Clear search"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-destructive transition-colors"
               >
-                <X className="h-3.5 w-3.5" />
+                <X weight="regular" className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
-          {/* Import/Export */}
-          {connectionId && (
-            <ImportButton
-              connectionId={connectionId}
-              tableName={tableName}
-              onImportComplete={onDataChange}
-            />
-          )}
-          <ExportMenu tableName={tableName} />
-
-          {/* Column Visibility */}
           {tableKey && (
             <ColumnVisibilityPopover tableKey={tableKey} columns={columnsWithPK} />
           )}
+        </div>
 
-          {/* Status Text */}
-          <div className="flex items-center gap-1 text-muted-foreground/80">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground/80">
             <span>Showing</span>
             <span className="font-semibold text-foreground/80 tabular-nums">
               {table.getFilteredRowModel().rows.length > 0 ? pageIndex * pageSize + 1 : 0}
@@ -1085,61 +1084,61 @@ export function DataGrid({ data, onRowClick, tableName, connectionId, onDataChan
             )}
           </div>
 
-          {/* Execution Time */}
           {data.executionTimeMs !== undefined && (
             <ExecutionTimeBadge timeMs={data.executionTimeMs} />
           )}
-        </div>
 
-        {/* Pagination Controls */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 pr-3 border-r border-border/50">
-            <span className="micro-label text-muted-foreground/60">Rows:</span>
-            <Select
-              value={String(storePageSize)}
-              onValueChange={(value) => {
-                const newSize = Number(value);
-                setPageSize(newSize);
-                table.setPageSize(newSize);
-              }}
-            >
-              <SelectTrigger className="h-7 w-[70px] text-xs font-medium bg-background/70 border-border/50">
-                <SelectValue placeholder={String(storePageSize)} />
-              </SelectTrigger>
-              <SelectContent>
-                {[50, 100, 200, 500, 1000].map((size) => (
-                  <SelectItem key={size} value={String(size)} className="text-xs">
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 hover:bg-primary/10 hover:text-primary disabled:opacity-30"
-              onClick={() => setPageIndex(pageIndex - 1)}
-              disabled={pageIndex === 0}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-1.5 px-3 text-xs font-medium min-w-[90px] justify-center bg-background/70 h-7 rounded-md border border-border/40">
-              <span className="text-primary font-semibold tabular-nums">{pageIndex + 1}</span>
-              <span className="text-muted-foreground/50">/</span>
-              <span className="tabular-nums">{totalPages}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 pr-3 border-r border-border/50">
+              <span className="micro-label text-muted-foreground/60">Rows:</span>
+              <Select
+                value={String(storePageSize)}
+                onValueChange={(value) => {
+                  const newSize = Number(value);
+                  setPageSize(newSize);
+                  table.setPageSize(newSize);
+                }}
+              >
+                <SelectTrigger className="h-7 w-[70px] text-xs font-medium bg-background/70 border-border/50">
+                  <SelectValue placeholder={String(storePageSize)} />
+                </SelectTrigger>
+                <SelectContent>
+                  {[50, 100, 200, 500, 1000].map((size) => (
+                    <SelectItem key={size} value={String(size)} className="text-xs">
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 hover:bg-primary/10 hover:text-primary disabled:opacity-30"
-              onClick={() => setPageIndex(pageIndex + 1)}
-              disabled={pageIndex >= totalPages - 1}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 hover:bg-primary/10 hover:text-primary disabled:opacity-30"
+                onClick={() => setPageIndex(pageIndex - 1)}
+                disabled={pageIndex === 0}
+                aria-label="Previous page"
+              >
+                <CaretLeft weight="regular" className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1.5 px-3 text-xs font-medium min-w-[90px] justify-center bg-background/70 h-7 rounded-md border border-border/40">
+                <span className="text-primary font-semibold tabular-nums">{pageIndex + 1}</span>
+                <span className="text-muted-foreground/50">/</span>
+                <span className="tabular-nums">{totalPages}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 hover:bg-primary/10 hover:text-primary disabled:opacity-30"
+                onClick={() => setPageIndex(pageIndex + 1)}
+                disabled={pageIndex >= totalPages - 1}
+                aria-label="Next page"
+              >
+                <CaretRight weight="regular" className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

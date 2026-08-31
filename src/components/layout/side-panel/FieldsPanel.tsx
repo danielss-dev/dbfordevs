@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { X, ChevronLeft, ChevronRight, Table, Plus } from "lucide-react";
+import { X, CaretLeft, CaretRight, Table, Plus } from "@phosphor-icons/react";
 import { Button, Badge } from "@/components/ui";
 import { useCRUDStore, useQueryStore, useSchemaStore } from "@/stores";
 import { FieldEditor, type ForeignKeyRef } from "./FieldEditor";
@@ -153,7 +153,7 @@ export function FieldsPanel() {
         <div className="relative mb-6">
           <div className="absolute inset-0 bg-primary/5 rounded-full blur-2xl scale-150" />
           <div className="relative bg-gradient-to-br from-muted/80 to-muted/40 p-5 rounded-2xl border border-border/50 shadow-elev-1">
-            <Table className="h-10 w-10 text-muted-foreground/30" />
+            <Table weight="regular" className="h-10 w-10 text-muted-foreground/30" />
           </div>
         </div>
         <p className="text-sm font-medium text-foreground/60 mb-2">No row selected</p>
@@ -169,7 +169,7 @@ export function FieldsPanel() {
       {/* Table name indicator */}
       {rowTableName && (
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30 shrink-0">
-          <Table className="h-3.5 w-3.5 text-muted-foreground" />
+          <Table weight="regular" className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-mono text-muted-foreground">{rowTableName}</span>
           {isCreatingNew && (
             <Badge variant="secondary" className="text-[10px] h-5 bg-success/15 text-success border-success/30">
@@ -191,7 +191,7 @@ export function FieldsPanel() {
                 onClick={() => setCurrentRowIndex(prev => Math.max(0, prev - 1))}
                 disabled={currentRowIndex === 0}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <CaretLeft weight="regular" className="h-4 w-4" />
               </Button>
               <span className="text-xs font-medium px-2">{currentRowIndex + 1} of {selectedRows.length}</span>
               <Button
@@ -201,7 +201,7 @@ export function FieldsPanel() {
                 onClick={() => setCurrentRowIndex(prev => Math.min(selectedRows.length - 1, prev + 1))}
                 disabled={currentRowIndex === selectedRows.length - 1}
               >
-                <ChevronRight className="h-4 w-4" />
+                <CaretRight weight="regular" className="h-4 w-4" />
               </Button>
             </div>
           ) : (
@@ -235,7 +235,7 @@ export function FieldsPanel() {
               onClick={clearSelection}
               title="Clear all selection"
             >
-              <X className="h-3.5 w-3.5" />
+              <X weight="regular" className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
@@ -272,7 +272,7 @@ export function FieldsPanel() {
               className="flex-1 text-xs gap-1.5 h-9"
               onClick={cancelCreatingRow}
             >
-              <X className="h-3.5 w-3.5" />
+              <X weight="regular" className="h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button
@@ -280,7 +280,7 @@ export function FieldsPanel() {
               className="flex-1 text-xs gap-1.5 h-9 font-medium shadow-elev-1 bg-success hover:bg-success/90 text-success-foreground"
               onClick={saveCreatingRow}
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus weight="regular" className="h-3.5 w-3.5" />
               Add Row
             </Button>
           </div>

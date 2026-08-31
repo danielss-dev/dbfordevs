@@ -24,7 +24,7 @@ export function TreeRowsSkeleton({ rows = 4, level = 1, className }: TreeRowsSke
         <div
           key={i}
           className="flex items-center gap-2 h-[var(--row-h)]"
-          style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: "8px" }}
+          style={{ paddingLeft: `${level * 14 + 6}px`, paddingRight: "6px" }}
         >
           <span className="w-3.5 shrink-0" />
           <Skeleton className="h-5 w-5 shrink-0 rounded" />

@@ -184,11 +184,11 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       theme: "system",
       appStyle: "developer",
-      density: "default",
+      density: "compact",
       sidebarOpen: true,
-      sidebarWidth: 260,
+      sidebarWidth: 212,
       sidePanelOpen: false,
-      sidePanelWidth: 400,
+      sidePanelWidth: 320,
       rightPanelTab: null,
       pendingChanges: [],
       editorSettings: {

@@ -19,7 +19,7 @@
 @tailwind utilities;
 
 @layer base {
-  /* Default Light Theme - Warm white with orange accents */
+  /* Default Light Theme — warm white with orange accents */
   :root {
     --background: 30 20% 97%;
     --foreground: 20 10% 15%;
@@ -40,7 +40,11 @@
     --border: 30 15% 88%;
     --input: 30 10% 92%;
     --ring: 24 95% 50%;
-    --radius: 0.5rem;
+    --radius: 0.25rem;
+    --sel: 24 40% 92%;
+    --sel-strong: 24 40% 86%;
+    --line: 30 15% 88%;
+    --line2: 30 10% 92%;
 
     /* Semantic colors */
     --success: 142 71% 40%;
@@ -81,7 +85,7 @@
     --db-cassandra: #1287B1;
   }
 
-  /* Default Dark Theme - Near-black with orange accents */
+  /* Default Dark Theme — near-black with orange accents */
   .dark {
     --background: 0 0% 10%;
     --foreground: 0 0% 92%;
@@ -102,6 +106,10 @@
     --border: 0 0% 20%;
     --input: 0 0% 18%;
     --ring: 24 95% 53%;
+    --sel: 24 30% 18%;
+    --sel-strong: 24 30% 24%;
+    --line: 0 0% 20%;
+    --line2: 0 0% 16%;
 
     /* Semantic colors */
     --success: 142 71% 45%;
@@ -163,6 +171,10 @@
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 220 90% 56%;
+    --sel: 220 70% 92%;
+    --sel-strong: 220 70% 86%;
+    --line: 220 13% 91%;
+    --line2: 220 14% 94%;
 
     /* Status colors */
     --success: 142 71% 45%;
@@ -223,6 +235,10 @@
     --border: 224 20% 18%;
     --input: 224 20% 16%;
     --ring: 212 90% 60%;
+    --sel: 216 20% 18%;
+    --sel-strong: 212 40% 24%;
+    --line: 224 20% 18%;
+    --line2: 224 20% 14%;
 
     /* Table Specifics */
     --table-header-bg: 224 20% 8%;
@@ -795,19 +811,18 @@
   --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
-/* Style-specific variations */
+/* Style-specific variations — hybrid chrome: Inter UI, mono only for data */
 .style-developer {
   --radius: 0.2rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+.style-developer .font-mono,
+.style-developer .tabular-nums,
+.style-developer [data-grid-cell],
+.style-developer .monaco-editor,
+.style-developer .monaco-editor * {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
-}
-
-.style-developer * {
-  font-family: inherit;
-}
-
-/* Re-allow icons to use their own font if necessary, though Lucide usually uses SVG */
-.style-developer .lucide {
-  font-family: unset !important;
 }
 
 .style-developer .codicon {

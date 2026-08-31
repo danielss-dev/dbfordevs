@@ -1,11 +1,10 @@
 import { useEffect } from "react";
 import {
   Database,
-  FolderTree,
+  TreeStructure,
   Plus,
-  Settings,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Gear,
+} from "@phosphor-icons/react";
 import {
   Button,
   ScrollArea,
@@ -20,7 +19,6 @@ import { AssignGroupDialog } from "@/components/connections/AssignGroupDialog";
 import { ConnectionGroupItem } from "./ConnectionGroupItem";
 import { useConnectionsStore, useUIStore } from "@/stores";
 import { useDatabase } from "@/hooks";
-import { DbForDevsIcon } from "@/components/icons";
 import { ConnectionItem } from "./sidebar/ConnectionItem";
 
 export function Sidebar() {
@@ -53,35 +51,29 @@ export function Sidebar() {
       className="relative flex h-full flex-col border-r border-sidebar-border bg-sidebar"
       style={{ width: sidebarWidth }}
     >
-      {/* Resize Handle */}
       <ResizeHandle
         direction="right"
         currentWidth={sidebarWidth}
         onResize={setSidebarWidth}
-        minWidth={260}
-        maxWidth={450}
+        minWidth={180}
+        maxWidth={420}
       />
 
-      {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
-            <DbForDevsIcon className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <span className="font-semibold text-sm">dbfordevs</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
+      {/* Dense header — CONNECTIONS label, not soft brand card */}
+      <div className="flex h-8 items-center justify-between border-b border-sidebar-border px-2.5">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Connections
+        </span>
+        <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
                 onClick={() => setShowGroupManagerDialog(true)}
               >
-                <FolderTree className="h-4 w-4" />
+                <TreeStructure weight="regular" className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">Manage Groups</TooltipContent>
@@ -91,10 +83,10 @@ export function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
                 onClick={() => setShowConnectionModal(true)}
               >
-                <Plus className="h-4 w-4" />
+                <Plus weight="regular" className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">New Connection</TooltipContent>
@@ -102,48 +94,37 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Filter Bar */}
       <ConnectionFilterBar />
 
-      {/* Connections List */}
-      <ScrollArea className="flex-1 px-2 py-3">
-        <div className="space-y-2">
+      <ScrollArea className="flex-1 px-1 py-1.5">
+        <div className="space-y-0.5">
           {connections.length === 0 ? (
-            <div className="py-12 text-center animate-fade-in">
-              <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
-                <Database className="h-6 w-6 text-muted-foreground/50" />
-              </div>
-              <p className="text-sm font-medium text-foreground mb-1">No connections</p>
-              <p className="text-xs text-muted-foreground mb-4">Add your first database connection</p>
+            <div className="px-2 py-8 text-center">
+              <Database weight="regular" className="mx-auto mb-2 h-5 w-5 text-muted-foreground/50" />
+              <p className="text-xs font-medium text-foreground mb-0.5">No connections</p>
+              <p className="text-[11px] text-muted-foreground mb-3">Add a database connection</p>
               <Button
                 variant="outline"
                 size="sm"
+                className="h-7 text-xs"
                 onClick={() => setShowConnectionModal(true)}
               >
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                <Plus weight="regular" className="h-3 w-3 mr-1" />
                 Add Connection
               </Button>
             </div>
           ) : groups.length === 0 ? (
-            // No groups - show flat list
-            filteredConnections.map((conn, index) => (
-              <div key={conn.id} className={cn(
-                index > 0 && "mt-1 pt-1 border-t border-sidebar-border/50"
-              )}>
-                <ConnectionItem connection={conn} />
-              </div>
+            filteredConnections.map((conn) => (
+              <ConnectionItem key={conn.id} connection={conn} />
             ))
           ) : (
-            // Grouped rendering
             <>
-              {/* Render each group */}
               {groups
                 .sort((a, b) => a.sortOrder - b.sortOrder)
                 .map((group) => {
                   const groupConnections = filteredConnections.filter(
                     (c) => c.groupId === group.id
                   );
-                  // Hide empty groups when filtering
                   if (groupConnections.length === 0) return null;
                   return (
                     <ConnectionGroupItem
@@ -160,7 +141,6 @@ export function Sidebar() {
                   );
                 })}
 
-              {/* Ungrouped connections */}
               {(() => {
                 const ungroupedConnections = filteredConnections.filter(
                   (c) => !c.groupId
@@ -178,10 +158,9 @@ export function Sidebar() {
                 );
               })()}
 
-              {/* Show message if no results after filtering */}
               {filteredConnections.length === 0 && connections.length > 0 && (
-                <div className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No connections match your filters</p>
+                <div className="py-6 text-center">
+                  <p className="text-xs text-muted-foreground">No connections match</p>
                 </div>
               )}
             </>
@@ -189,28 +168,27 @@ export function Sidebar() {
         </div>
       </ScrollArea>
 
-      {/* Footer */}
-      <div className="border-t border-sidebar-border p-2">
-        <div className="flex items-center gap-1">
-          <div className="flex-1" />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                onClick={() => openSettingsWithTab("general")}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Settings</TooltipContent>
-          </Tooltip>
-        </div>
+      <div className="flex items-center gap-1 border-t border-sidebar-border px-2 py-1.5">
+        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/80">
+          <span className="rounded border border-border px-1 py-px">SSH</span>
+          <span className="rounded border border-border px-1 py-px">SSL</span>
+        </span>
+        <div className="flex-1" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              onClick={() => openSettingsWithTab("general")}
+            >
+              <Gear weight="regular" className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Settings</TooltipContent>
+        </Tooltip>
       </div>
 
-      {/* Group Management Dialogs */}
       <GroupManagerDialog />
       <AssignGroupDialog />
     </aside>
