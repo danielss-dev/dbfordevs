@@ -120,14 +120,14 @@ export function ConnectionPropertiesDialog({
         ) : config && dbMetadata ? (
           <>
             {/* Header with database type */}
-            <div className="bg-muted/50 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <BrandIcon name={dbMetadata.brand} className={`h-8 w-8 shrink-0 ${dbMetadata.color}`} />
+            <div className="border-b border-border px-4 py-2.5">
+              <div className="flex items-center gap-2.5">
+                <BrandIcon name={dbMetadata.brand} className={`h-5 w-5 shrink-0 ${dbMetadata.color}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-semibold truncate">{config.name}</h2>
+                    <h2 className="text-sm font-medium truncate">{config.name}</h2>
                     <div
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
+                      className={`px-1.5 py-px rounded text-[10px] font-medium shrink-0 ${
                         isConnected
                           ? "bg-success/20 text-success"
                           : "bg-muted text-muted-foreground"
@@ -136,7 +136,7 @@ export function ConnectionPropertiesDialog({
                       {isConnected ? "Connected" : "Disconnected"}
                     </div>
                   </div>
-                  <p className={`text-sm ${dbMetadata.color}`}>{dbMetadata.name}</p>
+                  <p className={`text-xs ${dbMetadata.color}`}>{dbMetadata.name}</p>
                 </div>
               </div>
             </div>

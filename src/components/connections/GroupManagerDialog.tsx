@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  FolderTree,
   Plus,
   Trash2,
   Check,
@@ -125,10 +124,9 @@ export function GroupManagerDialog() {
     <>
       <Dialog open={showGroupManagerDialog} onOpenChange={handleClose}>
         <DialogContent className="max-w-[600px] max-h-[80vh] p-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b">
-            <DialogTitle className="flex items-center gap-2">
-              <FolderTree className="h-5 w-5" />
-              Manage Connection Groups
+          <DialogHeader className="flex h-8 flex-row items-center space-y-0 border-b px-3">
+            <DialogTitle className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Connection Groups
             </DialogTitle>
           </DialogHeader>
 

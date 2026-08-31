@@ -254,37 +254,34 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
     <>
       <Dialog open={showBookmarkManagerDialog} onOpenChange={setShowBookmarkManagerDialog}>
         <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0">
-          <DialogHeader className="px-6 py-4 border-b">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="flex items-center gap-2">
-                <Bookmark className="h-5 w-5" />
-                Bookmark Manager
-              </DialogTitle>
-              <div className="flex items-center gap-2 mr-6">
-                <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </Button>
-                <Button variant="outline" size="sm" className="gap-2" onClick={handleImportFile}>
-                  <Upload className="h-3.5 w-3.5" />
-                  Import
-                </Button>
-              </div>
+          <DialogHeader className="flex h-8 flex-row items-center justify-between space-y-0 border-b px-3">
+            <DialogTitle className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Bookmarks
+            </DialogTitle>
+            <div className="flex items-center gap-1 mr-7">
+              <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[11px]" onClick={handleExport}>
+                <Download className="h-3 w-3" />
+                Export
+              </Button>
+              <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[11px]" onClick={handleImportFile}>
+                <Upload className="h-3 w-3" />
+                Import
+              </Button>
             </div>
           </DialogHeader>
 
           <div className="flex flex-1 overflow-hidden">
             {/* Sidebar */}
-            <div className="w-56 border-r flex flex-col">
+            <div className="w-48 border-r bg-sidebar flex flex-col">
               <ScrollArea className="flex-1">
-                <div className="p-2 space-y-1">
+                <div className="p-1.5 space-y-0.5">
                   {/* All bookmarks */}
                   <button
                     type="button"
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-[var(--pad-list-y)] rounded-md text-sm",
-                      "hover:bg-accent transition-colors",
-                      selectedCategory === "all" && "bg-accent"
+                      "w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px]",
+                      "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      selectedCategory === "all" && "bg-[hsl(var(--sel))] text-primary"
                     )}
                     onClick={() => handleCategorySelect("all")}
                   >
@@ -299,9 +296,9 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                   <button
                     type="button"
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-[var(--pad-list-y)] rounded-md text-sm",
-                      "hover:bg-accent transition-colors",
-                      selectedCategory === "favorites" && "bg-accent"
+                      "w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px]",
+                      "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      selectedCategory === "favorites" && "bg-[hsl(var(--sel))] text-primary"
                     )}
                     onClick={() => handleCategorySelect("favorites")}
                   >
@@ -316,9 +313,9 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                   <button
                     type="button"
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-[var(--pad-list-y)] rounded-md text-sm",
-                      "hover:bg-accent transition-colors",
-                      selectedCategory === "templates" && "bg-accent"
+                      "w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px]",
+                      "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      selectedCategory === "templates" && "bg-[hsl(var(--sel))] text-primary"
                     )}
                     onClick={() => handleCategorySelect("templates")}
                   >
@@ -394,9 +391,9 @@ export function BookmarkManagerDialog({ onLoadBookmark }: BookmarkManagerDialogP
                           <button
                             type="button"
                             className={cn(
-                              "w-full flex items-center gap-2 px-3 py-[var(--pad-list-y)] rounded-md text-sm",
-                              "hover:bg-accent transition-colors",
-                              selectedCategory === "folder" && selectedFolderId === folder.id && "bg-accent"
+                              "w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px]",
+                              "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                              selectedCategory === "folder" && selectedFolderId === folder.id && "bg-[hsl(var(--sel))] text-primary"
                             )}
                             onClick={() => handleCategorySelect("folder", folder.id)}
                           >

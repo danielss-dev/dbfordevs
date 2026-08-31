@@ -119,17 +119,17 @@ export function KeybindingEditor() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold mb-1">Keyboard Shortcuts</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-medium mb-0.5">Keyboard Shortcuts</h2>
+          <p className="text-xs text-muted-foreground">
             Click a shortcut to rebind it. Press the new key combination to assign.
           </p>
         </div>
         <button
           onClick={resetAllBindings}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         >
           <RotateCcw className="h-3 w-3" />
           Reset All
@@ -144,7 +144,7 @@ export function KeybindingEditor() {
           placeholder="Search commands..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition-all duration-150 ease-swift focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]"
+          className="w-full rounded border border-border bg-background py-1.5 pl-9 pr-3 text-xs outline-none transition-all duration-150 ease-swift focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_var(--accent-glow)]"
         />
       </div>
 
@@ -174,7 +174,7 @@ export function KeybindingEditor() {
       )}
 
       {/* Command list */}
-      <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
+      <div className="rounded-md border border-border divide-y divide-border overflow-hidden">
         {CATEGORY_ORDER.map((category) => {
           const cmds = groupedCommands.get(category);
           if (!cmds || cmds.length === 0) return null;

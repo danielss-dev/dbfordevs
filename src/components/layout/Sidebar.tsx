@@ -169,8 +169,6 @@ export function Sidebar() {
       </ScrollArea>
 
       <div className="flex items-center gap-1 border-t border-sidebar-border px-2 py-1.5">
-        <span className="text-[10px] text-muted-foreground/80">Plugins</span>
-        <span className="text-[10px] text-muted-foreground/40">·</span>
         <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/80">
           <span className="rounded border border-border px-1 py-px">SSH</span>
           <span className="rounded border border-border px-1 py-px">SSL</span>

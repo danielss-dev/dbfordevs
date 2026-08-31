@@ -10,7 +10,6 @@ import {
   Gear,
   Sun,
   Moon,
-  PuzzlePiece,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
@@ -32,7 +31,6 @@ type RailId =
   | "bookmarks"
   | "import"
   | "security"
-  | "plugins"
   | "theme"
   | "settings";
 
@@ -250,12 +248,6 @@ export function IconRail() {
       <div className="flex-1" />
 
       <div className="flex flex-col items-center gap-0.5">
-        <RailButton
-          id="plugins"
-          icon={<PuzzlePiece weight="regular" className="h-[18px] w-[18px]" />}
-          label="Plugins"
-          onClick={() => openSettingsWithTab("advanced")}
-        />
         <RailButton
           id="security"
           icon={<LockSimple weight="regular" className="h-[18px] w-[18px]" />}

@@ -22,29 +22,28 @@ import { useEffect, useState, useMemo } from "react";
 import { ThemeManagerDialog } from "@/components/themes";
 import { KeybindingEditor } from "./KeybindingEditor";
 import {
-  Monitor,
+  Desktop,
   Moon,
   Sun,
   Keyboard,
   User,
-  Settings2,
   Code,
   Info,
-  ExternalLink,
-  Github,
-  Search,
-  RotateCcw,
-  Settings,
+  ArrowSquareOut,
+  GithubLogo,
+  MagnifyingGlass,
+  ArrowCounterClockwise,
+  Gear,
   X,
-  Sparkles,
-  Bot,
-  Download,
-  RefreshCw,
+  Sparkle,
+  Robot,
+  DownloadSimple,
+  ArrowsClockwise,
   Table,
   Eye,
   Palette,
   Wrench,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { useAIStore } from "@/lib/ai/store";
 import { DbForDevsIcon } from "@/components/icons";
@@ -58,10 +57,10 @@ interface SettingRowProps {
 
 function SettingRow({ label, description, children }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between py-4">
-      <div className="space-y-1">
-        <Label className="text-sm font-medium">{label}</Label>
-        <p className="text-xs text-muted-foreground max-w-[280px]">{description}</p>
+    <div className="flex items-center justify-between gap-4 px-3 py-2.5">
+      <div className="space-y-0.5">
+        <Label className="text-[13px] font-medium">{label}</Label>
+        <p className="text-[11px] text-muted-foreground max-w-[280px]">{description}</p>
       </div>
       {children}
     </div>
@@ -91,13 +90,13 @@ function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabP
   } = useUpdaterStore();
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <div>
-        <h2 className="text-xl font-semibold mb-1">General</h2>
-        <p className="text-sm text-muted-foreground">Manage your application preferences.</p>
+        <h2 className="text-sm font-medium mb-0.5">General</h2>
+        <p className="text-xs text-muted-foreground">Manage your application preferences.</p>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-1">
+      <div className="rounded-md border border-border">
         <SettingRow
           label="Check for updates on startup"
           description="Automatically check for new versions when the app launches."
@@ -112,10 +111,10 @@ function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabP
 
         {/* Update section */}
         <Separator />
-        <div className="flex items-center justify-between py-4 px-3">
-          <div className="space-y-1">
-            <Label className="text-sm font-medium">Software Update</Label>
-            <p className="text-xs text-muted-foreground max-w-[280px]">
+        <div className="flex items-center justify-between gap-4 px-3 py-2.5">
+          <div className="space-y-0.5">
+            <Label className="text-[13px] font-medium">Software Update</Label>
+            <p className="text-[11px] text-muted-foreground max-w-[280px]">
               {error ? (
                 <span className="text-destructive">{error}</span>
               ) : available ? (
@@ -135,17 +134,17 @@ function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabP
               >
                 {downloading ? (
                   <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    <ArrowsClockwise weight="regular" className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                     {progress === -1 ? "Downloading..." : `Installing ${progress}%`}
                   </>
                 ) : error ? (
                   <>
-                    <RefreshCw className="mr-2 h-4 w-4" />
+                    <ArrowsClockwise weight="regular" className="mr-1.5 h-3.5 w-3.5" />
                     Retry Update
                   </>
                 ) : (
                   <>
-                    <Download className="mr-2 h-4 w-4" />
+                    <DownloadSimple weight="regular" className="mr-1.5 h-3.5 w-3.5" />
                     Update Now
                   </>
                 )}
@@ -159,12 +158,12 @@ function GeneralTab({ generalSettings, handleGeneralSettingChange }: GeneralTabP
               >
                 {checking ? (
                   <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    <ArrowsClockwise weight="regular" className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                     Checking...
                   </>
                 ) : (
                   <>
-                    <RefreshCw className="mr-2 h-4 w-4" />
+                    <ArrowsClockwise weight="regular" className="mr-1.5 h-3.5 w-3.5" />
                     Check for Updates
                   </>
                 )}
@@ -199,14 +198,14 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { value: "general", label: "General", icon: <User className="h-4 w-4" /> },
-  { value: "ai", label: "AI Assistant", icon: <Bot className="h-4 w-4" /> },
-  { value: "editor", label: "Editor", icon: <Code className="h-4 w-4" /> },
-  { value: "datagrid", label: "Data Grid", icon: <Table className="h-4 w-4" /> },
-  { value: "appearance", label: "Appearance", icon: <Sun className="h-4 w-4" /> },
-  { value: "keybindings", label: "Keybindings", icon: <Keyboard className="h-4 w-4" /> },
-  { value: "advanced", label: "Advanced", icon: <Settings className="h-4 w-4" /> },
-  { value: "about", label: "About", icon: <Info className="h-4 w-4" /> },
+  { value: "general", label: "General", icon: <User weight="regular" className="h-3.5 w-3.5" /> },
+  { value: "ai", label: "AI Assistant", icon: <Robot weight="regular" className="h-3.5 w-3.5" /> },
+  { value: "editor", label: "Editor", icon: <Code weight="regular" className="h-3.5 w-3.5" /> },
+  { value: "datagrid", label: "Data Grid", icon: <Table weight="regular" className="h-3.5 w-3.5" /> },
+  { value: "appearance", label: "Appearance", icon: <Sun weight="regular" className="h-3.5 w-3.5" /> },
+  { value: "keybindings", label: "Keybindings", icon: <Keyboard weight="regular" className="h-3.5 w-3.5" /> },
+  { value: "advanced", label: "Advanced", icon: <Gear weight="regular" className="h-3.5 w-3.5" /> },
+  { value: "about", label: "About", icon: <Info weight="regular" className="h-3.5 w-3.5" /> },
 ];
 
 interface SettingItem {
@@ -406,23 +405,17 @@ export function SettingsDialog() {
   return (
     <>
     <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
-      <DialogContent className="max-w-5xl gap-0 p-0 overflow-hidden sm:rounded-xl h-[700px]">
+      <DialogContent className="max-w-4xl gap-0 p-0 overflow-hidden sm:rounded h-[640px]">
         <div className="flex h-full w-full flex-col overflow-hidden">
-          {/* Header */}
-          <div className="border-b border-border bg-background/80 backdrop-blur-sm px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
-                <Settings2 className="h-4 w-4 text-primary" />
-              </div>
-              <h1 className="text-xl font-semibold">Settings</h1>
-            </div>
+          <div className="flex h-8 items-center border-b border-border px-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Settings
+            </span>
           </div>
 
-          {/* Main Content */}
           <div className="flex flex-1 overflow-hidden">
-            {/* Sidebar Navigation */}
-            <div className="w-56 border-r border-border bg-muted/30 flex flex-col overflow-hidden">
-              <ScrollArea className="flex-1 px-2 py-4">
+            <div className="w-48 border-r border-border bg-sidebar flex flex-col overflow-hidden">
+              <ScrollArea className="flex-1 px-1.5 py-1.5">
                 <nav className="space-y-0.5">
                   {filteredTabs.map((tab) => (
                     <button
@@ -431,12 +424,18 @@ export function SettingsDialog() {
                         setActiveTab(tab.value);
                       }}
                       className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm font-medium justify-start",
-                        activeTab === tab.value
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                        "relative w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] justify-start",
+                        "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                        activeTab === tab.value && "bg-[hsl(var(--sel))] text-primary"
                       )}
                     >
+                      {activeTab === tab.value && (
+                        <span
+                          aria-hidden
+                          className="absolute left-0 top-1/2 h-3.5 w-[2px] -translate-y-1/2 rounded-full bg-primary"
+                        />
+                      )}
                       {tab.icon}
                       {tab.label}
                     </button>
@@ -444,47 +443,45 @@ export function SettingsDialog() {
                 </nav>
               </ScrollArea>
 
-              {/* Search in sidebar footer */}
-              <div className="border-t border-border bg-muted/50 p-3">
+              <div className="border-t border-border p-1.5">
                 {searchOpen ? (
-                  <div className="relative flex items-center gap-2">
+                  <div className="relative flex items-center gap-1">
                     <Input
                       placeholder="Search settings..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       autoFocus
-                      className="h-8 text-sm"
+                      className="h-7 text-xs"
                     />
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-7 w-7"
                       onClick={() => {
                         setSearchOpen(false);
                         setSearchQuery("");
                       }}
                     >
-                      <X className="h-4 w-4" />
+                      <X weight="regular" className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2 h-8 text-xs"
+                  <button
+                    type="button"
+                    className="flex h-7 w-full items-center gap-1.5 rounded border border-border px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/60"
                     onClick={() => setSearchOpen(true)}
                   >
-                    <Search className="h-3.5 w-3.5" />
-                    <span className="flex-1 text-left">Search...</span>
-                    <kbd>Cmd+F</kbd>
-                  </Button>
+                    <MagnifyingGlass weight="regular" className="h-3 w-3" />
+                    <span className="flex-1 text-left">Search…</span>
+                    <kbd>⌘F</kbd>
+                  </button>
                 )}
               </div>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden bg-background">
               <ScrollArea className="flex-1">
-                <div className="p-8 max-w-2xl">
+                <div className="p-5 max-w-2xl">
                   {/* General Tab */}
                   {activeTab === "general" && (
                     <GeneralTab
@@ -498,15 +495,15 @@ export function SettingsDialog() {
                     const { settings, updateSettings } = useAIStore.getState();
 
                     return (
-                      <div className="space-y-6 animate-fade-in">
+                      <div className="space-y-4 animate-fade-in">
                         <div>
-                          <h2 className="text-xl font-semibold mb-1">AI Assistant</h2>
-                          <p className="text-sm text-muted-foreground">
+                          <h2 className="text-sm font-medium mb-0.5">AI Assistant</h2>
+                          <p className="text-xs text-muted-foreground">
                             Configure AI-powered SQL generation and assistance.
                           </p>
                         </div>
 
-                        <div className="rounded-xl border border-border bg-card p-1">
+                        <div className="rounded-md border border-border">
                           <SettingRow
                             label="Enable AI Assistant"
                             description="Enable or disable the AI Assistant feature throughout the application."
@@ -528,15 +525,15 @@ export function SettingsDialog() {
 
                         {settings.aiEnabled && (
                           <>
-                            <div className="rounded-xl border border-border bg-muted/50 p-4">
-                              <div className="flex items-start gap-3">
-                                <Bot className="h-5 w-5 text-primary mt-0.5" />
-                                <div className="flex-1 space-y-2">
-                                  <h3 className="font-medium text-sm">Configure AI Settings</h3>
-                                  <p className="text-xs text-muted-foreground leading-relaxed">
-                                    To configure your AI provider, API keys, and model preferences, click the
-                                    <Sparkles className="inline h-3.5 w-3.5 mx-1 text-primary" />
-                                    icon in the sidebar to open the AI Assistant panel, then click the settings icon.
+                            <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
+                              <div className="flex items-start gap-2.5">
+                                <Robot weight="regular" className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                <div className="flex-1 space-y-1">
+                                  <h3 className="font-medium text-[13px]">Configure AI Settings</h3>
+                                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    Open the
+                                    <Sparkle weight="regular" className="inline h-3 w-3 mx-1 text-primary" />
+                                    AI Assistant panel in the rail, then use its settings icon to set provider, API keys, and model.
                                   </p>
                                 </div>
                               </div>
@@ -546,10 +543,10 @@ export function SettingsDialog() {
                               const { historySettings, updateHistorySettings } = useAIStore.getState();
 
                               return (
-                                <div className="rounded-xl border border-border bg-card p-1">
-                                  <div className="px-4 py-3 border-b border-border">
-                                    <h3 className="font-medium text-sm">Chat History Cleanup</h3>
-                                    <p className="text-xs text-muted-foreground mt-1">
+                                <div className="rounded-md border border-border">
+                                  <div className="px-3 py-2 border-b border-border">
+                                    <h3 className="micro-label">Chat History Cleanup</h3>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">
                                       Automatically manage your chat history storage
                                     </p>
                                   </div>
@@ -630,13 +627,13 @@ export function SettingsDialog() {
 
                   {/* Editor Tab */}
                   {activeTab === "editor" && (
-                    <div className="space-y-6 animate-fade-in">
+                    <div className="space-y-4 animate-fade-in">
                       <div>
-                        <h2 className="text-xl font-semibold mb-1">Editor</h2>
-                        <p className="text-sm text-muted-foreground">Configure the SQL editor experience.</p>
+                        <h2 className="text-sm font-medium mb-0.5">Editor</h2>
+                        <p className="text-xs text-muted-foreground">Configure the SQL editor experience.</p>
                       </div>
 
-                      <div className="rounded-xl border border-border bg-card p-1">
+                      <div className="rounded-md border border-border">
                         <SettingRow
                           label="Font Family"
                           description="The font used in the SQL editor."
@@ -731,14 +728,14 @@ export function SettingsDialog() {
                       </div>
 
                       {/* SQL Formatter Settings */}
-                      <div className="mt-6">
-                        <h3 className="text-lg font-medium mb-3">SQL Formatter</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
+                      <div className="pt-2">
+                        <h3 className="micro-label mb-1">SQL Formatter</h3>
+                        <p className="text-[11px] text-muted-foreground mb-3">
                           Configure how SQL is formatted when using Shift+Alt+F or the Format button.
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-border bg-card p-1">
+                      <div className="rounded-md border border-border">
                         <SettingRow
                           label="Keyword Case"
                           description="How SQL keywords like SELECT, FROM, WHERE are formatted."
@@ -825,13 +822,13 @@ export function SettingsDialog() {
 
                   {/* Appearance Tab */}
                   {activeTab === "appearance" && (
-                    <div className="space-y-6 animate-fade-in">
+                    <div className="space-y-4 animate-fade-in">
                       <div>
-                        <h2 className="text-xl font-semibold mb-1">Appearance</h2>
-                        <p className="text-sm text-muted-foreground">Customize how dbfordevs looks on your screen.</p>
+                        <h2 className="text-sm font-medium mb-0.5">Appearance</h2>
+                        <p className="text-xs text-muted-foreground">Customize how dbfordevs looks on your screen.</p>
                       </div>
 
-                      <div className="rounded-xl border border-border bg-card p-1">
+                      <div className="rounded-md border border-border">
                         <SettingRow
                           label="Theme"
                           description="Choose a color theme for the interface."
@@ -843,7 +840,7 @@ export function SettingsDialog() {
                             <SelectContent>
                               <SelectItem value="system">
                                 <div className="flex items-center gap-2">
-                                  <Monitor className="h-4 w-4" />
+                                  <Desktop weight="regular" className="h-3.5 w-3.5" />
                                   <span>System</span>
                                 </div>
                               </SelectItem>
@@ -986,7 +983,7 @@ export function SettingsDialog() {
                             size="sm"
                             onClick={() => setShowThemeManager(true)}
                           >
-                            <Wrench className="h-4 w-4 mr-2" />
+                            <Wrench weight="regular" className="h-3.5 w-3.5 mr-1.5" />
                             Manage Themes
                           </Button>
                         </SettingRow>
@@ -1034,13 +1031,13 @@ export function SettingsDialog() {
                     const { historySettings, updateHistorySettings, cleanupOldHistory } = useQueryStore.getState();
 
                     return (
-                      <div className="space-y-6 animate-fade-in">
+                      <div className="space-y-4 animate-fade-in">
                         <div>
-                          <h2 className="text-xl font-semibold mb-1">Advanced</h2>
-                          <p className="text-sm text-muted-foreground">Advanced settings for power users.</p>
+                          <h2 className="text-sm font-medium mb-0.5">Advanced</h2>
+                          <p className="text-xs text-muted-foreground">Advanced settings for power users.</p>
                         </div>
 
-                        <div className="rounded-xl border border-border bg-card p-1">
+                        <div className="rounded-md border border-border">
                           <SettingRow
                             label="Developer Mode"
                             description="Enable additional debugging information and console logging."
@@ -1069,7 +1066,7 @@ export function SettingsDialog() {
                                 });
                               }}
                             >
-                              <RotateCcw className="h-4 w-4 mr-2" />
+                              <ArrowCounterClockwise weight="regular" className="h-3.5 w-3.5 mr-1.5" />
                               Reset
                             </Button>
                           </SettingRow>
@@ -1094,14 +1091,14 @@ export function SettingsDialog() {
                         </div>
 
                         {/* Query History Settings */}
-                        <div className="mt-6">
-                          <h3 className="text-lg font-medium mb-3">Query History</h3>
-                          <p className="text-sm text-muted-foreground mb-4">
+                        <div className="pt-2">
+                          <h3 className="micro-label mb-1">Query History</h3>
+                          <p className="text-[11px] text-muted-foreground mb-3">
                             Configure how query history is stored and cleaned up.
                           </p>
                         </div>
 
-                        <div className="rounded-xl border border-border bg-card p-1">
+                        <div className="rounded-md border border-border">
                           <SettingRow
                             label="Auto-cleanup enabled"
                             description="Automatically remove old queries based on age and count limits."
@@ -1188,64 +1185,54 @@ export function SettingsDialog() {
 
                   {/* About Tab */}
                   {activeTab === "about" && (
-                    <div className="flex flex-col items-center justify-center py-12 text-center animate-fade-in">
-                      <div className="relative mb-6">
-                        <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl" />
-                        <div className="relative bg-primary/10 w-20 h-20 rounded-2xl flex items-center justify-center ring-8 ring-primary/5">
-                          <DbForDevsIcon className="h-10 w-10 text-primary" />
-                        </div>
-                      </div>
-                      <h2 className="text-2xl font-bold tracking-tight">dbfordevs</h2>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="info" className="rounded-full px-2 py-0.5 font-medium">v{version || "..."}</Badge>
-                        <Badge variant="secondary" className="rounded-full px-2 py-0.5 font-medium">Alpha</Badge>
+                    <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+                      <DbForDevsIcon className="mb-3 h-8 w-8 text-muted-foreground/50" />
+                      <h2 className="text-base font-medium">dbfordevs</h2>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <Badge variant="info" className="rounded px-1.5 py-0 font-medium">v{version || "..."}</Badge>
+                        <Badge variant="secondary" className="rounded px-1.5 py-0 font-medium">Alpha</Badge>
                       </div>
 
-                      <div className="mt-8 max-w-sm space-y-4">
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                          A modern, lightweight database management tool designed specifically for developer workflows.
-                        </p>
+                      <p className="mt-4 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                        A lightweight database tool for developer workflows.
+                      </p>
 
-                        <div className="flex items-center justify-center gap-3 pt-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                            onClick={async () => {
-                              try {
-                                await open("https://github.com/danielss-dev/dbfordevs");
-                              } catch (error) {
-                                console.error("Failed to open URL:", error);
-                              }
-                            }}
-                          >
-                            <Github className="h-4 w-4" />
-                            GitHub
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                            onClick={async () => {
-                              try {
-                                await open("https://www.dbfordevs.app/docs");
-                              } catch (error) {
-                                console.error("Failed to open URL:", error);
-                              }
-                            }}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            Documentation
-                          </Button>
-                        </div>
-
-                        <Separator className="my-6" />
-
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          <p>Built with Tauri, React, and Rust</p>
-                          <p className="text-muted-foreground/60">2025 dbfordevs Team</p>
-                        </div>
+                      <div className="flex items-center justify-center gap-2 pt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1.5 text-xs"
+                          onClick={async () => {
+                            try {
+                              await open("https://github.com/danielss-dev/dbfordevs");
+                            } catch (error) {
+                              console.error("Failed to open URL:", error);
+                            }
+                          }}
+                        >
+                          <GithubLogo weight="regular" className="h-3.5 w-3.5" />
+                          GitHub
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1.5 text-xs"
+                          onClick={async () => {
+                            try {
+                              await open("https://www.dbfordevs.app/docs");
+                            } catch (error) {
+                              console.error("Failed to open URL:", error);
+                            }
+                          }}
+                        >
+                          <ArrowSquareOut weight="regular" className="h-3.5 w-3.5" />
+                          Documentation
+                        </Button>
                       </div>
+
+                      <p className="mt-6 text-[11px] text-muted-foreground/70">
+                        Tauri · React · Rust · 2026
+                      </p>
                     </div>
                   )}
                 </div>

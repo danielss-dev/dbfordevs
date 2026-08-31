@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, ExternalLink, Settings2, Sparkles, Cpu, Brain } from "lucide-react";
+import { Eye, EyeOff, ExternalLink, Sparkles, Cpu, Brain } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -165,12 +165,7 @@ export function AISettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Settings2 className="h-4 w-4" />
-            </div>
-            AI Assistant Settings
-          </DialogTitle>
+          <DialogTitle>AI Assistant Settings</DialogTitle>
           <DialogDescription>
             Configure your AI provider, models, and generation parameters.
           </DialogDescription>
