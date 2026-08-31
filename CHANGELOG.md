@@ -2,6 +2,15 @@
 
 All notable changes to dbfordevs are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-08-31
+
+### Added
+- Instrument + Calm hybrid redesign (DAN-59) (#92)
+
+### Changed
+- UI/UX overhaul: design system, semantic tokens, environment accent (#91)
+- Update AI model lists and migrate deprecated model IDs
+
 ## [0.7.1] - 2026-03-23
 
 ### Added
