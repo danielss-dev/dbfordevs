@@ -68,11 +68,23 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'ubuntu-22.04' && 'x86_64-unknown-linux-gnu' || '' }}
 
+      # Windows Authenticode (docs/windows-signing.md): Tauri signs
+      # dbfordevs.exe, the MSI and the NSIS installer through
+      # scripts/windows-sign.ps1.
+      - name: windows signing client
+        id: winsign
+        if: matrix.platform == 'windows-latest' && vars.WINDOWS_SIGNING == 'true'
+        shell: pwsh
+        run: ./scripts/windows-signing-client.ps1
+
       - name: build and release
         uses: tauri-apps/tauri-action@v0
         timeout-minutes: 60
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AZURE_CLIENT_ID: ${{ steps.winsign.outcome == 'success' && secrets.AZURE_SIGNING_CLIENT_ID || '' }}
+          AZURE_TENANT_ID: ${{ steps.winsign.outcome == 'success' && secrets.AZURE_SIGNING_TENANT_ID || '' }}
+          AZURE_CLIENT_SECRET: ${{ steps.winsign.outcome == 'success' && secrets.AZURE_SIGNING_CLIENT_SECRET || '' }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -88,5 +100,25 @@ jobs:
           releaseDraft: false
           prerelease: false
           updaterJsonKeepUniversal: true
-          args: ${{ matrix.platform == 'ubuntu-22.04' && '--target x86_64-unknown-linux-gnu' || '' }}
+          args: ${{ steps.winsign.outputs.tauri_args || (matrix.platform == 'ubuntu-22.04' && '--target x86_64-unknown-linux-gnu' || '') }}
+
+      - name: verify windows signatures
+        if: steps.winsign.outcome == 'success'
+        shell: pwsh
+        run: |
+          # The installers, and every executable the MSI installs (an
+          # administrative install unpacks it without running it).
+          $files = @(Get-ChildItem target/release/bundle/msi -Filter '*.msi') + @(Get-ChildItem target/release/bundle/nsis -Filter '*.exe')
+          if (!$files.Count) { throw 'No Windows installers found.' }
+          foreach ($msi in @($files | Where-Object Extension -eq '.msi')) {
+            $unpacked = Join-Path $env:RUNNER_TEMP "msi-$($msi.BaseName)"
+            $process = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @('/a', "`"$($msi.FullName)`"", '/qn', "TARGETDIR=`"$unpacked`"")
+            if ($process.ExitCode -ne 0) { throw "Could not unpack $($msi.Name): $($process.ExitCode)" }
+            $files += @(Get-ChildItem $unpacked -Recurse -Filter '*.exe')
+          }
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            if ($signature.Status -ne 'Valid') { throw "$($file.Name) signature is $($signature.Status): $($signature.StatusMessage)" }
+            Write-Host "$($file.Name): $($signature.SignerCertificate.Subject)"
+          }
 
